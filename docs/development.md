@@ -47,7 +47,10 @@ git clone --depth 1 --branch 2026.11.2 \
 .venv-ha/bin/python -m pip install /tmp/ha-core-validator/packages/hassfest tqdm
 ```
 
-From `/tmp/ha-core-validator`, use the Python's absolute `.venv-ha` and runs `-m script.hassfest --action validate --integration-path <absolute_path>/custom_components/roomba_home`. The [CI configuration](../.github/workflows/validate.yml) run the same sequence without credentials and has been put into practice remotely as a result of its non-publication.
+From `/tmp/ha-core-validator`, use the absolute path to `.venv-ha/bin/python`
+to run `-m script.hassfest --action validate --integration-path
+<absolute_path>/custom_components/roomba_home`. GitHub Actions runs the same
+validation without account credentials. [CI configuration](../.github/workflows/validate.yml)
 
 ## Private entrance for actual testing
 

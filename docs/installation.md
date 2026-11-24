@@ -36,6 +36,7 @@ Open the integration's options to change which robots Home Assistant manages.
 Keep at least one selected. Deselecting a robot stops its reads and controls.
 Reselecting it restores its existing entities and saved cleaning preferences.
 **Show saved floor plans and live room updates** is off by default.
+[Set up the interactive floor plan](../README.md#floor-plan-dashboard) ·
 [Map and progress details](telemetry.md#how-to-interpret-progress)
 
 ## Removal and upgrades
@@ -64,6 +65,7 @@ isolated rollback, 0.1.0 restored the original twelve entities. Reinstalling
 | 0.7.0 | Backed up 0.5.0 and passed the Core configuration check. Registered three robots, three docks, and 453 entities, and exposed **Vacuum a map point**. [Validation](validation.md#home-assistant-action-in-070) |
 | 0.10.0 | Registered three robots, three docks, and 470 entities. [Validation](validation.md#home-installation-of-0100) |
 | 0.11.0 | Verified three robots and three docks, enabled maps, and tested one robot's live position, room, path, and return to dock. [Validation](validation.md#home-installation-and-live-map-test-of-0110) |
+| 0.12.1 | Verified three robots, three docks, and 487 entities. Tested live room measurements and dashboard-based room selection. [Validation](validation.md#mission-detail-and-dashboard-validation) |
 
 ## Troubleshooting
 
@@ -78,6 +80,7 @@ isolated rollback, 0.1.0 restored the original twelve entities. Reinstalling
 | Mission paused | Start resumes the same mission. To change modes, cancel that mission first. |
 | Start or dock action blocked | Check preparation, bins, tanks, and the problem code. [Problem events](telemetry.md#problems-and-events) |
 | Region unavailable | Verify it is still in the active saved map and check the Home Assistant area assignment. |
+| Custom card unavailable after upgrading | Check the JavaScript module URL and reload the browser once Core has finished starting. |
 | Rate limit or connection failure | Polling follows the provider's Retry-After or the coordinator's backoff. |
 
 Include a description and sanitized Home Assistant diagnostics in issue

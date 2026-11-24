@@ -8,16 +8,24 @@ syntax checks passed. Chrome rendered the actual card using synthetic map
 data and exercised zoom, review, cancellation, and confirmed service dispatch.
 [Screenshots](../README.md#floor-plan-dashboard)
 
-The household dashboard on 0.12.0 displayed two saved floor plans and
-Roomba's live room updates. A confirmed single-room selection began vacuuming
-on the intended robot. An independent Roomba read confirmed the running
-phase and zero mission errors. No movement was requested on the third robot.
+The household installation verified the 0.12.1 archive, passed `ha core check`,
+and restarted Core. The integration listed three robots, three docks, and 487
+entities. The 0.12.0 component is available as the immediate rollback. The
+dashboard displayed two saved floor plans and Roomba's live room updates.
+
+A confirmed single-room selection from the dashboard ran on the intended
+robot, returned to its dock, and published a completed vacuum mission with
+one room result. Independent Roomba readings matched the mission start and
+reported zero mission errors. No movement was requested on the third robot.
 
 An active sequential mission provided a matched timeline reply containing room
-area readings and pass counts in the active event list. The reply supplied no
-future events. An earlier capture also verified real position batches during a
-targeted cleaning mission. The integration reports observed progress. There
-is no validated live countdown, coverage percentage, or room area unit.
+area readings and pass counts in the active event list. The installed card
+showed four room measurements from a fresh report. During a pause, the same
+mission returned a `pause` event and five room readings. The robot resumed
+that mission after the Home Assistant resume action. Both timeline replies
+had empty future event lists. An earlier capture verified position batches
+during targeted cleaning. Live countdown, coverage percentage, and room area
+units still require provider evidence.
 [Prior capture evidence](evidence/2026-11-24-live-progress.json)
 
 ## Local rendering checks for 0.11.1
