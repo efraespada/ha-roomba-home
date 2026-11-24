@@ -9,10 +9,12 @@ from homeassistant.helpers import service
 from .const import DOMAIN
 from .core.cleaning import CleaningMode
 from .core.point_maps import room_fraction
+from .core.routines import ROUTINE_ID
 from .core.schedules import SCHEDULE_ID, WALL_TIME
 
 REGION_ID = vol.All(str, vol.Length(min=1, max=270))
 WEEKLY_SCHEDULE_ID = vol.All(str, vol.Match(SCHEDULE_ID.pattern + r"\Z"))
+SAVED_ROUTINE_ID = vol.All(str, vol.Match(ROUTINE_ID.pattern + r"\Z"))
 REGION_FIELDS = {
     vol.Required("id"): REGION_ID,
     vol.Optional("suction_level"): vol.All(int, vol.Range(min=1, max=99)),
@@ -136,5 +138,48 @@ def async_setup_services(hass):
         entity_domain=VACUUM_DOMAIN,
         schema={vol.Required("schedule_id"): WEEKLY_SCHEDULE_ID},
         func="async_remove_cleaning_schedule",
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        "list_cleaning_routines",
+        entity_domain=VACUUM_DOMAIN,
+        schema=None,
+        func="async_list_cleaning_routines",
+        supports_response=SupportsResponse.ONLY,
+    )
+    name = vol.All(str, vol.Length(min=1, max=120))
+    regions = vol.All([SCHEDULE_REGION], vol.Length(min=1, max=32))
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        "create_cleaning_routine",
+        entity_domain=VACUUM_DOMAIN,
+        required_features=[VacuumEntityFeature.CLEAN_AREA],
+        schema={vol.Required("name"): name, vol.Required("regions"): regions},
+        func="async_create_cleaning_routine",
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        "update_cleaning_routine",
+        entity_domain=VACUUM_DOMAIN,
+        schema={
+            vol.Required("routine_id"): SAVED_ROUTINE_ID,
+            vol.Optional("name"): name,
+            vol.Optional("regions"): regions,
+        },
+        func="async_update_cleaning_routine",
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        "remove_cleaning_routine",
+        entity_domain=VACUUM_DOMAIN,
+        schema={vol.Required("routine_id"): SAVED_ROUTINE_ID},
+        func="async_remove_cleaning_routine",
         supports_response=SupportsResponse.OPTIONAL,
     )

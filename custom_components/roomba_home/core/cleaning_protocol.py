@@ -126,3 +126,13 @@ def cleaning_parameters(profile: CleaningProfile) -> dict:
     if profile.two_pass is not None:
         value["twoPass"] = profile.two_pass
     return value
+
+
+def regional_cleaning_parameters(profile: CleaningProfile) -> dict:
+    """Serialize the profile for a saved routine or weekly schedule."""
+    params = cleaning_parameters(profile)
+    if profile.mode is CleaningMode.VACUUM_MOP:
+        params["operatingMode"] = 32
+    if profile.mode is CleaningMode.VACUUM_THEN_MOP:
+        params["routine_modified"] = True
+    return params

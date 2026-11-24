@@ -22,8 +22,11 @@ uses Roomba's own cloud services for device data and control.
   elapsed time, connectivity timestamp, and recent position. The last
   mission includes outcomes, area values, and pass counts per reported room.
   Fresh timeline replies add the current stage and in-progress room readings.
-- **Schedules and maintenance.** Manage weekly schedules, inspect consumables,
-  and automate robot and dock problem alerts and mission-finished events.
+- **Routines and schedules.** List, create, edit, and remove saved cleaning
+  routines. Manage weekly schedules with independent calendar triggers.
+  [Saved routine actions](docs/usage.md#saved-cleaning-routines)
+- **Maintenance and alerts.** Inspect consumables and automate robot and dock
+  problem alerts and mission-finished events.
 - **Multiple robots.** Choose the robots to manage in a single account.
   Preferences and entity IDs survive deselection and re-enabling.
 
@@ -41,7 +44,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.12.1` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.13.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Enable Advanced Mode in your user
    profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
 3. Add a manual card with your robot's vacuum entity.

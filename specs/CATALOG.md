@@ -18,7 +18,8 @@ debt or convert unknown historic intent into a design decision.
 | `cleaning-profiles` | Proposed | Capability-based mode and parameter combinations, next-cleaning controls, and physical confirmation | [Cleaning modes and profiles](./006-cleaning-profiles.md) | 25 paths · 2026-11-23 |
 | `device-capabilities` | Proposed | Shared discovery, device coordination, dock actions, regions, recovery, and live map position | [Capability&#45;driven integration](./007-device-capabilities.md) | 38 paths · 2026-11-23 |
 | `mission-detail-and-map-card` | Proposed | Per-room history, live progress, dashboard selection, and household checks | [Mission Detail and Interactive Floor Maps](./008-mission-detail-and-map-card.md) | 17 paths · 2026-11-24 |
-| `map-zone-editor` | Proposed | Draft, validate, and confirm changes to saved cleaning zones | [Map Zone Editor](./009-map-zone-editor.md) | 2 paths · 2026-11-24 |
+| `map-zone-editor` | Proposed | Verified edits to saved zones, room names, and room boundaries | [Map and Zone Editor](./009-map-zone-editor.md) | 2 paths · 2026-11-24 |
+| `saved-cleaning-routines` | Implemented | Edition-aware listing, creation, update, and removal of one-robot routines | [Saved Cleaning Routines](./010-saved-cleaning-routines.md) | 11 paths · 2026-11-24 |
 
 ## Evidence map
 
@@ -110,7 +111,7 @@ debt or convert unknown historic intent into a design decision.
 - Tests: [`tests/test_history.py`](../tests/test_history.py) · [`tests/test_mqtt.py`](../tests/test_mqtt.py) · [`tests/ha/test_live_map_entities.py`](../tests/ha/test_live_map_entities.py) · [`tests/ha/test_roomba_map_api.py`](../tests/ha/test_roomba_map_api.py)
 - User documentation: [`README.md`](../README.md) · [`docs/usage.md`](../docs/usage.md) · [`docs/telemetry.md`](../docs/telemetry.md) · [`docs/validation.md`](../docs/validation.md) · [`docs/evidence/2026-11-24-live-progress.json`](../docs/evidence/2026-11-24-live-progress.json)
 
-### `map-zone-editor` — Map Zone Editor
+### `map-zone-editor` — Map and Zone Editor
 
 - Owner: ha-roomba-home maintainer
 - Last verified: 2026-11-24
@@ -120,6 +121,17 @@ debt or convert unknown historic intent into a design decision.
 - Core code: Not yet implemented (proposed capability).
 - Tests: Not yet implemented (proposed capability).
 - User documentation: [`docs/validation.md`](../docs/validation.md) · [`docs/api.md`](../docs/api.md)
+
+### `saved-cleaning-routines` — Saved Cleaning Routines
+
+- Owner: ha-roomba-home maintainer
+- Last verified: 2026-11-24
+- Specifications: [`specs/010-saved-cleaning-routines.md`](./010-saved-cleaning-routines.md)
+- Workflows: [`.github/workflows/validate.yml`](../.github/workflows/validate.yml)
+- Entrypoints: [`custom_components/roomba_home/services.py`](../custom_components/roomba_home/services.py) · [`custom_components/roomba_home/vacuum.py`](../custom_components/roomba_home/vacuum.py)
+- Core code: [`custom_components/roomba_home/core/routines.py`](../custom_components/roomba_home/core/routines.py) · [`custom_components/roomba_home/core/client.py`](../custom_components/roomba_home/core/client.py)
+- Tests: [`tests/test_api_client.py`](../tests/test_api_client.py) · [`tests/ha/test_schedules.py`](../tests/ha/test_schedules.py)
+- User documentation: [`README.md`](../README.md) · [`docs/api.md`](../docs/api.md) · [`docs/usage.md`](../docs/usage.md) · [`docs/validation.md`](../docs/validation.md)
 
 ## Maintenance contract
 

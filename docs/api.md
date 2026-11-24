@@ -248,6 +248,21 @@ integration exposes the raw area values until a provider unit is confirmed.
 Live coverage and remaining time need further evidence.
 [Map and timeline evidence](evidence/2026-11-24-live-progress.json)
 
+## Saved cleaning routines
+
+The native favorites collection uses `GET` and `POST /v1/user/favorites`.
+Change and remove operations use `PUT` and `DELETE /v1/user/favorites/{id}`.
+All four operations use `app_edition=1` in the query string. Without the query,
+the tested update and remove paths returned HTTP 404. Roomba assigns the
+saved `favorite_id` at creation.
+
+The observed routine has a `commanddefs` array containing a direct `start`
+command with an associated `robot_id`. Mapped regions refer to the current
+`p2map_id` and `user_p2mapv_id` and retain their ordering and individual
+parameters. A rename preserves unmodified provider fields. Replacing regions
+invalidates the former time estimates. A full collection read confirms changes.
+[Saved routines SDD](../specs/010-saved-cleaning-routines.md)
+
 ## Primary sources
 
 The concrete authentication and Shadow names come from capture of the app as well with its native SDK. The repository does not have an APK and its code broken down. For transport rules have been consulted [AWS SigV4 firm](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv-create-signed-request.html), [custom authentication of AWS IoT](https://docs.aws.amazon.com/iot/latest/developerguide/custom-auth.html) and [Device Shadow's themes](https://docs.aws.amazon.com/iot/latest/developerguide/device-shadow-mqtt.html).

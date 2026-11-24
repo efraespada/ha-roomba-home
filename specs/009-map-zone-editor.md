@@ -1,20 +1,20 @@
-# Map Zone Editor
+# Map and Zone Editor
 
 - Status: Draft
 - Date: 2026-11-24
 - Catalog capability ID: map-zone-editor
 - Last verified: Not applicable
 - Owners: ha-roomba-home maintainer
-- Scope: Preview and save changes to cleaning zones on an associated Roomba floor plan.
+- Scope: Preview and save changes to zones, room names, and room boundaries on an associated Roomba floor plan.
 - Related issues/PRs: Follow-up to the interactive floor plan.
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
 - Open decisions blocking readiness: Confirm the Max 700 write protocol, revision checks, geometry limits, and recovery behavior.
 
 ## 1. Executive summary
 
-Edit a saved cleaning zone in Home Assistant with a preview of the exact
-shape Roomba will receive. Save only after explicit confirmation and verify
-the resulting map revision through Roomba.
+Edit a saved Roomba floor plan in Home Assistant with a preview of the exact
+change the robot will receive. Save only after explicit confirmation and
+verify the resulting map revision through Roomba.
 
 ## 2. Problem, current behavior, and evidence
 
@@ -36,7 +36,9 @@ and revision. A saved zone is a provider-confirmed region with its own ID.
 - EDIT-01: Preview a new or changed cleaning zone using the existing floor plan.
 - EDIT-02: Save a named zone, or move, resize, rename, and remove an existing zone when the provider supports those operations.
 - EDIT-03: Keep the map and settings consistent across stale revisions, ambiguous results, and concurrent edits.
-- Floor deletion and changes to room boundaries, keep-out zones, and no-mop zones require separate provider validation and acceptance scenarios.
+- EDIT-04: Rename rooms, divide a room with a valid boundary, and merge adjacent rooms where the provider supports it.
+- EDIT-05: Edit keep-out and no-mop zones after verifying their write contracts independently of cleaning zones.
+- Floor deletion, bulk edits, and cross-floor copies require a separately verified operations contract.
 - Roomba remains the owner of robot and map data. Editing a map never starts a cleaning mission.
 
 ## 5. Current versus proposed product journey
@@ -57,6 +59,10 @@ draft, confirm the edit, and verify the resulting revision.
 Start a draft from a specific saved floor and revision. Validate the geometry
 against provider limits, the floor outline, and applicable restrictions.
 Show the current and proposed shape and allow cancellation before saving.
+For a division, verify that the proposed boundary crosses the selected room
+and results in two valid polygons. Show both resulting rooms before saving.
+For a merge, require adjacent rooms and preview the surviving name. Flag
+affected routines and schedules whose stored targets may require review.
 The backend re-reads the map under a robot-scoped lock. If the revision has
 changed, leave the draft available for review against the new map. Show
 **Saved** after reading a new revision containing the expected zone. If a
@@ -129,6 +135,9 @@ screenshots.
 3. Cancel or reject an out-of-bounds edit without changing the map.
 4. Detect a stale revision and preserve the draft for review.
 5. Remove the designated test zone and confirm the floor remains usable.
+6. Rename one room, then verify the rest of the map and linked targets.
+7. Split a test room, validate both resulting regions, then merge them if the verified protocol permits recovery.
+8. Preview the effects on dependent routines before changing a referenced target.
 
 ## 17. Requirements traceability
 
@@ -137,12 +146,16 @@ screenshots.
 | EDIT-01 | [Floor plan card](008-mission-detail-and-map-card.md) | Synthetic UI and geometry tests |
 | EDIT-02 | [Roomba API](../docs/api.md) | One confirmed write and read-back per operation |
 | EDIT-03 | [Command validation](004-command-validation.md) | Conflict, failure, and idempotency tests |
+| EDIT-04 and EDIT-05 | [Map API](../docs/api.md) | Per-operation provider exchange, geometry comparison, and target checks |
 
 ## 18. Implementation sequence
 
 Capture and verify the official app's successful add and remove operations.
 Build the write adapter and its synthetic tests. Add the visual draft and
 confirmation, then validate a disposable zone on the household installation.
+Verify room rename, split, merge, and restriction edits independently before
+making each available. A dependency preview and an editable copy of a routine
+are useful additions when the API can reliably expose the affected targets.
 
 ## 19. Definition of Done
 

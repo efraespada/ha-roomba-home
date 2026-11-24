@@ -317,9 +317,9 @@
     },
     {
       "id": "map-zone-editor",
-      "title": "Map Zone Editor",
+      "title": "Map and Zone Editor",
       "status": "proposed",
-      "scope": "Draft, validate, and confirm changes to saved cleaning zones",
+      "scope": "Verified edits to saved zones, room names, and room boundaries",
       "owner": "ha-roomba-home maintainer",
       "lastVerified": "2026-11-24",
       "specs": [
@@ -333,6 +333,38 @@
       "entrypoints": [],
       "code": [],
       "tests": []
+    },
+    {
+      "id": "saved-cleaning-routines",
+      "title": "Saved Cleaning Routines",
+      "status": "implemented",
+      "scope": "Edition-aware listing, creation, update, and removal of one-robot routines",
+      "owner": "ha-roomba-home maintainer",
+      "lastVerified": "2026-11-24",
+      "specs": [
+        "specs/010-saved-cleaning-routines.md"
+      ],
+      "workflows": [
+        ".github/workflows/validate.yml"
+      ],
+      "entrypoints": [
+        "custom_components/roomba_home/services.py",
+        "custom_components/roomba_home/vacuum.py"
+      ],
+      "code": [
+        "custom_components/roomba_home/core/routines.py",
+        "custom_components/roomba_home/core/client.py"
+      ],
+      "tests": [
+        "tests/test_api_client.py",
+        "tests/ha/test_schedules.py"
+      ],
+      "documentation": [
+        "README.md",
+        "docs/api.md",
+        "docs/usage.md",
+        "docs/validation.md"
+      ]
     }
   ]
 }

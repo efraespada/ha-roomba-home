@@ -113,6 +113,23 @@ class RoombaVacuum(RoombaEntity, StateVacuumEntity):
     async def async_remove_cleaning_schedule(self, schedule_id):
         return await self.account.async_remove_cleaning_schedule(self.robot_id, schedule_id)
 
+    async def async_list_cleaning_routines(self):
+        return await self.account.async_list_cleaning_routines(self.robot_id)
+
+    async def async_create_cleaning_routine(self, name, regions):
+        return await self.account.async_create_cleaning_routine(
+            self.robot_id, name, self._region_selections(regions)
+        )
+
+    async def async_update_cleaning_routine(self, routine_id, name=None, regions=None):
+        selections = self._region_selections(regions) if regions is not None else None
+        return await self.account.async_update_cleaning_routine(
+            self.robot_id, routine_id, name, selections
+        )
+
+    async def async_remove_cleaning_routine(self, routine_id):
+        return await self.account.async_remove_cleaning_routine(self.robot_id, routine_id)
+
     async def async_clean_regions(self, regions, **kwargs):
         identifiers, overrides = self._region_selections(regions)
         await self.account.async_command(

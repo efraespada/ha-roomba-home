@@ -271,6 +271,35 @@ data:
 identifier shall be activated or disabled. The three exchange and release actions confirm
 the result by re-viewing his robot's list.
 
+## Saved cleaning routines
+
+Use **List cleaning routines** for a vacuum to get its saved routine names,
+identifiers, regions, and editability. The response includes recognized
+single-robot start routines. Weekly schedules have separate actions.
+
+**Create a cleaning routine** saves an ordered selection from one current
+map. Specify optional cleaning preferences per region. The action saves the
+routine without starting the vacuum. List the robot's regions first to get
+the identifiers.
+
+```yaml
+action: roomba_home.create_cleaning_routine
+target:
+  entity_id: vacuum.example_robot
+data:
+  name: Vacuum the entryway
+  regions:
+    - id: example_map:rid:entryway
+      mode: vacuum
+      suction_level: 1
+```
+
+Use **Update a cleaning routine** with its ID and a new name, replacement
+regions, or both. A rename keeps the original destinations and settings.
+**Remove a cleaning routine** deletes the selected editable routine. If an
+action reports an unconfirmed result, list the routines before retrying.
+[Provider contract](api.md#saved-cleaning-routines)
+
 ## Current limitations
 
 The vacuuming per room have been verified, the pause and resumption of a two-bedroom mission. Filling, washing and drying buttons have been tested. A number of challenges remained to be met. saved zone The complete course with adjustments per stay, the second stage of after and manual completion. [Capability matrix](capabilities.md)

@@ -718,6 +718,18 @@
     },
     "map_changed": {
       "message": "The map changed. Review your selection."
+    },
+    "routine_not_editable": {
+      "message": "Select an editable routine belonging to this robot and valid settings."
+    },
+    "routine_rate_limited": {
+      "message": "Roomba Home is limiting requests. Wait before checking routines again."
+    },
+    "routine_unavailable": {
+      "message": "The Roomba Home routines could not be read or updated."
+    },
+    "routine_unconfirmed": {
+      "message": "Roomba Home did not confirm the change. List the routines again before repeating it."
     }
   },
   "services": {
@@ -846,6 +858,52 @@
         "regions": {
           "name": "Areas",
           "description": "The selected room or saved-zone identifiers."
+        }
+      }
+    },
+    "list_cleaning_routines": {
+      "name": "List cleaning routines",
+      "description": "Read saved Roomba Home routines for this vacuum."
+    },
+    "create_cleaning_routine": {
+      "name": "Create a cleaning routine",
+      "description": "Save a routine for the selected regions without starting the vacuum.",
+      "fields": {
+        "name": {
+          "name": "Name",
+          "description": "Name shown in Roomba Home."
+        },
+        "regions": {
+          "name": "Regions and preferences",
+          "description": "Ordered list of regions from one current floor plan with optional cleaning settings."
+        }
+      }
+    },
+    "update_cleaning_routine": {
+      "name": "Update a cleaning routine",
+      "description": "Change its name or replace its selected regions and preferences.",
+      "fields": {
+        "routine_id": {
+          "name": "Routine",
+          "description": "Identifier returned by List cleaning routines."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Name shown in Roomba Home."
+        },
+        "regions": {
+          "name": "Regions and preferences",
+          "description": "Ordered list of regions from one current floor plan with optional cleaning settings."
+        }
+      }
+    },
+    "remove_cleaning_routine": {
+      "name": "Remove a cleaning routine",
+      "description": "Remove a saved Roomba Home routine.",
+      "fields": {
+        "routine_id": {
+          "name": "Routine",
+          "description": "Identifier returned by List cleaning routines."
         }
       }
     }

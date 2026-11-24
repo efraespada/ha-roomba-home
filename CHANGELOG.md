@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.0
+
+- Add Home Assistant actions to list, create, rename, update, and remove
+  saved Roomba Home routines for an associated robot.
+- Confirm changes from a fresh read, use the provider-assigned ID, and reuse
+  an exact match when repeating the same creation.
+
 ## 0.12.1
 
 - Show Roomba's in-progress room area and pass readings while the current

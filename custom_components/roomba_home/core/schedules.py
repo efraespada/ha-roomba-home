@@ -4,8 +4,7 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
 
-from .cleaning import CleaningMode, CleaningProfile
-from .cleaning_protocol import cleaning_parameters
+from .cleaning_protocol import regional_cleaning_parameters
 from .errors import ProtocolError
 from .maps import AreaTarget
 from .telemetry import integer
@@ -59,15 +58,6 @@ def weekly_start(weekdays: list[int], local_time: str) -> dict:
     return {"day": sorted(weekdays), "hour": int(hour), "min": int(minute)}
 
 
-def _scheduled_parameters(profile: CleaningProfile) -> dict:
-    params = cleaning_parameters(profile)
-    if profile.mode is CleaningMode.VACUUM_MOP:
-        params["operatingMode"] = 32
-    if profile.mode is CleaningMode.VACUUM_THEN_MOP:
-        params["routine_modified"] = True
-    return params
-
-
 def new_weekly_schedule(robot_id: str, name: str, start: dict, target: AreaTarget) -> dict:
     if not isinstance(name, str) or not name.isprintable() or not 1 <= len(name.strip()) <= 120:
         raise ValueError("Use a non-empty schedule name up to 120 characters")
@@ -96,7 +86,7 @@ def new_weekly_schedule(robot_id: str, name: str, start: dict, target: AreaTarge
                         {
                             "region_id": region.region_id,
                             "type": region.kind.value,
-                            "params": _scheduled_parameters(profile),
+                            "params": regional_cleaning_parameters(profile),
                         }
                         for region, profile in zip(target.regions, target.profiles, strict=True)
                     ],

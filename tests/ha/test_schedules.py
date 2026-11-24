@@ -17,6 +17,8 @@ from custom_components.roomba_home.core.errors import (
     AuthenticationError,
     ProtocolError,
     RateLimited,
+    RoutineNotEditable,
+    RoutineUpdateUnconfirmed,
     ScheduleNotEditable,
     ScheduleUpdateUnconfirmed,
 )
@@ -228,3 +230,89 @@ async def test_expired_login_flows_to_ha_reauth(account):
     account.client.list_weekly_schedules.side_effect = AuthenticationError()
     with pytest.raises(ConfigEntryAuthFailed):
         await account.async_schedule_action("fixture-0")
+
+
+async def test_routine_actions_use_the_same_associated_robot_and_never_start_it(hass, account):
+    robot = "fixture-0"
+    routine = {"id": "1" * 32, "name": "Example routine", "regions": [], "editable": True}
+    account.client.list_cleaning_routines = AsyncMock(return_value=[routine])
+    account.client.create_cleaning_routine = AsyncMock(return_value=routine)
+    account.client.update_cleaning_routine = AsyncMock(return_value=routine)
+    account.client.remove_cleaning_routine = AsyncMock(return_value={"removed": True})
+    account.async_command = AsyncMock()
+
+    async def action(service, **data):
+        return await hass.services.async_call(
+            DOMAIN,
+            service,
+            {"entity_id": "vacuum.robot_0", **data},
+            blocking=True,
+            return_response=True,
+        )
+
+    assert (await action("list_cleaning_routines"))["vacuum.robot_0"] == {"routines": [routine]}
+    assert (
+        await action("create_cleaning_routine", name=routine["name"], regions=CREATE["regions"])
+    )["vacuum.robot_0"] == routine
+    expected = AreaTarget(
+        MAP.map_id,
+        MAP.version_id,
+        (AREA,),
+        (CleaningProfile(CleaningMode.VACUUM_THEN_MOP, suction_level=1, wetness_level=2),),
+    )
+    account.client.create_cleaning_routine.assert_awaited_once_with(
+        robot, routine["name"], expected
+    )
+    await action("update_cleaning_routine", routine_id=routine["id"], name="Renamed")
+    account.client.update_cleaning_routine.assert_awaited_once_with(
+        robot, routine["id"], "Renamed", None
+    )
+    await action("update_cleaning_routine", routine_id=routine["id"], regions=CREATE["regions"])
+    account.client.update_cleaning_routine.assert_awaited_with(robot, routine["id"], None, expected)
+    assert (await action("remove_cleaning_routine", routine_id=routine["id"]))[
+        "vacuum.robot_0"
+    ] == {"removed": True}
+    account.client.remove_cleaning_routine.assert_awaited_once_with(robot, routine["id"])
+    account.async_command.assert_not_awaited()
+
+    with pytest.raises(HomeAssistantError) as error:
+        await action("update_cleaning_routine", routine_id=routine["id"])
+    assert error.value.translation_key == "routine_not_editable"
+    with pytest.raises(HomeAssistantError) as error:
+        await action(
+            "create_cleaning_routine",
+            name="Invalid",
+            regions=[CREATE["regions"][0] | {"wetness_level": 99}],
+        )
+    assert error.value.translation_key == "unsupported_profile"
+
+
+@pytest.mark.parametrize(
+    ("failure", "exception", "key"),
+    [
+        (AuthenticationError(), ConfigEntryAuthFailed, None),
+        (RateLimited(40), HomeAssistantError, "routine_rate_limited"),
+        (RoutineNotEditable(), HomeAssistantError, "routine_not_editable"),
+        (RoutineUpdateUnconfirmed(), HomeAssistantError, "routine_unconfirmed"),
+        (ProtocolError(), HomeAssistantError, "routine_unavailable"),
+    ],
+)
+async def test_routine_service_reports_classified_failures(account, failure, exception, key):
+    account._clock = lambda: 100
+    account.client.list_cleaning_routines = AsyncMock(side_effect=failure)
+    with pytest.raises(exception) as caught:
+        await account.async_list_cleaning_routines("fixture-0")
+    if key:
+        assert caught.value.translation_key == key
+    if isinstance(failure, RateLimited):
+        assert account._routines_retry_until == 140
+        with pytest.raises(HomeAssistantError) as caught:
+            await account.async_list_cleaning_routines("fixture-0")
+        assert caught.value.translation_key == key
+        account.client.list_cleaning_routines.assert_awaited_once()
+
+
+async def test_unconfigured_robot_cannot_list_routines(account):
+    with pytest.raises(HomeAssistantError) as caught:
+        await account.async_list_cleaning_routines("foreign")
+    assert caught.value.translation_key == "not_configured"

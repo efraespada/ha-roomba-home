@@ -1,6 +1,7 @@
 import asyncio
 import json
 from collections import deque
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qs
@@ -15,11 +16,14 @@ from custom_components.roomba_home.core.errors import (
     AuthenticationError,
     ProtocolError,
     RateLimited,
+    RoutineNotEditable,
+    RoutineUpdateUnconfirmed,
     ScheduleNotEditable,
     ScheduleUpdateUnconfirmed,
 )
 from custom_components.roomba_home.core.maps import AreaTarget, CleaningRegion, RegionKind
 from custom_components.roomba_home.core.models import CloudSession, relative_api_path, trusted_url
+from custom_components.roomba_home.core.routines import cleaning_routines, routine_command
 from custom_components.roomba_home.core.schedules import new_weekly_schedule
 from custom_components.roomba_home.core.transport import GZIP_JSON_ACCEPT, HttpResponse
 
@@ -879,3 +883,206 @@ async def test_live_map_channel_uses_signed_get_for_associated_robot(body, topic
     assert urlsplit(url).path == "/v1/p2maps/livemap"
     assert parse_qs(urlsplit(url).query) == {"robotId": ["robot-fixture"], "rawOnly": ["true"]}
     assert headers["Authorization"].startswith("AWS4-HMAC-SHA256 ")
+
+
+ROUTINE_ROBOT = "robot-fixture"
+ROUTINE_ID = "1" * 32
+ROUTINE_REGION = CleaningRegion("fixture-room", RegionKind.ROOM, "Example room")
+ROUTINE_TARGET = AreaTarget("floor", "version", (ROUTINE_REGION,), (CleaningProfile(),))
+
+
+def provider_routine(name="Example routine", target=ROUTINE_TARGET, **fields):
+    return {
+        "favorite_id": ROUTINE_ID,
+        "name": name,
+        "creation_timestamp": int(NOW.timestamp()),
+        "commanddefs": [routine_command(ROUTINE_ROBOT, target)],
+        "color": "#DAF6A1",
+        "app_edition": 1,
+        "time_estimates": [{"estimate": 60}],
+    } | fields
+
+
+def test_saved_routine_inventory_filters_foreign_and_malformed_records():
+    primary = provider_routine()
+    base = primary["commanddefs"][0]
+    rows = [
+        False,
+        primary | {"hidden": True},
+        primary | {"deleted": True},
+        primary | {"favorite_id": ".."},
+        primary | {"favorite_id": None},
+        primary | {"commanddefs": None},
+        primary | {"commanddefs": [False]},
+        primary | {"commanddefs": []},
+        primary | {"commanddefs": [base | {"robot_id": "foreign"}]},
+        primary | {"commanddefs": [base | {"command": "other"}]},
+        primary | {"name": 4},
+        primary | {"name": "   "},
+        primary | {"name": "New\nline"},
+        primary,
+    ]
+    reader = cleaning_routines(rows, ROUTINE_ROBOT)
+    assert list(reader) == [ROUTINE_ID]
+    assert reader[ROUTINE_ID].action_response() == {
+        "id": ROUTINE_ID,
+        "name": "Example routine",
+        "regions": ["floor:rid:fixture-room"],
+        "editable": True,
+    }
+    with pytest.raises(ProtocolError, match="duplicate"):
+        cleaning_routines([primary, primary], ROUTINE_ROBOT)
+    with pytest.raises(ProtocolError, match="routine list"):
+        cleaning_routines({}, ROUTINE_ROBOT)
+
+
+@pytest.mark.parametrize("region", [False, {"type": "tid"}, {"type": "rid", "region_id": []}])
+def test_only_supported_region_identifiers_appear_in_routine_list(region):
+    original = provider_routine(default=True)
+    original["commanddefs"][0]["regions"] = [region]
+    row = cleaning_routines([original], ROUTINE_ROBOT)[ROUTINE_ID]
+    assert row.action_response()["regions"] == []
+    assert not row.action_response()["editable"]
+    original["commanddefs"][0].pop("regions")
+    assert row.action_response()["regions"] == []
+    original["commanddefs"][0]["regions"] = [region]
+    original["commanddefs"][0].pop("p2map_id")
+    assert row.action_response()["regions"] == []
+
+
+@pytest.mark.parametrize(
+    "target", [None, replace(ROUTINE_TARGET, regions=()), replace(ROUTINE_TARGET, profiles=())]
+)
+def test_saved_routine_creation_requires_mapped_profiled_destinations(target):
+    with pytest.raises(ValueError, match="Select areas"):
+        routine_command(ROUTINE_ROBOT, target)
+
+
+async def test_favorite_create_reads_server_identity_and_an_exact_retry_is_read_only():
+    item = provider_routine()
+    http = FakeHttp(
+        login_responses()
+        + [
+            HttpResponse(200, []),
+            HttpResponse(200, {"favorite_id": ROUTINE_ID}),
+            HttpResponse(200, [item]),
+            HttpResponse(200, [item]),
+        ]
+    )
+    api = client(http)
+    result = await api.create_cleaning_routine(ROUTINE_ROBOT, " Example routine ", ROUTINE_TARGET)
+    assert result["id"] == ROUTINE_ID
+    assert (
+        await api.create_cleaning_routine(ROUTINE_ROBOT, "Example routine", ROUTINE_TARGET)
+        == result
+    )
+    assert [call[0] for call in http.calls[3:]] == ["GET", "POST", "GET", "GET"]
+    _, url, headers, raw = http.calls[4]
+    assert url.endswith("/v1/user/favorites?app_edition=1")
+    assert headers["Authorization"].startswith("AWS4-HMAC-SHA256 ")
+    sent = json.loads(raw)
+    assert sent["favorite_id"] != ROUTINE_ID
+    assert sent["creation_timestamp"] == int(NOW.timestamp())
+    assert sent["commanddefs"] == item["commanddefs"]
+
+
+async def test_failed_or_ambiguous_favorite_creation_is_not_repeated():
+    item = provider_routine()
+    different_id = item | {"favorite_id": "2" * 32}
+    http = FakeHttp(login_responses() + [HttpResponse(200, [item, different_id])])
+    with pytest.raises(RoutineNotEditable, match="Several"):
+        await client(http).create_cleaning_routine(ROUTINE_ROBOT, "Example routine", ROUTINE_TARGET)
+    assert all(call[0] != "POST" for call in http.calls[3:])
+
+    http = FakeHttp(
+        login_responses()
+        + [
+            HttpResponse(200, [provider_routine("Other routine")]),
+            HttpResponse(503, {}),
+            HttpResponse(200, []),
+            HttpResponse(200, []),
+            HttpResponse(200, []),
+        ]
+    )
+    with (
+        patch("custom_components.roomba_home.core.client.asyncio.sleep", new=AsyncMock()),
+        pytest.raises(RoutineUpdateUnconfirmed),
+    ):
+        await client(http).create_cleaning_routine(ROUTINE_ROBOT, "Example routine", ROUTINE_TARGET)
+    assert [call[0] for call in http.calls[3:]].count("POST") == 1
+
+
+@pytest.mark.parametrize("change_targets", [False, True])
+async def test_favorite_update_keeps_provider_metadata_and_verifies_changes(change_targets):
+    old = provider_routine(version="fixture-metadata")
+    target = replace(ROUTINE_TARGET, version_id="version-2") if change_targets else None
+    updated = provider_routine(
+        "Renamed" if not change_targets else "Example routine", target or ROUTINE_TARGET
+    )
+    http = FakeHttp(
+        login_responses()
+        + [
+            HttpResponse(200, [old]),
+            HttpResponse(200, {"favorite_id": ROUTINE_ID}),
+            HttpResponse(200, [{**old, "name": "Changed elsewhere"}]),
+            HttpResponse(200, [updated]),
+        ]
+    )
+    with patch("custom_components.roomba_home.core.client.asyncio.sleep", new=AsyncMock()):
+        result = await client(http).update_cleaning_routine(
+            ROUTINE_ROBOT, ROUTINE_ID, None if change_targets else "Renamed", target
+        )
+    assert result["name"] == updated["name"]
+    method, url, _, raw = http.calls[4]
+    assert method == "PUT"
+    assert url.endswith(f"/v1/user/favorites/{ROUTINE_ID}?app_edition=1")
+    body = json.loads(raw)
+    assert body["commanddefs"] == updated["commanddefs"]
+    assert body["version"] == "fixture-metadata"
+    assert "app_edition" not in body
+    assert ("time_estimates" in body) is not change_targets
+
+
+async def test_routine_reads_and_removals_reject_foreign_and_default_items():
+    item = provider_routine(default=True)
+    http = FakeHttp(
+        login_responses()
+        + [
+            HttpResponse(200, [item]),
+            HttpResponse(200, [item]),
+            HttpResponse(200, []),
+        ]
+    )
+    api = client(http)
+    with pytest.raises(RoutineNotEditable, match="associated"):
+        await api.list_cleaning_routines("foreign")
+    assert len(await api.list_cleaning_routines(ROUTINE_ROBOT)) == 1
+    for _ in range(2):
+        with pytest.raises(RoutineNotEditable, match="unavailable"):
+            await api.remove_cleaning_routine(ROUTINE_ROBOT, ROUTINE_ID)
+    assert all(call[0] != "DELETE" for call in http.calls)
+
+
+async def test_idempotent_routine_update_and_remove_confirm_full_inventory():
+    item = provider_routine()
+    http = FakeHttp(
+        login_responses()
+        + [
+            HttpResponse(200, [item]),
+            HttpResponse(200, [item]),
+            HttpResponse(200, None),
+            HttpResponse(200, {}),
+            HttpResponse(200, [item]),
+            HttpResponse(200, [None, item | {"favorite_id": "2" * 32}, item | {"deleted": True}]),
+        ]
+    )
+    api = client(http)
+    updated = await api.update_cleaning_routine(ROUTINE_ROBOT, ROUTINE_ID, "Example routine")
+    assert updated["id"] == ROUTINE_ID
+    with patch("custom_components.roomba_home.core.client.asyncio.sleep", new=AsyncMock()):
+        assert await api.remove_cleaning_routine(ROUTINE_ROBOT, ROUTINE_ID) == {
+            "id": ROUTINE_ID,
+            "removed": True,
+        }
+    assert [call[0] for call in http.calls[3:]].count("DELETE") == 1
+    assert all(call[0] != "PUT" for call in http.calls)

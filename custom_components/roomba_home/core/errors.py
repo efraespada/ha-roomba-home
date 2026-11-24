@@ -25,6 +25,14 @@ class ScheduleUpdateUnconfirmed(RoombaError):
     """A schedule write was not confirmed by a subsequent read."""
 
 
+class RoutineNotEditable(RoombaError):
+    """The selected routine is missing, ambiguous, or unsupported."""
+
+
+class RoutineUpdateUnconfirmed(RoombaError):
+    """Roomba did not confirm the routine write in a subsequent read."""
+
+
 class ApiError(RoombaError):
     """A remote operation failed without exposing its response body."""
 

@@ -46,6 +46,8 @@ from .core.errors import (
     ProtocolError,
     RateLimited,
     RoombaError,
+    RoutineNotEditable,
+    RoutineUpdateUnconfirmed,
     ScheduleNotEditable,
     ScheduleUpdateUnconfirmed,
 )
@@ -125,6 +127,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         self._history_retry_until = 0
         self._schedules_due = 0
         self._schedules_retry_until = 0
+        self._routines_retry_until = 0
         self._read_failures = 0
         self._read_retry_until = 0
         self._details = {}
@@ -876,6 +879,66 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
     async def async_remove_cleaning_schedule(self, robot_id, schedule_id):
         async with self._schedule_transaction(robot_id, write=True):
             return await self.client.remove_weekly_schedule(robot_id, schedule_id)
+
+    async def async_list_cleaning_routines(self, robot_id):
+        async with self._routine_transaction(robot_id):
+            return {"routines": await self.client.list_cleaning_routines(robot_id)}
+
+    async def async_create_cleaning_routine(self, robot_id, name, selections):
+        async with self._routine_transaction(robot_id) as state:
+            target = await self._profiled_routine_target(robot_id, state, selections)
+            return await self.client.create_cleaning_routine(robot_id, name, target)
+
+    async def async_update_cleaning_routine(self, robot_id, routine_id, name, selections):
+        async with self._routine_transaction(robot_id) as state:
+            target = None
+            if selections is not None:
+                target = await self._profiled_routine_target(robot_id, state, selections)
+            if target is None and name is None:
+                raise ValueError("Provide a new routine name or region selection.")
+            return await self.client.update_cleaning_routine(robot_id, routine_id, name, target)
+
+    async def async_remove_cleaning_routine(self, robot_id, routine_id):
+        async with self._routine_transaction(robot_id):
+            return await self.client.remove_cleaning_routine(robot_id, routine_id)
+
+    async def _profiled_routine_target(self, robot_id, state, selections):
+        segments, overrides = selections
+        target = await self._resolve_current_areas(robot_id, segments)
+        profiles = self._area_profiles(self.profile(robot_id), target, overrides)
+        try:
+            for profile in profiles:
+                profile.validate(state.capabilities.cleaning)
+        except ValueError:
+            raise action_error("unsupported_profile", "Invalid routine cleaning settings") from None
+        return replace(target, profiles=profiles)
+
+    @asynccontextmanager
+    async def _routine_transaction(self, robot_id):
+        async with self._io_lock:
+            state = (self.data or {}).get(robot_id)
+            if self._closed or robot_id not in self.selected or state is None:
+                raise action_error("not_configured", "Robot is not configured")
+            if self._clock() < max(self._read_retry_until, self._routines_retry_until):
+                raise action_error("routine_rate_limited", "Waiting to retry routines")
+            try:
+                yield state
+            except AuthenticationError as error:
+                raise ConfigEntryAuthFailed("Authentication required") from error
+            except RateLimited as error:
+                self._routines_retry_until = self._clock() + error.retry_after
+                raise action_error("routine_rate_limited", "Waiting to retry routines") from None
+            except RoutineNotEditable, ValueError:
+                raise action_error("routine_not_editable", "Routine is not editable") from None
+            except RoutineUpdateUnconfirmed:
+                raise action_error(
+                    "routine_unconfirmed", "Routine change was not confirmed"
+                ) from None
+            except HomeAssistantError:
+                raise
+            except Exception as error:
+                _LOGGER.debug("Routine action failed: %s", type(error).__name__)
+                raise action_error("routine_unavailable", "Could not access routines") from None
 
     @asynccontextmanager
     async def _schedule_transaction(self, robot_id, *, write):

@@ -136,3 +136,48 @@ remove_cleaning_schedule:
       required: true
       selector:
         text:
+list_cleaning_routines:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+create_cleaning_routine:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    name:
+      required: true
+      selector:
+        text:
+    regions:
+      required: true
+      selector:
+        object:
+update_cleaning_routine:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    routine_id:
+      required: true
+      selector:
+        text:
+    name:
+      selector:
+        text:
+    regions:
+      selector:
+        object:
+remove_cleaning_routine:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    routine_id:
+      required: true
+      selector:
+        text:
