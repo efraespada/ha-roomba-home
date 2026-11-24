@@ -32,6 +32,8 @@ class FloorPlan:
     zones: tuple[FloorRoom, ...] = ()
     keep_out: tuple[Polygon, ...] = ()
     virtual_walls: tuple[Ring, ...] = ()
+    unlinked_zone_count: int = 0
+    no_mop: tuple[Polygon, ...] = ()
 
     def room_at(self, point: Coordinate) -> str | None:
         matches = [
@@ -214,20 +216,29 @@ def read_floor_plan(data: bytes, floor: PersistentMap) -> FloorPlan:
     zone_names = {
         zone.region_id: zone.name for zone in floor.regions if zone.kind is RegionKind.ZONE
     }
+    zone_features = _features(document)
     zones = tuple(
         FloorRoom(zone_names[identifier], _polygons(feature), identifier)
-        for feature in _features(document)
+        for feature in zone_features
         if isinstance(identifier := feature.get("id"), str) and identifier in zone_names
     )
-    restrictions, walls = keep_out_geometry(documents)
-    return FloorPlan(tuple(rooms.values()), zones, restrictions, walls)
+    unlinked_zones = {
+        identifier
+        for feature in zone_features
+        if map_identifier(identifier := feature.get("id")) and identifier not in zone_names
+    }
+    restrictions, walls, no_mop = policy_geometry(documents, include_no_mop=True)
+    return FloorPlan(tuple(rooms.values()), zones, restrictions, walls, len(unlinked_zones), no_mop)
 
 
-def keep_out_geometry(documents) -> tuple[tuple[Polygon, ...], tuple[Ring, ...]]:
+def policy_geometry(
+    documents, *, include_no_mop=False
+) -> tuple[tuple[Polygon, ...], tuple[Ring, ...], tuple[Polygon, ...]]:
     if "policyZones" not in documents:
-        return (), ()
+        return (), (), ()
     restrictions = []
     walls = []
+    no_mop = []
     for item in _features(documents["policyZones"]):
         properties = item.get("properties")
         if not isinstance(properties, dict) or not isinstance(properties.get("type"), str):
@@ -241,7 +252,13 @@ def keep_out_geometry(documents) -> tuple[tuple[Polygon, ...], tuple[Ring, ...]]
                 walls.append(_coordinates(coordinates))
             else:
                 restrictions.extend(_polygons(item))
-    return tuple(restrictions), tuple(walls)
+        elif include_no_mop and properties["type"] == "NoMopZone":
+            try:
+                no_mop.extend(_polygons(item))
+            except ProtocolError:
+                # Some maps describe a no-mop zone without supplying its outline.
+                continue
+    return tuple(restrictions), tuple(walls), tuple(no_mop)
 
 
 def resolve_room_point(data: bytes, area: AreaTarget, x: float, y: float) -> PointTarget:
@@ -259,7 +276,7 @@ def resolve_room_point(data: bytes, area: AreaTarget, x: float, y: float) -> Poi
         borders = [
             polygon for item in _features(documents["borders"]) for polygon in _polygons(item)
         ]
-        restrictions, walls = keep_out_geometry(documents)
+        restrictions, walls, _ = policy_geometry(documents)
         # A virtual wall can divide a room without defining its accessible side.
         if walls:
             raise ProtocolError("Point cleaning cannot verify access across virtual walls.")

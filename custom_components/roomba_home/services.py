@@ -27,6 +27,13 @@ REGION = vol.Schema(REGION_FIELDS | {vol.Optional("mode"): vol.In(("vacuum", "mo
 SCHEDULE_REGION = vol.Schema(
     REGION_FIELDS | {vol.Optional("mode"): vol.In(tuple(mode.value for mode in CleaningMode))}
 )
+ROUTINE_REGION = vol.Schema(
+    {
+        field: vol.Any(None, validator) if isinstance(field, vol.Optional) else validator
+        for field, validator in REGION_FIELDS.items()
+    }
+    | {vol.Optional("mode"): vol.In(tuple(mode.value for mode in CleaningMode))}
+)
 WEEKLY_START_SCHEMA = {
     vol.Required("weekdays"): vol.All(
         [vol.All(int, vol.Range(min=1, max=7))], vol.Length(min=1, max=7), vol.Unique()
@@ -74,6 +81,7 @@ def async_setup_services(hass):
         schema={
             vol.Required("map_id"): vol.All(str, vol.Length(min=1, max=128)),
             vol.Required("version"): vol.All(str, vol.Length(min=1, max=128)),
+            vol.Optional("inventory_id"): vol.All(str, vol.Match(r"[0-9a-f]{64}\Z")),
             vol.Required("regions"): vol.All([REGION_ID], vol.Length(min=1, max=32), vol.Unique()),
         },
         func="async_clean_map_selection",
@@ -150,7 +158,7 @@ def async_setup_services(hass):
         supports_response=SupportsResponse.ONLY,
     )
     name = vol.All(str, vol.Length(min=1, max=120))
-    regions = vol.All([SCHEDULE_REGION], vol.Length(min=1, max=32))
+    regions = vol.All([ROUTINE_REGION], vol.Length(min=1, max=32))
     service.async_register_platform_entity_service(
         hass,
         DOMAIN,

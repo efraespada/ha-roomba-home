@@ -326,14 +326,14 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         maps = await self.client.maps(robot_id)
         self._maps[robot_id] = maps
         self._maps_available[robot_id] = True
-        valid = {(item.map_id, item.version_id) for item in maps}
-        for key in tuple(self._floor_plans):
-            if key[0] == robot_id and key[1:] not in valid:
-                del self._floor_plans[key]
+        valid = set(maps)
+        for owner_id, floor in tuple(self._floor_plans):
+            if owner_id == robot_id and floor not in valid:
+                del self._floor_plans[owner_id, floor]
         return maps
 
     async def _floor_plan(self, robot_id, floor):
-        key = (robot_id, floor.map_id, floor.version_id)
+        key = (robot_id, floor)
         if key not in self._floor_plans:
             bundle = await self._read_map_action(
                 self.client.map_geometry, floor.map_id, floor.version_id
@@ -750,15 +750,25 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             return ()
         return self._maps.get(robot_id, ())
 
-    async def _resolve_areas(self, robot_id, segments):
+    async def _resolve_areas(self, robot_id, segments, reviewed_map=None):
         async with self._io_lock:
-            return await self._resolve_current_areas(robot_id, segments)
+            return await self._resolve_current_areas(robot_id, segments, reviewed_map)
 
-    async def _resolve_current_areas(self, robot_id, segments):
+    async def _resolve_current_areas(self, robot_id, segments, reviewed_map=None):
         state = (self.data or {}).get(robot_id)
         if not state or state.capabilities.persistent_maps is not True:
             raise action_error("unsupported_areas", "This robot has no available cleaning map")
         maps = await self._read_map_action(self._read_maps, robot_id)
+        if reviewed_map is not None:
+            map_id, version, inventory_id = reviewed_map
+            maps = tuple(
+                floor
+                for floor in maps
+                if (floor.map_id, floor.version_id) == (map_id, version)
+                and (inventory_id is None or floor.inventory_id == inventory_id)
+            )
+            if not maps:
+                raise action_error("map_changed", "The map changed. Review your selection.")
         try:
             return resolve_segments(maps, segments)
         except ValueError:
@@ -999,18 +1009,13 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             self._command_tasks.discard(task)
 
     async def async_command(
-        self, robot_id, command: Command, *, segments=None, overrides=(), map_revision=None
+        self, robot_id, command: Command, *, segments=None, overrides=(), reviewed_map=None
     ):
         async with self._robot_operation(robot_id):
             try:
                 target = None
                 if segments is not None:
-                    target = await self._resolve_areas(robot_id, segments)
-                    if map_revision is not None and map_revision != (
-                        target.map_id,
-                        target.version_id,
-                    ):
-                        raise action_error("map_changed", "The map changed. Review your selection.")
+                    target = await self._resolve_areas(robot_id, segments, reviewed_map)
                 profile = self.profile(robot_id)
                 area_profiles = ()
                 if overrides:

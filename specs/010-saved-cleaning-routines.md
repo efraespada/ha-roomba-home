@@ -12,9 +12,9 @@
 
 ## 1. Executive summary
 
-Manage saved Roomba Home routines from Home Assistant actions. Save room or
-zone selections with cleaning preferences and confirm each change through an
-independent read from Roomba.
+Manage saved Roomba Home routines from the floor plan card and Home Assistant
+actions. Save room or zone selections with cleaning preferences and confirm
+each change through an independent read from Roomba.
 
 ## 2. Problem, current behavior, and evidence
 
@@ -37,6 +37,8 @@ calendar trigger and may carry an independent copy of a routine.
 - ROUTINE-02: Create an ordered routine on one current map and validate each profile.
 - ROUTINE-03: Rename an existing routine or replace its regions and settings.
 - ROUTINE-04: Confirm removal through an independent read.
+- ROUTINE-05: Visually create, rename, reorder, duplicate, and remove supported
+  routines, including each area's cleaning preferences.
 - Saving, updating, and removing a routine leave the robot's movement state alone.
 - Routine launch and multi-robot or replay-specific writes require separate protocol evidence.
 
@@ -80,7 +82,10 @@ Home Assistant resolves entity permissions and exposes typed actions.
 
 The Actions screen distinguishes saved routines from weekly schedules.
 List results include an ID, name, region identifiers, and whether the routine
-is editable. Show a distinct failure when a save cannot be confirmed.
+is editable. The card also presents the recognized order and settings of
+routines that can be reproduced from the current floor. Retain name-only
+updates for editable routines whose settings or destinations cannot be copied.
+Show a distinct failure when a save cannot be confirmed.
 
 ## 10. Failure, recovery, and cleanup
 
@@ -128,6 +133,8 @@ saved routines and scheduled cleaning independently identifiable.
 3. Send the same create request and receive the existing routine.
 4. Rename the routine and replace its cleaning settings.
 5. Remove only the created routine and confirm existing routines are retained.
+6. Reorder and duplicate a supported routine from the card with its per-area
+   settings intact. Clear stale submissions when the map inventory changes.
 
 ## 17. Requirements traceability
 
@@ -136,13 +143,14 @@ saved routines and scheduled cleaning independently identifiable.
 | ROUTINE-01 | [Favorite projection](../custom_components/roomba_home/core/routines.py) | Foreign and unsupported routine fixtures |
 | ROUTINE-02 and ROUTINE-03 | [Cloud client](../custom_components/roomba_home/core/client.py) | Signed API tests and verified disposable write |
 | ROUTINE-04 | [Home Assistant actions](../custom_components/roomba_home/services.py) | Read-back, ambiguity, and action integration tests |
+| ROUTINE-05 | [Floor plan card](../custom_components/roomba_home/frontend/roomba-home-map-card.js) | Browser flow and lossless settings projection tests |
 
 ## 18. Implementation sequence
 
 Verify the wire contract, add the pure parser, implement safe client
 mutations, and connect the scoped actions. Validate the complete lifecycle
-and document its limits. A future dashboard editor may build on these
-actions once the edit form and routine launch semantics are verified.
+and document its limits. Build the dashboard editor on the same actions.
+Verify launch separately when the provider workflow is established.
 
 ## 19. Definition of Done
 

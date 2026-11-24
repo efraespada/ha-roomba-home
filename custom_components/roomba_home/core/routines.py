@@ -4,9 +4,10 @@ import re
 from dataclasses import dataclass
 from uuid import uuid4
 
-from .cleaning_protocol import regional_cleaning_parameters
+from .cleaning import CleaningMode, CleaningProfile
+from .cleaning_protocol import regional_cleaning_parameters, reported_cleaning_mode
 from .errors import ProtocolError
-from .maps import AreaTarget, map_identifier
+from .maps import AreaTarget, command_region_id, map_identifier
 
 FAVORITES_PATH = "/v1/user/favorites"
 APP_EDITION = {"app_edition": "1"}
@@ -35,18 +36,77 @@ class CleaningRoutine:
         regions = self.command.get("regions")
         if not isinstance(regions, list) or not map_identifier(map_id):
             regions = []
+        recognized = [
+            (identifier, item)
+            for item in regions
+            if (identifier := command_region_id(map_id, item)) is not None
+        ]
+        settings = None
+        if (
+            1 <= len(recognized) == len(regions) <= 32
+            and len({identifier for identifier, _ in recognized}) == len(regions)
+            and self.command.get("select_all") is False
+            and self.command.get("ordered") == 1
+            and self.command.keys()
+            == {
+                "robot_id",
+                "command",
+                "ordered",
+                "select_all",
+                "p2map_id",
+                "user_p2mapv_id",
+                "regions",
+            }
+        ):
+            profiles = [routine_region_profile(item) for _, item in recognized]
+            if all(profile is not None for profile in profiles):
+                settings = [
+                    {"id": identifier, **profile}
+                    for (identifier, _), profile in zip(recognized, profiles, strict=True)
+                ]
         return {
             "id": self.identity,
             "name": self.name,
-            "regions": [
-                f"{map_id}:{item['type']}:{item['region_id']}"
-                for item in regions
-                if isinstance(item, dict)
-                and item.get("type") in ("rid", "zid")
-                and map_identifier(item.get("region_id"))
-            ],
+            "regions": [identifier for identifier, _ in recognized],
+            "region_settings": settings,
             "editable": not self.payload.get("default"),
         }
+
+
+def routine_region_profile(region: dict) -> dict | None:
+    """Project settings that can be written back without dropping provider data."""
+    if region.keys() != {"region_id", "type", "params"}:
+        return None
+    params = region["params"]
+    if not isinstance(params, dict):
+        return None
+    code = params.get("operatingMode")
+    mode = CleaningMode.VACUUM_MOP if code == 32 else reported_cleaning_mode(code)
+    wetness = params.get("padWetness")
+    scrub = params.get("swScrub")
+    try:
+        profile = CleaningProfile(
+            mode=mode,
+            suction_level=params.get("suctionLevel"),
+            wetness_level=wetness.get("padPlate") if isinstance(wetness, dict) else None,
+            two_pass=params.get("twoPass"),
+            smart_scrub=bool(scrub) if type(scrub) is int and scrub in (0, 1) else None,
+            carpet_boost=params.get("carpetBoost"),
+        )
+    except ValueError:
+        return None
+    if regional_cleaning_parameters(profile) != params or any(
+        (level or 0) > 99 for level in (profile.suction_level, profile.wetness_level)
+    ):
+        return None
+    return {
+        "mode": profile.mode.value,
+        "suction_level": profile.suction_level,
+        "wetness_level": profile.wetness_level,
+        "two_pass": profile.two_pass,
+        "smart_scrub": profile.smart_scrub,
+        "carpet_boost": profile.carpet_boost,
+    }
 
 
 def cleaning_routines(document: object, robot_id: str) -> dict[str, CleaningRoutine]:

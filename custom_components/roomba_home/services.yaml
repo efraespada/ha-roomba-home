@@ -37,6 +37,9 @@ clean_map_selection:
       required: true
       selector:
         text:
+    inventory_id:
+      selector:
+        text:
     regions:
       required: true
       selector:

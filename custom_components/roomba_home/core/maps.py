@@ -1,8 +1,10 @@
 """Read the app's persistent map and region metadata without exposing raw geometry."""
 
+import json
 import re
 from dataclasses import dataclass
 from enum import StrEnum
+from hashlib import sha256
 
 from .cleaning import CleaningProfile
 from .errors import ProtocolError
@@ -32,6 +34,11 @@ class PersistentMap:
     name: str | None
     regions: tuple[CleaningRegion, ...]
 
+    @property
+    def inventory_id(self) -> str:
+        regions = [(region.region_id, region.kind, region.name) for region in self.regions]
+        return sha256(json.dumps(regions).encode()).hexdigest()
+
 
 @dataclass(frozen=True, repr=False)
 class AreaTarget:
@@ -47,6 +54,16 @@ def map_identifier(value: object) -> bool:
         and value not in {".", ".."}
         and _IDENTIFIER.fullmatch(value) is not None
     )
+
+
+def command_region_id(map_id: str, region: object) -> str | None:
+    if (
+        isinstance(region, dict)
+        and region.get("type") in ("rid", "zid")
+        and map_identifier(region.get("region_id"))
+    ):
+        return f"{map_id}:{region['type']}:{region['region_id']}"
+    return None
 
 
 def _name(value: object) -> str | None:

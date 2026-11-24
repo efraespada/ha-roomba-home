@@ -26,6 +26,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-map-confirm.png": (
         "8bc74fd82e18b57133bb8ffb5913c5c59e7c69610c376f84fe15ce364ea9c11b"
     ),
+    "docs/screenshots/roomba-routines.png": (
+        "3b89e794cea1855c7f05c22b1ace8ae7abf676ea573428a8d20d63854a33dbac"
+    ),
 }
 PATTERNS = {
     "private-key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),

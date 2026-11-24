@@ -136,11 +136,14 @@ class RoombaVacuum(RoombaEntity, StateVacuumEntity):
             self.robot_id, Command.VACUUM, segments=identifiers, overrides=overrides
         )
 
-    async def async_clean_map_selection(self, map_id, version, regions):
+    async def async_clean_map_selection(self, map_id, version, regions, inventory_id=None):
         if not self.account.show_maps:
             raise action_error("map_unavailable", "Floor maps are disabled for this account")
         await self.account.async_command(
-            self.robot_id, Command.VACUUM, segments=regions, map_revision=(map_id, version)
+            self.robot_id,
+            Command.VACUUM,
+            segments=regions,
+            reviewed_map=(map_id, version, inventory_id),
         )
 
     @staticmethod
