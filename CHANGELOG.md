@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.14.0
+
+- Refresh the floor plan when Roomba changes its region inventory, even if the
+  map revision stays the same. Recheck the inventory before starting a reviewed
+  cleaning selection.
+- Identify map zones that Roomba has yet to list for cleaning and saved zones
+  that can be selected from the list without a matching outline.
+- Display no-mop geometry separately from keep-out areas and virtual walls.
+- List, create, rename, reorder, duplicate, and remove supported cleaning
+  routines in the floor plan card. Preserve the saved settings per area.
+- Review saved routines and weekly schedules that reference selected areas.
+  Report entries whose destinations could not be established.
+
 ## 0.13.0
 
 - Add Home Assistant actions to list, create, rename, update, and remove

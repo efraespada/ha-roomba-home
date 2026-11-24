@@ -1,5 +1,31 @@
 # Roomba Home validation
 
+## Floor plan and routine dashboard validation in 0.14.0
+
+The complete suite passed 1,581 tests with 100% Python statement and branch
+coverage. Chrome exercised the card with synthetic data. It displayed a
+no-mop area, found both routine and weekly schedule dependencies, signalled
+unresolved destinations, reordered and duplicated a saved routine with its
+per-area profile, renamed an unsupported routine without replacing its
+targets, and confirmed deletion of the duplicate. A changed map inventory
+prevented an outdated draft from being submitted. The routine flow issued no
+cleaning commands.
+[Synthetic routine editor screenshot](../README.md#floor-plan-dashboard)
+
+The household installation verified the archive and passed `ha core check`
+before restarting Core. Three robots and three docks loaded. The existing
+dashboard resource was updated to the 0.14.0 URL. The two authorized floor
+plans loaded, and the dependency review returned matching routines and a
+weekly schedule. From the installed card, a disposable two-area routine
+was created, reordered, renamed, and duplicated. The temporary entries
+were deleted, and a fresh read showed the original routine count. The
+0.13.0 component is available as the immediate rollback.
+
+Android retained its Roomba Home session after a cold boot and loaded the
+selected floor plan. The remote viewer opened the map details, but the edit
+control remained blocked. This session established no new provider write
+contract for map edits.
+
 ## Saved cleaning routine validation in 0.13.0
 
 The complete suite passed 1,566 tests and reached 100% Python statement and
@@ -65,6 +91,24 @@ saved-zone cleaning outcome remains unverified. A read-back after removing
 the temporary zone confirmed that the original rooms, boundaries, and
 restrictions were preserved.
 [Map and zone editor SDD](../specs/009-map-zone-editor.md)
+
+### Region inventory changes
+
+A read-only follow-up of two household maps found one associated cleaning zone
+without matching `cleanZones` geometry. The other map listed no cleaning
+zones. The installed Home Assistant dashboard offered the saved zone in
+the area list. Its confirmation showed the selected zone and was cancelled
+before dispatch.
+
+A synthetic Home Assistant regression starts with a zone present only in
+the archive. The dashboard reports the unmatched zone and leaves it out of
+the selection. A later inventory associates that zone and renames a room
+under the same archive revision. The WebSocket returns refreshed geometry
+and the cleaning action rejects the old inventory before publishing a
+command. The fixture also verifies that a listed zone without matching geometry
+keeps its entry in the area list. A Chrome check confirmed that the old review
+dialog closes, the new region becomes selectable, and the cleaning action
+carries the current inventory identifier.
 
 ## Local rendering checks for 0.11.1
 

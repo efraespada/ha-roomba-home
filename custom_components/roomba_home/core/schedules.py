@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime, time, timedelta, tzinfo
 
 from .cleaning_protocol import regional_cleaning_parameters
 from .errors import ProtocolError
-from .maps import AreaTarget
+from .maps import AreaTarget, command_region_id, map_identifier
 from .telemetry import integer
 
 IDENTIFIER = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}")
@@ -34,12 +34,26 @@ class WeeklySchedule:
 
     def action_response(self) -> dict:
         name = self.options.get("name")
+        command = self.options["commands"][0]["command"]
+        map_id = command.get("p2map_id")
+        regions = command.get("regions")
+        targets = None
+        if (
+            command.get("select_all") is not True
+            and map_identifier(map_id)
+            and isinstance(regions, list)
+            and regions
+        ):
+            identifiers = [command_region_id(map_id, region) for region in regions]
+            if all(identifier is not None for identifier in identifiers):
+                targets = identifiers
         return {
             "id": self.id,
             "name": name
             if isinstance(name, str) and name.isprintable() and len(name) <= 120
             else None,
             "enabled": self.options["enabled"],
+            "regions": targets,
             **self.start,
         }
 

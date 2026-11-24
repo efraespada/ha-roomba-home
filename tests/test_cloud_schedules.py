@@ -182,6 +182,7 @@ def test_schedule_action_returns_names_only_when_safe(name, expected):
         "id": "fixture.group:fixture.schedule",
         "name": expected,
         "enabled": True,
+        "regions": None,
         "weekdays": (1, 7),
         "time": "08:10",
     }

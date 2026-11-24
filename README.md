@@ -15,15 +15,16 @@ uses Roomba's own cloud services for device data and control.
   mop wetness, SmartScrub, passes, carpet boost, and manual dock actions.
 - **Room and zone cleaning.** Select regions and review the robot and
   destinations before sending a command. The map supports zoom and shows
-  keep-out areas, virtual walls, and the observed route. The integration
+  keep-out areas, no-mop areas, virtual walls, and the observed route. The integration
   also exposes actions for selecting regions, estimating planned duration,
   and vacuuming a verified point within a room.
 - **Mission progress and history.** See the reported phase, mode, surface,
   elapsed time, connectivity timestamp, and recent position. The last
   mission includes outcomes, area values, and pass counts per reported room.
   Fresh timeline replies add the current stage and in-progress room readings.
-- **Routines and schedules.** List, create, edit, and remove saved cleaning
-  routines. Manage weekly schedules with independent calendar triggers.
+- **Routines and schedules.** List, create, edit, duplicate, and remove supported
+  cleaning routines from the floor plan. Manage weekly schedules with
+  independent calendar triggers and review dependencies for selected areas.
   [Saved routine actions](docs/usage.md#saved-cleaning-routines)
 - **Maintenance and alerts.** Inspect consumables and automate robot and dock
   problem alerts and mission-finished events.
@@ -40,11 +41,13 @@ has been exercised on the Roomba Max 700 Combo (X185240). [Capability matrix](do
 
 ![Roomba Home card showing the robot and selected areas in the confirmation dialog](docs/screenshots/roomba-map-confirm.png)
 
+![Saved routine editor with cleaning order and per-area settings](docs/screenshots/roomba-routines.png)
+
 Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.13.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.14.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Enable Advanced Mode in your user
    profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
 3. Add a manual card with your robot's vacuum entity.
@@ -57,6 +60,10 @@ entity: vacuum.example
 The card uses the robot's saved next-cleaning preferences. Live markers expire
 at Roomba's deadline. Reported room areas retain provider units until verified.
 A reliable mission percentage and countdown still require provider evidence.
+Select areas and choose **Review map dependencies** to find saved routines
+and weekly schedules that target those areas.
+Manage room boundaries and zones in the Roomba Home app while the map editor
+write path is being validated. [Map editor SDD](specs/009-map-zone-editor.md)
 [Map and mission details](docs/usage.md#interactive-floor-plan) ·
 [Telemetry reference](docs/telemetry.md)
 

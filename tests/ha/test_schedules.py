@@ -269,6 +269,14 @@ async def test_routine_actions_use_the_same_associated_robot_and_never_start_it(
     )
     await action("update_cleaning_routine", routine_id=routine["id"], regions=CREATE["regions"])
     account.client.update_cleaning_routine.assert_awaited_with(robot, routine["id"], None, expected)
+    await action(
+        "update_cleaning_routine",
+        routine_id=routine["id"],
+        regions=[{"id": AREA.segment_id(MAP.map_id), "mode": "vacuum", "suction_level": None}],
+    )
+    assert (
+        account.client.update_cleaning_routine.await_args.args[-1].profiles[0].suction_level is None
+    )
     assert (await action("remove_cleaning_routine", routine_id=routine["id"]))[
         "vacuum.robot_0"
     ] == {"removed": True}

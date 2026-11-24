@@ -61,6 +61,13 @@ async def configured(hass, entry, robot_states, make_point_bundle):
                 "geometry": {"type": "LineString", "coordinates": [[1, 1], [2, 2]]},
             }
         )
+        documents[policy_file]["features"].append(
+            {
+                "type": "Feature",
+                "properties": {"type": "NoMopZone"},
+                "geometry": zone["geometry"],
+            }
+        )
 
     async def initial(account):
         account._maps = {robot.robot_id: (MAP,)}
@@ -88,14 +95,20 @@ async def test_websocket_map_returns_selectable_geometry_and_only_sends_it_when_
     assert result["maps"] == [{"id": MAP.map_id, "name": MAP.name}]
     assert result["geometry"]["keep_out"]
     assert result["geometry"]["virtual_walls"] == [[[1, 1], [2, 2]]]
+    assert result["geometry"]["no_mop"] == [[[[3, 3], [6, 3], [6, 5], [3, 3]]]]
+    assert result["geometry"]["unlinked_zone_count"] == 1
     assert [(r["name"], r["kind"], bool(r["polygons"])) for r in result["geometry"]["regions"]] == [
         ("Office", "room", True),
         ("Dining zone", "zone", True),
     ]
     assert result["live"] == {"trail": [], "position": None}
-    await socket.send_json(
-        initial | {"id": 2, "map_id": MAP.map_id, "known_version": MAP.version_id}
-    )
+    cached = initial | {
+        "id": 2,
+        "map_id": MAP.map_id,
+        "known_version": MAP.version_id,
+        "known_inventory": result["inventory_id"],
+    }
+    await socket.send_json(cached)
     assert "geometry" not in (await socket.receive_json())["result"]
 
     await socket.send_json(initial | {"id": 3, "entity_id": "vacuum.other"})
@@ -116,6 +129,49 @@ async def test_websocket_map_returns_selectable_geometry_and_only_sends_it_when_
         assert (await socket.receive_json())["error"]["code"] == "unauthorized"
 
 
+async def test_websocket_refreshes_geometry_when_inventory_changes_in_the_same_version(
+    hass_ws_client, configured
+):
+    socket = await hass_ws_client()
+    request = {"id": 1, "type": "roomba_home/floor_plan", "entity_id": ENTITY}
+    await socket.send_json(request)
+    original = (await socket.receive_json())["result"]
+    updated = replace(
+        MAP,
+        regions=(
+            replace(MAP.regions[0], name="Kitchen"),
+            MAP.regions[1],
+            CleaningRegion("pending-zone", RegionKind.ZONE, "Breakfast nook"),
+            CleaningRegion("list-only-zone", RegionKind.ZONE, "Reading nook"),
+        ),
+    )
+    configured.client.maps.return_value = (updated,)
+    await configured._read_maps("fixture-0")
+    await socket.send_json(
+        request
+        | {
+            "id": 2,
+            "map_id": MAP.map_id,
+            "known_version": MAP.version_id,
+            "known_inventory": original["inventory_id"],
+        }
+    )
+    latest = (await socket.receive_json())["result"]
+    assert latest["map"] == original["map"]
+    assert latest["inventory_id"] != original["inventory_id"]
+    assert latest["geometry"]["unlinked_zone_count"] == 0
+    office, _, zone, list_only_zone = latest["geometry"]["regions"]
+    assert office["name"] == "Kitchen"
+    assert zone["id"] == "map-a:zid:pending-zone"
+    assert zone["polygons"]
+    assert list_only_zone == {
+        "id": "map-a:zid:list-only-zone",
+        "kind": "zone",
+        "name": "Reading nook",
+        "polygons": [],
+    }
+
+
 async def test_dashboard_selection_rejects_stale_snapshot_before_publishing(
     hass, configured, hass_owner_user
 ):
@@ -134,6 +190,14 @@ async def test_dashboard_selection_rejects_stale_snapshot_before_publishing(
         assert error.value.translation_key == "map_changed"
         control.assert_not_called()
         attrs["version"] = MAP.version_id
+        attrs["inventory_id"] = "0" * 64
+        with pytest.raises(HomeAssistantError) as error:
+            await hass.services.async_call(
+                DOMAIN, "clean_map_selection", attrs, blocking=True, context=context
+            )
+        assert error.value.translation_key == "map_changed"
+        control.assert_not_called()
+        attrs["inventory_id"] = MAP.inventory_id
         await hass.services.async_call(
             DOMAIN, "clean_map_selection", attrs, blocking=True, context=context
         )

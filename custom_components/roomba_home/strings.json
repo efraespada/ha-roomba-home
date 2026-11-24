@@ -855,6 +855,10 @@
           "name": "Map version",
           "description": "The version shown at confirmation."
         },
+        "inventory_id": {
+          "name": "Region inventory ID",
+          "description": "The inventory displayed by the card when the regions were reviewed."
+        },
         "regions": {
           "name": "Areas",
           "description": "The selected room or saved-zone identifiers."

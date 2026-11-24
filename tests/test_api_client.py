@@ -9,7 +9,11 @@ from urllib.parse import parse_qs
 import pytest
 
 from custom_components.roomba_home.core import AppProfile, LoginDetails, RoombaClient
-from custom_components.roomba_home.core.cleaning import CleaningCapabilities, CleaningProfile
+from custom_components.roomba_home.core.cleaning import (
+    CleaningCapabilities,
+    CleaningMode,
+    CleaningProfile,
+)
 from custom_components.roomba_home.core.client import check_status, signed_headers
 from custom_components.roomba_home.core.errors import (
     ApiError,
@@ -631,6 +635,7 @@ async def test_create_disabled_weekly_schedule_is_confirmed_with_provider_owned_
         "id": "fixture.group:fixture.item",
         "enabled": False,
         "name": "New schedule",
+        "regions": ["map-fixture:rid:room-test"],
         "weekdays": (1, 3),
         "time": "08:15",
     }
@@ -704,9 +709,33 @@ async def test_list_editable_weekly_schedules_returns_only_local_selection_field
         "id": "fixture.group:fixture.item",
         "name": "Example schedule",
         "enabled": False,
+        "regions": None,
         "weekdays": (1, 3),
         "time": "08:15",
     }
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"p2map_id": "floor", "regions": []},
+        {"p2map_id": "floor", "regions": None},
+        {"p2map_id": "floor", "regions": [{"type": "tid", "region_id": "area"}]},
+        {
+            "select_all": True,
+            "p2map_id": "floor",
+            "regions": [{"type": "rid", "region_id": "area"}],
+        },
+    ],
+)
+async def test_weekly_schedule_reports_unresolved_map_dependencies(overrides):
+    document = fixture_weekly_schedules()
+    options = document["household_schedules"][0]["schedules"][0]["options"]
+    options["commands"][0]["command"].update(overrides)
+    [schedule] = await client(schedule_http(document=document)).list_weekly_schedules(
+        "robot-fixture"
+    )
+    assert schedule["regions"] is None
 
 
 @pytest.mark.parametrize("households", [(), ("first", "second")])
@@ -928,6 +957,17 @@ def test_saved_routine_inventory_filters_foreign_and_malformed_records():
         "id": ROUTINE_ID,
         "name": "Example routine",
         "regions": ["floor:rid:fixture-room"],
+        "region_settings": [
+            {
+                "id": "floor:rid:fixture-room",
+                "mode": "vacuum",
+                "suction_level": None,
+                "wetness_level": None,
+                "two_pass": None,
+                "smart_scrub": None,
+                "carpet_boost": None,
+            }
+        ],
         "editable": True,
     }
     with pytest.raises(ProtocolError, match="duplicate"):
@@ -948,6 +988,56 @@ def test_only_supported_region_identifiers_appear_in_routine_list(region):
     original["commanddefs"][0]["regions"] = [region]
     original["commanddefs"][0].pop("p2map_id")
     assert row.action_response()["regions"] == []
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda command: command["regions"].append(command["regions"][0]),
+        lambda command: command.update(select_all=True),
+        lambda command: command.update(ordered=0),
+        lambda command: command.update(params={"preset": "auto"}),
+        lambda command: command["regions"][0].update(metadata={}),
+        lambda command: command["regions"][0].update(params=[]),
+        lambda command: command["regions"][0]["params"].update(operatingMode=42),
+        lambda command: command["regions"][0]["params"].update(preset=1),
+        lambda command: command["regions"][0]["params"].update(suctionLevel=100),
+    ],
+)
+def test_visual_routine_requires_a_lossless_region_projection(change):
+    original = provider_routine()
+    change(original["commanddefs"][0])
+    response = cleaning_routines([original], ROUTINE_ROBOT)[ROUTINE_ID].action_response()
+    assert response["editable"] is True
+    assert response["region_settings"] is None
+
+
+def test_visual_routine_exposes_saved_combined_settings():
+    target = replace(
+        ROUTINE_TARGET,
+        profiles=(
+            CleaningProfile(
+                CleaningMode.VACUUM_MOP,
+                suction_level=3,
+                wetness_level=2,
+                two_pass=False,
+                smart_scrub=True,
+                carpet_boost=True,
+            ),
+        ),
+    )
+    row = cleaning_routines([provider_routine(target=target)], ROUTINE_ROBOT)[ROUTINE_ID]
+    assert row.action_response()["region_settings"] == [
+        {
+            "id": "floor:rid:fixture-room",
+            "mode": "vacuum_mop",
+            "suction_level": 3,
+            "wetness_level": 2,
+            "two_pass": False,
+            "smart_scrub": True,
+            "carpet_boost": True,
+        }
+    ]
 
 
 @pytest.mark.parametrize(

@@ -45,7 +45,13 @@ def map_geometry(floor, plan):
         for room in plan.rooms
         if room.region_id not in shape_ids
     )
-    return {"regions": shapes, "keep_out": plan.keep_out, "virtual_walls": plan.virtual_walls}
+    return {
+        "regions": shapes,
+        "keep_out": plan.keep_out,
+        "virtual_walls": plan.virtual_walls,
+        "no_mop": plan.no_mop,
+        "unlinked_zone_count": plan.unlinked_zone_count,
+    }
 
 
 def live_geometry(path, floor, now):
@@ -72,6 +78,7 @@ def live_geometry(path, floor, now):
         vol.Required("entity_id"): cv.entity_id,
         vol.Optional("map_id"): IDENTIFIER,
         vol.Optional("known_version"): IDENTIFIER,
+        vol.Optional("known_inventory"): IDENTIFIER,
     }
 )
 @websocket_api.async_response
@@ -99,16 +106,33 @@ async def websocket_floor_plan(hass, connection, message):
         connection.send_error(message["id"], "map_unavailable", "Floor maps are unavailable.")
         return
     floor = next((item for item in maps if item.map_id == requested), maps[0])
+    # The archive revision and the associated region inventory can change independently.
+    inventory_id = floor.inventory_id
+    cleaning = state.capabilities.cleaning
     response = {
         "robot": state.name,
         "map": {"id": floor.map_id, "version": floor.version_id},
+        "inventory_id": inventory_id,
+        "cleaning": {
+            "modes": sorted(cleaning.modes or ()),
+            "suction_level": cleaning.maximum_level("suction_level"),
+            "wetness_level": cleaning.maximum_level("wetness_level"),
+            **{
+                field: cleaning.supports_option(field)
+                for field in ("two_pass", "smart_scrub", "carpet_boost")
+            },
+        },
         "maps": [{"id": item.map_id, "name": item.name} for item in maps],
         "current_room": state.telemetry.get("current_room"),
         "last_mission_rooms": state.telemetry.get("last_mission_rooms", []),
         "active_rooms": state.telemetry.get("live_timeline_active_rooms", []),
         "live": live_geometry(account.live_path(robot_id), floor, datetime.now(UTC)),
     }
-    if requested != floor.map_id or message.get("known_version") != floor.version_id:
+    if (requested, message.get("known_version"), message.get("known_inventory", inventory_id)) != (
+        floor.map_id,
+        floor.version_id,
+        inventory_id,
+    ):
         plan = await account.async_floor_plan(robot_id, floor)
         if plan is None or floor not in account.maps_for_robot(robot_id):
             connection.send_error(message["id"], "map_unavailable", "Floor maps are unavailable.")

@@ -15,12 +15,20 @@ route shows observed segments and leaves gaps where samples were missing.
 
 Use the map or the accessible buttons below it to select rooms and saved
 zones. Use the zoom buttons to change scale and drag the map to pan it.
-Keep-out areas and virtual walls appear as dashed overlays. The saved map
-and its restrictions remain managed by Roomba. Choose **Review selection**
-to check the robot and destinations, then **Start cleaning** to submit the
-selection with the robot's next-cleaning preferences. A map revision change
-requires a new selection. A user needs permission to read the vacuum to see
-its map and permission to control it to start cleaning.
+The legend distinguishes keep-out areas and virtual walls from no-mop areas.
+The saved map and its restrictions remain managed by Roomba. The card shows
+a notice when the map contains zone geometry that Roomba has yet to list for
+cleaning, or when a saved zone is selectable from the list without a matching
+outline.
+Choose **Review selection** to check the robot and destinations, then **Start
+cleaning** to submit the selection with the robot's next-cleaning preferences.
+A map revision or region inventory change requires a new selection. A user
+needs permission to read the vacuum to see its map and permission to control
+it to start cleaning.
+
+Choose **Review map dependencies** with one or more areas selected to see
+which known routine or weekly schedule targets them. Roomba can return
+entries with unresolved destinations, which the review flags for manual checking.
 
 Open **Last mission by room** for the reported result, area, and pass count.
 This information is also available from the **Last mission rooms** sensor.
@@ -273,9 +281,19 @@ the result by re-viewing his robot's list.
 
 ## Saved cleaning routines
 
+Choose **Manage routines** in the floor plan card. Selecting areas on the
+map first prepopulates a new routine. For supported routines on that floor,
+use the order buttons and per-area controls to edit destinations and cleaning
+preferences. **Duplicate** starts a new routine with the current draft's
+settings. **Delete** asks for confirmation. A name-only update can preserve
+the original settings of a routine with unavailable or unsupported targets.
+Routine management sends commands to the saved routines collection and leaves
+the robot idle.
+
 Use **List cleaning routines** for a vacuum to get its saved routine names,
-identifiers, regions, and editability. The response includes recognized
-single-robot start routines. Weekly schedules have separate actions.
+identifiers, regions, recognized per-region settings, and editability. The
+response includes supported single-robot start routines. Weekly schedules
+have separate actions.
 
 **Create a cleaning routine** saves an ordered selection from one current
 map. Specify optional cleaning preferences per region. The action saves the

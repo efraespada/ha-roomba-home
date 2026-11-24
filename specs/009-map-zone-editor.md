@@ -23,8 +23,14 @@ Zone creation and editing currently depend on Roomba Home. The v2 edit
 route returned HTTP 500. The v1 route added and renamed a temporary rectangle
 in the active map's `cleanZones` layer. The same map's associated region list
 provided no corresponding `zid`. A test command briefly entered the running
-phase before stopping. The native SDK has multiple edit paths. A successful
-app exchange is needed to identify the missing synchronization step.
+phase before stopping. A later read showed the reverse mismatch on an
+associated map where a listed zone had no matching outline. The native SDK
+also exposes an MQTT edit exchange with a correlated response and an
+operation payload supplied by the app. A successful app exchange on a
+supported robot is needed to identify its operation payload and the behavior
+of the resulting map and region inventory.
+The floor plan now displays no-mop restrictions separately and can show saved
+routine and weekly schedule dependencies for selected areas.
 [Current validation](../docs/validation.md#mission-detail-and-dashboard-validation)
 
 ## 3. Actors, surfaces, and terminology
@@ -65,12 +71,18 @@ For a division, verify that the proposed boundary crosses the selected room
 and results in two valid polygons. Show both resulting rooms before saving.
 For a merge, require adjacent rooms and preview the surviving name. Flag
 affected routines and schedules whose stored targets may require review.
-The backend re-reads the map under a robot-scoped lock. If the revision has
-changed, leave the draft available for review against the new map. Show
-**Saved** after reading a new revision containing the expected zone. If a
-response is lost, reconcile by reading Roomba before allowing a retry. Enable
-cleaning selection only after the edited zone appears in the associated
-region inventory and the model's command path has been physically verified.
+For the existing dependency review, show matches and explicitly flag sources
+or destinations that could not be established. Keep the review read-only.
+The backend re-reads the map under a robot-scoped lock. If its revision or
+region inventory has changed, leave the draft available for review against
+the new snapshot. Reconcile each edit against the active revision, the
+affected geometry, and the associated region inventory. A cleaning zone
+whose geometry has arrived but whose region is missing remains unconfirmed.
+Show **Saved** once the expected geometry and inventory are confirmed. For
+removal, confirm the target has disappeared from both sources. If a response
+is lost, reconcile by reading Roomba before allowing a retry. Enable newly
+supported selection paths only after physically verifying the model's
+command path.
 
 ## 7. User-facing configuration
 
@@ -142,6 +154,10 @@ screenshots.
 6. Rename one room, then verify the rest of the map and linked targets.
 7. Split a test room, validate both resulting regions, then merge them if the verified protocol permits recovery.
 8. Preview the effects on dependent routines before changing a referenced target.
+9. Keep an unmatched zone out of cleaning selections. Refresh when its
+   region appears, including when the archive version stays the same.
+10. Offer a listed zone with a missing outline through the area list and
+    leave its outline blank until the provider supplies matching geometry.
 
 ## 17. Requirements traceability
 
@@ -154,9 +170,12 @@ screenshots.
 
 ## 18. Implementation sequence
 
-Capture and verify the official app's successful add and remove operations.
+Capture and verify the official app's successful add, rename, and remove
+operations. Record the correlated response, the resulting map revision, and
+the appearance or disappearance of the associated region. Use a disposable
+zone inside an existing room and leave established restrictions in place.
 Build the write adapter and its synthetic tests. Add the visual draft and
-confirmation, then validate a disposable zone on the household installation.
+confirmation, then verify a completed cleaning run using the disposable zone.
 Verify room rename, split, merge, and restriction edits independently before
 making each available. A dependency preview and an editable copy of a routine
 are useful additions when the API can reliably expose the affected targets.
