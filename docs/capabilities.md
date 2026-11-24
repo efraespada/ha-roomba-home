@@ -30,7 +30,7 @@ Roomba Home. Other models require their own captures and tests.
 | Vacuum | Capability 2, command mode 2 | Vacuum entity and profile | Native and HA 0.1.0 and 0.3.0 cycles |
 | Mop only | Capability 4, command mode 4 | Selector and profile | Preparation, mopping, pause, resume, cancellation, and return with HA 0.3.0 |
 | Vacuum and mop | Capability 32, command mode 6 | Selector and profile | Sustained mode 6, pause, cancellation, and return |
-| Vacuum then mop | Capability 512, whole-map command mode 512, regional mode 512 observed in schedules | Whole-map selector. Result remains submitted while only vacuuming has been observed. | Vacuuming began for a whole-map mission and a scheduled room mission. The scheduled mission ended with navigation error 48 before mopping. |
+| Vacuum then mop | Capability 512, whole-map command mode 512, regional mode 512 observed in schedules | Whole-map selector. Result remains submitted while only vacuuming has been observed. | A whole-map mission switched from vacuuming to mopping with the same mission start. A separate scheduled room mission ended with navigation error 48 before mopping. |
 | Suction | `suctionLvl` 4 and `rw-settings.suctionLevel` | Number controls for the next mission and the default | Independent reads confirmed the default change from 3 to 2 and back to 3 in isolated HA. |
 | Mop wetness | `ppWetLvl` 3 | Number controls for the next mission and the default | The default changed from 3 to 1 and back to 3. A mission requesting 1 reported a global value of 2. |
 | SmartScrub | `scrub` 3 | Switches for the next mission and the default | Direct enable and disable were confirmed. One mopping run retained the active setting after returning. |
@@ -53,6 +53,8 @@ Roomba Home. Other models require their own captures and tests.
 | Zones and per-room preferences | SDK `zid` regions and per-region profiles in favorites | Actions to list and clean regions with individual settings | A mission with two requested suction values started and returned after cancellation. The path, settings applied to each room, and saved zones remain unverified. |
 | Temporary zone | `tid` and a command polygon tied to the active map | Target type in mission history | Vacuuming began and history recorded the exact target. Navigation ended with error 48 and zero area. |
 | Schedules | Household read, `rw-schedule`, `rw-settings.timezone`, POST, PUT, and DELETE | Schedule and next-start sensors, plus create, list, change start, enable, disable, and delete actions | Creation as disabled, deletion, and a real scheduled vacuum run with origin `cloud` |
+| Saved cleaning routines | Edition 1 favorites collection with server-assigned IDs | List, create, update, and remove actions for one associated vacuum | A temporary routine was created, renamed, updated with a different suction setting, and removed. Existing routines were preserved. |
+| Map editing | The SDK provides several editor paths. Max 700 writes require further verification. | [Map and zone editor specification](../specs/009-map-zone-editor.md) | An older edit route returned HTTP 500 during a disposable zone attempt. |
 | History | Observed mission history GET | Start, end, active time, pause and recharge time, recharge and emptying counts, result, and breakdown by mode | Six real records from the authorized robot |
 | Room history | Final room events with exact map revision | Room outcome, passes, and provider area values | Observed in Roomba history. Area units remain unverified. |
 
@@ -64,8 +66,8 @@ data in the Home Assistant harness.
 
 The suite checks serialization and omission of inactive settings across 384
 valid profiles spanning four modes, four suction levels, three wetness levels,
-and three booleans. Physical testing of advanced preferences and the second
-stage of vacuum then mop is still pending.
+and three booleans. The physical effect of several advanced preferences and
+automatic recharge and resume still need verification.
 
 Two direct regional vacuum-then-mop attempts produced no confirmed start. A
 mission using regional value 32 reported mode 6. Schedule creation accepts

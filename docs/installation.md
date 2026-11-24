@@ -66,6 +66,7 @@ isolated rollback, 0.1.0 restored the original twelve entities. Reinstalling
 | 0.10.0 | Registered three robots, three docks, and 470 entities. [Validation](validation.md#home-installation-of-0100) |
 | 0.11.0 | Verified three robots and three docks, enabled maps, and tested one robot's live position, room, path, and return to dock. [Validation](validation.md#home-installation-and-live-map-test-of-0110) |
 | 0.12.1 | Verified three robots, three docks, and 487 entities. Tested live room measurements and dashboard-based room selection. [Validation](validation.md#mission-detail-and-dashboard-validation) |
+| 0.13.0 | Kept three robots, three docks, and the existing maps. Verified the saved-routine lifecycle through the installed actions. [Validation](validation.md#saved-cleaning-routine-validation-in-0130) |
 
 ## Troubleshooting
 

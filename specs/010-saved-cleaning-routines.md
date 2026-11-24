@@ -148,7 +148,7 @@ actions once the edit form and routine launch semantics are verified.
 
 - [x] Verify edition-aware list, create, update, and remove API operations.
 - [x] Test failures, scoping, and absence of movement in Home Assistant.
-- [ ] Verify installed actions against the authorized household account.
+- [x] Verify installed actions against the authorized household account.
 - [x] Record the remaining unsupported routine variants.
 
 ## 20. References and decisions

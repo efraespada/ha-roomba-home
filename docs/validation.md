@@ -1,5 +1,24 @@
 # Roomba Home validation
 
+## Saved cleaning routine validation in 0.13.0
+
+The complete suite passed 1,566 tests and reached 100% Python statement and
+branch coverage. Ruff, hassfest, JavaScript syntax, privacy scanning, and
+the specification catalog passed.
+
+The signed API confirmed listing, creation with a server-assigned ID, an
+identical create request returning the same routine, a rename and suction
+change, and removal. The initial and final inventories matched. No motion
+command was sent by any of those operations.
+
+The household server verified the archive, passed Core configuration checks,
+and restarted with 0.13.0. Three robots, their three docks, and the existing
+floor plan dashboard loaded. From Home Assistant Actions, a single test
+routine was listed, created, renamed, updated, and removed. A fresh list
+confirmed the original routines were preserved. Version 0.12.1 remains
+available as the immediate rollback.
+[Saved routine actions](usage.md#saved-cleaning-routines)
+
 ## Mission detail and dashboard validation
 
 Version 0.12.1 passed 1,546 tests with 100% Python statement and branch
@@ -27,6 +46,11 @@ had empty future event lists. An earlier capture verified position batches
 during targeted cleaning. Live countdown, coverage percentage, and room area
 units still require provider evidence.
 [Prior capture evidence](evidence/2026-11-24-live-progress.json)
+
+The sequential mission changed its reported cleaning mode from vacuuming
+to mopping under the same mission start, with a zero error code. Interim
+bin emptying also retained the mission start. Charging and autonomous
+resumption require an observed low-battery return in an open mission.
 
 The saved-zone command passed fixture checks. The two authorized maps had
 no saved cleaning zones at the start of the test. A signed map edit trial
