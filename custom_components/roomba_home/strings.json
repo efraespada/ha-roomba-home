@@ -1,0 +1,938 @@
+{
+  "title": "Roomba Home",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Roomba Home",
+        "description": "Sign in with the account used by the Roomba Home app.",
+        "data": {
+          "username": "Email",
+          "password": "Password",
+          "country": "Country code"
+        }
+      },
+      "robots": {
+        "title": "Select robots",
+        "description": "Only validated modern robots are listed.",
+        "data": {
+          "robots": "Robots"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Authenticate again",
+        "description": "Enter the current password. Existing devices and entities will be retained.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "The account could not be authenticated.",
+      "cannot_connect": "Could not connect to Roomba Home.",
+      "invalid_country": "Enter a two-letter country code.",
+      "invalid_selection": "Select at least one listed robot.",
+      "rate_limited": "Too many requests. Wait before trying again.",
+      "unsupported_response": "The service returned an unsupported response."
+    },
+    "abort": {
+      "already_configured": "This account is already configured.",
+      "no_supported_robots": "No validated modern robots were found.",
+      "reauth_different_account": "Use the account that was originally configured.",
+      "reauth_successful": "Authentication updated."
+    }
+  },
+  "device": {
+    "dock": {
+      "name": "Dock"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery": {
+        "name": "Battery"
+      },
+      "mission_error": {
+        "name": "Mission error"
+      },
+      "mission_phase": {
+        "name": "Mission phase"
+      },
+      "mission_cycle": {
+        "name": "Mission cycle"
+      },
+      "operating_mode": {
+        "name": "Cleaning mode code"
+      },
+      "mission_area": {
+        "name": "Mission area"
+      },
+      "mission_started": {
+        "name": "Last mission start"
+      },
+      "mission_number": {
+        "name": "Mission number"
+      },
+      "not_ready_code": {
+        "name": "Not ready code"
+      },
+      "detected_pad": {
+        "name": "Detected mop pad"
+      },
+      "dock_error": {
+        "name": "Dock error"
+      },
+      "evacuation_state": {
+        "name": "Evacuation state code"
+      },
+      "refill_state": {
+        "name": "Refill state code"
+      },
+      "pad_wash_state": {
+        "name": "Mop washing state code"
+      },
+      "pad_dry_state": {
+        "name": "Mop drying state code"
+      },
+      "dock_firmware": {
+        "name": "Dock firmware"
+      },
+      "dock_tank_level": {
+        "name": "Dock tank level code"
+      },
+      "runtime_hours": {
+        "name": "Runtime hours"
+      },
+      "runtime_minutes": {
+        "name": "Runtime minutes"
+      },
+      "connection_code": {
+        "name": "Connection code"
+      },
+      "software_version": {
+        "name": "Robot firmware"
+      },
+      "controller_firmware": {
+        "name": "Controller firmware"
+      },
+      "mcu_firmware": {
+        "name": "MCU firmware"
+      },
+      "navigation_firmware": {
+        "name": "Navigation firmware"
+      },
+      "software_deployment_state": {
+        "name": "Software deployment code"
+      },
+      "charging_errors": {
+        "name": "Total charging errors"
+      },
+      "successful_charges": {
+        "name": "Total successful charges"
+      },
+      "hours_on_dock": {
+        "name": "Total hours on dock"
+      },
+      "total_missions": {
+        "name": "Total missions"
+      },
+      "successful_missions": {
+        "name": "Total successful missions"
+      },
+      "navigation_resets": {
+        "name": "Navigation resets"
+      },
+      "system_hours": {
+        "name": "System hours"
+      },
+      "system_minutes": {
+        "name": "System minutes"
+      },
+      "audio_volume": {
+        "name": "Configured audio volume"
+      },
+      "auto_evacuation_frequency": {
+        "name": "Automatic evacuation frequency code"
+      },
+      "obstacle_avoidance_mode": {
+        "name": "Obstacle avoidance mode code"
+      },
+      "pad_dry_duration": {
+        "name": "Mop drying duration code"
+      },
+      "pad_wetness": {
+        "name": "Mop wetness level"
+      },
+      "pad_wash_area_interval": {
+        "name": "Washing area interval code"
+      },
+      "pad_wash_heat": {
+        "name": "Washing heat code"
+      },
+      "pad_wash_return": {
+        "name": "Washing return code"
+      },
+      "pad_wash_time_interval": {
+        "name": "Washing time interval code"
+      },
+      "suction_level": {
+        "name": "Suction level"
+      },
+      "scrub_setting": {
+        "name": "Scrub setting code"
+      },
+      "detergent_setting": {
+        "name": "Detergent setting code"
+      },
+      "mission_elapsed": {
+        "name": "Time since mission start"
+      },
+      "not_ready_condition_count": {
+        "name": "Not ready conditions"
+      },
+      "evacuation_error": {
+        "name": "Evacuation error"
+      },
+      "refill_error": {
+        "name": "Refill error"
+      },
+      "pad_wash_error": {
+        "name": "Mop washing error"
+      },
+      "pad_dry_error": {
+        "name": "Mop drying error"
+      },
+      "last_command": {
+        "name": "Last command",
+        "state": {
+          "pending": "Pending",
+          "confirmed": "Confirmed",
+          "unconfirmed": "Unconfirmed",
+          "submitted": "Submitted"
+        }
+      },
+      "cloud_read": {
+        "name": "Last cloud read"
+      },
+      "part_67_usage": {
+        "name": "Side brush usage"
+      },
+      "part_67_remaining": {
+        "name": "Side brush remaining"
+      },
+      "part_67_used": {
+        "name": "Side brush used"
+      },
+      "part_71_usage": {
+        "name": "Main brushes usage"
+      },
+      "part_71_remaining": {
+        "name": "Main brushes remaining"
+      },
+      "part_71_used": {
+        "name": "Main brushes used"
+      },
+      "part_72_usage": {
+        "name": "Filter usage"
+      },
+      "part_72_remaining": {
+        "name": "Filter remaining"
+      },
+      "part_72_used": {
+        "name": "Filter used"
+      },
+      "part_147_usage": {
+        "name": "Dust bag usage"
+      },
+      "part_147_remaining": {
+        "name": "Dust bag remaining"
+      },
+      "part_147_used": {
+        "name": "Dust bag used"
+      },
+      "part_148_usage": {
+        "name": "Mop roller usage"
+      },
+      "part_148_remaining": {
+        "name": "Mop roller remaining"
+      },
+      "part_148_used": {
+        "name": "Mop roller used"
+      },
+      "part_202_usage": {
+        "name": "Dock washing system usage"
+      },
+      "part_202_remaining": {
+        "name": "Dock washing system remaining"
+      },
+      "part_202_used": {
+        "name": "Dock washing system used"
+      },
+      "part_212_usage": {
+        "name": "Mop washing system usage"
+      },
+      "part_212_remaining": {
+        "name": "Mop washing system remaining"
+      },
+      "part_212_used": {
+        "name": "Mop washing system used"
+      },
+      "mission_counter_c": {
+        "name": "Mission counter nMssnC"
+      },
+      "mission_counter_f": {
+        "name": "Mission counter nMssnF"
+      },
+      "voice_language": {
+        "name": "Voice language"
+      },
+      "schedule_count": {
+        "name": "Schedules stored on robot"
+      },
+      "dock_capability_evac": {
+        "name": "Evacuation capability code"
+      },
+      "dock_capability_refill": {
+        "name": "Refill capability code"
+      },
+      "dock_capability_dry": {
+        "name": "Drying capability code"
+      },
+      "dock_capability_wash": {
+        "name": "Washing capability code"
+      },
+      "dock_capability_pwo": {
+        "name": "Dock pwo capability code"
+      },
+      "dock_capability_detergent": {
+        "name": "Detergent capability code"
+      },
+      "map_count": {
+        "name": "Active maps"
+      },
+      "room_count": {
+        "name": "Mapped rooms"
+      },
+      "zone_count": {
+        "name": "Mapped cleaning zones"
+      },
+      "history_count": {
+        "name": "Recent missions"
+      },
+      "last_mission_started": {
+        "name": "Last mission start"
+      },
+      "last_mission_active_duration": {
+        "name": "Last mission active time"
+      },
+      "last_mission_pause_duration": {
+        "name": "Last mission paused time"
+      },
+      "last_mission_charge_duration": {
+        "name": "Last mission charging time"
+      },
+      "last_mission_recharges": {
+        "name": "Last mission recharges"
+      },
+      "last_mission_evacuations": {
+        "name": "Last mission dustbin evacuations"
+      },
+      "last_mission_finished": {
+        "name": "Last mission end"
+      },
+      "last_mission_duration": {
+        "name": "Last mission duration"
+      },
+      "last_mission_area": {
+        "name": "Last mission area"
+      },
+      "last_mission_outcome": {
+        "name": "Last mission result",
+        "state": {
+          "completed": "Completed",
+          "cancelled": "Cancelled",
+          "incomplete": "Incomplete",
+          "stuck": "Stuck"
+        }
+      },
+      "reported_cleaning_mode": {
+        "name": "Reported cleaning mode",
+        "state": {
+          "vacuum": "Vacuum",
+          "mop": "Mop",
+          "vacuum_mop": "Vacuum and mop",
+          "vacuum_then_mop": "Vacuum then mop"
+        }
+      },
+      "robot_timezone": {
+        "name": "Robot time zone"
+      },
+      "next_cloud_schedule": {
+        "name": "Next Roomba Home scheduled cleaning"
+      },
+      "cloud_schedule_count": {
+        "name": "Roomba Home schedules"
+      },
+      "cloud_enabled_schedule_count": {
+        "name": "Enabled Roomba Home schedules"
+      },
+      "mission_initiator": {
+        "name": "Mission initiator"
+      },
+      "last_mission_command": {
+        "name": "Last cleaning command",
+        "state": {
+          "start": "Clean",
+          "spot": "Spot clean at current location",
+          "point_clean": "Clean a point on the map"
+        }
+      },
+      "last_mission_target": {
+        "name": "Last recorded mission destination",
+        "state": {
+          "whole_map": "Whole map",
+          "rooms": "Rooms",
+          "saved_zones": "Saved zones",
+          "temporary_zones": "Temporary zones",
+          "mixed_regions": "Mixed regions",
+          "map_point": "Map point",
+          "local_spot": "Current position"
+        }
+      },
+      "last_mission_initiator": {
+        "name": "Last recorded mission initiator"
+      },
+      "last_mission_error": {
+        "name": "Last recorded mission error"
+      },
+      "connection_updated_at": {
+        "name": "Last Roomba connectivity update"
+      },
+      "current_room": {
+        "name": "Current room"
+      },
+      "position_updated": {
+        "name": "Last live position update"
+      },
+      "last_mission_rooms": {
+        "name": "Rooms in the last mission"
+      },
+      "live_timeline_updated": {
+        "name": "Last live mission timeline update"
+      }
+    },
+    "binary_sensor": {
+      "connection": {
+        "name": "Connection"
+      },
+      "bin_present": {
+        "name": "Dust bin installed"
+      },
+      "bin_full": {
+        "name": "Dust bin full"
+      },
+      "stuck": {
+        "name": "Robot stuck"
+      },
+      "charging_problem": {
+        "name": "Charging problem"
+      },
+      "tank_present": {
+        "name": "Water tank installed"
+      },
+      "dock_known": {
+        "name": "Dock recognized"
+      },
+      "carpet_boost": {
+        "name": "Carpet boost"
+      },
+      "child_lock": {
+        "name": "Child lock"
+      },
+      "eco_charge": {
+        "name": "Eco charge"
+      },
+      "evacuation_allowed": {
+        "name": "Evacuation allowed"
+      },
+      "map_upload_allowed": {
+        "name": "Map upload allowed"
+      },
+      "no_auto_passes": {
+        "name": "Automatic passes disabled"
+      },
+      "pad_dry_allowed": {
+        "name": "Mop drying allowed"
+      },
+      "pad_wash_allowed": {
+        "name": "Mop washing allowed"
+      },
+      "schedule_on_hold": {
+        "name": "Schedule on hold"
+      },
+      "two_pass": {
+        "name": "Two passes"
+      },
+      "details_available": {
+        "name": "Additional information available"
+      },
+      "history_available": {
+        "name": "Cleaning history available"
+      },
+      "maps_available": {
+        "name": "Map data available"
+      },
+      "parts_available": {
+        "name": "Consumable information available"
+      },
+      "schedules_available": {
+        "name": "Cloud schedules available"
+      },
+      "ready": {
+        "name": "Ready to start"
+      },
+      "problem": {
+        "name": "Problem"
+      },
+      "mission_at_dock": {
+        "name": "Docked during cleaning"
+      },
+      "preparing_mop": {
+        "name": "Preparing the mop"
+      },
+      "mop_attached": {
+        "name": "Mop attached"
+      },
+      "maintenance_required": {
+        "name": "Consumable maintenance due"
+      },
+      "dock_problem": {
+        "name": "Dock problem"
+      },
+      "dock_maintenance_required": {
+        "name": "Maintenance due"
+      },
+      "dock_clean_water": {
+        "name": "Dock clean water problem"
+      }
+    },
+    "event": {
+      "dock_problems": {
+        "name": "Dock problems",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "problem_detected": "Problem detected",
+              "problem_changed": "Problem changed",
+              "problem_cleared": "Problem cleared"
+            }
+          }
+        }
+      },
+      "problems": {
+        "name": "Device problems",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "problem_detected": "Problem detected",
+              "problem_changed": "Problem changed",
+              "problem_cleared": "Problem cleared"
+            }
+          }
+        }
+      },
+      "mission_finished": {
+        "name": "Mission finished",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "mission_finished": "Mission finished"
+            }
+          }
+        }
+      }
+    },
+    "select": {
+      "next_cleaning_mode": {
+        "name": "Next cleaning mode",
+        "state": {
+          "vacuum": "Vacuum",
+          "mop": "Mop",
+          "vacuum_mop": "Vacuum and mop",
+          "vacuum_then_mop": "Vacuum then mop"
+        }
+      }
+    },
+    "number": {
+      "auto_evacuation_area": {
+        "name": "Auto-empty area"
+      },
+      "next_suction_level": {
+        "name": "Next cleaning suction level"
+      },
+      "default_suction_level": {
+        "name": "Default suction level"
+      },
+      "default_wetness_level": {
+        "name": "Default mop wetness"
+      },
+      "next_wetness_level": {
+        "name": "Next cleaning mop wetness"
+      }
+    },
+    "switch": {
+      "default_smart_scrub": {
+        "name": "Default SmartScrub"
+      },
+      "next_smart_scrub": {
+        "name": "Next cleaning SmartScrub"
+      },
+      "default_two_pass": {
+        "name": "Default double pass"
+      },
+      "next_two_pass": {
+        "name": "Next cleaning two passes"
+      },
+      "default_carpet_boost": {
+        "name": "Default carpet boost"
+      },
+      "next_carpet_boost": {
+        "name": "Next cleaning carpet boost"
+      }
+    },
+    "button": {
+      "reset_cleaning_profile": {
+        "name": "Reset next cleaning preferences"
+      },
+      "empty_bin": {
+        "name": "Empty dustbin"
+      },
+      "refill_tank": {
+        "name": "Refill robot tank"
+      },
+      "wash_mop": {
+        "name": "Wash mop"
+      },
+      "dry_mop": {
+        "name": "Dry mop"
+      },
+      "stop_drying": {
+        "name": "Stop drying mop"
+      }
+    },
+    "image": {
+      "floor_plan": {
+        "name": "Floor plan ({map})"
+      }
+    }
+  },
+  "exceptions": {
+    "not_configured": {
+      "message": "This robot is not configured."
+    },
+    "robot_unavailable": {
+      "message": "The robot is unavailable. Check its connection before trying again."
+    },
+    "unsupported_start": {
+      "message": "Start a mission from idle or docked, or resume a paused mission. Cancel the current mission before replacing it."
+    },
+    "pause_requires_cleaning": {
+      "message": "Pause requires the robot to be cleaning the floor."
+    },
+    "command_unconfirmed": {
+      "message": "The command result is unconfirmed. Refresh the state before repeating the action."
+    },
+    "unsupported_command": {
+      "message": "This robot action is not supported."
+    },
+    "robot_setting_unavailable": {
+      "message": "The robot settings are unavailable."
+    },
+    "robot_setting_active": {
+      "message": "End the active mission before changing the robot settings."
+    },
+    "robot_setting_unconfirmed": {
+      "message": "The robot did not confirm the setting change."
+    },
+    "unsupported_profile": {
+      "message": "These cleaning preferences are not supported by the robot. Choose compatible values or reset the next cleaning preferences."
+    },
+    "robot_not_ready": {
+      "message": "The robot is not ready. Check its reported problems before starting."
+    },
+    "mop_not_ready": {
+      "message": "The robot reports a missing mop or water tank. Check both before mopping."
+    },
+    "bin_missing": {
+      "message": "The robot reports that the dust bin is missing. Reinstall it before continuing."
+    },
+    "resume_requires_pause": {
+      "message": "Resuming requires a paused cleaning mission."
+    },
+    "unsupported_areas": {
+      "message": "Select rooms or zones on one active map."
+    },
+    "unsupported_point": {
+      "message": "This robot does not support point cleaning on the map."
+    },
+    "point_requires_room": {
+      "message": "Select a room ID from the active map."
+    },
+    "invalid_map_point": {
+      "message": "Select a point inside the room and outside any keep-out zones."
+    },
+    "map_unavailable": {
+      "message": "The current robot map could not be read."
+    },
+    "map_rate_limited": {
+      "message": "Roomba Home is limiting map requests. Wait before requesting another room or zone cleaning."
+    },
+    "estimate_requires_rooms": {
+      "message": "Select rooms from one active map to get cleaning time estimates."
+    },
+    "estimate_rate_limited": {
+      "message": "Roomba Home is limiting requests. Wait before requesting cleaning time estimates again."
+    },
+    "estimate_unavailable": {
+      "message": "Roomba Home cleaning time estimates could not be read."
+    },
+    "unsupported_dock_action": {
+      "message": "The dock does not support this operation."
+    },
+    "dock_not_ready": {
+      "message": "The dock is not ready. Check its status and reported problems before continuing."
+    },
+    "unsupported_area_mode": {
+      "message": "Sequential cleaning is not available by region. Select another mode for this region."
+    },
+    "schedule_not_editable": {
+      "message": "Select an editable weekly schedule belonging to this robot and a valid time."
+    },
+    "schedule_rate_limited": {
+      "message": "Roomba Home is limiting requests. Wait before checking cleaning schedules again."
+    },
+    "schedule_unavailable": {
+      "message": "The Roomba Home cleaning schedules could not be read or updated."
+    },
+    "schedule_unconfirmed": {
+      "message": "Roomba Home did not confirm the change. List the schedules again before repeating the action."
+    },
+    "map_changed": {
+      "message": "The map changed. Review your selection."
+    },
+    "routine_not_editable": {
+      "message": "Select an editable routine belonging to this robot and valid settings."
+    },
+    "routine_rate_limited": {
+      "message": "Roomba Home is limiting requests. Wait before checking routines again."
+    },
+    "routine_unavailable": {
+      "message": "The Roomba Home routines could not be read or updated."
+    },
+    "routine_unconfirmed": {
+      "message": "Roomba Home did not confirm the change. List the routines again before repeating it."
+    }
+  },
+  "services": {
+    "list_cleaning_regions": {
+      "name": "List cleaning regions",
+      "description": "List the rooms and zones from the robot map, with their identifiers for automations."
+    },
+    "list_cleaning_estimates": {
+      "name": "List room cleaning time estimates",
+      "description": "Read Roomba Home's pre-cleaning estimates for supported profiles in selected rooms.",
+      "fields": {
+        "regions": {
+          "name": "Rooms",
+          "description": "List of room identifiers returned by the List cleaning regions action."
+        }
+      }
+    },
+    "clean_regions": {
+      "name": "Clean regions with preferences",
+      "description": "Start cleaning the selected rooms or zones with separate settings.",
+      "fields": {
+        "regions": {
+          "name": "Regions",
+          "description": "List of region identifiers and optional cleaning settings."
+        }
+      }
+    },
+    "clean_point": {
+      "name": "Vacuum a point on the map",
+      "description": "Vacuum around a point in a room on the robot's active map.",
+      "fields": {
+        "region_id": {
+          "name": "Room",
+          "description": "Room ID returned by the List cleaning regions action."
+        },
+        "x": {
+          "name": "X position",
+          "description": "Fraction along the room's X axis on the map, between 0 and 1."
+        },
+        "y": {
+          "name": "Y position",
+          "description": "Fraction along the room's Y axis on the map, between 0 and 1."
+        }
+      }
+    },
+    "list_cleaning_schedules": {
+      "name": "List editable cleaning schedules",
+      "description": "Read editable weekly cleaning schedules for the selected robot."
+    },
+    "update_cleaning_schedule": {
+      "name": "Change weekly cleaning start",
+      "description": "Change when an existing cleaning schedule starts. Keeps its routine and enabled state.",
+      "fields": {
+        "schedule_id": {
+          "name": "Schedule",
+          "description": "Identifier returned by the List editable cleaning schedules action."
+        },
+        "weekdays": {
+          "name": "Days of the week",
+          "description": "List of ISO weekdays from 1 (Monday) to 7 (Sunday)."
+        },
+        "time": {
+          "name": "Local time",
+          "description": "Start time in the robot’s timezone, to the nearest minute."
+        }
+      }
+    },
+    "set_cleaning_schedule_enabled": {
+      "name": "Enable or disable a cleaning schedule",
+      "description": "Change whether a weekly cleaning schedule runs. Keeps its routine and time.",
+      "fields": {
+        "schedule_id": {
+          "name": "Schedule",
+          "description": "Identifier returned by the List editable cleaning schedules action."
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "Turn on whether the schedule runs at its next start time."
+        }
+      }
+    },
+    "create_cleaning_schedule": {
+      "name": "Create a cleaning schedule",
+      "description": "Save a disabled weekly routine for the selected robot and regions.",
+      "fields": {
+        "name": {
+          "name": "Name",
+          "description": "Schedule name in Roomba Home."
+        },
+        "weekdays": {
+          "name": "Days of the week",
+          "description": "List of ISO weekdays from 1 (Monday) to 7 (Sunday)."
+        },
+        "time": {
+          "name": "Local time",
+          "description": "Start time in the robot’s timezone, to the nearest minute."
+        },
+        "regions": {
+          "name": "Regions and preferences",
+          "description": "Ordered list of rooms or zones from one active map with optional settings."
+        }
+      }
+    },
+    "remove_cleaning_schedule": {
+      "name": "Remove a cleaning schedule",
+      "description": "Remove the selected schedule from Roomba Home.",
+      "fields": {
+        "schedule_id": {
+          "name": "Schedule",
+          "description": "Identifier returned by the List editable cleaning schedules action."
+        }
+      }
+    },
+    "clean_map_selection": {
+      "name": "Clean map selection",
+      "description": "Clean rooms or saved zones from the reviewed map version.",
+      "fields": {
+        "map_id": {
+          "name": "Map ID",
+          "description": "The reviewed floor plan."
+        },
+        "version": {
+          "name": "Map version",
+          "description": "The version shown at confirmation."
+        },
+        "regions": {
+          "name": "Areas",
+          "description": "The selected room or saved-zone identifiers."
+        }
+      }
+    },
+    "list_cleaning_routines": {
+      "name": "List cleaning routines",
+      "description": "Read saved Roomba Home routines for this vacuum."
+    },
+    "create_cleaning_routine": {
+      "name": "Create a cleaning routine",
+      "description": "Save a routine for the selected regions without starting the vacuum.",
+      "fields": {
+        "name": {
+          "name": "Name",
+          "description": "Name shown in Roomba Home."
+        },
+        "regions": {
+          "name": "Regions and preferences",
+          "description": "Ordered list of regions from one current floor plan with optional cleaning settings."
+        }
+      }
+    },
+    "update_cleaning_routine": {
+      "name": "Update a cleaning routine",
+      "description": "Change its name or replace its selected regions and preferences.",
+      "fields": {
+        "routine_id": {
+          "name": "Routine",
+          "description": "Identifier returned by List cleaning routines."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Name shown in Roomba Home."
+        },
+        "regions": {
+          "name": "Regions and preferences",
+          "description": "Ordered list of regions from one current floor plan with optional cleaning settings."
+        }
+      }
+    },
+    "remove_cleaning_routine": {
+      "name": "Remove a cleaning routine",
+      "description": "Remove a saved Roomba Home routine.",
+      "fields": {
+        "routine_id": {
+          "name": "Routine",
+          "description": "Identifier returned by List cleaning routines."
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Select robots",
+        "description": "Choose the robots to manage in Home Assistant.",
+        "data": {
+          "robots": "Robots",
+          "show_maps": "Show saved floor plans and live room updates"
+        },
+        "data_description": {
+          "show_maps": "Displays floor plans and current room names in your Home Assistant."
+        }
+      }
+    },
+    "error": {
+      "invalid_selection": "Select at least one listed robot."
+    },
+    "abort": {
+      "invalid_auth": "The account could not be authenticated.",
+      "cannot_connect": "Could not connect to Roomba Home.",
+      "invalid_country": "Enter a two-letter country code.",
+      "rate_limited": "Too many requests. Wait before trying again.",
+      "unsupported_response": "The service returned an unsupported response.",
+      "no_supported_robots": "No validated modern robots were found.",
+      "reauth_different_account": "Use the account that was originally configured."
+    }
+  }
+}

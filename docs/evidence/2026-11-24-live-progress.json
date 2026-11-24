@@ -1,0 +1,72 @@
+{
+  "date": "2026-11-24",
+  "model": "X185240",
+  "sources": [
+    "Roomba Home Android 3.4.1",
+    "Authenticated MQTT state, live map and mission timeline",
+    "Signed read of active map geometry and room time estimates"
+  ],
+  "room_trials": [
+    {
+      "mode": "vacuum",
+      "expected_map_region_count": 6,
+      "live_map_messages": 16,
+      "position_messages": 78,
+      "distinct_coordinates": 117,
+      "coordinates_in_commanded_room": 63,
+      "coordinates_in_another_room": 54,
+      "coordinates_without_unique_room": 0,
+      "expiration_present_in_every_position_message": true,
+      "returned_to_dock": true,
+      "active_error_after_return": 0,
+      "checked_cleaning_settings_changed": false
+    },
+    {
+      "mode": "vacuum",
+      "expected_map_region_count": 6,
+      "live_map_messages": 16,
+      "position_messages": 76,
+      "distinct_coordinates": 105,
+      "coordinates_in_commanded_room": 86,
+      "coordinates_in_another_room": 19,
+      "coordinates_without_unique_room": 0,
+      "expiration_present_in_every_position_message": true,
+      "returned_to_dock": true,
+      "active_error_after_return": 0,
+      "checked_cleaning_settings_changed": false
+    }
+  ],
+  "position": {
+    "path": "pos_update.cur_path",
+    "tuple_fields": ["x", "y", "orientation", "operatingModes"],
+    "persistent_room_polygons_match_coordinate_system": true
+  },
+  "raw_map": {
+    "https_access_confirmed": true,
+    "compression": "zlib",
+    "uncompressed_format_validated": false
+  },
+  "timeline": {
+    "request_acknowledged_on_active_mission": true,
+    "matching_request_response": true,
+    "matches_mission_identity_in_current_state": true,
+    "observed_event_types": ["start", "reloc"],
+    "future_events_present_in_sample": false,
+    "remaining_time_or_percentage_present_in_sample": false,
+    "recorded_history_room_fields": ["area", "totalArea", "passCount", "status"],
+    "followup_observer_stopped_on_unhandled_event_list": true
+  },
+  "timeline_trial_return": {
+    "automatic_dock_confirmed": false,
+    "return_stopped_after_five_minutes": true,
+    "stopped_outside_dock_confirmed": true,
+    "active_error_after_stop": 0
+  },
+  "app": {
+    "active_room_label_visible": true,
+    "approximate_duration_minutes": 7,
+    "same_room_and_profile_estimate_seconds": 397,
+    "numeric_mission_percentage_observed": false,
+    "live_map_still_loading_in_emulator_sample": true
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-23",
+  "robot_model": "X185240",
+  "android_app_version": "3.4.1",
+  "spot": {
+    "sdk_sources": [
+      "MissionServiceHandler",
+      "MissionCommandMapperKt",
+      "CommandTypeDTO",
+      "BasicCommandBuilder"
+    ],
+    "wire_command": "spot",
+    "distinct_from_coordinate_point_command": true,
+    "generic_mission_bridge_recognizes_spot": true,
+    "basic_command_builder_lists_spot": false,
+    "trial_started_at_dock": {
+      "native_command_published_once": true,
+      "broker_acknowledged": true,
+      "vacuum_mode_requested": 2,
+      "map_or_geometry_supplied": false,
+      "robot_transition_observed": false,
+      "final_state": "charge/none",
+      "final_mission_error": 0,
+      "original_suction_retained": true
+    },
+    "positioning_trials": {
+      "used_a_previously_verified_point": true,
+      "live_run_observed": true,
+      "ready_idle_off_dock_state_confirmed": false,
+      "spot_command_published_off_dock": false,
+      "returned_to_dock_with_zero_mission_error": true,
+      "original_suction_retained": true
+    }
+  },
+  "live_map": {
+    "source": "Android SDK P2MapAPIFetching and LiveMapStreamRequest",
+    "read": "GET /v1/p2maps/livemap?robotId={robot_id}&rawOnly=true",
+    "topic": "{irbtTopics}/things/{robot_id}/livemap/update",
+    "http_status": 200,
+    "subscription_accepted": true,
+    "response_at_dock": {
+      "field": "mqtt_topic",
+      "topic_matches_associated_robot_template": true,
+      "initial_map_url_present": false
+    },
+    "observation_seconds": 28,
+    "matching_map_updates": 0,
+    "matching_position_updates": 0,
+    "motion_commands_by_observer": 0
+  },
+  "limits": "Remote spot at the current position was not verified. No live position or coverage payload was captured."
+}

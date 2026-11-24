@@ -1,0 +1,99 @@
+{
+  "date": "2026-11-23",
+  "release": "0.4.1",
+  "model": "X185240",
+  "fresh_map_inventory": {
+    "supported_robots": 3,
+    "active_maps": 3,
+    "rooms": 13,
+    "saved_clean_zones": 0
+  },
+  "scheduled_vacuum": {
+    "schedule_created_disabled": true,
+    "activation_and_deactivation_readback": true,
+    "regions_in_schedule": 1,
+    "mode_requested": 2,
+    "first_run_report_seconds_after_local_start": 40.0,
+    "reported_mode": 2,
+    "mission_initiator": "cloud",
+    "mission_error_at_start": 0,
+    "start_commands_published_by_probe": 0,
+    "pause_confirmed": true,
+    "final_docked": true,
+    "final_mission_error": 0,
+    "history": {
+      "initiator": "cloud",
+      "outcome": "cncl",
+      "run_minutes": 2,
+      "requested_regions": 1,
+      "vacuum_statistics_present": true
+    },
+    "temporary_schedule_removed": true,
+    "original_schedule_count": 5,
+    "original_starts_enabled_flags_and_commands_preserved": true,
+    "metadata_differences_against_archived_app_reads": [
+      "created_time"
+    ]
+  },
+  "harness_checks": {
+    "passed": 1250,
+    "covered_statements": 2753,
+    "covered_branches": 974,
+    "percent": 100.0
+  },
+  "api_only_tests_passed": 1037,
+  "verified_local_document_links": 277,
+  "scheduled_sequential": {
+    "regions_in_schedule": 1,
+    "region_mode_requested": 512,
+    "first_run_report_seconds_after_local_start": 27.7,
+    "first_reported_mode": 2,
+    "mission_initiator": "cloud",
+    "transition_after_observed_floor_seconds": 69,
+    "transition_phase": "hmPostMsn",
+    "transition_mission_error": 48,
+    "mop_preparation_observed": false,
+    "mop_run_observed": false,
+    "final_docked": true,
+    "final_live_error": 0,
+    "temporary_schedule_removed": true,
+    "original_schedule_count": 5,
+    "original_starts_enabled_flags_and_commands_preserved": true,
+    "history": {
+      "outcome": "stuck",
+      "requested_room_matches": true,
+      "last_final_event_error_value": 48,
+      "history_projection_verified_with_actual_response": true
+    }
+  },
+  "remaining_sequential_validation": {
+    "different_supported_robot_docked": true,
+    "active_rooms_reported": 1,
+    "shortest_vacuum_estimate_seconds": 3449,
+    "shortest_sequential_estimate_seconds": 6898,
+    "physical_trial_started": false
+  },
+  "household_installation": {
+    "home_assistant_core": "2026.11.2",
+    "previous_version": "0.4.0",
+    "loaded_version": "0.4.1",
+    "package_sha256": "6b15f82e2c0294699e9347e679e7ddf7fcc62e66755093f30f38e47320df6f14",
+    "configuration_check": "passed",
+    "restart": "passed",
+    "previous_component_backup_created": true,
+    "robot_devices": 3,
+    "dock_children": 3,
+    "registered_entities_before": 425,
+    "registered_entities_after": 431,
+    "reported_stuck_with_historical_error": 48,
+    "current_robot_error_at_dock": 0,
+    "tested_activation_and_deactivation_from_ha": true,
+    "independent_readback_for_both_flags": true,
+    "temporary_schedule_original_time_and_command_preserved": true,
+    "physical_commands_in_ha_activation_probe": 0,
+    "test_robot_remained_docked": true,
+    "original_editable_schedules_for_activation_target": 2,
+    "original_account_schedules_preserved": 5,
+    "temporary_schedule_removed": true
+  }
+}

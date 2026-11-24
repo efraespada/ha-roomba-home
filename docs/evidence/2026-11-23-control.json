@@ -1,0 +1,74 @@
+{
+  "commands": [
+    {
+      "command": "start",
+      "elapsed": 0.1,
+      "broker_ack": true
+    },
+    {
+      "command": "pause",
+      "elapsed": 210.4,
+      "broker_ack": true
+    },
+    {
+      "command": "stop",
+      "elapsed": 219.9,
+      "broker_ack": true
+    },
+    {
+      "command": "dock",
+      "elapsed": 225.1,
+      "broker_ack": true
+    }
+  ],
+  "vacuum_seconds_requested": 210,
+  "start_confirmed": true,
+  "pause_confirmed": true,
+  "cancel_requested": true,
+  "final_at_base": true,
+  "transitions": [
+    {
+      "elapsed": 1.4,
+      "phase": "charge",
+      "cycle": "none",
+      "mode": 2,
+      "error": 0
+    },
+    {
+      "elapsed": 5.5,
+      "phase": "run",
+      "cycle": "clean",
+      "mode": 2,
+      "error": 0
+    },
+    {
+      "elapsed": 214.8,
+      "phase": "stop",
+      "cycle": "clean",
+      "mode": 2,
+      "error": 0
+    },
+    {
+      "elapsed": 225.0,
+      "phase": "stop",
+      "cycle": "none",
+      "mode": 2,
+      "error": 0
+    },
+    {
+      "elapsed": 230.4,
+      "phase": "hmUsrDock",
+      "cycle": "dock",
+      "mode": 2,
+      "error": 0
+    },
+    {
+      "elapsed": 292.0,
+      "phase": "charge",
+      "cycle": "none",
+      "mode": 2,
+      "error": 0
+    }
+  ],
+  "verified_on": "2026-11-23"
+}

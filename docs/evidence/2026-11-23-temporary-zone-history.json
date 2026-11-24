@@ -1,0 +1,101 @@
+{
+  "date": "2026-11-23",
+  "model": "X185240",
+  "sources": [
+    "Roomba Home Android 3.4.1 native DTOs",
+    "Authenticated command and robot state",
+    "Independent signed mission-history and settings reads"
+  ],
+  "request": {
+    "command": "start",
+    "operatingMode": 2,
+    "region_type": "tid",
+    "region_count": 1,
+    "linked_polygon_count": 1,
+    "polygon_ring_closed": true,
+    "active_map_version_used": true
+  },
+  "observed": {
+    "mqtt_acknowledged": true,
+    "run_observed_after_seconds": 8,
+    "terminal_error_observed_after_seconds": 32,
+    "history_target_matches_request": true,
+    "history_polygon_matches_request": true,
+    "history_map_version_matches_request": true,
+    "history_outcome": "stuck",
+    "history_terminal_error": 48,
+    "history_cleaned_area_m2": 0,
+    "later_docked": true,
+    "later_mission_error": 0,
+    "saved_map_version_changed": false,
+    "saved_region_inventory_changed": false
+  },
+  "settings": {
+    "wetness_sensor_level_before_trial": 4,
+    "wetness_level_after_trial": 1,
+    "verified_supported_maximum": 3,
+    "restored_last_verified_supported_level": 3,
+    "restoration_read_back": true,
+    "other_checked_settings_unchanged": true
+  },
+  "live_map": {
+    "http_status_raw_and_standard": 200,
+    "response_topic_matched_subscription": true,
+    "observation_seconds": 56,
+    "map_or_position_payloads_received": 0
+  },
+  "home_assistant": {
+    "release": "0.10.0",
+    "archive_sha256": "c9c68b3a5d6e1b012ae254741256c3243df456b6d38e600fe838b1612bb60388",
+    "history_replayed_from_real_record": true,
+    "target_sensor": "temporary_zones",
+    "target_region_count": 1,
+    "historical_error_meaning": "path_blocked",
+    "existing_entity_ids_preserved_on_upgrade_from_0_7_0": 397,
+    "existing_entity_ids_preserved_on_upgrade_from_0_9_0": 409,
+    "new_destination_sensors": 3,
+    "new_account_session": {
+      "discovery_http_status": 200,
+      "identity_http_status": 200,
+      "identity_assertion_accepted_by_client": true,
+      "session_exchange_http_status": 403
+    },
+    "domestic_readback": {
+      "installed_release_before_upgrade": "0.7.0",
+      "registered_devices_before_upgrade": 6,
+      "registered_entities_before_upgrade": 454,
+      "docked": true,
+      "connected": true,
+      "current_error": 0,
+      "wetness_level": 3
+    },
+    "domestic_upgrade": {
+      "date": "2026-11-24",
+      "previous_release": "0.7.0",
+      "archive_and_installer_digests_verified": true,
+      "core_configuration_check_passed": true,
+      "core_restarted": true,
+      "loaded_release": "0.10.0",
+      "robots": 3,
+      "associated_docks": 3,
+      "registered_entities": 470,
+      "tested_robot_connected_and_docked": true,
+      "tested_robot_active_error": 0,
+      "tested_robot_historical_target": "temporary_zones",
+      "tested_robot_historical_error": 48,
+      "robot_commands_sent": 0,
+      "previous_release_backup_kept": true
+    },
+    "simulated_session_recovery": {
+      "controls_unavailable_during_error": true,
+      "mqtt_publications_before_retry": 0,
+      "reauthentication_requested": false,
+      "entity_ids_preserved": true,
+      "historical_error_preserved": 48
+    },
+    "automated_tests_passed": 1489,
+    "statement_coverage_percent": 100,
+    "branch_coverage_percent": 100
+  },
+  "limit": "The robot persisted the requested target but did not clean the zone."
+}

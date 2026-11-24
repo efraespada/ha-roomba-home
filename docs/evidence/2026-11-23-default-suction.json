@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-23",
+  "release": "0.8.0",
+  "robot_model": "X185240",
+  "source": "Android SDK SuctionLevelSetting and SuctionLevelShadowField",
+  "capability": "cap.suctionLvl",
+  "shadow": "rw-settings",
+  "desired_field": "suctionLevel",
+  "home_assistant_core": "2026.11.2",
+  "install_archive_sha256": "839973d08d3ca3e6c1ec58fb533cac3752b6696a133d1d22dd221129a18679ee",
+  "isolated_home_assistant": {
+    "service": "number.set_value",
+    "selected_robots": 1,
+    "registered_entities": 151,
+    "initial_reported_suction": 3,
+    "changed_reported_suction": 2,
+    "change_confirmed_seconds": 4.83,
+    "restored_reported_suction": 3,
+    "restoration_confirmed_seconds": 6.18,
+    "initial_attempt_restoration_used_direct_shadow_fallback": true,
+    "repeat_with_separate_client_identity_restored_using_native_ha_service": true,
+    "readback_independent_of_ha": true,
+    "next_cleaning_preference_preserved": true,
+    "robot_remained_docked": true,
+    "mission_identity_unchanged": true,
+    "missions_started": 0
+  },
+  "offline_registry_upgrade": {
+    "previous_release": "0.7.0",
+    "existing_entities_preserved": 384,
+    "new_default_suction_controls": 3,
+    "resulting_entities": 387,
+    "customized_name_preserved": true,
+    "cleaning_profile_preserved": true
+  },
+  "quality_checks": {
+    "pytest_passed": 1428,
+    "covered_statements": 3249,
+    "covered_branches": 1138,
+    "statement_and_branch_coverage_percent": 100.0,
+    "hassfest_invalid_integrations": 0,
+    "validated_sdds": 7
+  }
+}

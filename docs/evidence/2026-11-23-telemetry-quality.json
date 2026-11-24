@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-23",
+  "version": "0.2.0",
+  "home_assistant_core": "2026.11.2",
+  "tests": {
+    "passed": 351,
+    "failed": 0,
+    "api_only_passed": 264
+  },
+  "coverage": {
+    "percent": 98.37,
+    "branches_included": true,
+    "minimum_percent": 90
+  },
+  "ruff": {
+    "lint": "passed",
+    "format": "passed",
+    "python_files": 41
+  },
+  "hassfest": {
+    "integrations": 1,
+    "invalid_integrations": 0
+  },
+  "specifications": {
+    "validated_capabilities": 5,
+    "telemetry_household_rollout_gate": "pending"
+  },
+  "privacy": {
+    "patterns": "passed",
+    "actual_account_values": "passed",
+    "credentials_in_repository": false
+  },
+  "remote_ci_executed": false,
+  "branding": {
+    "files": 2,
+    "png_rgba": true,
+    "sizes": [
+      [
+        256,
+        256
+      ],
+      [
+        512,
+        512
+      ]
+    ],
+    "metadata_stripped": true,
+    "privacy_review": "exact_sha256_and_path",
+    "household_visual_check": "pending"
+  }
+}

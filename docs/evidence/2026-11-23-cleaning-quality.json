@@ -1,0 +1,353 @@
+{
+  "date": "2026-11-23",
+  "source_version": "0.3.1",
+  "status": "development_checkpoint",
+  "tests": {
+    "passed": 1178,
+    "failed": 0,
+    "warnings": 5,
+    "physical_robot_access": false,
+    "environment": "Home Assistant 2026.11.2 official pytest harness"
+  },
+  "coverage": {
+    "scope": "custom_components.roomba_home",
+    "statements": 2593,
+    "covered_statements": 2593,
+    "branches": 920,
+    "covered_branches": 920,
+    "percent": 100.0,
+    "excluded_lines": 30,
+    "required_percent": 100
+  },
+  "ruff": "passed",
+  "hassfest": {
+    "version": "2026.11.2",
+    "integrations": 1,
+    "invalid_integrations": 0
+  },
+  "privacy": "passed_with_private_deny_values",
+  "dock_registry_replay": {
+    "data": "Three previously captured robot snapshots and consumable readings",
+    "scope": "Dock registry checkpoint before addition of the mission progress and history sensors",
+    "home_assistant_version": "2026.11.2",
+    "robot_devices": 3,
+    "dock_child_devices": 3,
+    "entities_per_dock": {
+      "sensor": 22,
+      "binary_sensor": 3,
+      "button": 4
+    },
+    "total_registered_entities": 357,
+    "identities_preserved_on_reload": true,
+    "network_and_robot_calls": 0
+  },
+  "mission_history_replay": {
+    "record_count": 6,
+    "records_with_all_additional_fields": 6,
+    "mode_records": {
+      "vacuum": 4,
+      "vacuum_mop": 2
+    },
+    "network_and_robot_calls": 0,
+    "scope": "Previously captured mission history; an actual mid-mission recharge was not observed"
+  },
+  "mop_preparation_replay": {
+    "mode": "mop",
+    "preparation_to_run_seconds": 150.9,
+    "same_mission_identity": true,
+    "preparation_confirms_floor_phase": false,
+    "later_run_confirms_floor_phase": true,
+    "network_and_robot_calls": 0
+  },
+  "cloud_schedule_read_check": {
+    "supported_robot_count": 3,
+    "robots_with_schedules_read": 3,
+    "robots_with_valid_time_zone_in_snapshot": 3,
+    "total_schedules": 5,
+    "enabled_schedules": 0,
+    "robots_with_derived_next_start": 0,
+    "writes_to_robot_or_schedules": 0
+  },
+  "archive_upgrade_rehearsal": {
+    "home_assistant_core": "2026.11.2",
+    "scope": "Isolated Home Assistant with persistent storage, replayed robot data, and a complete upgrade, rollback and re-upgrade cycle",
+    "versions": [
+      "0.1.0",
+      "0.3.0",
+      "0.1.0",
+      "0.3.0"
+    ],
+    "baseline_archive_sha256": "97dbf9d07eda2426bc65b17a3da36cb91402ba5474145872c0d83f7cc8270b1b",
+    "candidate_archive_sha256": "1ea218d40bd6f7f9810fb4077511f9e3fe3cd4a76a896ab80c07ebc52435b5df",
+    "configuration_check": "passed",
+    "config_entry_and_customized_entity_preserved": true,
+    "legacy_entities_preserved": 12,
+    "candidate_registered_entities": 369,
+    "candidate_robot_devices": 3,
+    "candidate_dock_children": 3,
+    "reload_preserved_all_entities": true,
+    "successful_brand_responses": {
+      "light_1x_pixels": 256,
+      "light_2x_pixels": 512,
+      "dark_1x_pixels": 256,
+      "dark_2x_pixels": 512
+    },
+    "diagnostics_robot_count": 3,
+    "rollback_active_legacy_entities": 12,
+    "rollback_kept_extended_registry_records": true,
+    "network_and_robot_calls": 0,
+    "config_checks_passed": 2,
+    "rollback_kept_cleaning_preferences_and_area": true,
+    "reupgrade_restored_cleaning_preferences_and_area": true,
+    "reupgrade_preserved_all_entity_records": true
+  },
+  "candidate_live_read_check": {
+    "package_version": "0.3.0",
+    "home_assistant_core": "2026.11.2",
+    "package_sha256": "1ea218d40bd6f7f9810fb4077511f9e3fe3cd4a76a896ab80c07ebc52435b5df",
+    "scope": "Exact installation archive in isolated Home Assistant with live provider reads, native services and local simulation of partial MQTT loss",
+    "robots": 3,
+    "connected_robots": 3,
+    "batteries_known": 3,
+    "device_records": 3,
+    "dock_child_devices": 3,
+    "registered_entities": 415,
+    "source_counts": {
+      "details": 3,
+      "parts": 3,
+      "maps": 3,
+      "history": 3,
+      "schedules": 3
+    },
+    "registered_source_indicators_on": {
+      "history": 3,
+      "schedules": 3
+    },
+    "cleaning_mode_counts": [
+      4,
+      4,
+      4
+    ],
+    "region_counts_from_home_assistant_action": [
+      1,
+      6,
+      6
+    ],
+    "time_estimate_room_counts": [
+      1,
+      6,
+      6
+    ],
+    "time_estimate_distinct_option_counts": [
+      36
+    ],
+    "time_estimate_modes": [
+      "mop",
+      "vacuum",
+      "vacuum_mop",
+      "vacuum_then_mop"
+    ],
+    "enabled_schedules": 0,
+    "robots_with_redacted_diagnostics": 3,
+    "http_get_requests": 14,
+    "authentication_post_requests": 4,
+    "mqtt_shadow_reads": 28,
+    "time_estimate_post_requests": 3,
+    "simulated_mqtt_reads_without_reply": 2,
+    "published_actuator_commands": 0,
+    "partial_mqtt_fault_injection": {
+      "scope": "Two locally suppressed reads inside an actual shared MQTT session",
+      "timeout_refresh_seconds": 17.07,
+      "same_connection_peer_remained_available": true,
+      "affected_device_last_read_preserved": true,
+      "affected_device_became_unavailable": true,
+      "next_successful_poll_recovered_device": true
+    },
+    "unload": "passed"
+  },
+  "map_failure_recovery": {
+    "scope": "Home Assistant harness with simulated provider responses",
+    "saved_area_mapping_preserved": true,
+    "stale_map_cannot_publish_a_command": true,
+    "fresh_version_required_for_the_command": true,
+    "valid_empty_map_list_replaces_cache": true,
+    "availability_is_isolated_between_robot_maps": true
+  },
+  "timed_home_assistant_control_rehearsal": {
+    "scope": "Home Assistant 2026.11.2 script engine with simulated time and vacuum actions",
+    "cases_passed": 6,
+    "pause_request_seconds_after_reported_start": 210,
+    "fallback_pause_request_seconds_with_missing_mission_report": 45,
+    "delay_seconds_before_stop_attempt": 5,
+    "continues_cleanup_after_start_or_pause_error": true,
+    "rejects_wrong_mode_and_active_mission": true,
+    "other_robots_targeted": 0,
+    "physical_commands": 0
+  },
+  "specification_catalog": {
+    "capabilities": 7,
+    "validation": "passed"
+  },
+  "limitations": [
+    "Aspirating one room and resuming were confirmed directly on the authorized robot.",
+    "The second sequential stage and saved zones need household validation.",
+    "A two-room request started a mission. The room traversal and applied per-room suction remain unverified.",
+    "Manual water refill remains unverified on an advertising dock.",
+    "Schedules are read-only until a write and subsequent readback can be verified."
+  ],
+  "api_only_tests": {
+    "passed": 978,
+    "failed": 0,
+    "home_assistant_installed": false
+  },
+  "documentation_links": {
+    "checked": 260,
+    "missing": 0,
+    "template_placeholders_excluded": true
+  },
+  "household_installation_0_3_0": {
+    "home_assistant_hardware": "Green",
+    "home_assistant_core": "2026.11.2",
+    "previous_integration_version": "0.1.0",
+    "running_integration_version": "0.3.0",
+    "package_sha256": "1ea218d40bd6f7f9810fb4077511f9e3fe3cd4a76a896ab80c07ebc52435b5df",
+    "configuration_check": "passed",
+    "restart": "passed",
+    "previous_component_backup_created": true,
+    "existing_config_entry_reused": true,
+    "robot_devices": 3,
+    "dock_children": 3,
+    "registered_entities": 415,
+    "local_brand_icon_visible": true,
+    "robot_target_count": 1,
+    "read_actions": {
+      "rooms_returned": 6,
+      "zones_returned": 0,
+      "estimate_rooms_requested": 1,
+      "estimate_profiles_returned": 36,
+      "estimate_modes_returned": 4
+    },
+    "vacuum": {
+      "scope": "Home Assistant script trace and robot activity log",
+      "pause_requested_seconds_after_reported_run": 210,
+      "paused_seconds_after_reported_run": 221,
+      "idle_after_stop_seconds_after_reported_run": 236,
+      "docked_seconds_after_reported_run": 306,
+      "mission_error_during_run": 0,
+      "start_pause_stop_and_return_traced": true
+    },
+    "mop": {
+      "scope": "Home Assistant script trace and robot activity log",
+      "preparation_phase": "padWash",
+      "run_seconds_after_reported_preparation": 153,
+      "paused_seconds_after_reported_preparation": 199,
+      "resumed_run_seconds_after_reported_preparation": 209,
+      "idle_after_stop_seconds_after_reported_preparation": 240,
+      "returning_seconds_after_reported_preparation": 250,
+      "docked_seconds_after_reported_preparation": 293,
+      "mission_error_during_run": 0,
+      "dock_error_before_mop_and_after_docking": 0
+    },
+    "manual_dock_emptying": {
+      "observed_native_state_codes": [
+        301,
+        302,
+        301
+      ],
+      "active_state_seconds_after_press": 20,
+      "idle_state_seconds_after_press": 36,
+      "last_command_result": "confirmed",
+      "evacuation_error": 0,
+      "dock_error": 0
+    },
+    "entry_reload": {
+      "robot_devices_after_reload": 3,
+      "dock_children_after_reload": 3,
+      "registered_entities_after_reload": 415,
+      "tested_robot_and_dock_links_preserved": true,
+      "tested_robot_reconnected": true,
+      "first_fresh_dock_report_seconds_after_reload": 10
+    },
+    "manual_drying": {
+      "observed_native_state_codes": [
+        701,
+        702,
+        701
+      ],
+      "active_state_seconds_after_start_press": 10,
+      "idle_state_seconds_after_stop_press": 10,
+      "drying_error": 0,
+      "dock_error": 0
+    },
+    "manual_wash": {
+      "observed_native_state_codes": [
+        601,
+        602,
+        601
+      ],
+      "active_state_seconds_after_press": 10,
+      "observed_active_duration_seconds": 241,
+      "robot_phase": "padWash",
+      "robot_cleaning_cycle": "none",
+      "robot_remained_physically_docked": true,
+      "washing_error": 0,
+      "dock_error": 0,
+      "vacuum_state_during_wash_in_0_3_0": "unknown"
+    },
+    "multi_room_cleaning_second_robot": {
+      "scope": "Home Assistant action responses, script trace and robot activity log",
+      "rooms_returned": 6,
+      "zones_returned": 0,
+      "estimate_profiles_returned": 216,
+      "rooms_requested": 2,
+      "maps_requested": 1,
+      "mode_requested": "vacuum",
+      "suction_levels_requested": [
+        1,
+        2
+      ],
+      "global_suction_level_reported": 3,
+      "applied_suction_and_traversal_per_room_verified": false,
+      "run_seconds_after_request": 13,
+      "pause_requested_seconds_after_reported_run": 195,
+      "paused_seconds_after_reported_run": 205,
+      "idle_after_stop_seconds_after_reported_run": 220,
+      "returning_seconds_after_reported_run": 230,
+      "docked_seconds_after_reported_run": 270,
+      "cleaned_area_mid_mission_m2": 2.04,
+      "mission_error_during_run": 0,
+      "other_tested_robot_reported_docked_during_run": true,
+      "start_pause_stop_and_return_traced": true,
+      "test_script_disabled": true
+    },
+    "test_script_disabled": true,
+    "final_robot_state": "docked",
+    "final_next_cleaning_mode": "vacuum"
+  },
+  "household_installation_0_3_1": {
+    "home_assistant_core": "2026.11.2",
+    "previous_integration_version": "0.3.0",
+    "running_integration_version": "0.3.1",
+    "package_sha256": "b9c746460cff6d3f6296a68518648d043201ce3452e9eb82db1d56dba4f79cdc",
+    "package_digest_check": "passed",
+    "configuration_check": "passed",
+    "restart": "passed",
+    "previous_component_backup_created": true,
+    "rollback_on_failed_configuration_check": "rehearsed locally",
+    "existing_config_entry_reused": true,
+    "robot_devices": 3,
+    "dock_children": 3,
+    "previous_registered_entity_count": 415,
+    "registered_entities_after_restart": 425,
+    "tested_robot_links_preserved": 2,
+    "tested_dock_links_preserved": 1,
+    "tested_robots_reconnected_and_docked": 2,
+    "tested_robots_mission_errors": [
+      0,
+      0
+    ],
+    "local_brand_icon_visible": true,
+    "post_restart_dock_drying_code": 702,
+    "manual_wash_state_correction": "verified with observed state combinations in the official Home Assistant test harness"
+  }
+}

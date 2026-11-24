@@ -1,0 +1,21 @@
+{
+  "domain": "roomba_home",
+  "name": "Roomba Home",
+  "codeowners": [
+    "@efraespada"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "http",
+    "websocket_api"
+  ],
+  "documentation": "https://github.com/efraespada/ha-roomba-home",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/efraespada/ha-roomba-home/issues",
+  "requirements": [
+    "botocore>=1.42.97",
+    "paho-mqtt>=2.1.0"
+  ],
+  "version": "0.13.0"
+}
