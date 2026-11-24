@@ -52,7 +52,8 @@ to mopping under the same mission start, with a zero error code. The robot
 returned, washed its mop, and reported charging with no active cleaning
 cycle. Interim bin emptying also retained the mission start. The trial
 ended with more than 40% battery and provided no low-battery recharge and
-automatic resume sequence.
+automatic resume sequence. Repeated history reads after docking still showed
+the previous record. The latest mission's archive outcome remains unverified.
 
 The saved-zone command passed fixture checks. The two authorized maps had
 no saved cleaning zones at the start of the test. A v2 write returned HTTP 500.
