@@ -8,7 +8,7 @@
 - Scope: Preview and save changes to zones, room names, and room boundaries on an associated Roomba floor plan.
 - Related issues/PRs: Follow-up to the interactive floor plan.
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
-- Open decisions blocking readiness: Confirm the Max 700 write protocol, revision checks, geometry limits, and recovery behavior.
+- Open decisions blocking readiness: Confirm which operation synchronizes an edited zone to the Max 700's usable region inventory, and verify room and restriction edits.
 
 ## 1. Executive summary
 
@@ -19,10 +19,12 @@ verify the resulting map revision through Roomba.
 ## 2. Problem, current behavior, and evidence
 
 The interactive floor plan reads rooms, saved zones, and restrictions.
-Zone creation and editing currently depend on Roomba Home. A signed trial of
-the older map edit route returned HTTP 500 and repeated reads showed no new
-zone. The native SDK has multiple map editor paths. The correct contract
-for the Max 700 still needs a successful app exchange and read-back.
+Zone creation and editing currently depend on Roomba Home. The v2 edit
+route returned HTTP 500. The v1 route added and renamed a temporary rectangle
+in the active map's `cleanZones` layer. The same map's associated region list
+provided no corresponding `zid`. A test command briefly entered the running
+phase before stopping. The native SDK has multiple edit paths. A successful
+app exchange is needed to identify the missing synchronization step.
 [Current validation](../docs/validation.md#mission-detail-and-dashboard-validation)
 
 ## 3. Actors, surfaces, and terminology
@@ -66,7 +68,9 @@ affected routines and schedules whose stored targets may require review.
 The backend re-reads the map under a robot-scoped lock. If the revision has
 changed, leave the draft available for review against the new map. Show
 **Saved** after reading a new revision containing the expected zone. If a
-response is lost, reconcile by reading Roomba before allowing a retry.
+response is lost, reconcile by reading Roomba before allowing a retry. Enable
+cleaning selection only after the edited zone appears in the associated
+region inventory and the model's command path has been physically verified.
 
 ## 7. User-facing configuration
 

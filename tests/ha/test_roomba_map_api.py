@@ -37,10 +37,17 @@ async def configured(hass, entry, robot_states, make_point_bundle):
         documents["manifest.json"]["features"].append(
             {"type": "cleanZones", "filepath": "clean-zones.geojson"}
         )
-        documents["clean-zones.geojson"] = {
+        zone = {
             "type": "Feature",
             "id": "zone-a",
             "geometry": {"type": "Polygon", "coordinates": [[[3, 3], [6, 3], [6, 5], [3, 3]]]},
+        }
+        documents["clean-zones.geojson"] = {
+            "type": "FeatureCollection",
+            "features": [
+                zone,
+                zone | {"id": "pending-zone", "properties": {"name": "Pending zone"}},
+            ],
         }
         policy_file = next(
             layer["filepath"]

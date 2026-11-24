@@ -48,15 +48,23 @@ units still require provider evidence.
 [Prior capture evidence](evidence/2026-11-24-live-progress.json)
 
 The sequential mission changed its reported cleaning mode from vacuuming
-to mopping under the same mission start, with a zero error code. Interim
-bin emptying also retained the mission start. Charging and autonomous
-resumption require an observed low-battery return in an open mission.
+to mopping under the same mission start, with a zero error code. The robot
+returned, washed its mop, and reported charging with no active cleaning
+cycle. Interim bin emptying also retained the mission start. The trial
+ended with more than 40% battery and provided no low-battery recharge and
+automatic resume sequence. Repeated history reads after docking still showed
+the previous record. The latest mission's archive outcome remains unverified.
 
 The saved-zone command passed fixture checks. The two authorized maps had
-no saved cleaning zones at the start of the test. A signed map edit trial
-returned HTTP 500 and repeated inventory reads showed zero zones. The
-proposed editor tracks verification of the correct write protocol.
-[Map zone editor SDD](../specs/009-map-zone-editor.md)
+no saved cleaning zones at the start of the test. A v2 write returned HTTP 500.
+The v1 map edit route added and renamed a temporary zone in the active map's
+`cleanZones` geometry while the associated region inventory continued to
+report zero saved zones. A targeted command briefly entered the running
+phase and then stopped. Home Assistant confirmed cancellation. A full
+saved-zone cleaning outcome remains unverified. A read-back after removing
+the temporary zone confirmed that the original rooms, boundaries, and
+restrictions were preserved.
+[Map and zone editor SDD](../specs/009-map-zone-editor.md)
 
 ## Local rendering checks for 0.11.1
 

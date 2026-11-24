@@ -174,7 +174,7 @@ fixtures before compiling an install package and starting physical trials.
 
 - [x] Pass the automated contract, integration, privacy, and frontend checks.
 - [x] Verify the installed package and update the README with screenshots.
-- [ ] Record actual physical evidence or the concrete reason a scenario could not be verified.
+- [x] Record actual physical evidence or the concrete reason a scenario could not be verified.
 - [x] Keep unsupported metrics and commands out of the advertised capability set.
 
 ## 20. References and decisions
