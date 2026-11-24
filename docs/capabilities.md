@@ -54,7 +54,7 @@ Roomba Home. Other models require their own captures and tests.
 | Temporary zone | `tid` and a command polygon tied to the active map | Target type in mission history | Vacuuming began and history recorded the exact target. Navigation ended with error 48 and zero area. |
 | Schedules | Household read, `rw-schedule`, `rw-settings.timezone`, POST, PUT, and DELETE | Schedule and next-start sensors, plus create, list, change start, enable, disable, and delete actions | Creation as disabled, deletion, and a real scheduled vacuum run with origin `cloud` |
 | Saved cleaning routines | Edition 1 favorites collection with server-assigned IDs | List, create, update, and remove actions for one associated vacuum | A temporary routine was created, renamed, updated with a different suction setting, and removed. Existing routines were preserved. |
-| Map editing | The SDK provides several editor paths. Max 700 writes require further verification. | [Map and zone editor specification](../specs/009-map-zone-editor.md) | An older edit route returned HTTP 500 during a disposable zone attempt. |
+| Map editing | The SDK provides several editor paths. The v1 route changed active geometry. | [Map and zone editor specification](../specs/009-map-zone-editor.md) | The disposable zone appeared in active geometry. Its associated region entry and completed cleaning still require verification. |
 | History | Observed mission history GET | Start, end, active time, pause and recharge time, recharge and emptying counts, result, and breakdown by mode | Six real records from the authorized robot |
 | Room history | Final room events with exact map revision | Room outcome, passes, and provider area values | Observed in Roomba history. Area units remain unverified. |
 
