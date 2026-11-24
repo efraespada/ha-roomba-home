@@ -7,6 +7,26 @@ cleaning missions, pick rooms or saved zones from an interactive floor plan,
 and use robot and dock readings in Home Assistant automations. The integration
 uses Roomba's own cloud services for device data and control.
 
+## Quick start
+
+The verified model is **Roomba Max 700 Combo (X185240)**, linked to a Roomba Home
+account. The latest household test used Home Assistant Core 2026.11.2 and
+integration version 0.14.0. [Capability matrix](docs/capabilities.md) ·
+[Physical validation](docs/validation.md)
+
+1. Copy `custom_components/roomba_home` from this repository to
+   `<config_dir>/custom_components/roomba_home`.
+2. Restart Home Assistant. Open **Settings → Devices & services → Add
+   integration** and select **Roomba Home**.
+3. Enter the account credentials you use in Roomba Home and a two-letter
+   country code, such as `ES`. Select the robots you want to manage.
+4. Open a robot's device page to find its vacuum, next-cleaning controls,
+   sensors, and linked dock. Enable maps in the integration options if you
+   want the interactive dashboard.
+
+Keep a backup of the component folder before upgrading. The integration keeps
+the existing config entry and entity IDs across upgrades. [Installation and troubleshooting](docs/installation.md)
+
 ## Features
 
 - **Robot and dock controls.** Start, pause, resume, cancel, or return to the
@@ -31,9 +51,10 @@ uses Roomba's own cloud services for device data and control.
 - **Multiple robots.** Choose the robots to manage in a single account.
   Preferences and entity IDs survive deselection and re-enabling.
 
-Capabilities vary by model and firmware. The validation matrix documents what
-has been exercised on the Roomba Max 700 Combo (X185240). [Capability matrix](docs/capabilities.md) ·
-[Physical validation](docs/validation.md)
+Capabilities and entity availability depend on the robot and dock. **Connected**
+and the connectivity timestamp reflect the values reported by Roomba. The
+optional **Last cloud read** sensor records when Home Assistant read the account.
+[Telemetry reference](docs/telemetry.md)
 
 ## Floor plan dashboard
 
@@ -54,24 +75,127 @@ Screenshots use a synthetic floor plan and mission.
 
 ```yaml
 type: custom:roomba-home-map-card
-entity: vacuum.example
+entity: vacuum.example_robot
 ```
 
-The card uses the robot's saved next-cleaning preferences. Live markers expire
-at Roomba's deadline. Reported room areas retain provider units until verified.
-A reliable mission percentage and countdown still require provider evidence.
-Select areas and choose **Review map dependencies** to find saved routines
-and weekly schedules that target those areas.
-Manage room boundaries and zones in the Roomba Home app while the map editor
-write path is being validated. [Map editor SDD](specs/009-map-zone-editor.md)
-[Map and mission details](docs/usage.md#interactive-floor-plan) ·
-[Telemetry reference](docs/telemetry.md)
+On upgrade, update the existing module URL to the version shown above and
+reload the dashboard. Use one card per robot.
 
-## Installation
+- **Review selection** shows the robot and destinations before cleaning with
+  the next-cleaning preferences saved in Home Assistant.
+- **Manage routines** opens the saved routines list. Select areas on the map
+  before opening it to prefill a new routine. The editor can reorder supported
+  targets and change their individual modes and settings.
+- **Review map dependencies** shows known saved routines and schedules for
+  the selected areas. It flags entries with unresolved destinations.
+- **Last mission by room** shows reported area values, pass counts, and
+  outcomes. **Current mission measurements** appears when Roomba supplies a
+  fresh timeline report.
 
-Install the integration as a custom component, restart Home Assistant, and add
-**Roomba Home** from **Settings → Devices & services → Add integration**. Use
-the account linked to the Roomba Home app. [Installation guide](docs/installation.md)
+Use Roomba Home to change room names and boundaries or to save and move zones.
+The card displays the room, zone, and restriction information Roomba supplies.
+The map editor SDD tracks validation of provider writes. A live mission
+percentage and countdown also require provider evidence. [Map and mission details](docs/usage.md#interactive-floor-plan) ·
+[Map editor SDD](specs/009-map-zone-editor.md)
+
+## Copyable examples
+
+Replace the example entity IDs with the ones shown on your devices. Use
+**Developer tools → Actions** to try a single action. Put the same actions in
+a script or automation to reuse them.
+
+### Mop with a saved wetness setting
+
+Add this sequence to a Home Assistant script. Start on an idle robot. A start
+request on a paused robot resumes its existing mission.
+
+```yaml
+sequence:
+  - action: select.select_option
+    target:
+      entity_id: select.example_robot_next_cleaning_mode
+    data:
+      option: mop
+  - action: number.set_value
+    target:
+      entity_id: number.example_robot_next_wetness_level
+    data:
+      value: 2
+  - action: vacuum.start
+    target:
+      entity_id: vacuum.example_robot
+```
+
+The mode options are `vacuum`, `mop`, `vacuum_mop`, and `vacuum_then_mop`
+where supported. [Cleaning modes and preferences](docs/usage.md#choose-a-cleaning-mode-and-preferences)
+
+### Vacuum one room and mop another
+
+Run `roomba_home.list_cleaning_regions` for the vacuum and copy IDs from its
+response. Select rooms or saved zones on the same active map in the order you
+want to clean them.
+
+```yaml
+action: roomba_home.clean_regions
+target:
+  entity_id: vacuum.example_robot
+data:
+  regions:
+    - id: example_map:rid:entryway
+      mode: vacuum
+      suction_level: 2
+    - id: example_map:rid:kitchen
+      mode: mop
+      wetness_level: 2
+```
+
+You can also assign vacuum regions to Home Assistant areas and use
+`vacuum.clean_area`. [Region and dock actions](docs/usage.md#rooms-zones-and-dock)
+
+### Create a weekly schedule in the disabled state
+
+```yaml
+action: roomba_home.create_cleaning_schedule
+target:
+  entity_id: vacuum.example_robot
+data:
+  name: Weekday kitchen
+  weekdays: [1, 3, 5]
+  time: "08:30"
+  regions:
+    - id: example_map:rid:kitchen
+      mode: vacuum_then_mop
+```
+
+Review the returned schedule ID and weekday/time before using
+`roomba_home.set_cleaning_schedule_enabled`. The action uses ISO weekdays,
+where Monday is `1`. [Schedules and saved routine examples](docs/usage.md#cleaning-schedules)
+
+### Notify Home Assistant when a mission finishes
+
+```yaml
+alias: Roomba mission finished
+triggers:
+  - trigger: state
+    entity_id: event.example_robot_mission_finished
+conditions:
+  - condition: template
+    value_template: >-
+      {{ trigger.from_state is not none and trigger.to_state is not none and
+         trigger.from_state.state != trigger.to_state.state and
+         trigger.to_state.attributes.get('event_type') == 'mission_finished' }}
+actions:
+  - action: persistent_notification.create
+    data:
+      title: Roomba mission finished
+      message: >-
+        Result: {{ trigger.to_state.attributes.get('outcome') or 'Unknown' }}
+mode: queued
+```
+
+This event follows Roomba's mission history. It can arrive after the robot has
+docked. [Robot and dock problems](docs/telemetry.md#problems-and-events) ·
+[Mission finished event](docs/telemetry.md#mission-finished-event)
 
 ## Documentation and development
 
