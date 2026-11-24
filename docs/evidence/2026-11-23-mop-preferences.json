@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-23",
+  "robot_model": "X185240",
+  "scope": "One authorized robot, independent client, one short mop-only mission",
+  "map_inventory": {
+    "active_maps": 1,
+    "rooms": 1,
+    "saved_clean_zones": 0,
+    "room_sequential_estimate_seconds": 6898
+  },
+  "requested_mission": {
+    "operating_mode": 4,
+    "wetness_level": 1,
+    "smart_scrub": true,
+    "two_pass": false
+  },
+  "physical_observations": {
+    "mop_preparation_seen": true,
+    "seconds_from_ack_to_floor_mopping": 154.5,
+    "seconds_of_floor_mopping_observed": 25.9,
+    "pause_confirmed": true,
+    "final_robot_docked": true,
+    "final_robot_error": 0,
+    "final_dock_error": 0
+  },
+  "reported_settings": {
+    "before": {"wetness_level": 3, "smart_scrub": 0, "two_pass": false},
+    "during_and_after": {"wetness_level": 2, "smart_scrub": 1, "two_pass": false},
+    "after_restoring_original_values": {"wetness_level": 3, "smart_scrub": 0, "two_pass": false}
+  },
+  "restoration": {
+    "source": "Android SDK settings writes and independent MQTT readback",
+    "topic": "things/{robot_id}/shadow/name/rw-settings/update",
+    "updated_desired_fields": ["swScrub", "padWetness.padPlate"],
+    "reported_values_restored": true,
+    "robot_remained_docked": true
+  },
+  "candidate_settings_round_trip": {
+    "release": "0.6.0",
+    "source": "Integration MQTT writer and independent robot state reads",
+    "wetness_1_reported_after_seconds": 1.2,
+    "wetness_3_restored_after_seconds": 1.05,
+    "smart_scrub_enabled_after_seconds": 1.18,
+    "smart_scrub_disabled_after_seconds": 1.27,
+    "original_settings_restored": true,
+    "movement_commands": 0,
+    "robot_remained_docked": true
+  },
+  "packaged_home_assistant_validation": {
+    "release": "0.6.0",
+    "home_assistant_core": "2026.11.2",
+    "environment": "Isolated Home Assistant instance on the development machine",
+    "install_package_sha256": "dbbcbf2402f1e194093e57ca598864e06632b2364741b487322d85add1e8445b",
+    "configuration_check_passed": true,
+    "selected_robots": 1,
+    "registered_entities": 149,
+    "native_services_confirmed": ["number.set_value", "switch.turn_on", "switch.turn_off"],
+    "independent_reported_values_confirmed": true,
+    "original_settings_restored": true,
+    "missions_started": 0,
+    "robot_remained_docked": true
+  },
+  "limits": "The robot reported the SmartScrub setting. The applied water flow and the wetness level requested for the mission were not independently confirmed."
+}

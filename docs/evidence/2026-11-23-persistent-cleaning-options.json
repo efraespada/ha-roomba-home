@@ -1,0 +1,58 @@
+{
+  "date": "2026-11-23",
+  "release": "0.9.0",
+  "robot_model": "X185240",
+  "install_archive_sha256": "8e93d5e34d0809e1835e5ce4785f661e32b53abf6b7fe30e76a0e5461116442a",
+  "sources": [
+    "Android SDK TwoPassShadowField",
+    "Android SDK CarpetBoostShadowField",
+    "Android SDK AutoEvacCapability",
+    "Android SDK AutoEvacFrequencySetting"
+  ],
+  "native_shadow": "rw-settings",
+  "raw_independent_trial": {
+    "initial": {"twoPass": false, "carpetBoost": true, "autoevacFreq": 25},
+    "targets": {"twoPass": true, "carpetBoost": false, "autoevacFreq": 50},
+    "all_values_confirmed_and_restored": true,
+    "robot_docked": true,
+    "missions_started": 0
+  },
+  "packaged_ha_real_robot": {
+    "home_assistant_core": "2026.11.2",
+    "instance": "isolated local Home Assistant",
+    "selected_robots": 1,
+    "registered_entities": 154,
+    "native_services": ["switch.turn_on", "switch.turn_off", "number.set_value"],
+    "next_cleaning_preferences_preserved": true,
+    "initial_settings_restored": true,
+    "robot_docked": true,
+    "missions_started": 0,
+    "two_pass": {"changed_seconds": 5.28, "restored_seconds": 6.04},
+    "carpet_boost": {"changed_seconds": 5.8, "restored_seconds": 5.92},
+    "auto_evacuation_area": {
+      "displayed_unit": "ft²",
+      "reported_unit": "m²",
+      "reported_initial": 25,
+      "reported_changed": 50,
+      "reported_restored": 25,
+      "changed_seconds": 6.03,
+      "restored_seconds": 5.9
+    }
+  },
+  "registry_rehearsal": {
+    "existing_entities_preserved": {"0.7.0": 384, "0.8.0": 387},
+    "resulting_entities": 396,
+    "new_robot_switches": 6,
+    "new_dock_numbers": 3,
+    "customized_name_and_profile_preserved": true
+  },
+  "quality_checks": {
+    "tests_passed": 1457,
+    "covered_statements": 3301,
+    "covered_branches": 1152,
+    "statement_and_branch_coverage_percent": 100.0,
+    "hassfest_invalid_integrations": 0,
+    "validated_sdds": 7
+  },
+  "limits": "Readback confirms persistent settings. The physical effects of two passes, carpet boost and triggering auto-evacuation at the new area threshold were not observed in motion."
+}

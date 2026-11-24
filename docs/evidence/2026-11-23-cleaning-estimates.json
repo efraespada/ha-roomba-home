@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-23",
+  "app_version": "3.4.1",
+  "model": "X185240",
+  "scope": "Counts and schema from archived Android app captures, without account or map details",
+  "cleaning_time_estimates": {
+    "method": "POST",
+    "path": "/v1/time-estimates",
+    "http_200": 167,
+    "request_fields": ["robot_id", "smart_map_id", "region_id", "zone_id"],
+    "region_and_zone_fields_are_empty_strings": true,
+    "response_version": "v1",
+    "response_area_type": "region",
+    "distinct_maps": 3,
+    "anonymous_maps_room_counts": [1, 6, 6],
+    "estimates_per_room": 36,
+    "estimate_unit": "seconds",
+    "profiles_per_mode": {
+      "2": 8,
+      "4": 4,
+      "32": 16,
+      "512": 8
+    }
+  },
+  "live_map": {
+    "method": "GET",
+    "path": "/v1/p2maps/livemap",
+    "query_fields": ["rawOnly", "robotId"],
+    "http_200": 148,
+    "mqtt_topic_responses": 148,
+    "raw_bundle_url_responses": 145,
+    "captured_downloads_matching_advertised_bundle": 0,
+    "archived_live_map_mqtt_payloads": 0,
+    "sdk_position_fields": ["timestamp", "update_expire_ts", "pos_update", "cur_path"],
+    "sdk_position_entry_fields": ["point", "orientation", "operatingModes"],
+    "official_release_notes": "https://homesupport.irobot.com/articles/en_US/Knowledge/40500"
+  }
+}

@@ -1,0 +1,536 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-23",
+  "app_version": "3.4.1",
+  "model": "X185240",
+  "target": "authorized_robot",
+  "capabilities": {
+    "operating_mode_support_mask": 550,
+    "advertised_modes": [
+      "vacuum",
+      "mop",
+      "vacuum_mop",
+      "vacuum_then_mop"
+    ],
+    "advertised_suction_levels": 4,
+    "advertised_pad_plate_wetness_levels": 3,
+    "smart_scrub_capability": 3,
+    "multi_pass_capability": 1
+  },
+  "probes": [
+    {
+      "mode": "mop",
+      "requested_operating_mode": 4,
+      "requested_parameters": {
+        "operatingMode": 4,
+        "twoPass": false,
+        "padWetness": {
+          "padPlate": 1
+        },
+        "swScrub": 0
+      },
+      "independent_timed_pause_limit_seconds": 100,
+      "start_broker_ack_seconds": 0.2,
+      "first_run_report_seconds": 5.4,
+      "reported_operating_mode": 4,
+      "pad_wash_first_report_seconds": 10.7,
+      "pad_wash_last_report_seconds": 88.6,
+      "pause_requested_seconds": 88.5,
+      "pause_confirmed_seconds": 92.8,
+      "cancel_requested_seconds": 93.1,
+      "cancel_and_base_confirmed_seconds": 98.2,
+      "mission_error": 0,
+      "final_at_base": true,
+      "floor_mopping_proven": false,
+      "per_mission_parameters_physically_verified": false,
+      "global_wetness_before": 1,
+      "global_wetness_after": 2,
+      "limitations": [
+        "The run report preceded pad preparation and does not prove that floor mopping began.",
+        "The global settings readback differs from the per-mission wetness request; parameter semantics and precedence still require validation.",
+        "Simultaneous and sequential modes have not yet been physically validated in this campaign."
+      ]
+    },
+    {
+      "mode": "mop",
+      "requested_operating_mode": 4,
+      "requested_parameters": {
+        "operatingMode": 4,
+        "twoPass": false,
+        "padWetness": {
+          "padPlate": 1
+        },
+        "swScrub": 0
+      },
+      "independent_timed_pause_limit_seconds": 420,
+      "run_observed": true,
+      "requested_mode_observed": true,
+      "run_after_preparation_seconds": 62.0,
+      "pad_wash_observed": true,
+      "observed_run_span_seconds": 62.3,
+      "pause_confirmed": true,
+      "cancel_confirmed": true,
+      "final_at_base": true,
+      "last_observation": {
+        "elapsed": 280.8,
+        "phase": "charge",
+        "cycle": "none",
+        "operatingMode": 4,
+        "error": 0,
+        "battery": 97
+      },
+      "settings_changed": {},
+      "per_mission_parameters_physically_verified": false,
+      "command_times": [
+        {
+          "command": "start",
+          "elapsed": 0.2,
+          "broker_ack": true
+        },
+        {
+          "command": "pause",
+          "elapsed": 218.7,
+          "broker_ack": true
+        },
+        {
+          "command": "stop",
+          "elapsed": 223.3,
+          "broker_ack": true
+        },
+        {
+          "command": "dock",
+          "elapsed": 228.5,
+          "broker_ack": true
+        }
+      ]
+    },
+    {
+      "mode": "vacuum_mop",
+      "requested_operating_mode": 6,
+      "requested_parameters": {
+        "operatingMode": 6,
+        "twoPass": false,
+        "padWetness": {
+          "padPlate": 1
+        },
+        "swScrub": 0,
+        "suctionLevel": 1,
+        "carpetBoost": false
+      },
+      "independent_timed_pause_limit_seconds": 420,
+      "run_observed": true,
+      "requested_mode_observed": true,
+      "run_after_preparation_seconds": null,
+      "pad_wash_observed": false,
+      "observed_run_span_seconds": 397.6,
+      "pause_confirmed": true,
+      "cancel_confirmed": true,
+      "final_at_base": true,
+      "last_observation": {
+        "elapsed": 417.8,
+        "phase": "charge",
+        "cycle": "none",
+        "operatingMode": 6,
+        "error": 0,
+        "battery": 97
+      },
+      "settings_changed": {
+        "suctionLevel": {
+          "before": 3,
+          "after": 1
+        }
+      },
+      "per_mission_parameters_physically_verified": false,
+      "command_times": [
+        {
+          "command": "start",
+          "elapsed": 0.1,
+          "broker_ack": true
+        },
+        {
+          "command": "pause",
+          "elapsed": 408.1,
+          "broker_ack": true
+        },
+        {
+          "command": "stop",
+          "elapsed": 412.6,
+          "broker_ack": true
+        }
+      ]
+    }
+  ],
+  "household_home_assistant_upgrade_verified": false,
+  "status": "in_progress",
+  "map_discovery": {
+    "maps": 1,
+    "active_maps": 1,
+    "rooms": 6,
+    "raw_metadata_kept_private": true,
+    "ephemeral_regions": 1,
+    "cleaning_zones": 0
+  },
+  "additional_probes": [
+    {
+      "test": "initial_directed_vacuum_invalid_region_type",
+      "regions": 1,
+      "parameters": {
+        "operatingMode": 2,
+        "twoPass": false,
+        "suctionLevel": 3,
+        "carpetBoost": true
+      },
+      "region_parameters": null,
+      "commands": [
+        {
+          "command": "start",
+          "elapsed": 0.2,
+          "broker_ack": true
+        }
+      ],
+      "transitions": [
+        {
+          "elapsed": 0.3,
+          "phase": "charge",
+          "cycle": "none",
+          "operatingMode": 6,
+          "error": 0,
+          "dock_error": 0
+        }
+      ],
+      "running_observed": false,
+      "resumed": false,
+      "final_at_base": true,
+      "qualification": "start_not_observed"
+    },
+    {
+      "test": "whole_home_native_sequence_start",
+      "regions": 0,
+      "parameters": {
+        "operatingMode": 512,
+        "twoPass": false,
+        "padWetness": {
+          "padPlate": 1
+        },
+        "swScrub": 0,
+        "suctionLevel": 3,
+        "carpetBoost": true
+      },
+      "region_parameters": null,
+      "commands": [
+        {
+          "command": "start",
+          "elapsed": 0.1,
+          "broker_ack": true
+        },
+        {
+          "command": "pause",
+          "elapsed": 88.0,
+          "broker_ack": true
+        },
+        {
+          "command": "stop",
+          "elapsed": 92.6,
+          "broker_ack": true
+        },
+        {
+          "command": "dock",
+          "elapsed": 97.8,
+          "broker_ack": true
+        }
+      ],
+      "transitions": [
+        {
+          "elapsed": 0.3,
+          "phase": "charge",
+          "cycle": "none",
+          "operatingMode": 6,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 5.4,
+          "phase": "run",
+          "cycle": "clean",
+          "operatingMode": 2,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 92.3,
+          "phase": "stop",
+          "cycle": "clean",
+          "operatingMode": 0,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 97.7,
+          "phase": "stop",
+          "cycle": "none",
+          "operatingMode": 0,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 103.2,
+          "phase": "hmUsrDock",
+          "cycle": "dock",
+          "operatingMode": 0,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 149.9,
+          "phase": "charge",
+          "cycle": "none",
+          "operatingMode": 0,
+          "error": 0,
+          "dock_error": 0
+        }
+      ],
+      "running_observed": true,
+      "resumed": false,
+      "final_at_base": true,
+      "qualification": null
+    },
+    {
+      "test": "directed_vacuum_with_resume",
+      "regions": 1,
+      "parameters": {
+        "operatingMode": 2,
+        "twoPass": false,
+        "suctionLevel": 3,
+        "carpetBoost": true
+      },
+      "region_parameters": null,
+      "commands": [
+        {
+          "command": "start",
+          "elapsed": 0.2,
+          "broker_ack": true
+        },
+        {
+          "command": "pause",
+          "elapsed": 26.2,
+          "broker_ack": true
+        },
+        {
+          "command": "resume",
+          "elapsed": 30.7,
+          "broker_ack": true
+        },
+        {
+          "command": "pause",
+          "elapsed": 35.3,
+          "broker_ack": true
+        },
+        {
+          "command": "stop",
+          "elapsed": 39.5,
+          "broker_ack": true
+        },
+        {
+          "command": "dock",
+          "elapsed": 44.8,
+          "broker_ack": true
+        }
+      ],
+      "transitions": [
+        {
+          "elapsed": 0.4,
+          "phase": "charge",
+          "cycle": "none",
+          "operatingMode": 0,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 5.6,
+          "phase": "run",
+          "cycle": "clean",
+          "operatingMode": 2,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 30.6,
+          "phase": "stop",
+          "cycle": "clean",
+          "operatingMode": 2,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 35.0,
+          "phase": "run",
+          "cycle": "clean",
+          "operatingMode": 2,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 44.7,
+          "phase": "stop",
+          "cycle": "none",
+          "operatingMode": 2,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 50.2,
+          "phase": "hmUsrDock",
+          "cycle": "dock",
+          "operatingMode": 2,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 92.1,
+          "phase": "charge",
+          "cycle": "none",
+          "operatingMode": 2,
+          "error": 0,
+          "dock_error": 0
+        }
+      ],
+      "running_observed": true,
+      "resumed": true,
+      "final_at_base": true,
+      "qualification": null
+    },
+    {
+      "test": "global_native_sequence_mode_in_directed_command",
+      "regions": 1,
+      "parameters": {
+        "operatingMode": 512,
+        "twoPass": false,
+        "padWetness": {
+          "padPlate": 1
+        },
+        "swScrub": 0,
+        "suctionLevel": 3,
+        "carpetBoost": true
+      },
+      "region_parameters": null,
+      "commands": [
+        {
+          "command": "start",
+          "elapsed": 0.2,
+          "broker_ack": true
+        }
+      ],
+      "transitions": [
+        {
+          "elapsed": 0.3,
+          "phase": "charge",
+          "cycle": "none",
+          "operatingMode": 2,
+          "error": 0,
+          "dock_error": 0
+        }
+      ],
+      "running_observed": false,
+      "resumed": false,
+      "final_at_base": true,
+      "qualification": "start_not_observed"
+    },
+    {
+      "test": "favorite_style_region_mode_32",
+      "regions": 1,
+      "parameters": {},
+      "region_parameters": {
+        "carpetBoost": true,
+        "padWetness": {
+          "padPlate": 2
+        },
+        "profile": "smart",
+        "replay_of": "01KP7YNGCV5Q545AEENYRPAJDB",
+        "routine_modified": true,
+        "routine_type": "REPLAY",
+        "suctionLevel": 3,
+        "swScrub": 0,
+        "twoPass": false,
+        "updated_at": 1787995478,
+        "operatingMode": 32
+      },
+      "commands": [
+        {
+          "command": "start",
+          "elapsed": 0.1,
+          "broker_ack": true
+        }
+      ],
+      "transitions": [
+        {
+          "elapsed": 0.2,
+          "phase": "charge",
+          "cycle": "none",
+          "operatingMode": 2,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 5.4,
+          "phase": "run",
+          "cycle": "clean",
+          "operatingMode": 6,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 10.5,
+          "phase": "padWash",
+          "cycle": "clean",
+          "operatingMode": 6,
+          "error": 0,
+          "dock_error": 0
+        },
+        {
+          "elapsed": 119.4,
+          "phase": "charge",
+          "cycle": "none",
+          "operatingMode": 6,
+          "error": 0,
+          "dock_error": 517
+        }
+      ],
+      "running_observed": true,
+      "resumed": false,
+      "final_at_base": true,
+      "qualification": null
+    }
+  ],
+  "documented_limits": [
+    "The whole-home native sequence request starts vacuuming, and the bounded test cancelled before a second stage was observed.",
+    "The regional native sequence request using the global 512 parameter had no observed start. The favorite-style region value 32 produced simultaneous mode 6.",
+    "The directed vacuum with rid was confirmed, including resume and subsequent return to the base.",
+    "The favorite-style probe ended with dock diagnostic code 517. Dock and mop testing paused for maintenance.",
+    "The active map from the authorized robot has no saved cleaning-zone metadata; zone transport is tested with SDK-derived synthetic fixtures."
+  ],
+  "advanced_read_verification": {
+    "modern_robots": 3,
+    "active_maps": [
+      1,
+      1,
+      1
+    ],
+    "region_counts": [
+      6,
+      6,
+      1
+    ],
+    "history_row_counts": [
+      6,
+      0,
+      0
+    ],
+    "cloud_schedules": 5,
+    "enabled_cloud_schedules": 0,
+    "robot_schedule_counts_in_prior_capture": [
+      0,
+      0,
+      0
+    ]
+  }
+}

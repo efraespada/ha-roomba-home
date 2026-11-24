@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-23",
+  "release": "0.6.1",
+  "robot_model": "X185240",
+  "reference_sources": {
+    "sdk": "Roomba Home Android 3.4.1, CloudConnectionStatus and dock component models",
+    "manufacturer_error_chart": "https://homesupport.irobot.com/articles/en_US/Knowledge/10502",
+    "manufacturer_mop_error": "https://homesupport.irobot.com/articles/en_US/Knowledge/10527",
+    "manufacturer_release_notes": "https://homesupport.irobot.com/articles/en_US/Knowledge/70550"
+  },
+  "captured_state_replay": {
+    "robots": 3,
+    "connected_v2_code": 1,
+    "recognized_docks": 3,
+    "normalized_dock_errors": {
+      "common": 0,
+      "evacuation": 0,
+      "refill": 0,
+      "pad_wash": 0,
+      "pad_dry": 0
+    }
+  },
+  "isolated_upgrade": {
+    "from_release": "0.6.0",
+    "install_package_sha256": "8c605d47eacaf001934ad4bb9ce288be520b4c199cbe1ea06707b81df942cab8",
+    "entities_before": 378,
+    "existing_entities_preserved": 378,
+    "entities_after": 381,
+    "new_dock_events": 3,
+    "customized_entity_preserved": true,
+    "next_cleaning_preferences_preserved": true,
+    "roomba_network_operations": 0,
+    "movement_commands": 0
+  },
+  "isolated_upgrade_from_household_release": {
+    "from_release": "0.5.0",
+    "existing_entities_preserved": 372,
+    "entities_after": 381,
+    "new_default_settings": 6,
+    "new_dock_events": 3,
+    "customized_entity_preserved": true,
+    "next_cleaning_preferences_preserved": true
+  },
+  "simulated_incident": {
+    "mission_code": 1026,
+    "mission_meaning": "mop_stuck",
+    "dock_wash_error": 654,
+    "foreign_refill_status": 401,
+    "wash_error_preserved_on_foreign_status": true,
+    "wash_recovery_status": 601,
+    "recovery_event_source": "pad_wash",
+    "dock_event_contains_only_dock_sources": true
+  },
+  "automated_checks": {
+    "home_assistant_tests_passed": 1316,
+    "statements_covered": 3023,
+    "branches_covered": 1050,
+    "statement_and_branch_coverage_percent": 100.0,
+    "api_only_tests_passed": 1082,
+    "hassfest_invalid_integrations": 0
+  }
+}

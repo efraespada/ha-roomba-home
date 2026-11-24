@@ -1,0 +1,319 @@
+{
+  "version": 1,
+  "capabilities": [
+    {
+      "id": "native-api",
+      "title": "Native access and HTTP reads",
+      "status": "as-built-baseline",
+      "scope": "Research client, authentication, signing, and reads without Home Assistant",
+      "owner": "ha-roomba-home maintainer",
+      "lastVerified": "2026-11-23",
+      "specs": [
+        "specs/001-native-api.md"
+      ],
+      "workflows": [],
+      "entrypoints": [
+        "tools/validate_api.py",
+        "tools/bootstrap_profile.py"
+      ],
+      "code": [
+        "custom_components/roomba_home/core/client.py",
+        "custom_components/roomba_home/core/models.py",
+        "custom_components/roomba_home/core/transport.py"
+      ],
+      "tests": [
+        "tests/test_api_client.py",
+        "tests/test_transport_and_tools.py",
+        "tests/test_architecture_and_privacy.py"
+      ],
+      "documentation": [
+        "docs/api.md",
+        "docs/development.md",
+        "docs/validation.md",
+        "SECURITY.md"
+      ]
+    },
+    {
+      "id": "mqtt-state",
+      "title": "Modern robot state via MQTT",
+      "status": "as-built-baseline",
+      "scope": "Bounded reads of named shadows",
+      "owner": "ha-roomba-home maintainer",
+      "lastVerified": "2026-11-23",
+      "specs": [
+        "specs/002-mqtt-state.md"
+      ],
+      "workflows": [],
+      "entrypoints": [
+        "tools/validate_mqtt.py"
+      ],
+      "code": [
+        "custom_components/roomba_home/core/mqtt.py"
+      ],
+      "tests": [
+        "tests/test_mqtt.py"
+      ],
+      "documentation": [
+        "docs/api.md",
+        "docs/architecture.md",
+        "docs/development.md",
+        "docs/validation.md"
+      ]
+    },
+    {
+      "id": "native-commands",
+      "title": "Native commands and physical validation",
+      "status": "as-built-baseline",
+      "scope": "Single experimental command submission and evidence from an authorized physical cycle",
+      "owner": "ha-roomba-home maintainer",
+      "lastVerified": "2026-11-23",
+      "specs": [
+        "specs/004-command-validation.md"
+      ],
+      "workflows": [],
+      "entrypoints": [
+        "tools/send_command.py"
+      ],
+      "code": [
+        "custom_components/roomba_home/core/commands.py"
+      ],
+      "tests": [
+        "tests/test_commands.py"
+      ],
+      "documentation": [
+        "docs/api.md",
+        "docs/development.md",
+        "docs/validation.md",
+        "docs/architecture.md",
+        "docs/evidence/2026-11-23-control.json"
+      ]
+    },
+    {
+      "id": "home-assistant",
+      "title": "Home Assistant integration and confirmed control",
+      "status": "as-built-baseline",
+      "scope": "Account setup and options, per-robot entities, polling, and confirmed commands",
+      "owner": "ha-roomba-home maintainer",
+      "lastVerified": "2026-11-23",
+      "specs": [
+        "specs/003-home-assistant.md"
+      ],
+      "workflows": [
+        ".github/workflows/validate.yml"
+      ],
+      "entrypoints": [
+        "custom_components/roomba_home/__init__.py",
+        "custom_components/roomba_home/config_flow.py"
+      ],
+      "code": [
+        "custom_components/roomba_home/coordinator.py",
+        "custom_components/roomba_home/core/state.py",
+        "custom_components/roomba_home/vacuum.py",
+        "custom_components/roomba_home/sensor.py",
+        "custom_components/roomba_home/binary_sensor.py",
+        "custom_components/roomba_home/diagnostics.py",
+        "custom_components/roomba_home/brand/icon.png",
+        "custom_components/roomba_home/brand/icon@2x.png"
+      ],
+      "tests": [
+        "tests/ha/test_flow.py",
+        "tests/ha/test_coordinator.py",
+        "tests/ha/test_entities.py",
+        "tests/test_state.py"
+      ],
+      "documentation": [
+        "docs/index.md",
+        "docs/architecture.md",
+        "docs/validation.md",
+        "docs/installation.md",
+        "docs/usage.md",
+        "docs/evidence/2026-11-23-home-assistant.json",
+        "docs/evidence/2026-11-23-quality.json",
+        "docs/branding.md"
+      ]
+    },
+    {
+      "id": "telemetry-and-problems",
+      "title": "Telemetry, progress, and problem events",
+      "status": "proposed",
+      "scope": "Typed telemetry, consumables, problem events, provider connectivity timestamps, and mission results",
+      "owner": "ha-roomba-home maintainer",
+      "lastVerified": "2026-11-23",
+      "specs": [
+        "specs/005-telemetry-and-problems.md"
+      ],
+      "workflows": [
+        ".github/workflows/validate.yml"
+      ],
+      "entrypoints": [
+        "custom_components/roomba_home/sensor.py",
+        "custom_components/roomba_home/binary_sensor.py",
+        "custom_components/roomba_home/event.py"
+      ],
+      "code": [
+        "custom_components/roomba_home/core/telemetry.py",
+        "custom_components/roomba_home/core/problems.py",
+        "custom_components/roomba_home/core/history.py",
+        "custom_components/roomba_home/coordinator.py",
+        "custom_components/roomba_home/entity.py"
+      ],
+      "tests": [
+        "tests/test_telemetry.py",
+        "tests/test_problems.py",
+        "tests/test_history.py",
+        "tests/ha/test_dock_and_history.py",
+        "tests/ha/test_telemetry_entities.py"
+      ],
+      "documentation": [
+        "docs/telemetry.md",
+        "docs/usage.md",
+        "docs/architecture.md",
+        "docs/validation.md",
+        "docs/evidence/2026-11-23-telemetry.json",
+        "docs/evidence/2026-11-23-telemetry-quality.json",
+        "docs/evidence/2026-11-23-temporary-zone-history.json"
+      ]
+    },
+    {
+      "id": "cleaning-profiles",
+      "title": "Cleaning modes and profiles",
+      "status": "proposed",
+      "scope": "Capability-based mode and parameter combinations, next-cleaning controls, and physical confirmation",
+      "owner": "ha-roomba-home maintainer",
+      "lastVerified": "2026-11-23",
+      "specs": [
+        "specs/006-cleaning-profiles.md"
+      ],
+      "workflows": [],
+      "entrypoints": [
+        "custom_components/roomba_home/select.py",
+        "custom_components/roomba_home/number.py",
+        "custom_components/roomba_home/switch.py",
+        "custom_components/roomba_home/button.py"
+      ],
+      "code": [
+        "custom_components/roomba_home/core/actions.py",
+        "custom_components/roomba_home/core/application.py",
+        "custom_components/roomba_home/core/cleaning.py",
+        "custom_components/roomba_home/core/cleaning_protocol.py",
+        "custom_components/roomba_home/core/preferences.py",
+        "custom_components/roomba_home/core/commands.py",
+        "custom_components/roomba_home/coordinator.py"
+      ],
+      "tests": [
+        "tests/test_cleaning.py",
+        "tests/test_application.py",
+        "tests/test_commands.py",
+        "tests/ha/test_coordinator.py",
+        "tests/ha/test_cleaning_controls.py",
+        "tests/test_architecture_and_privacy.py"
+      ],
+      "documentation": [
+        "docs/usage.md",
+        "docs/architecture.md",
+        "docs/validation.md",
+        "docs/evidence/2026-11-23-cleaning-modes.json",
+        "docs/evidence/2026-11-23-default-suction.json",
+        "docs/evidence/2026-11-23-persistent-cleaning-options.json",
+        "docs/capabilities.md",
+        "docs/evidence/2026-11-23-cleaning-quality.json"
+      ]
+    },
+    {
+      "id": "device-capabilities",
+      "title": "Capability-driven integration",
+      "status": "proposed",
+      "scope": "Shared discovery, device coordination, dock actions, regions, recovery, and live map position",
+      "owner": "ha-roomba-home maintainer",
+      "lastVerified": "2026-11-23",
+      "specs": [
+        "specs/007-device-capabilities.md"
+      ],
+      "workflows": [],
+      "entrypoints": [
+        "custom_components/roomba_home/vacuum.py",
+        "custom_components/roomba_home/button.py",
+        "custom_components/roomba_home/services.py",
+        "custom_components/roomba_home/services.yaml"
+      ],
+      "code": [
+        "custom_components/roomba_home/core/capabilities.py",
+        "custom_components/roomba_home/core/capability_protocol.py",
+        "custom_components/roomba_home/core/dock.py",
+        "custom_components/roomba_home/core/maps.py",
+        "custom_components/roomba_home/core/point_maps.py",
+        "custom_components/roomba_home/core/history.py",
+        "custom_components/roomba_home/core/application.py",
+        "custom_components/roomba_home/core/commands.py",
+        "custom_components/roomba_home/coordinator.py",
+        "custom_components/roomba_home/robot_updates.py",
+        "custom_components/roomba_home/sensor.py",
+        "custom_components/roomba_home/binary_sensor.py",
+        "custom_components/roomba_home/core/schedules.py",
+        "custom_components/roomba_home/core/live_maps.py",
+        "custom_components/roomba_home/image.py"
+      ],
+      "tests": [
+        "tests/test_maps_and_capabilities.py",
+        "tests/test_point_maps.py",
+        "tests/test_dock_operations.py",
+        "tests/test_history.py",
+        "tests/ha/test_areas.py",
+        "tests/ha/test_dock_and_history.py",
+        "tests/test_cloud_schedules.py",
+        "tests/test_live_maps.py",
+        "tests/ha/test_live_map_entities.py"
+      ],
+      "documentation": [
+        "docs/capabilities.md",
+        "docs/api.md",
+        "docs/architecture.md",
+        "docs/validation.md",
+        "docs/usage.md",
+        "docs/telemetry.md",
+        "docs/evidence/2026-11-23-cleaning-modes.json",
+        "docs/evidence/2026-11-23-point-clean.json",
+        "docs/evidence/2026-11-23-spot-and-live-map.json",
+        "docs/evidence/2026-11-24-live-progress.json"
+      ]
+    },
+    {
+      "id": "mission-detail-and-map-card",
+      "title": "Mission Detail and Interactive Floor Maps",
+      "status": "proposed",
+      "scope": "Per-room history, live progress, dashboard selection, and household checks",
+      "owner": "ha-roomba-home maintainer",
+      "lastVerified": "2026-11-24",
+      "specs": [
+        "specs/008-mission-detail-and-map-card.md"
+      ],
+      "workflows": [
+        ".github/workflows/validate.yml"
+      ],
+      "entrypoints": [
+        "custom_components/roomba_home/__init__.py"
+      ],
+      "code": [
+        "custom_components/roomba_home/core/history.py",
+        "custom_components/roomba_home/core/live_maps.py",
+        "custom_components/roomba_home/core/point_maps.py",
+        "custom_components/roomba_home/core/mqtt.py",
+        "custom_components/roomba_home/map_api.py",
+        "custom_components/roomba_home/frontend/roomba-home-map-card.js"
+      ],
+      "tests": [
+        "tests/test_history.py",
+        "tests/test_mqtt.py",
+        "tests/ha/test_live_map_entities.py",
+        "tests/ha/test_roomba_map_api.py"
+      ],
+      "documentation": [
+        "README.md",
+        "docs/usage.md",
+        "docs/telemetry.md",
+        "docs/validation.md",
+        "docs/evidence/2026-11-24-live-progress.json"
+      ]
+    }
+  ]
+}

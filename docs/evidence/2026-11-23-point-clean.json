@@ -1,0 +1,112 @@
+{
+  "date": "2026-11-23",
+  "robot_model": "X185240",
+  "scope": "One authorized robot, one vacuum-only command for a point on its current map",
+  "sdk": {
+    "android_app_version": "3.4.1",
+    "digital_spot_capability_field": "cap.dSpot",
+    "advertised_value": 1,
+    "command": "point_clean",
+    "command_fields": [
+      "p2map_id",
+      "user_p2mapv_id",
+      "geom.center",
+      "params"
+    ],
+    "distinct_standard_spot_command": "spot"
+  },
+  "point_selection": {
+    "geometry_endpoint": "GET /v1/p2maps/{map_id}/versions/{version_id}/geojson?response_type=binary",
+    "geometry_status": 200,
+    "geometry_media_type": "application/gzip",
+    "geometry_documents": 8,
+    "active_maps": 1,
+    "saved_zones": 0,
+    "chosen_point_in_mapped_free_space": true,
+    "original_geometry_private": true
+  },
+  "observation": {
+    "broker_acknowledged": true,
+    "reported_active_phase": "run",
+    "reported_cycle": "clean",
+    "reported_operating_mode": 2,
+    "reported_initiator": "rmtApp",
+    "live_command_echo_present": false,
+    "initial_live_confirmation_matched": false,
+    "final_docked": true,
+    "final_mission_error": 0
+  },
+  "history": {
+    "same_mission_number_and_start_time": true,
+    "command": "point_clean",
+    "point_matches": true,
+    "map_matches": true,
+    "version_matches": true,
+    "reported_floor_area_m2": 1.95,
+    "reported_duration_minutes": 2,
+    "outcome": "cncl"
+  },
+  "suction_restoration": {
+    "preceding_level_in_home_assistant_activity": 3,
+    "published_mission_level": 1,
+    "reported_after_mission": 1,
+    "reported_after_restoration": 3,
+    "restoration_did_not_move_robot": true
+  },
+  "history_projection": {
+    "actual_record_replayed": true,
+    "private_coordinates_and_map_ids_excluded": true,
+    "home_assistant_tests_passed": 1328,
+    "statement_and_branch_coverage_percent": 100.0
+  },
+  "limits": "The record confirms initiation and the requested point. Natural completion and the precise trajectory at that point were not observed. The separate current-location spot command was not tested.",
+  "ha_action_0_7_0": {
+    "production_signed_geometry_read": true,
+    "active_room_matches_geometry": true,
+    "same_point_reconstructed_from_room_fractions": true,
+    "exact_install_archive_sha256": "c800b1ff4ae7cf5239cfde0da8ba01e481bc80aaff98d1eac6c5e40fea8d2367",
+    "isolated_home_assistant_real_robot": {
+      "registered_entities": 150,
+      "selected_robots": 1,
+      "action": "roomba_home.clean_point",
+      "live_command_status": "submitted",
+      "observed_phase": "run",
+      "matched_native_history_command": "point_clean",
+      "exact_map_version_and_center": true,
+      "reported_floor_area_m2": 1.95,
+      "reported_duration_minutes": 2,
+      "outcome": "cncl",
+      "home_assistant_sensor_updated": true,
+      "docked_after_bounded_test_cleanup": true,
+      "mission_error": 0,
+      "original_default_suction_preserved": true,
+      "home_assistant_cleaning_preferences_preserved": true
+    },
+    "offline_upgrade_kept_existing_entities": {
+      "0.5.0": 372,
+      "0.6.1": 381
+    },
+    "offline_upgrades_resulting_entities": 384,
+    "new_history_sensors": 3,
+    "home_assistant_tests_passed": 1417,
+    "covered_statements": 3241,
+    "covered_branches": 1134,
+    "statement_and_branch_coverage_percent": 100.0,
+    "hassfest_invalid_integrations": 0,
+    "validated_sdds": 7,
+    "domestic_home_assistant": {
+      "previous_version": "0.5.0",
+      "running_version": "0.7.0",
+      "archive_digest_confirmed": true,
+      "previous_component_backed_up": true,
+      "core_configuration_check_passed": true,
+      "core_restarted": true,
+      "robots": 3,
+      "docks": 3,
+      "registered_entities": 453,
+      "registered_last_mission_command_sensors": 3,
+      "clean_point_action_visible": true,
+      "motion_commands": 0
+    }
+  }
+}

@@ -1,0 +1,34 @@
+name: Validate
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install HA test environment
+        run: |
+          python -m pip install 'homeassistant==2026.11.2'
+          python -m pip install -c "$(python -c 'import pathlib,homeassistant; print(pathlib.Path(homeassistant.__file__).parent / "package_constraints.txt")')" -e '.[test,ha-test]'
+      - name: Lint and tests without credentials
+        run: |
+          ruff check custom_components tools tests scripts
+          ruff format --check custom_components tools tests scripts
+          pytest --timeout=30 --cov=custom_components.roomba_home --cov-branch --cov-fail-under=100
+          python scripts/check_privacy.py
+          python scripts/validate_specs.py
+      - name: Validate with official hassfest
+        env:
+          HA_CORE_VALIDATOR_DIR: ${{ runner.temp }}/ha-core-validator
+        run: |
+          git clone --depth 1 --branch 2026.11.2 https://github.com/home-assistant/core.git "$HA_CORE_VALIDATOR_DIR"
+          python -m pip install "$HA_CORE_VALIDATOR_DIR/packages/hassfest" tqdm
+          cd "$HA_CORE_VALIDATOR_DIR"
+          python -m script.hassfest --action validate --integration-path "$GITHUB_WORKSPACE/custom_components/roomba_home"

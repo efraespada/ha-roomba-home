@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-23",
+  "release": "0.4.0",
+  "model": "X185240",
+  "source": "Native app schedule request descriptors, response captures and signed provider readbacks",
+  "capture": {
+    "successful_schedule_list_responses": 4,
+    "household_schedule_count": 5,
+    "observed_recurrence": "WEEKLY"
+  },
+  "tested_operations": {
+    "create_temporary_disabled_schedule": {
+      "method": "POST",
+      "http_status": 200
+    },
+    "update_weekly_start": {
+      "method": "PUT",
+      "http_status": 200
+    },
+    "remove_temporary_schedule": {
+      "method": "DELETE",
+      "http_status": 200
+    }
+  },
+  "provider_runs": [
+    {
+      "client": "protocol probe",
+      "changed_start_time": true,
+      "disabled_flag_and_command_preserved": true,
+      "temporary_schedule_removed_and_confirmed": true
+    },
+    {
+      "client": "integration client",
+      "changed_weekdays_and_start_time": true,
+      "disabled_flag_and_command_preserved": true,
+      "temporary_schedule_removed_and_confirmed": true
+    },
+    {
+      "client": "domestic Home Assistant action and independent provider readback",
+      "changed_weekdays_and_start_time": true,
+      "disabled_flag_and_command_preserved": true,
+      "temporary_schedule_removed_and_confirmed": true,
+      "confirmed_removed_from_home_assistant_listing": true
+    }
+  ],
+  "existing_schedules_unchanged": true,
+  "household_schedules_after_each_run": 5,
+  "physical_robot_commands": 0,
+  "home_assistant_actions": [
+    "list_cleaning_schedules",
+    "update_cleaning_schedule"
+  ],
+  "harness_checks": {
+    "passed": 1235,
+    "covered_statements": 2720,
+    "covered_branches": 958,
+    "percent": 100.0
+  },
+  "limits": [
+    "Creation and deletion were verified only on temporary schedules copied from an existing routine.",
+    "No schedule was activated or allowed to dispatch a mission.",
+    "Editing a group containing multiple schedules was not exercised and is rejected by the integration."
+  ],
+  "api_only_tests_passed": 1025,
+  "verified_local_document_links": 269,
+  "household_installation": {
+    "home_assistant_hardware": "Green",
+    "home_assistant_core": "2026.11.2",
+    "previous_version": "0.3.1",
+    "loaded_version": "0.4.0",
+    "package_sha256": "f25b6caacb592f0fb80f43eb10b299d1c2182cda2a479569a367ddf7bce9f4f2",
+    "configuration_check": "passed",
+    "restart": "passed",
+    "previous_component_backup_created": true,
+    "robot_devices": 3,
+    "dock_children": 3,
+    "registered_entities_before_and_after": 425,
+    "test_robot_editable_schedules_before_and_after": 1
+  }
+}

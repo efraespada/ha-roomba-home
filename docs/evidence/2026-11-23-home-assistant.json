@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-23",
+  "integration_version": "0.1.0",
+  "environment": {
+    "kind": "household Home Assistant server",
+    "core_version": "2026.11.2",
+    "machine": "green",
+    "architecture": "aarch64"
+  },
+  "installation": {
+    "configuration_check": "passed",
+    "restart": "passed",
+    "config_flow": "passed",
+    "devices": 3,
+    "entities": 12,
+    "sku": "X185240",
+    "component_archive_sha256": "97dbf9d07eda2426bc65b17a3da36cb91402ba5474145872c0d83f7cc8270b1b"
+  },
+  "physical_control": {
+    "surface": "standard Home Assistant vacuum controls",
+    "robots_commanded": 1,
+    "vacuum_seconds_planned": 210,
+    "cleaning_to_pause_state_interval_seconds": 544,
+    "exceeded_planned_duration": true,
+    "transitions_relative_to_cleaning_state": [
+      {"seconds": 0, "activity": "cleaning", "phase": "run", "cycle": "clean", "last_command_result": "confirmed"},
+      {"seconds": 544, "activity": "paused", "phase": "stop", "cycle": "clean", "last_command_result": "confirmed"},
+      {"seconds": 568, "activity": "idle", "phase": "stop", "cycle": "none", "last_command_result": "confirmed"},
+      {"seconds": 607, "activity": "returning", "phase": "hmUsrDock", "cycle": "dock", "last_command_result": "pending"},
+      {"seconds": 706, "activity": "docked", "phase": "charge", "cycle": "none", "last_command_result": "confirmed"}
+    ],
+    "final_mission_error": 0,
+    "final_battery_percent": 99
+  },
+  "reload": {
+    "result": "passed",
+    "devices_after": 3,
+    "entities_after": 12,
+    "all_connected_after": true,
+    "all_docked_after": true,
+    "all_mission_errors_zero_after": true
+  },
+  "privacy": {
+    "account_values_in_evidence": false,
+    "robot_names_or_ids_in_evidence": false,
+    "screenshots_kept_outside_repository": true
+  },
+  "limitations": [
+    "The additional HA control test exceeded its planned cleaning duration; it is not evidence of a timed stop automation.",
+    "Long-running production use and natural session expiry remain unverified."
+  ]
+}

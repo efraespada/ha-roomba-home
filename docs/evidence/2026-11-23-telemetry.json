@@ -1,0 +1,60 @@
+{
+  "date": "2026-11-23",
+  "integration_version": "0.2.0",
+  "home_assistant_core": "2026.11.2",
+  "real_reads": {
+    "robots": 3,
+    "sku": "X185240",
+    "accepted_research_shadows_per_robot": [
+      8,
+      8,
+      8
+    ],
+    "consumables_per_robot": [
+      7,
+      7,
+      7
+    ],
+    "catalog_parts": 7,
+    "coordinator_optional_sources": {
+      "details": 3,
+      "parts": 3
+    },
+    "coordinator_connected_robots": 3,
+    "coordinator_docked_robots": 3,
+    "projected_registry_entities_per_robot": [
+      103,
+      103,
+      103
+    ],
+    "projected_registry_entities_total": 309,
+    "disabled_by_default_entities_per_robot": 1,
+    "observed_problem": {
+      "affected_robots": 1,
+      "source": "part_212",
+      "classification": "maintenance_due"
+    },
+    "new_physical_commands_sent": 0
+  },
+  "tests": {
+    "passed": 351,
+    "failed": 0,
+    "api_only_passed": 264,
+    "coverage_percent_with_branches": 98.37,
+    "new_cases_since_0_1_0": 148,
+    "physical_faults_deliberately_induced": false,
+    "fault_transition_validation": "synthetic provider data in official HA harness"
+  },
+  "household_update": {
+    "installed_version": "0.1.0",
+    "target_version": "0.2.0",
+    "status": "pending",
+    "reason": "browser control connection unavailable",
+    "target_component_archive_sha256": "70efd36a631a8eaaf99ee35cc54f548c879ba0d8b991a9ff545821398b6ccee2"
+  },
+  "privacy": {
+    "raw_account_or_robot_identifiers": false,
+    "credentials_or_tokens": false,
+    "raw_captures_or_sdk_source_in_repository": false
+  }
+}

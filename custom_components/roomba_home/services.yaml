@@ -1,0 +1,138 @@
+list_cleaning_regions:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+list_cleaning_estimates:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    regions:
+      required: true
+      selector:
+        object:
+clean_regions:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    regions:
+      required: true
+      selector:
+        object:
+clean_map_selection:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    map_id:
+      required: true
+      selector:
+        text:
+    version:
+      required: true
+      selector:
+        text:
+    regions:
+      required: true
+      selector:
+        object:
+clean_point:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    region_id:
+      required: true
+      selector:
+        text:
+    x:
+      required: true
+      selector:
+        number:
+          min: 0.01
+          max: 0.99
+          step: 0.01
+          mode: box
+    y:
+      required: true
+      selector:
+        number:
+          min: 0.01
+          max: 0.99
+          step: 0.01
+          mode: box
+list_cleaning_schedules:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+update_cleaning_schedule:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    schedule_id:
+      required: true
+      selector:
+        text:
+    weekdays:
+      required: true
+      selector:
+        object:
+    time:
+      required: true
+      selector:
+        time:
+set_cleaning_schedule_enabled:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    schedule_id:
+      required: true
+      selector:
+        text:
+    enabled:
+      required: true
+      selector:
+        boolean:
+create_cleaning_schedule:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    name:
+      required: true
+      selector:
+        text:
+    weekdays:
+      required: true
+      selector:
+        object:
+    time:
+      required: true
+      selector:
+        time:
+    regions:
+      required: true
+      selector:
+        object:
+remove_cleaning_schedule:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    schedule_id:
+      required: true
+      selector:
+        text:

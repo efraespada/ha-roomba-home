@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-23",
+  "release": "0.5.0",
+  "robot_model": "X185240",
+  "source": "Authenticated household API, recorded app schedule format, and verified create/read/delete round trips",
+  "request_contract": {
+    "create_method": "POST",
+    "create_path": "/v1/households/{household_id}/settings/schedule",
+    "remove_method": "DELETE",
+    "remove_path": "/v1/households/{household_id}/settings/schedule/{schedule_group_id}",
+    "write_confirmation": "Independent GET of the household schedules"
+  },
+  "provider_active_removal": {
+    "temporary_schedule_activated_for_future_day": true,
+    "http_status": 200,
+    "removal_confirmed": true,
+    "original_schedules_preserved": 5
+  },
+  "integration_client_round_trips": [
+    {
+      "mode": "mop",
+      "native_region_mode": 4,
+      "created_disabled": true,
+      "removed": true
+    },
+    {
+      "mode": "vacuum_mop",
+      "native_region_mode": 32,
+      "created_disabled": true,
+      "removed": true
+    }
+  ],
+  "fresh_map_version_confirmed_in_created_routine": true,
+  "commands_published_to_robot": 0,
+  "saved_zones_used": 0,
+  "physical_run": "None for these create/remove probes; see the separate schedule-dispatch evidence.",
+  "harness_checks": {
+    "passed": 1278,
+    "covered_statements": 2850,
+    "covered_branches": 1004,
+    "percent": 100.0
+  },
+  "api_only_tests_passed": 1061,
+  "verified_local_document_links": 282,
+  "household_installation": {
+    "home_assistant_core": "2026.11.2",
+    "previous_version": "0.4.1",
+    "loaded_version": "0.5.0",
+    "package_sha256": "7d8975870082d028ce95ffe608c70b43853743e2b9ac629937fafb70edaffa33",
+    "configuration_check": "passed",
+    "restart": "passed",
+    "previous_component_backup_created": true,
+    "robot_devices": 3,
+    "dock_children": 3,
+    "registered_entities_before_and_after": 431,
+    "created_from_ha_disabled": true,
+    "identical_create_returned_same_id": true,
+    "independent_readback_confirmed_exactly_one": true,
+    "profile_mode_and_parameters_confirmed": true,
+    "temporary_removal_verified_by_client": true,
+    "native_remove_action_rejected_already_absent_id": true,
+    "editable_schedules_before_and_after": 2,
+    "account_schedules_before_and_after": 5,
+    "target_remained_docked": true
+  }
+}
