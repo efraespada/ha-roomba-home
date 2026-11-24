@@ -12,6 +12,20 @@ prevented an outdated draft from being submitted. The routine flow issued no
 cleaning commands.
 [Synthetic routine editor screenshot](../README.md#floor-plan-dashboard)
 
+The household installation verified the archive and passed `ha core check`
+before restarting Core. Three robots and three docks loaded. The existing
+dashboard resource was updated to the 0.14.0 URL. The two authorized floor
+plans loaded, and the dependency review returned matching routines and a
+weekly schedule. From the installed card, a disposable two-area routine
+was created, reordered, renamed, and duplicated. The temporary entries
+were deleted, and a fresh read showed the original routine count. The
+0.13.0 component is available as the immediate rollback.
+
+Android retained its Roomba Home session after a cold boot and loaded the
+selected floor plan. The remote viewer opened the map details, but the edit
+control remained blocked. This session established no new provider write
+contract for map edits.
+
 ## Saved cleaning routine validation in 0.13.0
 
 The complete suite passed 1,566 tests and reached 100% Python statement and
