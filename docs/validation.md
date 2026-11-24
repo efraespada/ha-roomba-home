@@ -26,6 +26,24 @@ selected floor plan. The remote viewer opened the map details, but the edit
 control remained blocked. This session established no new provider write
 contract for map edits.
 
+### Emulator graphics and display
+
+On Apple silicon, the Android 17 capture AVD ran four virtual CPUs with
+Hypervisor.framework available. Android reported approximately 4 GB of RAM.
+The emulator selected SwiftShader for OpenGL ES 3.1 and Lavapipe for Vulkan.
+An explicit host GPU test booted in 11.6 seconds, compared with 15.0 seconds
+for one software boot at the same display setting. Roomba Home rendered
+its home view with the host GPU. The guest reported OpenGL ES 3.0, below
+the emulator's stated API 37 graphics target, so the capture AVD returned
+to the OpenGL ES 3.1 software renderer.
+
+The capture AVD's display was reduced from 1600 × 1920 at 320 dpi to
+960 × 1152 at 192 dpi. This kept the same logical layout and reduced the
+pixel count by 64%. Slow, separate clicks still did not establish a map
+write. A completed cold boot and successful display are separate checks
+from the ability to observe a provider edit.
+[Android Emulator graphics acceleration](https://developer.android.com/studio/run/emulator-acceleration)
+
 ## Saved cleaning routine validation in 0.13.0
 
 The complete suite passed 1,566 tests and reached 100% Python statement and

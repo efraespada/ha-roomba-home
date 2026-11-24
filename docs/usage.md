@@ -133,23 +133,19 @@ previous problem. [Telemetry inventory](telemetry.md)
 
 ## Rooms, zones, and dock
 
-The standard action `vacuum.send_command` supports an order name and generic parameters. For
-specific operations of Roomba Home, typed actions check the robot's capacity and how best
-to achieve them.
+Assign the robot's regions to Home Assistant areas in the vacuum entity's
+settings. The `vacuum.clean_area` action uses those assignments. Select
+regions from one active map. Home Assistant checks the current map version
+before sending the command.
 
-It partners rooms and areas detected to Home Assistant area from the settings of an entity
-vacuum. Then you can choose one or more with `vacuum.clean_area`. To select rooms with a
-same map allows you to choose what the robot will use. The integration checks the current
-version before start. The names and identifiers are used inside you Home Assistant.
-
-Yeah. Roomba Home Failed to give back the map, Home Assistant preserves known regions and
-their associations. **Map data available** indicates whether the last inventory was
-available. To start an area or room cleanup you require a proper current reading. A valid
-response without maps removes regions offered by the robot.
+**Map data available** indicates whether the last inventory read succeeded.
+A failed read preserves known regions and area associations. Starting a
+region mission requires a current reading. A successful response that
+contains no floors removes the robot's available regions.
 
 `roomba_home.list_cleaning_regions` returns local identifiers that accept
-`roomba_home.clean_regions`. The latter action supports an ordered list with optional
-adjustments per stay. For example:
+`roomba_home.clean_regions`. The latter action supports an ordered list with
+optional settings per region.
 
 ```yaml
 action: roomba_home.clean_regions
@@ -166,13 +162,12 @@ data:
       smart_scrub: true
 ```
 
-The missed options take the robot's preferences set up in HA. Both actions retain these
-preferences. The forms of region admitted are vacuuming, mopping and simultaneous, always
-subject to robot capabilities.
+Omitted options use the next-cleaning preferences in Home Assistant. The
+action supports vacuuming, mopping, and simultaneous vacuuming and mopping
+per region, subject to robot capabilities.
 
-`roomba_home.list_cleaning_estimates` how much you estimate Roomba Home that would last the
-cleanliness of each room for available profiles. Use the identifiers returned by
-`roomba_home.list_cleaning_regions` and select rooms with that map.
+Use `roomba_home.list_cleaning_estimates` for Roomba's planned durations by
+region and cleaning profile. Supply region IDs from a single map.
 
 ```yaml
 action: roomba_home.list_cleaning_estimates
@@ -185,18 +180,16 @@ data:
 response_variable: roomba_estimates
 ```
 
-Each room returns its estimates at `duration_seconds` with the model mode and settings of a
-supplier. An empty list indicates that there's no usable estimate. The result serves to
-compare profiles before cleaning. The remaining duration of an active mission requires
-another reading.
+Each estimate has `duration_seconds` and its reported profile. An empty list
+indicates that Roomba returned no usable estimate. Use the results to compare
+profiles before starting a mission.
 
-The supported bases add buttons to clear the powder tank, wash mop and dry it up. The
-fill-in button requires a base model that advertises manual filled. Before starting check
-status of the dock and, depending on the share of its mop. The history of the last mission
-shows results, duration and area with information about how. The sensor **Last recorded
-mission destination** shows the target type and, as a result of his or her record indicates
-that an attribute `region_count`. The historic error sensor retains that mission's code
-after return to the dock.
+Compatible docks expose buttons to empty the bin, wash the mop, and dry it.
+Manual refill requires a dock that reports refill support. Check dock status
+and the relevant consumables before starting. The **Last recorded mission
+destination** sensor shows the target type and `region_count` when Roomba
+reports them. The mission error sensor retains the recorded error code after
+the robot docks.
 
 ## Vacuum a map point
 
