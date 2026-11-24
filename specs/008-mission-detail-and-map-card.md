@@ -180,4 +180,5 @@ fixtures before compiling an install package and starting physical trials.
 ## 20. References and decisions
 
 [Home Assistant custom cards](https://contributors.home-assistant.io/frontend/custom-ui/card/) ·
-[Observed Roomba API](../docs/api.md) · [Current validation](../docs/validation.md)
+[Observed Roomba API](../docs/api.md) · [Current validation](../docs/validation.md) ·
+[Proposed map zone editor](009-map-zone-editor.md)

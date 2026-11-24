@@ -28,6 +28,12 @@ during targeted cleaning. Live countdown, coverage percentage, and room area
 units still require provider evidence.
 [Prior capture evidence](evidence/2026-11-24-live-progress.json)
 
+The saved-zone command passed fixture checks. The two authorized maps had
+no saved cleaning zones at the start of the test. A signed map edit trial
+returned HTTP 500 and repeated inventory reads showed zero zones. The
+proposed editor tracks verification of the correct write protocol.
+[Map zone editor SDD](../specs/009-map-zone-editor.md)
+
 ## Local rendering checks for 0.11.1
 
 Reproduced the replacement glyph in 0.11.0 using Pillow's default font.

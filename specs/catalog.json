@@ -314,6 +314,25 @@
         "docs/validation.md",
         "docs/evidence/2026-11-24-live-progress.json"
       ]
+    },
+    {
+      "id": "map-zone-editor",
+      "title": "Map Zone Editor",
+      "status": "proposed",
+      "scope": "Draft, validate, and confirm changes to saved cleaning zones",
+      "owner": "ha-roomba-home maintainer",
+      "lastVerified": "2026-11-24",
+      "specs": [
+        "specs/009-map-zone-editor.md"
+      ],
+      "documentation": [
+        "docs/validation.md",
+        "docs/api.md"
+      ],
+      "workflows": [],
+      "entrypoints": [],
+      "code": [],
+      "tests": []
     }
   ]
 }

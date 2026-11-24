@@ -18,6 +18,7 @@ debt or convert unknown historic intent into a design decision.
 | `cleaning-profiles` | Proposed | Capability-based mode and parameter combinations, next-cleaning controls, and physical confirmation | [Cleaning modes and profiles](./006-cleaning-profiles.md) | 25 paths · 2026-11-23 |
 | `device-capabilities` | Proposed | Shared discovery, device coordination, dock actions, regions, recovery, and live map position | [Capability&#45;driven integration](./007-device-capabilities.md) | 38 paths · 2026-11-23 |
 | `mission-detail-and-map-card` | Proposed | Per-room history, live progress, dashboard selection, and household checks | [Mission Detail and Interactive Floor Maps](./008-mission-detail-and-map-card.md) | 17 paths · 2026-11-24 |
+| `map-zone-editor` | Proposed | Draft, validate, and confirm changes to saved cleaning zones | [Map Zone Editor](./009-map-zone-editor.md) | 2 paths · 2026-11-24 |
 
 ## Evidence map
 
@@ -108,6 +109,17 @@ debt or convert unknown historic intent into a design decision.
 - Core code: [`custom_components/roomba_home/core/history.py`](../custom_components/roomba_home/core/history.py) · [`custom_components/roomba_home/core/live_maps.py`](../custom_components/roomba_home/core/live_maps.py) · [`custom_components/roomba_home/core/point_maps.py`](../custom_components/roomba_home/core/point_maps.py) · [`custom_components/roomba_home/core/mqtt.py`](../custom_components/roomba_home/core/mqtt.py) · [`custom_components/roomba_home/map_api.py`](../custom_components/roomba_home/map_api.py) · [`custom_components/roomba_home/frontend/roomba-home-map-card.js`](../custom_components/roomba_home/frontend/roomba-home-map-card.js)
 - Tests: [`tests/test_history.py`](../tests/test_history.py) · [`tests/test_mqtt.py`](../tests/test_mqtt.py) · [`tests/ha/test_live_map_entities.py`](../tests/ha/test_live_map_entities.py) · [`tests/ha/test_roomba_map_api.py`](../tests/ha/test_roomba_map_api.py)
 - User documentation: [`README.md`](../README.md) · [`docs/usage.md`](../docs/usage.md) · [`docs/telemetry.md`](../docs/telemetry.md) · [`docs/validation.md`](../docs/validation.md) · [`docs/evidence/2026-11-24-live-progress.json`](../docs/evidence/2026-11-24-live-progress.json)
+
+### `map-zone-editor` — Map Zone Editor
+
+- Owner: ha-roomba-home maintainer
+- Last verified: 2026-11-24
+- Specifications: [`specs/009-map-zone-editor.md`](./009-map-zone-editor.md)
+- Workflows: Not applicable for this capability.
+- Entrypoints: Not yet implemented (proposed capability).
+- Core code: Not yet implemented (proposed capability).
+- Tests: Not yet implemented (proposed capability).
+- User documentation: [`docs/validation.md`](../docs/validation.md) · [`docs/api.md`](../docs/api.md)
 
 ## Maintenance contract
 
