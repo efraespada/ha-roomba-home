@@ -370,6 +370,20 @@ results accessible. Account credentials, raw IDs, commands, and URLs stay
 out of the dashboard response. Access requires permission to read the
 vacuum entity and the integration's map option. [ClearView map history](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
 
+For a directed start, `plan` preserves the validated destination sequence,
+whether Roomba committed to that order, explicit regional preferences, and
+the final per-destination outcomes. A destination with no matched final
+event has status `unreported`. The report's overall outcome is independent
+of the destination outcomes. A room or temporary target can report the
+robot's internal revision on the same floor during that mission.
+
+Names come from the selected signed mission archive. If it is readable and
+missing a destination's name, one optional read of the original requested
+revision on that floor can recover the name. The optional revision never
+changes the geometry drawn for the report. Both the plan and metrics remain
+readable when the archive is missing. The response omits native area and
+map identifiers.
+
 ### Floor plan display layers
 
 The Max 700 persistent map archive includes optional layers alongside room

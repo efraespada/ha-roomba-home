@@ -1,5 +1,8 @@
 """Read-only geometry from the exact map archive referenced by a cleaning report."""
 
+from dataclasses import replace
+
+from .furniture_targets import furniture_regions
 from .maps import PersistentMap
 from .point_maps import (
     _coordinates,
@@ -44,7 +47,8 @@ def read_mission_map(data: bytes, map_id: str, version_id: str) -> tuple[Persist
     docs = _map_documents(data, map_id, version_id, MISSION_LAYERS)
     floor = PersistentMap(map_id, version_id, None, ())
     plan = _floor_plan_documents(docs, floor)
-    return with_archive_destinations(floor, plan), {
+    floor = with_archive_destinations(floor, plan)
+    return replace(floor, regions=(*floor.regions, *furniture_regions(plan))), {
         "rooms": [{"name": room.name, "polygons": room.polygons} for room in plan.rooms],
         "borders": _display_features(docs, "borders", _polygons),
         "walls": [{"kind": kind, "points": points} for kind, points in plan.walls],

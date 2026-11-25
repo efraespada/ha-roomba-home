@@ -68,6 +68,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   Browse recorded cleaning reports with the mission's own coverage, route,
   timeline, and 3D floor plan. Hide travel, cleaning paths, or coverage
   independently and see zones and restrictions saved in the archived map.
+  Directed reports include the requested order, preferences, and reported
+  outcome for each destination.
   [Cleaning history](docs/usage.md#cleaning-history)
 - **Room cleaning scores.** View Roomba's reported score, mission timestamps,
   and suggested settings for each matched room on the active floor.

@@ -112,12 +112,12 @@ template.innerHTML = `
     summary { cursor:pointer; }
     .result { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; margin-top:9px; }
     .result div { grid-column:1/-1; }
-    #mission-plan ol, #mission-plan ul { padding-inline-start:22px; }
-    #mission-plan li { margin-block:5px; }
-    #mission-plan li .result {
+    .mission-plan ol, .mission-plan ul { padding-inline-start:22px; }
+    .mission-plan li { margin-block:5px; }
+    .mission-plan li .result {
       grid-template-columns:minmax(0,1fr) fit-content(50%); margin-top:0; overflow-wrap:anywhere;
     }
-    #mission-plan li .muted { text-align:end; }
+    .mission-plan li .muted { text-align:end; }
     @container (max-width:360px) { footer { align-items:flex-start; flex-direction:column; } }
     [hidden] { display:none !important; }
   </style>
@@ -326,7 +326,7 @@ template.innerHTML = `
         <button id="map-impact" hidden disabled>Review map dependencies</button>
         <button id="review-skip" hidden>Skip current area</button>
       </div>
-      <details id="mission-plan" open hidden><summary></summary><div></div></details>
+      <details id="mission-plan" class="mission-plan" open hidden><summary></summary><div></div></details>
       <details id="active" hidden><summary>Current mission measurements</summary><div></div></details>
       <details id="history" hidden><summary>Last mission by area</summary><div></div></details>
     </div>
@@ -366,6 +366,7 @@ template.innerHTML = `
           <p class="legend muted" id="history-map-legend"></p>
         </section>
         <p id="history-no-map" class="muted" hidden>Roomba has no map for this report.</p>
+        <details id="history-plan" class="mission-plan" open hidden><summary></summary><div></div></details>
         <details id="history-area-results" hidden><summary>Results by area</summary><div></div></details>
         <details id="history-chronology" hidden><summary>Timeline</summary><ol id="history-timeline"></ol></details>
       </div>
@@ -2066,6 +2067,7 @@ class RoombaHomeMapCard extends HTMLElement {
     floor.replaceChildren(...Array.from({ length: mission.map_count }, (_, i) => option(i, `Map ${i + 1}`)));
     floor.value = String(report.map_index);
     this.$("history-map-selector").hidden = mission.map_count < 2;
+    this.renderMissionPlan(report.plan, "history-plan");
     this.renderAreaResults("history-area-results", [...report.rooms, ...report.zones], "Unknown outcome");
     this.$("history-timeline").replaceChildren(...report.timeline.map((event) => {
       const line = document.createElement("li");
@@ -2261,8 +2263,8 @@ class RoombaHomeMapCard extends HTMLElement {
     }
   }
 
-  renderMissionPlan(plan) {
-    const view = this.$("mission-plan");
+  renderMissionPlan(plan, id = "mission-plan") {
+    const view = this.$(id);
     const signature = JSON.stringify(plan ?? null);
     if (signature === view.dataset.plan) return;
     view.dataset.plan = signature;
@@ -2272,7 +2274,9 @@ class RoombaHomeMapCard extends HTMLElement {
     rows.replaceChildren();
     summary.textContent = "";
     if (!plan) return;
-    const heading = plan.ordered ? "Planned order" : "Selected destinations";
+    const historical = id === "history-plan";
+    const heading = plan.ordered ? (historical ? "Requested order" : "Planned order")
+      : (historical ? "Requested destinations" : "Selected destinations");
     const remaining = plan.estimated_remaining_seconds;
     const estimate = remaining != null ? ` · About ${Math.ceil(remaining / 60)} min left` : "";
     summary.textContent = `${heading} · ${plan.completed} of ${plan.total} completed${estimate}`;
@@ -2285,7 +2289,7 @@ class RoombaHomeMapCard extends HTMLElement {
       finished_with_more_passes: "More passes expected", partial_incomplete: "Partially cleaned",
       partial_skipped: "Partially skipped", kidnapped: "Robot moved", user_ended: "Ended by user",
       robot_aborted: "Ended by robot", skipped: "Skipped", skipped_will_return: "Skipped, will return",
-      unknown: "Unknown outcome",
+      unknown: "Unknown outcome", unreported: "No final result",
     };
     for (const destination of plan.destinations) {
       const item = document.createElement("li");

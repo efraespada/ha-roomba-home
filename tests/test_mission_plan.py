@@ -213,3 +213,16 @@ def test_null_native_preference_groups_keep_the_other_group():
         COMMAND | {"params": local["params"], "regions": [ROOM | {"params": None}]}
     )
     assert shared == native
+
+
+def test_archived_temporary_destination_matches_only_its_own_floor():
+    plan = mission_plan(COMMAND | {"regions": [TEMPORARY]})
+    result = AreaResult(
+        (SCOPE[0], "device-revision", "polygon-b"), NOW, 0, 4, 4, 1, "temporary_zone"
+    )
+    foreign = replace(result, identity=("other-map", "device-revision", "polygon-b"), status=7)
+    archive = present_mission_plan(plan, (result, foreign), (), None, (), archived=True)
+    assert archive["completed"] == 1
+    assert archive["destinations"] == [
+        {"kind": "temporary_zone", "name": None, "status": "finished", "reported_pass_count": 1}
+    ]

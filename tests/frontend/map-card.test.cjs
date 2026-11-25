@@ -955,11 +955,18 @@ test("the history panel opens the latest report and shows measurements when geom
   card.config = { entity: "vacuum.example" };
   card.historySequence = 0;
   card.renderAreaResults = () => {};
+  const planView = card.$("history-plan");
+  planView.append(mockElement("summary"), mockElement("div"));
+  const plan = { ordered: true, total: 2, completed: 0, destinations: [
+    { kind: "furniture", mode: "vacuum", status: "skipped", reported_pass_count: 0,
+      requested_settings: { two_pass: false, suction_level: 2 } },
+    { kind: "saved_zone", mode: "mop", status: "unreported", requested_settings: { wetness_level: 3 } },
+  ] };
   card.$("mission-history-dialog").showModal = function () { this.open = true; };
   const calls = [];
   card._hass = { callWS: async (request) => {
     calls.push(request);
-    return request.report_id ? { mission, geometry: null, map_index: 0, timeline: [], modes: {}, rooms: [], zones: [] }
+    return request.report_id ? { mission, geometry: null, map_index: 0, timeline: [], modes: {}, rooms: [], zones: [], plan }
       : { missions: [mission] };
   } };
   await card.openMissionHistory();
@@ -969,6 +976,19 @@ test("the history panel opens the latest report and shows measurements when geom
   assert.equal(card.$("history-map-view").hidden, true);
   assert.equal(card.$("history-totals").textContent, "1 report · 2 min · 0.5 m²");
   assert.ok(card.$("history-measurements").children.length);
+  assert.equal(planView.hidden, false);
+  assert.equal(planView.querySelector("summary").textContent, "Requested order · 0 of 2 completed");
+  assert.deepEqual(planView.querySelector("ol").children.map((item) =>
+    item.children[0].children.map((field) => field.textContent)), [
+    ["Furniture target", "Vacuum · Skipped · Reported passes 0", "Requested · Suction 2 · Two passes off"],
+    ["Saved zone", "Mop · No final result", "Requested · Mop wetness 3"],
+  ]);
+  card.renderMissionReport({ ...card.historyReport, plan: { ...plan, ordered: false } });
+  assert.equal(planView.querySelector("summary").textContent, "Requested destinations · 0 of 2 completed");
+  assert.ok(planView.querySelector("ul"));
+  card.renderMissionReport({ ...card.historyReport, plan: null });
+  assert.equal(planView.hidden, true);
+  assert.equal(planView.querySelector("ul"), undefined);
 });
 
 test("selecting a different mission discards an older archive response", async () => {

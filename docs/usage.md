@@ -193,6 +193,14 @@ inspect it from another angle. The archive is scoped to the mission's
 original revision. A report can still show its measurements and timeline
 after its map becomes unavailable. [Report protocol](api.md#archived-cleaning-reports)
 
+For directed runs, **Requested order** shows the requested sequence,
+cleaning settings, and final outcome for each room, zone, or furniture
+target. When Roomba chose the order, the section is **Requested
+destinations**. A destination can have a different outcome from the overall
+mission. In one report, Roomba returned an overall success and recorded
+that the user ended the room before a pass was reported.
+[Validation](validation.md#historical-destination-plans)
+
 ## Map a floor
 
 Choose **Map a floor** in the card and confirm once the robot is on its dock

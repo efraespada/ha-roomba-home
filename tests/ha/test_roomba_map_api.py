@@ -204,6 +204,146 @@ async def test_history_reads_the_exact_archive_using_read_permission(
         assert "mission-revision" not in repr(report)
 
 
+@pytest.mark.parametrize("archive_available", [True, False])
+async def test_history_keeps_the_requested_order_and_final_destination_results(
+    configured, picea_archive, hass_ws_client, archive_available
+):
+    revision = "report-archive"
+    row = {
+        "robot_id": "fixture-0",
+        "timestamp": 1700000500,
+        "done": "ok",
+        "p2maps": [{"p2map_id": MAP.map_id, "p2mapv_id": revision}],
+        "cmd": {
+            "command": "start",
+            "p2map_id": MAP.map_id,
+            "user_p2mapv_id": "requested-revision",
+            "ordered": 1,
+            "regions": [
+                {
+                    "type": "zid",
+                    "region_id": "125",
+                    "params": {"operatingMode": 4, "padWetness": {"padPlate": 3}},
+                },
+                {
+                    "type": "rid",
+                    "region_id": "room-a",
+                    "params": {"operatingMode": 2, "twoPass": False},
+                },
+                {"type": "tid", "region_id": "unvisited-region"},
+            ],
+        },
+        "timeline": {
+            "finEvents": [
+                {
+                    "type": "room",
+                    "ts": 1700000200,
+                    "room": {
+                        "p2mapId": MAP.map_id,
+                        "p2mapvId": revision,
+                        "rid": "room-a",
+                        "status": 5,
+                        "passCount": 0,
+                    },
+                },
+                {
+                    "type": "zone",
+                    "ts": 1700000150,
+                    "zone": {
+                        "p2mapId": MAP.map_id,
+                        "p2mapvId": revision,
+                        "zid": "125",
+                        "status": 0,
+                    },
+                },
+            ]
+        },
+    }
+    reports = mission_reports([row], "fixture-0")
+    configured.client.mission_reports = AsyncMock(return_value=reports)
+    if archive_available:
+        configured.client.map_geometry.return_value = picea_archive(
+            version=revision,
+            zones=[("125", "Old cleaning zone", [[1, 1], [2, 1], [2, 2], [1, 2], [1, 1]])],
+        )
+    else:
+        configured.client.map_geometry.side_effect = ApiError(404)
+    socket = await hass_ws_client()
+    await socket.send_json(HISTORY | {"report_id": reports[0].key})
+    report = (await socket.receive_json())["result"]
+    assert (report["geometry"] is not None) is archive_available
+    assert report["mission"]["outcome"] == "completed"
+    assert report["plan"] == {
+        "ordered": True,
+        "total": 3,
+        "completed": 1,
+        "destinations": [
+            {
+                "kind": "saved_zone",
+                "name": "Old cleaning zone" if archive_available else None,
+                "mode": "mop",
+                "status": "finished",
+                "requested_settings": {"wetness_level": 3},
+            },
+            {
+                "kind": "room",
+                "name": "Office" if archive_available else None,
+                "mode": "vacuum",
+                "status": "user_ended",
+                "requested_settings": {"two_pass": False},
+                "reported_pass_count": 0,
+            },
+            {"kind": "temporary_zone", "name": None, "status": "unreported"},
+        ],
+    }
+    assert "requested-revision" not in repr(report) and "unvisited-region" not in repr(report)
+    configured.client.map_geometry.assert_awaited_once_with(MAP.map_id, revision)
+
+
+@pytest.mark.parametrize(
+    "fallback", ["available", "unavailable", "bad_revision", "same_revision", "other_floor"]
+)
+async def test_history_checks_the_requested_revision_for_a_missing_destination_name(
+    configured, picea_archive, fallback
+):
+    archive_revision = "archived"
+    requested_revision = archive_revision if fallback == "same_revision" else "requested"
+    archived_floor = "other-map" if fallback == "other_floor" else MAP.map_id
+    row = {
+        "robot_id": "fixture-0",
+        "timestamp": 1700000500,
+        "p2maps": [{"p2map_id": archived_floor, "p2mapv_id": archive_revision}],
+        "cmd": {
+            "command": "start",
+            "p2map_id": MAP.map_id,
+            "user_p2mapv_id": requested_revision,
+            "regions": [{"type": "rid", "region_id": "room-a"}],
+        },
+    }
+    reports = mission_reports([row], "fixture-0")
+    configured.client.mission_reports = AsyncMock(return_value=reports)
+
+    def unnamed(documents):
+        del documents["rooms.geojson"]["features"][0]["properties"]["name"]
+
+    archive = picea_archive(map_id=archived_floor, version=archive_revision, mutate=unnamed)
+    second_read = {
+        "available": picea_archive(version=requested_revision),
+        "unavailable": ApiError(404),
+        "bad_revision": picea_archive(version="wrong"),
+    }
+    configured.client.map_geometry.side_effect = [archive, second_read.get(fallback)]
+    detail = await configured.async_mission_history("fixture-0", reports[0].key)
+    assert detail["geometry"]["rooms"][0]["name"] is None
+    target = detail["plan"]["destinations"][0]
+    assert target["name"] == ("Office" if fallback == "available" else None)
+    assert target["status"] == "unreported"
+    calls = [(archived_floor, archive_revision)]
+    if fallback in second_read:
+        calls.append((MAP.map_id, requested_revision))
+    assert [call.args for call in configured.client.map_geometry.await_args_list] == calls
+
+
 async def test_history_rejects_unauthorized_or_stale_requests_before_fetching_geometry(
     configured, history_reports, hass_ws_client, hass_admin_user
 ):

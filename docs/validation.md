@@ -1,5 +1,29 @@
 # Roomba Home validation
 
+## Historical destination plans
+
+The coordinator read two signed Max 700 Combo reports. The first recorded
+two furniture destinations in a requested sequence. Both requested
+vacuuming with different preferences and both had a final `finished`
+result. The mission archive supplied one name. The signed revision from
+the original start command supplied the missing name in one additional
+read. The card retained the mission archive for the drawing.
+
+The other report kept the room's requested suction level and two-pass
+setting. The mission reported `ok` while the room reported `user_ended`
+with zero passes. The projection kept both outcomes and used only the
+mission archive to name the room. Both reports used a different archive
+revision from the revision in the original command. This verification
+sent zero movement commands and made zero map writes.
+
+An isolated Chrome run loaded both real reports from a local test fixture
+at 358 and 900 pixels. It verified destination order, names, settings,
+reported passes, and switching between reports. Authenticated WebSocket
+tests cover the plan with an expired archive and fallback failures.
+The suite passed 2,473 Python tests with 100% line and branch coverage,
+55 card tests, and Home Assistant's integration validator.
+[Anonymized report evidence](evidence/2026-11-26-historical-destination-plans.json)
+
 ## Requested settings and reported passes
 
 A reviewed Home Assistant draft directed the docked Max 700 Combo to vacuum

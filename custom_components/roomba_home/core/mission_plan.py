@@ -1,12 +1,12 @@
-"""Project the destinations and outcomes declared by a live mission timeline."""
+"""Project the destinations and outcomes declared by a mission command."""
 
 from dataclasses import asdict, dataclass
 
 from .cleaning import CleaningMode, CleaningProfile
 from .cleaning_protocol import parse_regional_profile, requested_region_mode
 from .furniture_targets import furniture_links
-from .history import ROOM_STATUSES, AreaResult, command_region_kind
 from .maps import PersistentMap, RegionKind, map_identifier
+from .mission_areas import ROOM_STATUSES, AreaResult, command_region_kind
 from .telemetry import at
 
 DESTINATION_KINDS = {
@@ -87,16 +87,21 @@ def present_mission_plan(
     active: tuple[AreaResult, ...],
     travelling: AreaResult | None,
     maps: tuple[PersistentMap, ...],
+    *,
+    archived: bool = False,
 ) -> dict:
+    """Historical callers supply only map revisions linked to the archived mission."""
     names = {
         (DESTINATION_KINDS[region.kind], (*plan.scope, region.region_id)): region.name
         for floor in maps
-        if (floor.map_id, floor.version_id) == plan.scope
+        if floor.map_id == plan.scope[0] and (archived or floor.version_id == plan.scope[1])
         for region in floor.regions
+        if region.name is not None
     }
     results = {_destination_key(plan, area): area for area in final}
     current = {_destination_key(plan, area): area for area in active}
     en_route = _destination_key(plan, travelling) if travelling is not None else None
+    missing = "unreported" if archived else "pending"
     destinations = []
     for destination in plan.destinations:
         key = destination.kind, destination.identity
@@ -106,9 +111,7 @@ def present_mission_plan(
         elif key == en_route:
             status = "traveling"
         else:
-            status = (
-                ROOM_STATUSES.get(result.status, "unknown") if result is not None else "pending"
-            )
+            status = ROOM_STATUSES.get(result.status, "unknown") if result is not None else missing
         row = {"kind": destination.kind, "name": names.get(key), "status": status}
         if destination.mode is not None:
             row["mode"] = destination.mode.value
@@ -133,8 +136,7 @@ def present_mission_plan(
 
 def _destination_key(plan: MissionPlan, area: AreaResult) -> tuple[str, tuple[str, str, str]]:
     map_id, revision, region = area.identity
-    # A matched timeline uses the robot's internal revision for room events.
-    # A declared room ID on the same map belongs to the command's user revision.
-    if area.kind == "room" and map_id == plan.scope[0]:
+    # A matched timeline can use the robot's internal revision for these events.
+    if area.kind in {"room", "temporary_zone"} and map_id == plan.scope[0]:
         revision = plan.scope[1]
     return area.kind, (map_id, revision, region)
