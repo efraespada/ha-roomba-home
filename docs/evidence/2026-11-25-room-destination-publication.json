@@ -1,0 +1,63 @@
+{
+  "tested_model": "Roomba Max 700 Combo",
+  "date": "2026-11-25",
+  "observations": [
+    {
+      "surface": "Roomba Home for Android",
+      "action": "Split a room, save and exit the editor, then rename the new room",
+      "visible_rooms_in_active_archive": 2,
+      "rooms_in_map_list_and_detail": 1
+    },
+    {
+      "surface": "Roomba Home for Android",
+      "action": "Start a directed vacuum mission using the new room",
+      "visible_rooms_in_active_archive": 2,
+      "rooms_in_map_list_and_detail": 2,
+      "timing": "The new destination was first observed in both inventory responses during the mission, before docking and under the same map revision."
+    },
+    {
+      "surface": "Home Assistant 0.18.0",
+      "action": "Split, review the second room as a cleaning destination, cancel the confirmation, then merge",
+      "archive_room_counts": [1, 2, 1],
+      "map_list_and_detail_room_counts": [2, 2, 2],
+      "second_room_id": "The split reused the ID retained in the inventory from the prior trial.",
+      "restoration": "The active map matched the original rooms, borders, cleaning zones, restrictions, floor name, and orientation. The temporary card was removed."
+    },
+    {
+      "surface": "Roomba Home for Android and independent API reads",
+      "action": "Divide a second time to create an ID absent from both inventories, clean a known destination, then start vacuuming only the new destination",
+      "visible_rooms_in_active_archive": [1, 2, 3],
+      "docked_inventory_counts_after_split": [2, 2],
+      "control_mission_area_sqft": 60,
+      "new_destination_listed_after_control_mission": false,
+      "inventory_counts_at_first_publication": [3, 3],
+      "seconds_after_start_action_at_first_observation": 6,
+      "same_active_revision": true,
+      "robot_phase_at_first_publication": "run",
+      "app_map_version_write_at_publication": false,
+      "new_mission_history": {
+        "only_new_destination": true,
+        "same_map_revision": true,
+        "area_sqft": 47,
+        "outcome": "cncl"
+      },
+      "restoration": {
+        "robot_docked": true,
+        "visible_rooms_after_merging": 1,
+        "map_archive_layers_equal_to_baseline": true,
+        "map_name_and_orientation_unchanged": true,
+        "inventory_counts_after_merging": [3, 3]
+      }
+    },
+    {
+      "surface": "Home Assistant 0.22.0",
+      "action": "Save a division, select both adjacent rooms directly on the map, review, then save the merge",
+      "visible_card_destinations": [1, 2, 1],
+      "review_enabled_after_selecting_both_rooms": true,
+      "active_archive_matched_original_layers": true,
+      "robot_docked_after_merge": true,
+      "temporary_card_removed": true
+    }
+  ],
+  "limitation": "A mission specifically targeting the new room was sufficient in this trial. The observations do not expose the internal publication mechanism or establish timing for other models."
+}

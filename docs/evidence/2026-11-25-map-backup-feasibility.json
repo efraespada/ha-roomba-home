@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "active_test_floor_archive": {
+    "locally_saved_revision_readable": true,
+    "repeat_read_matched_saved_bytes": true
+  },
+  "removed_disposable_floor": {
+    "archive_revision_still_readable_during_trial": true,
+    "visibility_change_acknowledged": true,
+    "returned_to_associated_visible_list_in_six_reads": false,
+    "final_visibility_cleanup_confirmed": true
+  },
+  "original_floor_unchanged_during_visibility_trial": true
+}

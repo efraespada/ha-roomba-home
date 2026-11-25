@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "official_app_software_page": {
+    "installed_build_visible": true,
+    "last_update_day_visible": true,
+    "dock_firmware_visible": true,
+    "up_to_date_status_reported": true
+  },
+  "integration_read": {
+    "last_software_update_utc_offset_preserved": true,
+    "app_update_day_matched": true,
+    "app_robot_and_dock_versions_matched": true,
+    "catalog_candidate_count": 0,
+    "device_writes": 0
+  }
+}

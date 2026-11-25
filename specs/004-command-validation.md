@@ -3,19 +3,19 @@
 - Status: As-built baseline
 - Date: 2026-11-23
 - Catalog capability ID: native-commands
-- Last verified: 2026-11-23
+- Last verified: 2026-11-25
 - Owners: ha-roomba-home maintainer
-- Scope: Extent of four orders and evidence from an authorized physical cycle.
+- Scope: Native command dispatch and independent verification of physical results.
 - Related issues/PRs: No local work without publication.
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
-- Open decisions blocking readiness: None for the experimental emitter, persistent reconnection and HA out of reach.
+- Open decisions blocking readiness: Physical verification of additional provider command variants.
 
 ## 1. Executive summary
 
-The client can send vacuuming pause, cancellation and return by MQTT. The emitter MUST shall
-distinguish acceptance from the physical result broker. A true authorized cycle serves as
-evidence of protocol and does not credit every possible context or complete HA integration.
-That's a retrospective basis.
+The client sends supported robot commands over MQTT. The transport receipt
+records broker acceptance, and the Home Assistant use case checks the
+physical result. An authorized cycle verifies the observed behavior for
+the tested device and command.
 
 ## 2. Problem, current behavior, and evidence
 
@@ -43,14 +43,24 @@ The HTTP readings do not contain the motion orders. The topic was identified `{i
 PUBACK's acceptance of transport and physical confirmation is a later contrasted mission
 transition. Canceling and returning to the dock are different orders.
 
+The current area can be skipped when the robot advertises the capability
+and the live timeline identifies an active room or zone. An identifiable
+travel destination uses the same policy. The map card reviews a specific
+destination and the coordinator refreshes that mission and destination
+before sending once. A newly reported skipped event for that area in the
+same mission confirms the result.
+[Skip validation](../docs/validation.md#skip-the-current-destination)
+
 ## 4. Goals, non-goals, and fixed invariants
 
-- CMD-01: the payload MUST limited to start, pause and stop dock operatingMode 2.
+- CMD-01: The emitter MUST serialize only typed, supported commands.
 - CMD-02: selection MUST belong to the inventory and token with validated SKU, topic without
   injection.
 - CMD-03: the issuer MUST send once with QoS 1 and retain false, without automatic retrying.
 - CMD-04: the receipt MUST declare physical result `unconfirmed` even after PUBACK.
 - CMD-05: errors and output MUST omit private destination, tokens and original payloads.
+- CMD-06: A skip MUST use a fresh, scoped destination. Confirm it with a new
+  matching event in the same mission and reject a changed review before dispatch.
 
 It does not include reset, clear maps and fringes. Retirement changes have been added to
 them by area planning or cleanup as an integral part of the system's production operations
@@ -58,8 +68,8 @@ with a high level The tool isn't an automation engine.
 
 ## 5. Current versus proposed product journey
 
-The base retains an explicit emitter. Future integration will add co-ordination and
-confirmation without changing the distinction between phases
+The emitter sends a single command. Home Assistant coordinates preparation
+and checks the reported result independently.
 
 ```mermaid
 flowchart LR
@@ -194,6 +204,7 @@ The [Contents](../docs/index.md) links reference and research boundaries.
 | CMD-03 | send / finally | 4 sending and error cases | docs / development.md |
 | CMD-04 | CommandReceipt | Non-physical receipt test | docs / architecture.md |
 | CMD-05 | CLI and errors | Privacy and Inspection Tests | docs / validation.md |
+| CMD-06 | Mission command policy and live timeline projection | Fresh and stale reviews, one send, matched skip, and a physical transition to the next area | [Skip validation](../docs/validation.md#skip-the-current-destination) |
 
 ## 18. Implementation sequence
 

@@ -107,7 +107,9 @@ class DockSnapshot:
             return False
         if command is Command.STOP_DRYING:
             return True
-        if self.fault != 0 or (ACTIVE_STATES | UPDATING_STATES).intersection(self.component_states):
+        # On the Max 700 dock, washing takes priority over an active drying cycle.
+        busy_states = ACTIVE_STATES - {702} if command is Command.WASH_MOP else ACTIVE_STATES
+        if self.fault != 0 or (busy_states | UPDATING_STATES).intersection(self.component_states):
             return False
         if command in {Command.WASH_MOP, Command.DRY_MOP}:
             return self.pad_attached is True

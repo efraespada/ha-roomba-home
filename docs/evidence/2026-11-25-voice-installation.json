@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "reported_slots_for_additional_voices": 1,
+  "official_app_installation": {
+    "additional_locale": "cs-CZ",
+    "reported_stages": [0, 3, 4, 0],
+    "selected_automatically": true
+  },
+  "pending_deployment_trial": {
+    "terminal_error_code": 139,
+    "previous_pack_preserved": true,
+    "same_package_installed_in_official_app_after_terminal_error": true
+  },
+  "integration_transport_installation": {
+    "prior_additional_locale": "da-DK",
+    "new_additional_locale": "cs-CZ",
+    "no_pending_deployment_at_dispatch": true,
+    "reported_matching_id_during_download_and_after_installation": true,
+    "first_download_observation_seconds": 1,
+    "first_installed_observation_seconds": 9,
+    "prior_additional_pack_replaced": true,
+    "selected_automatically": true,
+    "active_locale_restored": "es-ES",
+    "factory_voice_count_unchanged": 13,
+    "map_and_inventory_unchanged": true,
+    "docked_and_drying_throughout": true
+  }
+}

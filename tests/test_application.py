@@ -12,10 +12,13 @@ from custom_components.roomba_home.core.application import (
     ControlPlan,
     ControlState,
     PreparationConfirmation,
+    SkipAreaEvent,
+    SkipObservation,
     execute_control,
     prepare_control,
+    skip_review,
 )
-from custom_components.roomba_home.core.capabilities import DigitalSpotCapability
+from custom_components.roomba_home.core.capabilities import DigitalSpotCapability, SkipCapability
 from custom_components.roomba_home.core.cleaning import (
     CleaningCapabilities,
     CleaningMode,
@@ -71,6 +74,169 @@ class Port:
 
     def clock(self):
         return self.now
+
+
+async def test_reboot_confirms_only_after_the_robot_disconnects_and_returns():
+    unknown = replace(BASE, connected=None)
+    offline = replace(BASE, connected=False)
+    port = Port(BASE, unknown, BASE, offline, unknown, BASE)
+    await execute_control(port, Command.REBOOT, CleaningProfile())
+    assert port.sent == [(Command.REBOOT, None)]
+    assert port.statuses == ["pending", "confirmed"]
+    assert port.now == 25
+
+
+@pytest.mark.parametrize("connected", [True, False, None])
+async def test_reboot_timeout_does_not_resend_or_assume_a_restart(connected):
+    port = Port(BASE, replace(BASE, connected=connected))
+    with pytest.raises(ControlError, match="command_unconfirmed"):
+        await execute_control(port, Command.REBOOT, CleaningProfile())
+    assert port.sent == [(Command.REBOOT, None)]
+    assert port.statuses == ["pending", "unconfirmed"]
+    assert port.now == 180
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"mapping_supported": False}, "mapping_unsupported"),
+        ({"activity": "idle"}, "mapping_requires_dock"),
+        ({"mission_active": True}, "mapping_requires_dock"),
+        ({"ready": False}, "robot_not_ready"),
+    ],
+)
+async def test_mapping_starts_only_on_a_ready_supported_dock(changes, reason):
+    base = replace(BASE, mapping_supported=True)
+    port = Port(replace(base, **changes))
+    with pytest.raises(ControlError, match=reason):
+        await execute_control(port, Command.START_MAPPING, CleaningProfile())
+    assert not port.sent
+
+
+async def test_mapping_ignores_cleaning_or_local_training_when_confirming_the_start():
+    base = replace(BASE, mapping_supported=True)
+    cleaning = replace(RUNNING, mission_initiator="rmtApp")
+    local = replace(RUNNING, mission_initiator="manual", mapping=True)
+    remote = replace(local, mission_initiator="rmtApp")
+    port = Port(base, cleaning, local, remote)
+    await execute_control(port, Command.START_MAPPING, CleaningProfile(CleaningMode.MOP))
+    assert port.sent == [(Command.START_MAPPING, None)]
+    assert port.statuses == ["pending", "confirmed"]
+    assert port.now == 15
+
+
+async def test_mapping_resume_ignores_cleaning_mode_and_does_not_restart_the_run():
+    paused = replace(PAUSED, mapping=True, mode=CleaningMode.MOP, dock=DockSnapshot(fault=517))
+    mapping = replace(paused, activity="cleaning")
+    port = Port(paused, RUNNING, mapping)
+    await execute_control(port, Command.VACUUM, CleaningProfile())
+    assert port.sent == [(Command.RESUME, None)]
+    assert port.statuses == ["pending", "confirmed"]
+    assert port.now == 10
+    with pytest.raises(ControlError, match="mapping_in_progress"):
+        prepare_control(Command.VACUUM, mapping, CleaningProfile())
+
+
+@pytest.mark.parametrize("change", [{"activity": "paused"}, {"mission_active": False}])
+def test_only_a_running_training_cycle_confirms_mapping(change):
+    plan = ControlPlan(Command.START_MAPPING)
+    state = replace(RUNNING, mapping=True)
+    assert plan.confirms(state)
+    assert not plan.confirms(replace(state, **change))
+    assert not ControlPlan(Command.VACUUM).confirms(state)
+
+
+DESTINATION = SkipAreaEvent("room", ("map", "revision", "room-a"), 120)
+SKIPPING = replace(
+    RUNNING,
+    mission_identity=MISSION_IDENTITY,
+    skip_capability=SkipCapability.CURRENT_AREA,
+    skip_observation=SkipObservation(DESTINATION, frozenset(), True),
+)
+
+
+@pytest.mark.parametrize(
+    ("changes", "key"),
+    [
+        ({"connected": False}, "robot_unavailable"),
+        ({"skip_capability": None}, "unsupported_skip"),
+        ({"skip_capability": SkipCapability.UNSUPPORTED}, "unsupported_skip"),
+        ({"activity": "paused"}, "skip_requires_destination"),
+        ({"mission_active": False}, "skip_requires_destination"),
+        ({"preparing_mop": True}, "skip_requires_destination"),
+        ({"mission_identity": None}, "skip_requires_destination"),
+        ({"skip_observation": None}, "skip_requires_destination"),
+        (
+            {"skip_observation": SkipObservation(None, frozenset(), True)},
+            "skip_requires_destination",
+        ),
+        (
+            {
+                "skip_capability": SkipCapability.DIRECTED_ONLY,
+                "skip_observation": SkipObservation(DESTINATION, frozenset(), False),
+            },
+            "skip_requires_destination",
+        ),
+    ],
+)
+async def test_skip_requires_advertised_support_and_a_current_destination(changes, key):
+    state = replace(SKIPPING, **changes)
+    assert skip_review(state) is None
+    port = Port(state)
+    with pytest.raises(ControlError, match=key):
+        await execute_control(port, Command.SKIP, CleaningProfile())
+    assert port.sent == []
+
+
+async def test_skip_confirms_only_a_new_matching_result_in_the_same_mission():
+    matching = replace(DESTINATION, timestamp=130)
+    previous = DESTINATION
+    state = replace(
+        SKIPPING,
+        skip_capability=SkipCapability.DIRECTED_ONLY,
+        skip_observation=SkipObservation(DESTINATION, frozenset({previous}), True),
+    )
+    unconfirmed = [
+        replace(state, mission_identity=(11, MISSION_IDENTITY[1])),
+        replace(state, skip_observation=None),
+        replace(
+            state,
+            skip_observation=SkipObservation(
+                None,
+                frozenset(
+                    {
+                        replace(matching, kind="zone"),
+                        replace(matching, identity=("map", "revision", "room-b")),
+                        replace(matching, timestamp=119),
+                        previous,
+                    }
+                ),
+                True,
+            ),
+        ),
+    ]
+    result = replace(state, skip_observation=SkipObservation(None, frozenset({matching}), True))
+    port = Port(state, *unconfirmed, result)
+    await execute_control(port, Command.SKIP, CleaningProfile(), reviewed_skip=skip_review(state))
+    assert port.sent == [(Command.SKIP, None)]
+    assert port.statuses == ["pending", "confirmed"] and port.now == 20
+    assert not ControlPlan(Command.SKIP).confirms(BASE)
+
+
+async def test_skip_rejects_changed_review_and_times_out_without_republishing():
+    port = Port(SKIPPING)
+    with pytest.raises(ControlError, match="skip_destination_changed"):
+        await execute_control(
+            port,
+            Command.SKIP,
+            CleaningProfile(),
+            reviewed_skip=(MISSION_IDENTITY, "room", ("old", "r", "room")),
+        )
+    assert not port.sent
+    with pytest.raises(ControlError, match="command_unconfirmed"):
+        await execute_control(port, Command.SKIP, CleaningProfile())
+    assert port.sent == [(Command.SKIP, None)]
+    assert port.statuses == ["pending", "unconfirmed"]
 
 
 @pytest.mark.parametrize("mode", CleaningMode)
@@ -229,6 +395,32 @@ async def test_point_preconditions_prevent_publication(state, error):
     assert not port.sent
 
 
+async def test_wet_point_submission_identifies_pad_preparation_without_claiming_success():
+    profile = CleaningProfile(CleaningMode.MOP)
+    ready = replace(POINT_READY, bin_present=False)
+    preparing = replace(POINT_RUNNING, mode=profile.mode, preparing_mop=True)
+    port = Port(ready, preparing)
+    await execute_control(port, Command.POINT_CLEAN, profile)
+    assert port.sent == [(Command.POINT_CLEAN, profile)]
+    assert port.statuses == ["pending", "submitted"]
+    assert not port.preparations
+
+
+@pytest.mark.parametrize(
+    ("dock", "error"),
+    [
+        (DockSnapshot(pad_attached=False), "mop_not_ready"),
+        (DockSnapshot(tank_present=False), "mop_not_ready"),
+        (DockSnapshot(fault=517), "dock_not_ready"),
+    ],
+)
+async def test_wet_point_requires_the_mop_and_a_ready_dock(dock, error):
+    port = Port(replace(POINT_READY, dock=dock))
+    with pytest.raises(ControlError, match=error):
+        await execute_control(port, Command.POINT_CLEAN, CleaningProfile(CleaningMode.MOP))
+    assert not port.sent
+
+
 async def test_observed_initial_vacuum_stage_does_not_claim_full_sequence():
     port = Port(BASE, replace(RUNNING, preparing_mop=True), RUNNING)
     profile = CleaningProfile(CleaningMode.VACUUM_THEN_MOP)
@@ -237,12 +429,63 @@ async def test_observed_initial_vacuum_stage_does_not_claim_full_sequence():
     assert port.now == 10 and not port.preparations
 
 
-async def test_unconfirmed_native_sequence_for_regions_is_not_submitted():
+async def test_mop_point_reports_a_dock_fault_that_appears_after_dispatch():
+    profile = CleaningProfile(CleaningMode.MOP)
+    dock_fault = replace(POINT_READY, mode=profile.mode, dock=DockSnapshot(pad_wash=654))
+    port = Port(POINT_READY, dock_fault)
+    with pytest.raises(ControlError, match="dock_not_ready"):
+        await execute_control(port, Command.POINT_CLEAN, profile)
+    assert port.sent == [(Command.POINT_CLEAN, profile)]
+    assert port.statuses == ["pending", "unconfirmed"]
+
+
+@pytest.mark.parametrize("active_mode", [CleaningMode.VACUUM, CleaningMode.MOP])
+async def test_sequential_point_submission_waits_for_a_new_mission_in_either_phase(active_mode):
     profile = CleaningProfile(CleaningMode.VACUUM_THEN_MOP)
-    port = Port(BASE)
-    with pytest.raises(ControlError, match="unsupported_area_mode"):
+    unrelated = replace(POINT_RUNNING, mode=active_mode, mission_initiator="cloud")
+    active = replace(POINT_RUNNING, mode=active_mode)
+    port = Port(POINT_READY, unrelated, active)
+    await execute_control(port, Command.POINT_CLEAN, profile)
+    assert port.sent == [(Command.POINT_CLEAN, profile)]
+    assert port.statuses == ["pending", "submitted"]
+    assert port.now == 10
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"mission_identity": None},
+        {"mission_identity": MISSION_IDENTITY},
+        {"mission_initiator": "cloud"},
+        {"activity": "returning"},
+        {"mission_active": False},
+        {"preparing_mop": True},
+        {"mode": CleaningMode.VACUUM_MOP},
+    ],
+)
+async def test_directed_sequence_does_not_claim_an_unrelated_or_inactive_mission(change):
+    initial = replace(BASE, mission_identity=MISSION_IDENTITY)
+    candidate = replace(
+        RUNNING, mission_identity=(11, MISSION_IDENTITY[1]), mission_initiator="rmtApp"
+    )
+    profile = CleaningProfile(CleaningMode.VACUUM_THEN_MOP)
+    port = Port(initial, replace(candidate, **change))
+    with pytest.raises(ControlError, match="command_unconfirmed"):
         await execute_control(port, Command.VACUUM, profile, new_mission=True)
-    assert not port.sent
+    assert port.sent == [(Command.VACUUM, profile)]
+    assert port.statuses == ["pending", "unconfirmed"]
+
+
+async def test_mixed_target_reports_start_without_claiming_that_it_finished_both_phases():
+    first = CleaningProfile(CleaningMode.VACUUM)
+    sequential = CleaningProfile(CleaningMode.VACUUM_THEN_MOP)
+    running = replace(RUNNING, mission_identity=MISSION_IDENTITY, mission_initiator="rmtApp")
+    port = Port(BASE, running)
+    await execute_control(
+        port, Command.VACUUM, first, new_mission=True, area_profiles=(first, sequential)
+    )
+    assert port.sent == [(Command.VACUUM, first)]
+    assert port.statuses == ["pending", "submitted"]
 
 
 @pytest.mark.parametrize(

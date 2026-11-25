@@ -9,6 +9,7 @@ from .core.cleaning import CleaningMode
 from .core.cleaning_protocol import reported_cleaning_mode
 from .core.dock import DOCK_COMPONENT_CAPABILITIES, DOCK_FIELDS
 from .core.history import HISTORY_COMMANDS, HISTORY_TARGETS, OUTCOMES
+from .core.live_maps import POSITION_ACTIVITIES
 from .core.problems import FIRMWARE_STATES, dock_status_meaning, observations, reason
 from .core.telemetry import BY_KEY, COUNT_UNITS, DOCK_PARTS, PART_COUNT_TYPES, PARTS
 from .entity import RoombaEntity, discover_entities
@@ -18,8 +19,11 @@ DOCK_ERROR_SOURCES = {f"{source}_error": source for source in DOCK_FIELDS}
 DERIVED_METRICS = {
     "connection_updated_at": (None, SensorDeviceClass.TIMESTAMP),
     "current_room": (None, None),
+    "live_route_activity": (None, SensorDeviceClass.ENUM),
     "position_updated": (None, SensorDeviceClass.TIMESTAMP),
     "live_timeline_updated": (None, SensorDeviceClass.TIMESTAMP),
+    "live_destinations_completed": (None, None),
+    "live_estimated_remaining": ("s", SensorDeviceClass.DURATION),
     "schedule_count": (None, None),
     "cloud_schedule_count": (None, None),
     "cloud_enabled_schedule_count": (None, None),
@@ -29,6 +33,7 @@ DERIVED_METRICS = {
     "zone_count": (None, None),
     "history_count": (None, None),
     "last_mission_rooms": (None, None),
+    "last_mission_zones": (None, None),
     "last_mission_started": (None, SensorDeviceClass.TIMESTAMP),
     "last_mission_finished": (None, SensorDeviceClass.TIMESTAMP),
     "last_mission_duration": ("min", SensorDeviceClass.DURATION),
@@ -190,13 +195,15 @@ class RoombaMetricSensor(RoombaEntity, SensorEntity):
             self._attr_options = list(HISTORY_COMMANDS)
         if key == "last_mission_target":
             self._attr_options = list(HISTORY_TARGETS)
+        if key == "live_route_activity":
+            self._attr_options = list(POSITION_ACTIVITIES.values())
         if metric:
             self._attr_native_unit_of_measurement = metric.unit
             if metric.diagnostic:
                 self._attr_entity_category = EntityCategory.DIAGNOSTIC
             if metric.total:
                 self._attr_state_class = SensorStateClass.TOTAL_INCREASING
-            if metric.kind == "timestamp":
+            if metric.kind in {"timestamp", "iso_timestamp"}:
                 self._attr_device_class = SensorDeviceClass.TIMESTAMP
         if key.startswith("part_"):
             _, part, suffix = key.split("_")
@@ -232,9 +239,9 @@ class RoombaMetricSensor(RoombaEntity, SensorEntity):
         if self.key == "not_ready_condition_count":
             conditions = state.telemetry.get("not_ready_conditions")
             return len(conditions) if conditions is not None else None
-        if self.key == "last_mission_rooms":
-            rooms = state.telemetry.get(self.key)
-            return len(rooms) if rooms is not None else None
+        if self.key in {"last_mission_rooms", "last_mission_zones"}:
+            results = state.telemetry.get(self.key)
+            return len(results) if results is not None else None
         if self.key in DOCK_ERROR_SOURCES:
             return observations(state)[DOCK_ERROR_SOURCES[self.key]]
         return state.telemetry.get(self.key)
@@ -263,11 +270,33 @@ class RoombaMetricSensor(RoombaEntity, SensorEntity):
             }
         if self.key == "last_mission_rooms":
             return {"rooms": values.get(self.key)}
+        if self.key == "last_mission_zones":
+            return {"zones": values.get(self.key)}
         if self.key == "live_timeline_updated":
             return {
                 "stage": values.get("live_timeline_stage"),
+                "stage_started_at": values.get("live_timeline_stage_started"),
                 "rooms": values.get("live_timeline_rooms"),
                 "active_rooms": values.get("live_timeline_active_rooms"),
+                "zones": values.get("live_timeline_zones"),
+                "active_zones": values.get("live_timeline_active_zones"),
+            }
+        if self.key == "live_destinations_completed":
+            plan = values.get("live_timeline_plan")
+            return (
+                {
+                    "total": plan["total"],
+                    "ordered": plan["ordered"],
+                    "destinations": plan["destinations"],
+                }
+                if plan is not None
+                else {}
+            )
+        if self.key == "live_estimated_remaining":
+            return {
+                "estimated_duration_seconds": values.get("live_timeline_plan", {}).get(
+                    "estimated_duration_seconds"
+                )
             }
         if self.key == "last_mission_error":
             code = self.native_value
@@ -276,7 +305,10 @@ class RoombaMetricSensor(RoombaEntity, SensorEntity):
             count = values.get("last_mission_target_count")
             return {"region_count": count} if count is not None else {}
         if self.key == "cloud_schedule_count":
-            return {"weekly_times": values.get("cloud_schedule_times")}
+            return {
+                "weekly_times": values.get("cloud_schedule_times"),
+                "one_time_schedules": values.get("cloud_once_schedule_times"),
+            }
         if self.key.startswith("part_"):
             part = self.key.split("_")[1]
             return {

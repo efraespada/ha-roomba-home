@@ -11,10 +11,10 @@ from custom_components.roomba_home.core.cleaning import (
     CleaningProfile,
 )
 from custom_components.roomba_home.core.cleaning_protocol import (
-    CleaningSetting,
     cleaning_capabilities,
     cleaning_parameters,
 )
+from custom_components.roomba_home.core.settings_protocol import RobotSetting
 
 FULL = CleaningCapabilities(frozenset(CleaningMode), 4, 3, True, True, True)
 CAP = {"oMode": 550, "suctionLvl": 4, "ppWetLvl": 3, "scrub": 3, "multiPass": 1, "carpetBoost": 3}
@@ -80,7 +80,7 @@ def test_auto_evacuation_area_requires_confirmed_capability_scheme(code, area_su
     ],
 )
 def test_area_setting_validates_native_range_and_preserves_other_auto_empty_schemes(value, allowed):
-    setting = CleaningSetting.AUTO_EVACUATION_AREA
+    setting = RobotSetting.AUTO_EVACUATION_AREA
     caps = cleaning_capabilities({"autoevac": 2})
     assert setting.accepts(value, caps) is allowed
     assert setting.observed({setting.value: value}, caps) == (value if allowed else None)

@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-# Exact, reviewed artwork, upstream font, and synthetic screenshots. New binary files
+# Exact, reviewed artwork, upstream font, and screenshots. New binary files
 # still require review regardless of their name or extension.
 REVIEWED_BINARY_ASSETS = {
     "custom_components/roomba_home/brand/icon.png": (
@@ -28,6 +28,27 @@ REVIEWED_BINARY_ASSETS = {
     ),
     "docs/screenshots/roomba-routines.png": (
         "3b89e794cea1855c7f05c22b1ace8ae7abf676ea573428a8d20d63854a33dbac"
+    ),
+    "docs/screenshots/roomba-room-editor.jpg": (
+        "db26543768c3549e2406489e02ea8b65662ec16a7e4432ff8baee5856d7438cb"
+    ),
+    "docs/screenshots/roomba-floor-rotation.jpg": (
+        "473092a91fb80bc3d34dcae1a3032af36835b205a5dae99947af95496c940517"
+    ),
+    "docs/screenshots/roomba-room-name-editor.jpg": (
+        "d57e1e4464d12faa2ec1f29de2278758022b1f3083e57ab343240977a5680723"
+    ),
+    "docs/screenshots/roomba-zone-editor.jpg": (
+        "68118a0b4a5279ac5abbef5945fafa303cd2281f11859d9aa30f9b13d2a99505"
+    ),
+    "docs/screenshots/roomba-restriction-editor.jpg": (
+        "436591edfa367a2896f6fa82d96655dddbfb85c9b98ab8d509d7766631c69e5f"
+    ),
+    "docs/screenshots/roomba-furniture-editor.jpg": (
+        "7d39aca8c6a11f6b08fe67aa8c1f4ecb56ffeb798d33507bfb6054c35435aaa1"
+    ),
+    "docs/screenshots/roomba-furniture-routine.jpg": (
+        "920dc36c3a489f80ebcf69ecd3cdaaeb5248dd867cdad45cca850c38dce60fb8"
     ),
 }
 PATTERNS = {

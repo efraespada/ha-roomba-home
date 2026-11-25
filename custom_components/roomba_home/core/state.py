@@ -12,6 +12,7 @@ from .telemetry import (
     PHASE_PROBLEMS,
     PHASES,
     connection_status,
+    convert,
     integer,
     project_telemetry,
 )
@@ -31,6 +32,7 @@ class RobotState:
     telemetry: dict = field(default_factory=dict)
     observed_at: datetime | None = None
     capabilities: DeviceCapabilities = field(default_factory=DeviceCapabilities)
+    reported_name: str | None = None
 
     @property
     def ready(self) -> bool | None:
@@ -55,6 +57,10 @@ class RobotState:
             and self.capabilities.dock.recognized is True
             and self.telemetry.get("pad_wash_state") == 602
         )
+
+    @property
+    def mapping(self) -> bool | None:
+        return self.cycle == "train" if self.cycle in CYCLES else None
 
     @property
     def mission_at_dock(self) -> bool | None:
@@ -85,7 +91,7 @@ class RobotState:
         if self.phase == "stop":
             if self.cycle == "none":
                 return "idle"
-            if self.cycle in CLEANING_CYCLES:
+            if self.cycle in CLEANING_CYCLES or self.mapping is True:
                 return "paused"
         return None
 
@@ -121,9 +127,10 @@ def project_state(robot_id: str, details: dict, shadows: dict) -> RobotState:
         battery = None
     connected = connection_status(connection)
     telemetry = project_telemetry(shadows)
+    reported_name = convert("robot_name", reported("rw-settings").get("name"))
     return RobotState(
         robot_id,
-        details.get("name") or "Roomba",
+        reported_name or details.get("name") or "Roomba",
         details.get("sku", "unknown"),
         connected,
         battery,
@@ -133,4 +140,5 @@ def project_state(robot_id: str, details: dict, shadows: dict) -> RobotState:
         integer(mission.get("error")),
         telemetry,
         capabilities=project_capabilities(details, shadows),
+        reported_name=reported_name,
     )

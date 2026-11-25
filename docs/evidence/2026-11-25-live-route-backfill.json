@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "mission": "localized vacuuming",
+  "source": "Native route object and indexed MQTT batches from the same mission",
+  "accepted_robot_scoped_references": 28,
+  "late_join_direct_positions": 20,
+  "earlier_positions_recovered": 64,
+  "matching_modes_on_all_recovered_positions": true,
+  "downloaded_provider_object": {
+    "raw_positions": 299,
+    "median_coordinate_difference_m": 0.0038,
+    "maximum_coordinate_difference_m": 0.0112
+  },
+  "previously_captured_object": {
+    "raw_positions": 83,
+    "median_coordinate_difference_m": 0.0038,
+    "maximum_coordinate_difference_m": 0.0111
+  },
+  "recovered_operating_mode_counts": {"traveling": 31, "vacuuming": 33},
+  "live_marker_preserved": true,
+  "new_device_commands": 0
+}

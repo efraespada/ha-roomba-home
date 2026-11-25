@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "official_app_reboot": {
+    "confirmed_in_app": true,
+    "reported_disconnection_seconds_after_confirmation": 33,
+    "reported_connection_return_seconds_after_confirmation": 89,
+    "interrupted_drying": true
+  },
+  "integration_reboot": {
+    "command": "reset",
+    "accepted_by_broker": true,
+    "first_offline_observation_seconds": 36,
+    "first_online_after_disconnect_seconds": 91,
+    "map_and_region_inventory_unchanged": true,
+    "reported_name_unchanged": true,
+    "selected_voice_unchanged": true,
+    "charging_with_no_active_mission": true,
+    "drying_confirmed_after_restoration": true
+  },
+  "voice_catalog": {
+    "http_status": 200,
+    "reported_model_voice_count": 25,
+    "installed_voice_count": 13,
+    "additional_voice_count": 12,
+    "additional_count_matches_official_app": true,
+    "active_voice": "es-es"
+  }
+}

@@ -1,11 +1,15 @@
 """Native HA control services, preferences and lifecycle, with a mocked cloud."""
 
 from dataclasses import replace
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
+import probatio as vol
 import pytest
+from homeassistant.components.button import ButtonDeviceClass
 from homeassistant.const import EntityCategory
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.roomba_home.button import RoombaResetProfile
@@ -17,16 +21,228 @@ from custom_components.roomba_home.core.cleaning import (
     CleaningMode,
     CleaningProfile,
 )
-from custom_components.roomba_home.core.cleaning_protocol import CleaningSetting
+from custom_components.roomba_home.core.commands import Command
+from custom_components.roomba_home.core.errors import ProtocolError
+from custom_components.roomba_home.core.settings_protocol import RobotSetting
 from custom_components.roomba_home.number import RoombaCleaningLevel
-from custom_components.roomba_home.select import RoombaCleaningMode
+from custom_components.roomba_home.select import (
+    RoombaCleaningMode,
+    RoombaDockSelect,
+    RoombaVoiceLanguage,
+)
 from custom_components.roomba_home.switch import RoombaCleaningOption
+from custom_components.roomba_home.text import RoombaRobotName
 
 
 def entity_id(hass, entry, domain, suffix, robot="fixture-0"):
     return er.async_get(hass).async_get_entity_id(
         domain, DOMAIN, f"{entry.unique_id}_{robot}_{suffix}"
     )
+
+
+async def test_native_reboot_button_dispatches_only_for_the_selected_robot(hass, entry, loaded):
+    loaded.async_command = AsyncMock()
+    button = entity_id(hass, entry, "button", "reboot_robot")
+    assert button
+    device = er.async_get(hass).async_get(button)
+    assert hass.states.get(button).attributes["device_class"] == ButtonDeviceClass.RESTART
+    assert device.entity_category == EntityCategory.CONFIG
+    await hass.services.async_call("button", "press", {"entity_id": button}, blocking=True)
+    loaded.async_command.assert_awaited_once_with("fixture-0", Command.REBOOT)
+
+
+async def test_install_voice_action_accepts_a_locale_but_no_package_path(hass, loaded):
+    loaded.async_install_voice_language = AsyncMock()
+    payload = {"entity_id": "vacuum.robot_0"}
+    with pytest.raises(vol.Invalid):
+        await hass.services.async_call(
+            DOMAIN,
+            "install_voice_language",
+            {**payload, "language": "picea_lang_pack/da_DK_v10.zip"},
+            blocking=True,
+        )
+    loaded.async_install_voice_language.assert_not_awaited()
+    await hass.services.async_call(
+        DOMAIN, "install_voice_language", {**payload, "language": "da-dk"}, blocking=True
+    )
+    loaded.async_install_voice_language.assert_awaited_once_with("fixture-0", "da-dk")
+
+
+async def test_mapping_action_requires_confirmation_and_paused_mapping_is_visible(
+    hass, entry, loaded
+):
+    loaded.async_command = AsyncMock()
+    robot = loaded.data["fixture-0"]
+    can_map = replace(robot.capabilities, persistent_maps=True)
+    loaded.async_set_updated_data(
+        {**loaded.data, "fixture-0": replace(robot, capabilities=can_map)}
+    )
+    await hass.async_block_till_done()
+    sensor = entity_id(hass, entry, "binary_sensor", "mapping")
+    assert hass.states.get(sensor).state == "off"
+    payload = {"entity_id": "vacuum.robot_0"}
+    with pytest.raises(vol.Invalid):
+        await hass.services.async_call(DOMAIN, "start_mapping", payload, blocking=True)
+    loaded.async_command.assert_not_awaited()
+    await hass.services.async_call(
+        DOMAIN, "start_mapping", {**payload, "confirmed": True}, blocking=True
+    )
+    loaded.async_command.assert_awaited_once_with("fixture-0", Command.START_MAPPING)
+    loaded.async_set_updated_data(
+        {
+            **loaded.data,
+            "fixture-0": replace(robot, capabilities=can_map, phase="stop", cycle="train"),
+        }
+    )
+    assert hass.states.get(sensor).state == "on"
+    assert hass.states.get("vacuum.robot_0").state == "paused"
+
+
+async def test_maintenance_reset_action_requires_a_supported_part_and_confirmation(hass, loaded):
+    loaded.async_reset_maintenance_counter = AsyncMock()
+    target = {"entity_id": "vacuum.robot_0"}
+    for fields in (
+        {"part": "filter"},
+        {"part": "filter", "confirmed": False},
+        {"part": "filter", "confirmed": 1},
+        {"part": "dust_bag", "confirmed": True},
+    ):
+        with pytest.raises(vol.Invalid):
+            await hass.services.async_call(
+                DOMAIN, "reset_maintenance_counter", target | fields, blocking=True
+            )
+    loaded.async_reset_maintenance_counter.assert_not_awaited()
+    await hass.services.async_call(
+        DOMAIN,
+        "reset_maintenance_counter",
+        target | {"part": "filter", "confirmed": True},
+        blocking=True,
+    )
+    loaded.async_reset_maintenance_counter.assert_awaited_once_with("fixture-0", "filter")
+
+
+@pytest.mark.parametrize(
+    "candidates,status,has_date",
+    [((), "up_to_date", True), (("9.3.7",), "catalog_candidates", False)],
+)
+async def test_software_status_uses_the_reported_versions_and_preserves_the_installation_time(
+    hass, entry, loaded, candidates, status, has_date
+):
+    robot_id = "fixture-0"
+    robot = loaded.data[robot_id]
+    updated = datetime(2026, 11, 25, 11, 22, tzinfo=UTC)
+    telemetry = {
+        **robot.telemetry,
+        "software_version": "p25-705+9.3.6+I5.3.149",
+        "dock_firmware": "42",
+    }
+    if has_date:
+        telemetry["software_updated_at"] = updated
+    loaded.async_set_updated_data({**loaded.data, robot_id: replace(robot, telemetry=telemetry)})
+    await hass.async_block_till_done()
+    catalog = loaded.client.firmware_candidates = AsyncMock(return_value=candidates)
+    response = await hass.services.async_call(
+        DOMAIN,
+        "get_software_status",
+        {"entity_id": "vacuum.robot_0"},
+        blocking=True,
+        return_response=True,
+    )
+    assert response["vacuum.robot_0"] == {
+        "installed_version": telemetry["software_version"],
+        "last_installed_at": updated.isoformat() if has_date else None,
+        "dock_version": "42",
+        "status": status,
+        "catalog_versions": list(candidates),
+    }
+    catalog.assert_awaited_once_with(robot.sku, telemetry["software_version"], "42")
+    if has_date:
+        sensor = hass.states.get(entity_id(hass, entry, "sensor", "software_updated_at"))
+        assert sensor.state == updated.isoformat()
+        assert sensor.attributes["device_class"] == "timestamp"
+
+
+@pytest.mark.parametrize(
+    "cause", ["closed", "unknown_robot", "no_state", "stale", "no_version", "catalog_error"]
+)
+async def test_software_status_preserves_unknown_and_failed_states(loaded, cause):
+    robot_id = "fixture-0"
+    robot = loaded.data[robot_id]
+    catalog = loaded.client.firmware_candidates = AsyncMock(
+        side_effect=ProtocolError("private provider payload")
+    )
+    expected = "software_status_unavailable"
+    match cause:
+        case "closed":
+            loaded._closed = True
+            expected = "not_configured"
+        case "unknown_robot":
+            robot_id = "unassociated"
+            expected = "not_configured"
+        case "no_state":
+            del loaded.data[robot_id]
+        case "stale":
+            loaded.last_update_success = False
+        case "no_version":
+            loaded.data[robot_id] = replace(robot, telemetry={})
+        case "catalog_error":
+            loaded.data[robot_id] = replace(robot, telemetry={"software_version": "9.3.6"})
+    with pytest.raises(HomeAssistantError) as error:
+        await loaded.async_get_software_status(robot_id)
+    assert error.value.translation_key == expected
+    assert "private provider payload" not in str(error.value)
+    if cause == "catalog_error":
+        catalog.assert_awaited_once_with(robot.sku, "9.3.6", None)
+    else:
+        catalog.assert_not_awaited()
+
+
+async def test_voice_catalog_action_lists_installed_and_downloadable_voice_codes(
+    hass, entry, loaded
+):
+    robot_id = "fixture-0"
+    state = loaded.data[robot_id]
+    telemetry = {
+        **state.telemetry,
+        "voice_language": "es-ES",
+        "installed_voice_languages": ("es-ES", "en-GB"),
+    }
+    loaded.async_set_updated_data({**loaded.data, robot_id: replace(state, telemetry=telemetry)})
+    catalog = loaded.client.voice_catalog = AsyncMock(return_value=("cs-cz", "en-gb", "es-es"))
+    response = await hass.services.async_call(
+        DOMAIN,
+        "list_voice_languages",
+        {"entity_id": "vacuum.robot_0"},
+        blocking=True,
+        return_response=True,
+    )
+    assert response["vacuum.robot_0"] == {
+        "current": "es-es",
+        "installed": ["en-gb", "es-es"],
+        "downloadable": ["cs-cz"],
+    }
+    catalog.assert_awaited_once_with(state.sku)
+
+    telemetry.pop("voice_language")
+    assert (await loaded.async_list_voice_languages(robot_id))["current"] is None
+    catalog.side_effect = ProtocolError("Private provider information")
+    with pytest.raises(HomeAssistantError) as error:
+        await loaded.async_list_voice_languages(robot_id)
+    assert error.value.translation_key == "voice_catalog_unavailable"
+    assert "Private provider information" not in str(error.value)
+
+    with pytest.raises(HomeAssistantError) as error:
+        await loaded.async_list_voice_languages("unassociated")
+    assert error.value.translation_key == "not_configured"
+    loaded.last_update_success = False
+    with pytest.raises(HomeAssistantError) as error:
+        await loaded.async_list_voice_languages(robot_id)
+    assert error.value.translation_key == "voice_catalog_unavailable"
+    loaded.last_update_success = True
+    telemetry.pop("installed_voice_languages")
+    with pytest.raises(HomeAssistantError) as error:
+        await loaded.async_list_voice_languages(robot_id)
+    assert error.value.translation_key == "voice_catalog_unavailable"
 
 
 @pytest.fixture
@@ -39,6 +255,8 @@ async def loaded(hass, entry, robot_states):
             "scrub_setting": 0,
             "two_pass": False,
             "carpet_boost": True,
+            "audio_volume": 100,
+            "child_lock": False,
         },
     )
     with patch.object(
@@ -80,7 +298,7 @@ async def test_capability_driven_controls_belong_to_existing_device(hass, entry,
 
 
 async def test_default_mop_controls_use_reported_values_and_native_ha_services(hass, entry, loaded):
-    loaded.async_set_cleaning_setting = AsyncMock()
+    loaded.async_set_robot_setting = AsyncMock()
     await loaded.async_set_profile("fixture-0", wetness_level=3, smart_scrub=True)
     registry = er.async_get(hass)
     number = entity_id(hass, entry, "number", "default_wetness_level")
@@ -97,10 +315,10 @@ async def test_default_mop_controls_use_reported_values_and_native_ha_services(h
     )
     await hass.services.async_call("switch", "turn_on", {"entity_id": switch}, blocking=True)
     await hass.services.async_call("switch", "turn_off", {"entity_id": switch}, blocking=True)
-    assert [call.args for call in loaded.async_set_cleaning_setting.await_args_list] == [
-        ("fixture-0", CleaningSetting.WETNESS, 1),
-        ("fixture-0", CleaningSetting.SMART_SCRUB, True),
-        ("fixture-0", CleaningSetting.SMART_SCRUB, False),
+    assert [call.args for call in loaded.async_set_robot_setting.await_args_list] == [
+        ("fixture-0", RobotSetting.WETNESS, 1),
+        ("fixture-0", RobotSetting.SMART_SCRUB, True),
+        ("fixture-0", RobotSetting.SMART_SCRUB, False),
     ]
     assert loaded.profile("fixture-0").wetness_level == 3
     assert loaded.profile("fixture-0").smart_scrub is True
@@ -116,10 +334,225 @@ async def test_default_mop_controls_use_reported_values_and_native_ha_services(h
     assert hass.states.get(switch).state == "off"
 
 
+async def test_device_configuration_entities_follow_the_fresh_robot_report(hass, entry, loaded):
+    loaded.async_set_robot_setting = AsyncMock()
+    loaded.async_command = AsyncMock()
+    volume = entity_id(hass, entry, "number", "voice_volume")
+    lock = entity_id(hass, entry, "switch", "child_pet_lock")
+    registry = er.async_get(hass)
+    robot = registry.async_get("vacuum.robot_0")
+    for entity in (volume, lock):
+        device_setting = registry.async_get(entity)
+        assert device_setting.device_id == robot.device_id
+        assert device_setting.entity_category == EntityCategory.CONFIG
+    assert not entity_id(hass, entry, "number", "voice_volume", "fixture-1")
+    assert not entity_id(hass, entry, "switch", "child_pet_lock", "fixture-1")
+    volume_state = hass.states.get(volume)
+    assert (volume_state.attributes["min"], volume_state.attributes["max"]) == (0, 100)
+    assert volume_state.attributes["unit_of_measurement"] == "%"
+    assert float(volume_state.state) == 100
+    assert hass.states.get(lock).state == "off"
+
+    with pytest.raises(HomeAssistantError) as error:
+        await hass.services.async_call(
+            "number", "set_value", {"entity_id": volume, "value": 37.5}, blocking=True
+        )
+    assert error.value.translation_key == "unsupported_robot_setting"
+    await hass.services.async_call(
+        "number", "set_value", {"entity_id": volume, "value": 0}, blocking=True
+    )
+    await hass.services.async_call("switch", "turn_on", {"entity_id": lock}, blocking=True)
+    await hass.services.async_call("switch", "turn_off", {"entity_id": lock}, blocking=True)
+    assert [call.args for call in loaded.async_set_robot_setting.await_args_list] == [
+        ("fixture-0", RobotSetting.VOICE_VOLUME, 0),
+        ("fixture-0", RobotSetting.CHILD_PET_LOCK, True),
+        ("fixture-0", RobotSetting.CHILD_PET_LOCK, False),
+    ]
+    loaded.async_command.assert_not_awaited()
+
+    saved = loaded.data["fixture-0"]
+    loaded.async_set_updated_data({**loaded.data, "fixture-0": replace(saved, telemetry={})})
+    await hass.async_block_till_done()
+    assert hass.states.get(volume).state == hass.states.get(lock).state == "unavailable"
+    other_devices = {key: state for key, state in loaded.data.items() if key != "fixture-0"}
+    loaded.async_set_updated_data(other_devices)
+    await hass.async_block_till_done()
+    assert hass.states.get(volume).state == hass.states.get(lock).state == "unavailable"
+    updated = replace(saved, telemetry={**saved.telemetry, "audio_volume": 0, "child_lock": True})
+    loaded.async_set_updated_data({**other_devices, "fixture-0": updated})
+    await hass.async_block_till_done()
+    assert float(hass.states.get(volume).state) == 0
+    assert hass.states.get(lock).state == "on"
+
+
+async def test_name_and_installed_voice_entities_keep_identity_and_use_native_services(
+    hass, entry, loaded
+):
+    robot_id = "fixture-0"
+    state = loaded.data[robot_id]
+    telemetry = {
+        "voice_language": "es-ES",
+        "installed_voice_languages": ("es-ES", "en-GB"),
+    }
+    supported = replace(
+        state, reported_name="Fixture robot", telemetry={**state.telemetry, **telemetry}
+    )
+    loaded.async_set_updated_data({**loaded.data, robot_id: supported})
+    await hass.async_block_till_done()
+    name = entity_id(hass, entry, "text", "robot_name")
+    voice = entity_id(hass, entry, "select", "voice_language")
+    assert name and voice
+    assert not entity_id(hass, entry, "text", "robot_name", "fixture-1")
+    assert not entity_id(hass, entry, "select", "voice_language", "fixture-1")
+    registry = er.async_get(hass)
+    for entity in (name, voice):
+        record = registry.async_get(entity)
+        assert record.device_id == registry.async_get("vacuum.robot_0").device_id
+        assert record.entity_category == EntityCategory.CONFIG
+    assert hass.states.get(name).state == "Fixture robot"
+    assert hass.states.get(name).attributes["max"] == 63
+    assert hass.states.get(voice).state == "es-es"
+    assert hass.states.get(voice).attributes["options"] == ["es-es", "en-gb"]
+    loaded.async_set_robot_setting = AsyncMock()
+    await hass.services.async_call(
+        "text", "set_value", {"entity_id": name, "value": "Ático"}, blocking=True
+    )
+    await hass.services.async_call(
+        "select", "select_option", {"entity_id": voice, "option": "en-gb"}, blocking=True
+    )
+    assert [call.args for call in loaded.async_set_robot_setting.await_args_list] == [
+        (robot_id, RobotSetting.NAME, "Ático"),
+        (robot_id, RobotSetting.VOICE_LANGUAGE, "en-GB"),
+    ]
+    selector = RoombaVoiceLanguage(loaded, robot_id, "voice_language")
+    name_input = RoombaRobotName(loaded, robot_id, "robot_name")
+    with pytest.raises(HomeAssistantError) as error:
+        await selector.async_select_option("cs-CZ")
+    assert error.value.translation_key == "voice_language_not_installed"
+    loaded.async_set_updated_data({**loaded.data, robot_id: state})
+    await hass.async_block_till_done()
+    assert hass.states.get(voice).state == hass.states.get(name).state == "unavailable"
+
+    others = {key: robot for key, robot in loaded.data.items() if key != robot_id}
+    loaded.async_set_updated_data(others)
+    assert selector.options == [] and selector.current_option is None
+    assert name_input.native_value is None
+
+    loaded.async_set_updated_data({**others, robot_id: supported})
+    await hass.async_block_till_done()
+    assert hass.states.get(voice).state == "es-es"
+    assert hass.states.get(name).state == "Fixture robot"
+
+
+async def test_dock_configuration_uses_native_choices_and_the_existing_dock_device(
+    hass, entry, loaded
+):
+    robot_id = "fixture-0"
+    robot = loaded.data[robot_id]
+    other = loaded.data["fixture-1"]
+    observed = {
+        "pad_wash_heat": 0,
+        "pad_wash_return": 100,
+        "detergent_setting": 0,
+        "pad_dry_duration": 4,
+    }
+    dock = DockCapabilities(recognized=True, wash=True, dry=True)
+    capable = replace(
+        robot,
+        telemetry={**robot.telemetry, **observed},
+        capabilities=replace(robot.capabilities, dock=dock),
+    )
+    unsupported = replace(other, telemetry=observed)
+    loaded.async_set_updated_data({**loaded.data, robot_id: capable, "fixture-1": unsupported})
+    await hass.async_block_till_done()
+
+    registry = er.async_get(hass)
+    temperature = registry.async_get(entity_id(hass, entry, "select", "mop_wash_temperature"))
+    dock_device = dr.async_get(hass).async_get(temperature.device_id)
+    robot_device_id = registry.async_get("vacuum.robot_0").device_id
+    assert (DOMAIN, f"{entry.unique_id}_{robot_id}_dock") in dock_device.identifiers
+    assert dock_device.parent_device_id == robot_device_id
+    settings = (
+        (
+            "select",
+            "mop_wash_temperature",
+            "room_temperature",
+            ["room_temperature", "hot", "very_hot"],
+        ),
+        ("select", "mop_wash_frequency", "standard", ["standard", "medium", "high"]),
+        (
+            "select",
+            "mop_drying_duration",
+            "four_hours",
+            ["three_hours", "four_hours", "five_hours"],
+        ),
+        ("switch", "automatic_mop_detergent", "off", None),
+    )
+    entities = {}
+    for domain, key, initial, options in settings:
+        identifier = entity_id(hass, entry, domain, key)
+        assert identifier and not entity_id(hass, entry, domain, key, "fixture-1")
+        entity = registry.async_get(identifier)
+        assert (
+            entity.device_id == dock_device.id and entity.entity_category == EntityCategory.CONFIG
+        )
+        assert hass.states.get(identifier).state == initial
+        assert hass.states.get(identifier).attributes.get("options") == options
+        entities[key] = identifier
+
+    loaded.async_set_robot_setting = AsyncMock()
+    loaded.async_command = AsyncMock()
+    for key, option in (
+        ("mop_wash_temperature", "very_hot"),
+        ("mop_wash_frequency", "high"),
+        ("mop_drying_duration", "five_hours"),
+    ):
+        await hass.services.async_call(
+            "select", "select_option", {"entity_id": entities[key], "option": option}, blocking=True
+        )
+    switch = entities["automatic_mop_detergent"]
+    await hass.services.async_call("switch", "turn_on", {"entity_id": switch}, blocking=True)
+    await hass.services.async_call("switch", "turn_off", {"entity_id": switch}, blocking=True)
+    choice = RoombaDockSelect(loaded, robot_id, "mop_wash_temperature")
+    with pytest.raises(HomeAssistantError) as error:
+        await choice.async_select_option("unverified")
+    assert error.value.translation_key == "unsupported_robot_setting"
+    assert [call.args for call in loaded.async_set_robot_setting.await_args_list] == [
+        (robot_id, RobotSetting.PAD_WASH_TEMPERATURE, 2),
+        (robot_id, RobotSetting.PAD_WASH_FREQUENCY, 102),
+        (robot_id, RobotSetting.PAD_DRY_DURATION, 5),
+        (robot_id, RobotSetting.AUTOMATIC_DETERGENT, True),
+        (robot_id, RobotSetting.AUTOMATIC_DETERGENT, False),
+    ]
+    loaded.async_command.assert_not_awaited()
+
+    invalid = {
+        "pad_wash_heat": 4,
+        "pad_wash_return": 2,
+        "pad_dry_duration": 7,
+        "detergent_setting": True,
+    }
+    partial = replace(capable, telemetry=invalid)
+    detached = replace(capable, capabilities=replace(capable.capabilities, dock=DockCapabilities()))
+    for unavailable in (partial, detached, None):
+        data = {k: v for k, v in loaded.data.items() if k != robot_id}
+        if unavailable is not None:
+            data[robot_id] = unavailable
+        loaded.async_set_updated_data(data)
+        await hass.async_block_till_done()
+        assert all(hass.states.get(entity).state == "unavailable" for entity in entities.values())
+        assert choice.current_option is None
+    loaded.async_set_updated_data({**loaded.data, robot_id: capable})
+    await hass.async_block_till_done()
+    for domain, key, initial, _ in settings:
+        assert entity_id(hass, entry, domain, key) == entities[key]
+        assert hass.states.get(entities[key]).state == initial
+
+
 async def test_default_suction_is_a_native_control_separate_from_the_next_mission(
     hass, entry, loaded
 ):
-    loaded.async_set_cleaning_setting = AsyncMock()
+    loaded.async_set_robot_setting = AsyncMock()
     loaded.async_command = AsyncMock()
     await loaded.async_set_profile("fixture-0", suction_level=4)
     uid = entity_id(hass, entry, "number", "default_suction_level")
@@ -129,9 +562,7 @@ async def test_default_suction_is_a_native_control_separate_from_the_next_missio
     await hass.services.async_call(
         "number", "set_value", {"entity_id": uid, "value": 2}, blocking=True
     )
-    loaded.async_set_cleaning_setting.assert_awaited_once_with(
-        "fixture-0", CleaningSetting.SUCTION, 2
-    )
+    loaded.async_set_robot_setting.assert_awaited_once_with("fixture-0", RobotSetting.SUCTION, 2)
     loaded.async_command.assert_not_awaited()
     assert loaded.profile("fixture-0").suction_level == 4
 
@@ -171,14 +602,14 @@ async def test_default_suction_requires_vacuum_capability_and_observed_value(
 @pytest.mark.parametrize(
     ("field", "setting", "reported"),
     [
-        ("two_pass", CleaningSetting.TWO_PASS, False),
-        ("carpet_boost", CleaningSetting.CARPET_BOOST, True),
+        ("two_pass", RobotSetting.TWO_PASS, False),
+        ("carpet_boost", RobotSetting.CARPET_BOOST, True),
     ],
 )
 async def test_default_switch_preserves_the_next_mission_preference(
     hass, entry, loaded, field, setting, reported
 ):
-    loaded.async_set_cleaning_setting = AsyncMock()
+    loaded.async_set_robot_setting = AsyncMock()
     await loaded.async_set_profile("fixture-0", **{field: not reported})
     default_switch = entity_id(hass, entry, "switch", f"default_{field}")
     assert hass.states.get(default_switch).state == ("on" if reported else "off")
@@ -189,7 +620,7 @@ async def test_default_switch_preserves_the_next_mission_preference(
         {"entity_id": default_switch},
         blocking=True,
     )
-    loaded.async_set_cleaning_setting.assert_awaited_once_with("fixture-0", setting, not reported)
+    loaded.async_set_robot_setting.assert_awaited_once_with("fixture-0", setting, not reported)
     assert getattr(loaded.profile("fixture-0"), field) is not reported
 
 
@@ -212,7 +643,7 @@ async def test_auto_evacuation_area_belongs_to_its_dock_and_preserves_existing_s
         await hass.async_block_till_done()
 
     coordinator = entry.runtime_data
-    coordinator.async_set_cleaning_setting = AsyncMock()
+    coordinator.async_set_robot_setting = AsyncMock()
     registry = er.async_get(hass)
     from homeassistant.helpers import device_registry as dr
 
@@ -233,8 +664,8 @@ async def test_auto_evacuation_area_belongs_to_its_dock_and_preserves_existing_s
         {"entity_id": area, "value": 50},
         blocking=True,
     )
-    coordinator.async_set_cleaning_setting.assert_awaited_once_with(
-        robot, CleaningSetting.AUTO_EVACUATION_AREA, 50
+    coordinator.async_set_robot_setting.assert_awaited_once_with(
+        robot, RobotSetting.AUTO_EVACUATION_AREA, 50
     )
     registry.async_update_entity_options(area, "number", {"unit_of_measurement": "ft²"})
     await hass.async_block_till_done()
@@ -242,10 +673,10 @@ async def test_auto_evacuation_area_belongs_to_its_dock_and_preserves_existing_s
     await hass.services.async_call(
         "number", "set_value", {"entity_id": area, "value": 538}, blocking=True
     )
-    assert coordinator.async_set_cleaning_setting.await_count == 2
-    assert coordinator.async_set_cleaning_setting.await_args.args == (
+    assert coordinator.async_set_robot_setting.await_count == 2
+    assert coordinator.async_set_robot_setting.await_args.args == (
         robot,
-        CleaningSetting.AUTO_EVACUATION_AREA,
+        RobotSetting.AUTO_EVACUATION_AREA,
         50,
     )
     registry.async_update_entity_options(area, "number", {"unit_of_measurement": "m²"})

@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "android_app_version": "3.4.1",
+  "matching_current_floor_revision": true,
+  "roomba_profile_rows_on_test_floor": 36,
+  "app_favorite_duration_matches": [
+    {"mode": "vacuum_mop", "preset": "light", "seconds": 3449},
+    {"mode": "vacuum_mop", "preset": "normal", "seconds": 3449},
+    {"mode": "vacuum_mop", "preset": "deep", "seconds": 6899},
+    {"mode": "vacuum_mop", "preset": "smart", "seconds": 3449},
+    {"mode": "vacuum", "preset": "deep", "seconds": 6899},
+    {"mode": "mop", "preset": "deep", "seconds": 6899},
+    {"mode": "vacuum_then_mop", "preset": "deep", "seconds": 7200}
+  ],
+  "mixed_room_and_furniture_draft": {
+    "app_room_minutes": 58,
+    "app_furniture_time_available": false,
+    "app_total_available": false,
+    "integration_partial_seconds": 3449,
+    "integration_total_available": false,
+    "selection_order_preserved": true,
+    "vacuum_entity_reviewed_estimate_verified_against_real_api": true
+  },
+  "movement_commands": 0,
+  "map_and_favorite_writes": 0
+}

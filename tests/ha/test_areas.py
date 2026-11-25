@@ -11,12 +11,14 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import area_registry, entity_registry
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
+from custom_components.roomba_home.button import RoombaSkipArea
 from custom_components.roomba_home.const import DOMAIN
 from custom_components.roomba_home.coordinator import RoombaCoordinator
 from custom_components.roomba_home.core.actions import Command
 from custom_components.roomba_home.core.capabilities import (
     DeviceCapabilities,
     DigitalSpotCapability,
+    SkipCapability,
 )
 from custom_components.roomba_home.core.cleaning import CleaningMode, CleaningProfile
 from custom_components.roomba_home.core.errors import (
@@ -24,6 +26,8 @@ from custom_components.roomba_home.core.errors import (
     ProtocolError,
     RateLimited,
 )
+from custom_components.roomba_home.core.history import AreaResult
+from custom_components.roomba_home.core.live_maps import MissionTimeline
 from custom_components.roomba_home.core.maps import (
     CleaningRegion,
     PersistentMap,
@@ -48,6 +52,54 @@ async def account(hass, entry, robot_states):
     coordinator.client.maps = AsyncMock(return_value=(MAP,))
     yield coordinator
     await coordinator.async_close()
+
+
+async def test_skip_press_refreshes_the_review_and_confirms_a_fresh_matching_report(account):
+    from datetime import UTC, datetime, timedelta
+
+    robot_id = "fixture-0"
+    robot = account.data[robot_id]
+    now = datetime.now(UTC)
+    started = now - timedelta(minutes=1)
+    state = replace(
+        robot,
+        phase="run",
+        cycle="clean",
+        telemetry={"mission_started": started, "mission_number": 6},
+        capabilities=replace(robot.capabilities, skip=SkipCapability.CURRENT_AREA),
+    )
+    account.async_set_updated_data({robot_id: state})
+    area = AreaResult((MAP.map_id, MAP.version_id, ROOM.region_id), 40, None, 12, None, None)
+    active = MissionTimeline(6, now, "room", (), (area,), directed=True)
+    skipped = replace(area, timestamp=44, status=7)
+    complete = MissionTimeline(6, now, "travel", (skipped,), directed=True)
+    account._live_timelines[robot_id] = (started, active)
+    button = RoombaSkipArea(account, robot_id, "skip_current_area")
+    assert button.available
+    assert account.skip_review_for_robot("missing") is None
+    assert account.skip_review_for_robot(robot_id) is not None
+    with pytest.raises(HomeAssistantError) as error:
+        await account.async_command(robot_id, Command.SKIP, reviewed_skip="obsolete")
+    assert error.value.translation_key == "skip_destination_changed"
+    account._timeline_due[robot_id] = (started, 100)
+    account._refresh_for_command = AsyncMock()
+    with pytest.raises(HomeAssistantError) as error:
+        await button.async_press()
+    assert error.value.translation_key == "skip_requires_destination"
+    assert robot_id not in account._timeline_due
+    pending = iter((active, complete))
+
+    async def refresh():
+        account._live_timelines[robot_id] = (started, next(pending))
+
+    account._refresh_for_command.side_effect = refresh
+    account._sleep = AsyncMock()
+    account.client.ensure_session = AsyncMock()
+    with patch("custom_components.roomba_home.coordinator.MqttCommandSender") as sender:
+        await button.async_press()
+    sender.return_value.send.assert_called_once_with(Command.SKIP)
+    assert account.command_status[robot_id] == "confirmed"
+    assert not button.available
 
 
 async def test_maps_are_polled_once_per_window_and_only_for_supporting_robot(account):
@@ -117,6 +169,32 @@ async def test_estimate_read_failures_are_translated_and_rate_limit_is_respected
     endpoint.return_value = {"regions": []}
     assert await account.async_list_cleaning_estimates("fixture-0", [room]) == {"regions": []}
     account.client.maps.assert_awaited_once()
+
+
+@pytest.mark.parametrize("stale", ["before", "after"])
+async def test_routine_estimate_rejects_a_revision_changed_before_or_during_the_read(
+    account, stale
+):
+    robot = "fixture-0"
+    await account._refresh_maps(account.data, 0)
+    endpoint = account.client.cleaning_time_estimates = AsyncMock(return_value={"regions": []})
+    new = (replace(MAP, version_id="new-revision"),)
+    account.client.maps.side_effect = [new] if stale == "before" else [(MAP,), new]
+    with pytest.raises(HomeAssistantError) as error:
+        await account.async_estimate_cleaning_routine(
+            robot, ([ROOM.segment_id(MAP.map_id)], [{}]), (MAP.map_id, MAP.version_id, None)
+        )
+    assert error.value.translation_key == "map_changed"
+    assert endpoint.await_count == (1 if stale == "after" else 0)
+
+
+async def test_routine_estimate_map_authentication_enters_reauth(account):
+    await account._refresh_maps(account.data, 0)
+    account.client.maps.side_effect = AuthenticationError()
+    with pytest.raises(ConfigEntryAuthFailed):
+        await account.async_estimate_cleaning_routine(
+            "fixture-0", ([ROOM.segment_id(MAP.map_id)], [{}])
+        )
 
 
 async def test_two_maps_enable_map_selection_and_zero_regions_remain_explicit(account):
@@ -457,13 +535,28 @@ async def test_local_services_list_regions_and_accept_typed_distinct_preferences
         Command.VACUUM,
         segments=["map-a:rid:room-a", "map-a:zid:zone-b"],
         overrides=[{"mode": CleaningMode.MOP, "wetness_level": 2}, {"suction_level": 3}],
+        ordered=True,
     )
     await hass.config_entries.async_unload(entry.entry_id)
 
 
+@pytest.mark.parametrize(
+    ("reviewed", "mode", "code"),
+    [
+        (False, None, 2),
+        (True, None, 2),
+        (True, CleaningMode.MOP, 4),
+        (True, CleaningMode.VACUUM_MOP, 6),
+        (True, CleaningMode.VACUUM_THEN_MOP, 2),
+    ],
+)
 async def test_native_point_action_dispatches_only_the_validated_point(
-    hass, entry, robot_states, make_point_bundle
+    hass, entry, robot_states, make_point_bundle, reviewed, mode, code
 ):
+    def keep_supported_policy(documents):
+        # This map includes a keep-out area with an outline but no no-mop area.
+        documents["policyZones.geojson"]["features"].pop()
+
     robot = robot_states["fixture-0"]
     robot_states["fixture-0"] = replace(
         robot,
@@ -478,7 +571,9 @@ async def test_native_point_action_dispatches_only_the_validated_point(
         await hass.async_block_till_done()
     account = entry.runtime_data
     account.client.maps = AsyncMock(return_value=(MAP,))
-    account.client.map_geometry = AsyncMock(return_value=make_point_bundle())
+    account.client.map_geometry = AsyncMock(
+        return_value=make_point_bundle(mutate=keep_supported_policy)
+    )
     account.client.ensure_session = AsyncMock(return_value=object())
     account._refresh_for_command = AsyncMock()
 
@@ -488,7 +583,7 @@ async def test_native_point_action_dispatches_only_the_validated_point(
             state,
             phase="run",
             cycle="clean",
-            mode=2,
+            mode=code,
             telemetry={
                 **state.telemetry,
                 "mission_initiator": "rmtApp",
@@ -499,15 +594,29 @@ async def test_native_point_action_dispatches_only_the_validated_point(
 
     account._sleep = wait
     data = {"entity_id": "vacuum.robot_0", "region_id": "map-a:rid:room-a", "x": 0.1, "y": 0.1}
+    if mode:
+        data["mode"] = mode.value
+    if reviewed:
+        data["review"] = {
+            "map_id": "map-a",
+            "version": "version.42",
+            "inventory_id": MAP.inventory_id,
+        }
     with patch("custom_components.roomba_home.coordinator.MqttCommandSender") as sender:
         with pytest.raises(vol.Invalid):
             await hass.services.async_call(
                 DOMAIN, "clean_point", {**data, "x": True}, blocking=True
             )
+        with pytest.raises(vol.Invalid):
+            await hass.services.async_call(
+                DOMAIN, "clean_point", {**data, "mode": "spot"}, blocking=True
+            )
         account.client.maps.assert_not_awaited()
         await hass.services.async_call(DOMAIN, "clean_point", data, blocking=True)
         command, profile, target = sender.return_value.send.call_args.args
-        assert command is Command.POINT_CLEAN and profile == CleaningProfile()
+        assert command is Command.POINT_CLEAN and profile == CleaningProfile(
+            mode or CleaningMode.VACUUM
+        )
         assert target.center == (1.0, 1.0) and target.version_id == "version.42"
         sender.return_value.send.assert_called_once()
         account.client.maps.assert_awaited_once_with("fixture-0")
@@ -517,6 +626,26 @@ async def test_native_point_action_dispatches_only_the_validated_point(
             RoombaVacuum(account, "fixture-0").supported_features & VacuumEntityFeature.CLEAN_SPOT
         )
     await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.parametrize(
+    "review", [("map-a", "version.previous", None), ("map-a", "version.42", "0" * 64)]
+)
+async def test_point_review_refuses_stale_map_version_or_inventory(account, review):
+    state = account.data["fixture-0"]
+    account.data["fixture-0"] = replace(
+        state,
+        capabilities=replace(state.capabilities, digital_spot=DigitalSpotCapability.SUPPORTED),
+    )
+    account.client.map_geometry = AsyncMock()
+    with (
+        patch("custom_components.roomba_home.coordinator.MqttCommandSender") as sender,
+        pytest.raises(HomeAssistantError) as error,
+    ):
+        await account.async_clean_point("fixture-0", ROOM.segment_id(MAP.map_id), 0.1, 0.1, review)
+    assert error.value.translation_key == "map_changed"
+    account.client.map_geometry.assert_not_awaited()
+    sender.assert_not_called()
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,43 @@
+{
+  "tested_model": "Roomba Max 700 Combo",
+  "date": "2026-11-25",
+  "command": "adjust_furniture",
+  "android_trial": {
+    "operations": [
+      "Add a living chair",
+      "Move, resize, and rotate the chair while retaining the same ID",
+      "Remove the chair"
+    ],
+    "successful_http_responses": 3,
+    "furniture_counts": [10, 11, 11, 10],
+    "other_geometry": "The original objects retained their outlines. Room, border, dock, floor type, floor plan, cleaning zone, and restriction layers were unchanged.",
+    "metadata_effect": "The app marked the ten retained objects as user-edited, and the returned archive changed their source and orientation properties."
+  },
+  "signed_replacement_trial": {
+    "request_entries": 1,
+    "resulting_furniture_count": 1,
+    "original_objects_returned_in_replacement": 0,
+    "restoration": "Sending the original complete layer with robot source flags and removing the temporary chair restored all ten original objects, their full properties, and all other archive layers. The restored revision was independently read back."
+  },
+  "source_preserving_trial": {
+    "operations_with_untouched_furniture_preserved": ["create", "update", "remove"],
+    "read_back": "Each active revision preserved the original objects and their properties when the complete furniture list retained their original flags. The final layer matched the original."
+  },
+  "installed_editor": {
+    "version": "0.20.0",
+    "verified_operations": ["create", "move", "resize", "rotate", "remove"],
+    "restoration": "An independent read confirmed the original ten objects and the other archive layers. One provider-derived cleaning outline was restored to its exact original coordinates."
+  },
+  "android_routine": {
+    "http_status": 201,
+    "ordered": true,
+    "destination_types": ["sofa", "table/dining"],
+    "wire_region_type": "tid",
+    "furniture_link": "id_multipolys[].metadata.furniture_id",
+    "region_polygon_order_matches": true,
+    "observed_margin_per_footprint_edge_metres": 0.4,
+    "settings": "Both destinations have separate parameter blocks carrying the same default profile.",
+    "cleanup": "Home Assistant removed the temporary routine. The active favorite list confirmed its absence."
+  },
+  "pending": "Verify distinct per-target settings and physical execution for furniture-targeted routines."
+}

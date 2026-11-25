@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "official_app": {
+    "started_from_dock": true,
+    "observed_stages": [
+      {"cycle": "train", "phase": "run"},
+      {"cycle": "train", "phase": "stop"},
+      {"cycle": "train", "phase": "run"},
+      {"cycle": "train", "phase": "hmPostMsn"},
+      {"cycle": "none", "phase": "charge"}
+    ],
+    "published_separate_map": true,
+    "new_map_visible_before_name_and_room_metadata": true,
+    "room_count_from_new_floor_archive": 1,
+    "initial_name_max_length_shown": 20,
+    "existing_rename_max_length_shown": 16,
+    "twenty_character_accented_name_accepted_by_settings_api": true
+  },
+  "integration_transport": {
+    "confirmed_robot_commands": ["train", "pause", "resume", "stop", "dock", "dryPad"],
+    "removed_only_disposable_floor": true,
+    "final_visible_floor_count": 1,
+    "original_revision_settings_inventory_and_layers_unchanged": true,
+    "robot_docked_with_drying_active": true,
+    "removed_floor_metadata_visible_flag": false,
+    "removed_floor_listed_with_visible_false_filter": false
+  }
+}

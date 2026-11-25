@@ -12,6 +12,13 @@ class DigitalSpotCapability(StrEnum):
     HEATED_WATER = "heated_water"
 
 
+class SkipCapability(StrEnum):
+    UNSUPPORTED = "unsupported"
+    DIRECTED_ONLY = "directed_only"
+    DIRECTED_AND_WHOLE_MAP = "directed_and_whole_map"
+    CURRENT_AREA = "current_area"
+
+
 def supports_point_clean(capability: DigitalSpotCapability | None) -> bool:
     return capability in (DigitalSpotCapability.SUPPORTED, DigitalSpotCapability.HEATED_WATER)
 
@@ -47,6 +54,8 @@ class DeviceCapabilities:
     diagnostics: bool | None = None
     locate: bool | None = None
     digital_spot: DigitalSpotCapability | None = None
+    skip: SkipCapability | None = None
+    routine_presets: bool = False
 
     @property
     def supports_auto_evacuation_area(self) -> bool:

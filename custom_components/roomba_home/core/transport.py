@@ -4,10 +4,12 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 import aiohttp
+from yarl import URL
 
 from .errors import ProtocolError
 
 GZIP_JSON_ACCEPT = "application/gzip,application/json"
+RAW_MAP_ACCEPT = "application/octet-stream"
 
 
 @dataclass(repr=False)
@@ -21,7 +23,7 @@ class HttpTransport(Protocol):
     async def request(
         self,
         method: str,
-        url: str,
+        url: str | URL,
         *,
         headers: dict[str, str] | None = None,
         body: bytes | None = None,
@@ -40,12 +42,14 @@ class AiohttpTransport:
     async def request(self, method, url, *, headers=None, body=None) -> HttpResponse:
         import json
 
+        accept = (headers or {}).get("Accept")
         async with self.session.request(
             method,
             url,
             headers=headers,
             data=body,
             allow_redirects=False,
+            auto_decompress=accept != RAW_MAP_ACCEPT,
             timeout=aiohttp.ClientTimeout(total=30),
         ) as response:
             chunks = bytearray()
@@ -53,10 +57,8 @@ class AiohttpTransport:
                 chunks.extend(chunk)
                 if len(chunks) > self.max_body_bytes:
                     raise ProtocolError("Provider response exceeded the configured size limit.")
-            if (
-                headers
-                and headers.get("Accept") == GZIP_JSON_ACCEPT
-                and response.content_type == "application/gzip"
+            if accept == RAW_MAP_ACCEPT or (
+                accept == GZIP_JSON_ACCEPT and response.content_type == "application/gzip"
             ):
                 return HttpResponse(response.status, bytes(chunks), dict(response.headers))
             try:

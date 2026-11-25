@@ -1,7 +1,5 @@
 """Map the native SDK protocol to semantic cleaning profiles and capabilities."""
 
-from enum import StrEnum
-
 from .cleaning import CleaningCapabilities, CleaningMode, CleaningProfile
 
 MODE_CODES = {
@@ -18,66 +16,17 @@ SUPPORT_BITS = {
     CleaningMode.VACUUM_MOP: 32,
     CleaningMode.VACUUM_THEN_MOP: 512,
 }
-AUTO_EVACUATION_MIN_AREA = 10
-AUTO_EVACUATION_MAX_AREA = 1000
-
-
-class CleaningSetting(StrEnum):
-    """Persistent cleaning settings verified via the native settings shadow."""
-
-    SUCTION = "suction_level"
-    WETNESS = "pad_wetness"
-    SMART_SCRUB = "scrub_setting"
-    TWO_PASS = "two_pass"
-    CARPET_BOOST = "carpet_boost"
-    AUTO_EVACUATION_AREA = "auto_evacuation_frequency"
-
-    def accepts(self, value: object, capabilities: CleaningCapabilities) -> bool:
-        if option := _SWITCH_OPTIONS.get(self):
-            return type(value) is bool and capabilities.supports_option(option)
-        if self is CleaningSetting.AUTO_EVACUATION_AREA:
-            return (
-                capabilities.auto_evacuation_area is True
-                and type(value) is int
-                and AUTO_EVACUATION_MIN_AREA <= value <= AUTO_EVACUATION_MAX_AREA
-            )
-        field = "suction_level" if self is CleaningSetting.SUCTION else "wetness_level"
-        return type(value) is int and 1 <= value <= capabilities.maximum_level(field)
-
-    def observed(self, telemetry: dict, capabilities: CleaningCapabilities) -> int | bool | None:
-        value = telemetry.get(self.value)
-        if self is CleaningSetting.SMART_SCRUB:
-            if type(value) is not int or value not in (0, 1):
-                return None
-            value = bool(value)
-        return value if self.accepts(value, capabilities) else None
-
-    def desired(self, value: int | bool) -> dict:
-        if self is CleaningSetting.SUCTION:
-            return {"suctionLevel": value}
-        if self is CleaningSetting.WETNESS:
-            return {"padWetness": {"padPlate": value}}
-        if self is CleaningSetting.SMART_SCRUB:
-            return {"swScrub": int(value)}
-        return {_WIRE_FIELDS[self]: value}
-
-
-_SWITCH_OPTIONS = {
-    CleaningSetting.SMART_SCRUB: "smart_scrub",
-    CleaningSetting.TWO_PASS: "two_pass",
-    CleaningSetting.CARPET_BOOST: "carpet_boost",
-}
-_WIRE_FIELDS = {
-    CleaningSetting.TWO_PASS: "twoPass",
-    CleaningSetting.CARPET_BOOST: "carpetBoost",
-    CleaningSetting.AUTO_EVACUATION_AREA: "autoevacFreq",
-}
 
 
 def reported_cleaning_mode(value: object) -> CleaningMode | None:
     if type(value) is not int:
         return None
     return next((mode for mode, code in MODE_CODES.items() if value == code), None)
+
+
+def requested_region_mode(value: object) -> CleaningMode | None:
+    """Read the documented semantic variants used by native regional commands."""
+    return CleaningMode.VACUUM_MOP if value == 32 else reported_cleaning_mode(value)
 
 
 def cleaning_capabilities(raw: object) -> CleaningCapabilities:
@@ -136,3 +85,42 @@ def regional_cleaning_parameters(profile: CleaningProfile) -> dict:
     if profile.mode is CleaningMode.VACUUM_THEN_MOP:
         params["routine_modified"] = True
     return params
+
+
+def parse_regional_profile(params: object, *, inactive_mop=False) -> CleaningProfile | None:
+    """Validate regional preferences and preserve omitted robot defaults."""
+    if not isinstance(params, dict):
+        return None
+    code = params.get("operatingMode")
+    mode = requested_region_mode(code)
+    wetness = params.get("padWetness")
+    scrub = params.get("swScrub")
+    try:
+        profile = CleaningProfile(
+            mode=mode,
+            suction_level=params.get("suctionLevel"),
+            wetness_level=wetness.get("padPlate") if isinstance(wetness, dict) else None,
+            two_pass=params.get("twoPass"),
+            smart_scrub=bool(scrub) if type(scrub) is int and scrub in (0, 1) else None,
+            carpet_boost=params.get("carpetBoost"),
+        )
+    except ValueError:
+        return None
+    expected = regional_cleaning_parameters(profile)
+    if inactive_mop and profile.mode is CleaningMode.VACUUM:
+        if profile.wetness_level is not None:
+            expected["padWetness"] = {"padPlate": profile.wetness_level}
+        if profile.smart_scrub is not None:
+            expected["swScrub"] = int(profile.smart_scrub)
+    if profile.mode is CleaningMode.VACUUM_MOP and code == 6:
+        expected["operatingMode"] = 6
+    if profile.mode is CleaningMode.VACUUM_THEN_MOP:
+        if params.get("routine_modified", True) is not True:
+            return None
+        if "routine_modified" not in params:
+            del expected["routine_modified"]
+    if expected != params or any(
+        (level or 0) > 99 for level in (profile.suction_level, profile.wetness_level)
+    ):
+        return None
+    return profile

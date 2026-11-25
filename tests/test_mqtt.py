@@ -2,6 +2,8 @@
 
 import json
 import ssl
+import threading
+import time
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -9,8 +11,10 @@ from types import SimpleNamespace
 import pytest
 
 from custom_components.roomba_home.core.errors import ProtocolError
+from custom_components.roomba_home.core.live_maps import PositionBatch
 from custom_components.roomba_home.core.models import CloudSession
 from custom_components.roomba_home.core.mqtt import MqttProfile, MqttShadowReader
+from custom_components.roomba_home.core.mqtt_live import MqttLiveReader
 
 
 def cloud_session():
@@ -111,6 +115,109 @@ class Broker:
 def run_reader(broker, timeout=0.01):
     profile = MqttProfile.from_session(cloud_session(), 0)
     return MqttShadowReader(profile, timeout=timeout, client_factory=lambda *a, **k: broker)
+
+
+LIVE_TOPIC = "fixture-irbt/things/fixture-robot/livemap/update"
+
+
+def live_reader(broker):
+    return MqttLiveReader(
+        MqttProfile.from_session(cloud_session(), 0),
+        timeout=0.01,
+        client_factory=lambda *a, **k: broker,
+    )
+
+
+def test_live_reader_delivers_fresh_positions_and_never_publishes():
+    stop = threading.Event()
+    fresh = int(time.time())
+    payload = json.dumps(
+        {
+            "timestamp": fresh,
+            "update_expire_ts": fresh + 30,
+            "pos_update": {"cur_path": [23, 2.1, 1, 0, 5, fresh]},
+        }
+    ).encode()
+
+    class LiveBroker(Broker):
+        def loop_start(self):
+            super().loop_start()
+            for topic, body, retained in (
+                ("unrelated", payload, False),
+                (LIVE_TOPIC, payload, True),
+                (LIVE_TOPIC, b" " * (1024 * 1024 + 1), False),
+                (LIVE_TOPIC, b"bad JSON", False),
+                (LIVE_TOPIC, b"{}", False),
+                (LIVE_TOPIC, payload, False),
+            ):
+                self.on_message(
+                    self, None, SimpleNamespace(topic=topic, payload=body, retain=retained)
+                )
+            stop.set()
+
+    broker = LiveBroker()
+    received = []
+    live_reader(broker).listen(
+        {LIVE_TOPIC: "fixture-robot"}, stop, lambda *row: received.append(row)
+    )
+    ((robot, position),) = received
+    assert robot == "fixture-robot"
+    assert isinstance(position, PositionBatch) and position.index == 23
+    assert broker.batches == [[(LIVE_TOPIC, 0)]]
+    assert broker.published == [] and broker.closed and broker.stopped
+    live_reader(broker).listen({LIVE_TOPIC: "fixture-robot"}, stop, lambda *_: pytest.fail())
+
+
+@pytest.mark.parametrize(
+    "topics",
+    [
+        {},
+        {f"test{x}/things/fixture-robot/livemap/update": "fixture-robot" for x in range(9)},
+        {LIVE_TOPIC: "wrong-robot"},
+        {"fixture-irbt/#": "fixture-robot"},
+        {"+/things/fixture-robot/livemap/update": "fixture-robot"},
+        {"#/things/fixture-robot/livemap/update": "fixture-robot"},
+    ],
+)
+def test_live_reader_rejects_invalid_scopes(topics):
+    with pytest.raises(ValueError, match="authorized"):
+        live_reader(Broker()).listen(topics, threading.Event(), lambda *_: pytest.fail())
+
+
+@pytest.mark.parametrize("failure", ["connect", "subscribe", "submit", "timeout", "lost"])
+def test_live_reader_closes_the_connection_on_failure(failure):
+    class FailingBroker(Broker):
+        def loop_start(self):
+            if failure == "timeout":
+                return
+            super().loop_start()
+            if failure == "lost":
+                threading.Timer(
+                    0.03, self.on_disconnect, args=(self, None, None, None, None)
+                ).start()
+
+    broker = FailingBroker()
+    broker.reject_connect = failure == "connect"
+    broker.reject_subscribe = failure == "subscribe"
+    broker.subscribe_result = 1 if failure == "submit" else 0
+    match = "disconnected" if failure == "lost" else "unavailable"
+    with pytest.raises(ProtocolError, match=match):
+        live_reader(broker).listen(
+            {LIVE_TOPIC: "fixture-robot"}, threading.Event(), lambda *_: pytest.fail()
+        )
+    assert broker.closed and broker.stopped
+
+
+def test_live_reader_waits_for_more_packets_until_explicitly_stopped():
+    broker = Broker()
+    stop = threading.Event()
+    timer = threading.Timer(0.32, stop.set)
+    timer.start()
+    try:
+        live_reader(broker).listen({LIVE_TOPIC: "fixture-robot"}, stop, lambda *_: pytest.fail())
+    finally:
+        timer.cancel()
+    assert stop.is_set() and broker.closed
 
 
 def test_native_mqtt_uses_verified_tls_header_auth_and_read_topics_only():
@@ -311,6 +418,43 @@ def test_optional_live_updates_preserve_ordinary_shadow_reads(delivery, monkeypa
         assert [item.index for item in positions["fixture-robot"]] == [63, 64]
     else:
         assert positions["fixture-robot"][0].positions[0].x == 4
+
+
+def test_optional_raw_route_uses_latest_nonretained_reference(make_raw_route_document):
+    profile = MqttProfile.from_session(cloud_session(), 0)
+    timestamp = int(datetime.now(UTC).timestamp())
+    topic = "fixture-irbt/things/fixture-robot/livemap/update"
+
+    class RawMapBroker(Broker):
+        def subscribe(self, filters):
+            result = super().subscribe(filters)
+            if filters == [(topic, 0)]:
+                for offset, robot, retained in (
+                    (-1, "fixture-robot", False),
+                    (-10, "fixture-robot", False),
+                    (0, "different-robot", False),
+                    (0, "fixture-robot", True),
+                    (0, "fixture-robot", False),
+                ):
+                    document = make_raw_route_document(timestamp + offset, robot)
+                    self.on_message(
+                        self,
+                        None,
+                        SimpleNamespace(
+                            topic=topic, payload=json.dumps(document).encode(), retain=retained
+                        ),
+                    )
+            return result
+
+    references = {}
+    broker = RawMapBroker()
+    reader = MqttShadowReader(profile, timeout=0.02, client_factory=lambda *args, **kwargs: broker)
+    replies = reader.read(
+        ("ro-currentstate",), live_topics={topic: "fixture-robot"}, raw_routes=references
+    )
+    assert replies[0].accepted
+    assert set(references) == {"fixture-robot"}
+    assert references["fixture-robot"].timestamp == timestamp
 
 
 def test_timeline_read_uses_current_mission_and_ignores_invalid_reports():

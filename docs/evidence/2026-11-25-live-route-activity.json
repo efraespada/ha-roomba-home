@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "app": "Roomba Home Android 3.4.1",
+  "mission": {
+    "type": "localized vacuuming",
+    "outcome": "completed",
+    "reported_minutes": 4,
+    "reported_area_m2": 3.25,
+    "returned_to_dock": true,
+    "active_error_after_return": 0,
+    "previous_drying_restored": true
+  },
+  "live": {
+    "position_batches": 122,
+    "distinct_indexed_positions": 283,
+    "position_mode_counts": {"0": 75, "5": 208},
+    "raw_map_updates": 28,
+    "raw_map_downloads": 12,
+    "raw_compression": "zlib",
+    "compared_snapshot_positions": 83,
+    "snapshot_positions_with_matching_index_and_mode": 83,
+    "snapshot_coordinate_origin_differs": true,
+    "elapsed_time_shown_in_app": true,
+    "remaining_time_shown_in_app": false,
+    "native_mission_percentage_observed": false
+  },
+  "archived_route_segments": {"traveling": 5, "vacuuming": 4},
+  "saved_floor": {
+    "same_floor": true,
+    "same_room_geometry": true,
+    "same_clean_zones": true,
+    "same_restrictions": true,
+    "revision_advanced": true,
+    "furniture_items_before": 10,
+    "furniture_items_after": 10,
+    "furniture_items_identical": 6,
+    "map_edit_requests_sent": 0
+  }
+}

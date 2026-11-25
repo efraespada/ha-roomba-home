@@ -3,12 +3,12 @@
 - Status: Draft
 - Date: 2026-11-23
 - Catalog capability ID: cleaning-profiles
-- Last verified: 2026-11-23
+- Last verified: 2026-11-25
 - Owners: ha-roomba-home maintainer
 - Scope: Modes, combinations and adjustments of the next robot mission.
 - Related issues/PRs: The incumbent's request and local work without publication.
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
-- Open decisions blocking readiness: To confirm the stages of sequential, resumption and physical application for all adjustments.
+- Open decisions blocking readiness: Automatic recharge and resume, and physical application of every adjustable preference.
 
 ## 1. Executive summary
 
@@ -59,7 +59,7 @@ A change of preference doesn't move the robot.
   artificial exclusions.
 - CLN-08: check up, controls and telemetry with an Icon on the domestic HA or authorized
   robot.
-- CLN-09 (pending): Validate a complete vacuum-then-mop mission.
+- CLN-09: Validate a complete vacuum-then-mop mission.
 
 No maps, accounts and mistakes or consumables are deleted. The motion tests are limited to
 the authorized robot and have an automatic final timings. Absence capacity doesn't mean
@@ -104,8 +104,11 @@ support his model. No sign of an incompatible combination from a catalogue with 
 robot's type.
 
 Pause and resume operate on the same active mission. The profile of a new
-mission does not change an already active one. Vacuum then mop requires
-evidence of both stages within the same mission to confirm the command.
+mission does not change an already active one. For a directed vacuum-then-mop
+start, put mode 512 and the relevant preferences in the destination's
+parameters. Confirm submission only after a fresh remote mission enters an
+expected cleaning mode. Use the same mission identity to track both phases
+and its final result. [Directed command evidence](../docs/api.md#directed-vacuum-then-mop)
 
 CLN-09 MUST observe vacuuming, mop preparation where applicable, mopping,
 and a final result under the same mission identity. Verify both modes in
@@ -237,8 +240,9 @@ adjustments, boundaries of sequential mode and without duplication recovery.
 8. Reboot and reload preserves IDs, preferences or a single entity by monitoring.
 9. The Suite cover 100% of branches and sentences, with no actual credentials.
 10. A domestic ha displays icon and controls as well with an authorized robot.
-11. A complete sequential mission reports vacuuming and mopping ground under the same
-    identity and leave a confirmed final result in his track record.
+11. Start a saved-zone vacuum-then-mop routine and confirm its regional
+    mode 512. Observe vacuuming, mopping, the return to the dock, and the
+    final history entry under the same mission identity.
 
 ## 17. Requirements traceability
 
@@ -250,7 +254,7 @@ adjustments, boundaries of sequential mode and without duplication recovery.
 | CLN-06 | Ports and composition | Executable restrictions on dependencies |
 | CLN-07 | Suite and CI | cover report 100 |
 | CLN-08 | Deployment and evidence | Fan domestic, modes and entities with icon |
-| CLN-09 | Confirmation and History | Pending both phases of the same mission, history result, and return to dock |
+| CLN-09 | Command application and mission history | Both phases under the same mission identity, final history, and return to dock |
 
 ## 18. Implementation sequence
 
@@ -272,4 +276,6 @@ complete array (if necessary):
 
 [Standard SDD](README.md), [telemetry](005-telemetry-and-problems.md), [orders](004-command-validation.md), [HA vacuum entity](https://contributors.home-assistant.io/core/entities/vacuum/). A vacuum entity is also used for the combined sink with select, number and switch controls under that same device. The announced support guides discovery and physical evidence determines what can be declared proven.
 
-Full sequential validation follows MAP-03. [Mission detail and interactive maps](008-mission-detail-and-map-card.md)
+Physical sequence results and the pending automatic-resume scenario
+follow MAP-03. [Mission detail and interactive maps](008-mission-detail-and-map-card.md) ·
+[Directed sequence validation](../docs/validation.md#directed-vacuum-then-mop)

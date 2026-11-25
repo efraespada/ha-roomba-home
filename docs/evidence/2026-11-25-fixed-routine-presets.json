@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "android_app_version": "3.4.1",
+  "advertised_cleaning_profiles_code": 2,
+  "fixed_preset_combinations_viewed": 12,
+  "smart_combinations_viewed_without_concrete_levels": 4,
+  "fixed_settings": {
+    "light": {"suction": 1, "liquid": 1, "passes": 1},
+    "normal": {"suction": 2, "liquid": 2, "passes": 1},
+    "deep": {"suction": 4, "liquid": 3, "passes": 2}
+  },
+  "deep_native_operating_modes_verified": [2, 4, 6, 512],
+  "native_sequential_record_usable_without_edit_marker": true,
+  "saved_mixed_recipe": {
+    "room_count": 1,
+    "furniture_destination_count": 2,
+    "distinct_modes_and_presets_verified": true,
+    "updated_presets_preserved_modes_and_revised_order": true
+  },
+  "original_routines_unchanged": 6,
+  "temporary_routines_remaining": 0,
+  "map_archive_unchanged": true,
+  "movement_commands": 0
+}

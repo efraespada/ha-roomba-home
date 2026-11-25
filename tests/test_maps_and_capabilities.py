@@ -44,6 +44,16 @@ def one_map(**fields):
     }
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(-3.14, -3.14), (0, 0.0), (True, None), (float("inf"), None), ("0.5", None), (8, None)],
+)
+def test_optional_floor_orientation_preserves_or_ignores_provider_value(value, expected):
+    (floor,) = parse_maps([one_map(user_orientation_rad=value)], "example-robot")
+    assert floor.orientation == expected
+    assert not isinstance(floor.orientation, bool)
+
+
 def test_nested_capabilities_combine_independent_api_sources():
     caps = project_capabilities(
         {"cap": {"oMode": 550, "p2maps": 3}, "digiCap": {"timeline": 1}, "softwareVer": "26.4"},
@@ -82,6 +92,14 @@ def test_absent_or_invalid_capabilities_remain_unknown():
         {"ro-currentstate": shadow(dock={"known": None, "cap": []})},
     )
     assert caps == replace(DeviceCapabilities(), diagnostics=True)
+
+
+@pytest.mark.parametrize(
+    ("value", "available"), [(0, False), (1, True), (2, True), (3, False), (True, False)]
+)
+def test_only_recognized_digital_codes_enable_routine_presets(value, available):
+    caps = project_capabilities({"digiCap": {"cleaningProfiles": value}}, {})
+    assert caps.routine_presets is available
 
 
 @pytest.mark.parametrize(
@@ -156,6 +174,15 @@ def test_map_association_visibility_and_region_types():
 def test_invalid_or_ambiguous_maps_are_rejected(raw):
     with pytest.raises(ProtocolError):
         parse_maps(raw, "example-robot")
+
+
+def test_new_floor_can_arrive_without_name_or_room_inventory():
+    newly_published = one_map(p2map_id="created-floor")
+    del newly_published["name"]
+    del newly_published["rooms_metadata"]
+    original, new = parse_maps([one_map(), newly_published], "example-robot")
+    assert len(original.regions) == 2
+    assert new.map_id == "created-floor" and new.name is None and new.regions == ()
 
 
 @pytest.mark.parametrize(

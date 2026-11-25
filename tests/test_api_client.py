@@ -1,12 +1,14 @@
 import asyncio
 import json
 from collections import deque
+from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qs
 
 import pytest
+from aiohttp import ClientError
 
 from custom_components.roomba_home.core import AppProfile, LoginDetails, RoombaClient
 from custom_components.roomba_home.core.cleaning import (
@@ -18,6 +20,7 @@ from custom_components.roomba_home.core.client import check_status, signed_heade
 from custom_components.roomba_home.core.errors import (
     ApiError,
     AuthenticationError,
+    ProgramSelectionChanged,
     ProtocolError,
     RateLimited,
     RoutineNotEditable,
@@ -25,11 +28,27 @@ from custom_components.roomba_home.core.errors import (
     ScheduleNotEditable,
     ScheduleUpdateUnconfirmed,
 )
-from custom_components.roomba_home.core.maps import AreaTarget, CleaningRegion, RegionKind
+from custom_components.roomba_home.core.floor_settings import prepare_floor_settings
+from custom_components.roomba_home.core.live_route import raw_route_reference
+from custom_components.roomba_home.core.maps import (
+    AreaTarget,
+    CleaningRegion,
+    PersistentMap,
+    RegionKind,
+)
 from custom_components.roomba_home.core.models import CloudSession, relative_api_path, trusted_url
-from custom_components.roomba_home.core.routines import cleaning_routines, routine_command
-from custom_components.roomba_home.core.schedules import new_weekly_schedule
-from custom_components.roomba_home.core.transport import GZIP_JSON_ACCEPT, HttpResponse
+from custom_components.roomba_home.core.room_edits import RoomEdit
+from custom_components.roomba_home.core.routines import (
+    cleaning_routines,
+    routine_command,
+    routine_matches,
+)
+from custom_components.roomba_home.core.schedules import new_cleaning_schedule
+from custom_components.roomba_home.core.transport import (
+    GZIP_JSON_ACCEPT,
+    RAW_MAP_ACCEPT,
+    HttpResponse,
+)
 
 NOW = datetime(2026, 11, 23, 12, tzinfo=UTC)
 
@@ -77,6 +96,89 @@ def login_responses():
     ]
 
 
+async def test_robot_serial_number_uses_signed_associated_asset_lookup():
+    payload = {"RobotID": "robot-fixture", "SerialNumber": "FIXTURE123"}
+    http = FakeHttp(login_responses() + [HttpResponse(200, payload)])
+    api = client(http)
+    assert await api.robot_serial_number("robot-fixture") == "FIXTURE123"
+    method, url, headers, body = http.calls[-1]
+    assert method == "GET" and body is None
+    assert url.endswith("/v1/robots?robot_id=robot-fixture")
+    assert headers["Authorization"].startswith("AWS4-HMAC-SHA256")
+    with pytest.raises(ProtocolError, match="associated robot"):
+        await api.robot_serial_number("unknown-fixture")
+    assert len(http.calls) == 4
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        [],
+        {"RobotID": "different-robot", "SerialNumber": "FIXTURE123"},
+        {"RobotID": "robot-fixture", "SerialNumber": 123},
+        {"RobotID": "robot-fixture", "SerialNumber": "  "},
+    ],
+)
+async def test_robot_serial_number_rejects_unmatched_or_invalid_metadata(payload):
+    http = FakeHttp(login_responses() + [HttpResponse(200, payload)])
+    with pytest.raises(ProtocolError, match="serial number for the selected robot"):
+        await client(http).robot_serial_number("robot-fixture")
+
+
+@pytest.mark.parametrize("scope", ["current", "foreign robot", "invalid map"])
+async def test_cleaning_score_request_uses_only_the_scoped_map(scope):
+    floor = PersistentMap("floor-fixture", "version.2", "Office floor", ())
+    robot = "robot-fixture"
+    payload = {"clean_scores": [], "clean_score_ranges": [0.7]}
+    if scope == "foreign robot":
+        robot = "different-robot"
+    elif scope == "invalid map":
+        floor = replace(floor, map_id="..")
+    http = FakeHttp(login_responses() + [HttpResponse(200, payload)])
+    if scope == "current":
+        scores = await client(http).map_cleaning_scores(robot, floor)
+        assert scores["rooms"] == [] and scores["map"]["version"] == floor.version_id
+        method, url, headers, body = http.calls[-1]
+        assert method == "GET" and body is None
+        assert url.endswith("/v1/p2maps/clean-score?p2map_id=floor-fixture")
+        assert headers["Authorization"].startswith("AWS4-HMAC-SHA256")
+    else:
+        with pytest.raises(ProtocolError, match="associated map"):
+            await client(http).map_cleaning_scores(robot, floor)
+        assert len(http.calls) == 3
+
+
+@pytest.mark.parametrize(
+    "status, data", [(200, b"object"), (403, b"error"), (200, None), (200, b"")]
+)
+async def test_live_route_download_preserves_the_signed_query(
+    make_raw_route_document, status, data
+):
+    stamp = int(NOW.timestamp())
+    reference = raw_route_reference(make_raw_route_document(stamp), "fixture-robot", stamp)
+    http = FakeHttp([HttpResponse(status, data)])
+    api = client(http)
+    if status == 200 and data:
+        assert await api.raw_live_route(reference) == data
+    else:
+        with pytest.raises(ProtocolError, match="object is unavailable"):
+            await api.raw_live_route(reference)
+    assert http.calls == [("GET", http.calls[0][1], {"Accept": RAW_MAP_ACCEPT}, None)]
+    assert str(http.calls[0][1]) == reference.url
+    assert http.calls[0][1].raw_query_string.find("fixture%2Fread-only") > 0
+
+
+async def test_live_route_download_hides_transport_error_details(make_raw_route_document):
+    stamp = int(NOW.timestamp())
+    reference = raw_route_reference(make_raw_route_document(stamp), "fixture-robot", stamp)
+    request = AsyncMock(side_effect=ClientError("Private object URL"))
+    api = client(FakeHttp([]))
+    api.http.request = request
+    with pytest.raises(ProtocolError, match="object is unavailable") as failure:
+        await api.raw_live_route(reference)
+    assert "Private object URL" not in str(failure.value)
+
+
 class FakeHttp:
     def __init__(self, responses):
         self.responses = deque(responses)
@@ -89,6 +191,34 @@ class FakeHttp:
         if isinstance(response, Exception):
             raise response
         return response
+
+
+async def test_part_reset_posts_one_zero_counter_to_associated_robot():
+    payload = {"parts": [{"part_id": "202", "counter": 0}]}
+    http = FakeHttp(
+        [*login_responses(), HttpResponse(200, {"robot_id": "robot-fixture", **payload})]
+    )
+    await client(http).reset_part("robot-fixture", "202")
+    method, url, headers, body = http.calls[-1]
+    assert method == "POST"
+    assert url == "https://auth.fixture.irobotapi.com/v1/robots/robot-fixture/parts"
+    assert "Authorization" in headers
+    assert json.loads(body) == payload
+
+
+@pytest.mark.parametrize(("robot", "part"), [("unassociated", "202"), ("robot-fixture", "147")])
+async def test_part_reset_rejects_unassociated_robot_or_non_resettable_part(robot, part):
+    http = FakeHttp(login_responses())
+    with pytest.raises(ProtocolError, match="associated robot"):
+        await client(http).reset_part(robot, part)
+    assert len(http.calls) == 3
+
+
+@pytest.mark.parametrize("ack", [[], {}, {"robot_id": "robot-fixture", "parts": []}])
+async def test_part_reset_rejects_invalid_acknowledgement(ack):
+    http = FakeHttp([*login_responses(), HttpResponse(200, ack)])
+    with pytest.raises(ProtocolError, match="acknowledge"):
+        await client(http).reset_part("robot-fixture", "202")
 
 
 def client(http, **kwargs):
@@ -118,6 +248,150 @@ async def test_fresh_native_login_and_signed_read():
     assert headers["x-amz-security-token"] == "fixture-token"
 
 
+async def test_mission_report_list_reuses_signed_history_resource():
+    row = {"robot_id": "robot-fixture", "timestamp": 1700000500, "cmd": {"command": "start"}}
+    http = FakeHttp([*login_responses(), HttpResponse(200, [row])])
+    reports = await client(http).mission_reports("robot-fixture")
+    assert len(reports) == 1 and reports[0].summary()["command"] == "start"
+    method, url, headers, _body = http.calls[-1]
+    assert method == "GET" and "Authorization" in headers
+    assert url.startswith("https://auth.fixture.irobotapi.com/v1/robot-fixture/missionhistory?")
+    assert parse_qs(url.partition("?")[2])["maxAge"] == ["10"]
+
+
+async def test_floor_removal_uses_one_signed_visibility_write_with_empty_response():
+    http = FakeHttp([*login_responses(), HttpResponse(204, None)])
+    await client(http).remove_floor("fixture-map")
+    method, target, headers, body = http.calls[-1]
+    assert method == "POST"
+    assert (
+        target
+        == "https://auth.fixture.irobotapi.com/v1/p2maps/fixture-map/settings?trigger_fast_updates=true"
+    )
+    assert "Authorization" in headers and json.loads(body) == {"visible": False}
+
+
+async def test_floor_removal_rejects_an_invalid_identifier_before_signing():
+    http = FakeHttp([])
+    with pytest.raises(ProtocolError, match="valid map identifier"):
+        await client(http).remove_floor("../wrong")
+    assert http.calls == []
+
+
+@pytest.mark.parametrize("dock_version", [None, "42"])
+async def test_firmware_status_uses_a_public_model_query_and_returns_only_versions(dock_version):
+    installed = "p25-705+9.3.6+I5.3.149"
+    firmware = [
+        {"sku": "x185240", "version": "9.3.7", "downloadUrl": "fixture-private-url"},
+        {"sku": "X185240", "version": "9.3.7"},
+        {"sku": "X185240", "version": installed},
+    ]
+    http = FakeHttp([HttpResponse(200, {"firmware": firmware})])
+    assert await client(http).firmware_candidates("X185240", installed, dock_version) == ("9.3.7",)
+    [(method, url, headers, body)] = http.calls
+    host, query = url.split("?", 1)
+    assert host == "https://content-prod.iot.irobotapi.com/v2/firmware"
+    expected = {"sku": ["X185240"], "softwareVer": [installed]}
+    if dock_version:
+        expected["dockFwVer"] = [dock_version]
+    assert parse_qs(query) == expected
+    assert method == "GET" and headers is None and body is None
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        None,
+        {},
+        {"firmware": [None]},
+        {"firmware": [{"sku": "other", "version": "9.3.7"}]},
+        {"firmware": [{"sku": "X185240", "version": "https://example.invalid"}]},
+        {"firmware": [{"sku": 185240, "version": "9.3.7"}]},
+    ],
+)
+async def test_malformed_firmware_catalog_is_not_reported_as_up_to_date(document):
+    http = FakeHttp([HttpResponse(200, document)])
+    with pytest.raises(ProtocolError, match="firmware catalog"):
+        await client(http).firmware_candidates("X185240", "9.3.6", None)
+
+
+@pytest.mark.parametrize(
+    "sku,installed,dock",
+    [
+        (None, "9.3.6", "42"),
+        ("invalid?model", "9.3.6", "42"),
+        ("X185240", "bad version", "42"),
+        ("X185240", "9.3.6", "bad dock"),
+    ],
+)
+async def test_firmware_query_rejects_non_version_input(sku, installed, dock):
+    http = FakeHttp([])
+    with pytest.raises(ProtocolError, match="model and installed firmware"):
+        await client(http).firmware_candidates(sku, installed, dock)
+    assert not http.calls
+
+
+async def test_public_voice_catalog_requires_no_credentials_and_scopes_results_to_the_model():
+    http = FakeHttp(
+        [
+            HttpResponse(
+                200,
+                {
+                    "languagePackItems": [
+                        None,
+                        {"sku": 1, "languages": ["tr-TR"]},
+                        {"sku": "other", "languages": ["tr-TR"]},
+                        {"sku": "x185240", "languages": "tr-TR"},
+                        {"sku": "x185240", "languages": ["es-ES", "en-GB", "private data"]},
+                        {"sku": "X185240", "languages": ["en-GB", "cs-CZ"]},
+                    ]
+                },
+            )
+        ]
+    )
+    assert await client(http).voice_catalog("X185240") == ("cs-cz", "en-gb", "es-es")
+    assert http.calls == [
+        ("GET", "https://content-prod.iot.irobotapi.com/v2/app/langpacks/X185240", None, None)
+    ]
+
+
+@pytest.mark.parametrize("sku", ["../robots", 0])
+async def test_voice_catalog_rejects_bad_model_paths_before_using_the_network(sku):
+    http = FakeHttp([])
+    with pytest.raises(ProtocolError):
+        await client(http).voice_catalog(sku)
+    assert http.calls == []
+
+
+@pytest.mark.parametrize("body", [[], {"languagePackItems": {}}])
+async def test_voice_catalog_rejects_malformed_documents(body):
+    with pytest.raises(ProtocolError):
+        await client(FakeHttp([HttpResponse(200, body)])).voice_catalog("X185240")
+
+
+async def test_voice_pack_uses_the_same_unsigned_catalog():
+    http = FakeHttp(
+        [
+            HttpResponse(
+                200,
+                {
+                    "languagePackItems": [
+                        {
+                            "sku": "x185240",
+                            "languages": ["da-DK"],
+                            "deploymentMpkg": "picea_lang_pack/da_DK_v10.zip",
+                        }
+                    ]
+                },
+            )
+        ]
+    )
+    pack = await client(http).voice_pack("X185240", "da-dk")
+    assert pack.language == "da-DK"
+    assert pack.metapackage == "picea_lang_pack/da_DK_v10.zip"
+    assert http.calls[0][2:] == (None, None)
+
+
 async def test_signed_geojson_response_pins_the_selected_map_version():
     http = FakeHttp(login_responses() + [HttpResponse(200, b"fixture-bundle")])
     api = client(http)
@@ -130,6 +404,78 @@ async def test_signed_geojson_response_pins_the_selected_map_version():
     )
     assert headers["Accept"] == GZIP_JSON_ACCEPT
     assert "SignedHeaders=accept;" in headers["Authorization"]
+
+
+@pytest.mark.parametrize(
+    ("edit", "name", "params"),
+    [
+        (
+            RoomEdit(("room-a",), ((-1, 4), (11, 4))),
+            "split_room",
+            {"room_id": "room-a", "split_points": [-1, 4, 11, 4]},
+        ),
+        (
+            RoomEdit(("room-a", "room-b")),
+            "arrange_room",
+            {"room_ids": ["room-a", "room-b"]},
+        ),
+    ],
+)
+async def test_signed_room_edit_writes_one_map_version(edit, name, params):
+    http = FakeHttp(login_responses() + [HttpResponse(200, b"fixture-bundle")])
+    assert await client(http).edit_map("map-a", edit) == b"fixture-bundle"
+    method, url, headers, body = http.calls[-1]
+    assert len(http.calls) == 4
+    assert method == "POST"
+    assert url == "https://auth.fixture.irobotapi.com/v1/p2maps/map-a/versions"
+    assert headers["Accept"] == GZIP_JSON_ACCEPT
+    assert json.loads(body) == {
+        "edit_cmd": {"command": name, "params": params},
+        "response_type": "binary",
+    }
+
+
+async def test_room_edit_rejects_an_invalid_path_or_nonbinary_acknowledgement():
+    http = FakeHttp(login_responses() + [HttpResponse(200, {"version": "unconfirmed"})])
+    api = client(http)
+    edit = RoomEdit(("room-a", "room-b"))
+    with pytest.raises(ProtocolError, match="identifier"):
+        await api.edit_map("..", edit)
+    assert not http.calls
+    with pytest.raises(ProtocolError, match="binary"):
+        await api.edit_map("map-a", edit)
+    assert len(http.calls) == 4
+
+
+@pytest.mark.parametrize("ack", ["expected", "other robot", "different revision"])
+async def test_floor_settings_post_checks_associated_map_and_active_revision(ack):
+    floor = PersistentMap("map-a", "version.42", "Example floor", (), 0.0)
+    value = {
+        "p2map_id": floor.map_id,
+        "active_p2mapv_id": floor.version_id if ack != "different revision" else "version.43",
+        "name": "Ático",
+        "robot_id": "robot-fixture" if ack != "other robot" else "other-robot",
+        "visible": True,
+        "state": "active",
+        "rooms_metadata": [],
+        "user_orientation_rad": 0,
+    }
+    http = FakeHttp(login_responses() + [HttpResponse(200, value)])
+    api = client(http)
+    edit = prepare_floor_settings(floor, "rename", "Ático", None)
+    with pytest.raises(ProtocolError, match="identifier"):
+        await api.update_floor_settings("robot-fixture", replace(floor, map_id=".."), edit)
+    assert not http.calls
+    if ack == "expected":
+        await api.update_floor_settings("robot-fixture", floor, edit)
+    else:
+        with pytest.raises(ProtocolError, match="floor settings"):
+            await api.update_floor_settings("robot-fixture", floor, edit)
+    method, url, headers, body = http.calls[-1]
+    assert method == "POST"
+    assert url.endswith("/v1/p2maps/map-a/settings?trigger_fast_updates=true")
+    assert "Authorization" in headers
+    assert json.loads(body) == {"name": "Ático"}
 
 
 @pytest.mark.parametrize("ids", [("..", "v"), ("map-a", "../v")])
@@ -534,6 +880,33 @@ async def test_time_estimates_cannot_target_an_unassociated_robot():
     assert len(http.calls) == 3
 
 
+async def test_quick_routines_use_read_only_signed_floor_route_and_native_limit():
+    from custom_components.roomba_home.core.capabilities import DeviceCapabilities
+    from custom_components.roomba_home.core.maps import PersistentMap
+
+    http = FakeHttp(login_responses() + [HttpResponse(200, [])])
+    result = await client(http).map_quick_routines(
+        "robot-fixture", PersistentMap("floor-a", "current", None, ()), DeviceCapabilities()
+    )
+    assert result == {"map_id": "floor-a", "version": "current", "routines": []}
+    method, url, headers, body = http.calls[-1]
+    assert method == "GET" and url.endswith("/v1/p2maps/floor-a/routines?limit=5") and body is None
+    assert headers["Authorization"].startswith("AWS4-HMAC-SHA256")
+
+
+@pytest.mark.parametrize(("robot", "map_id"), [("foreign", "floor-a"), ("robot-fixture", "../")])
+async def test_quick_routines_reject_an_unassociated_robot_or_invalid_floor(robot, map_id):
+    from custom_components.roomba_home.core.capabilities import DeviceCapabilities
+    from custom_components.roomba_home.core.maps import PersistentMap
+
+    http = FakeHttp(login_responses())
+    with pytest.raises(ProtocolError, match="associated map"):
+        await client(http).map_quick_routines(
+            robot, PersistentMap(map_id, "current", None, ()), DeviceCapabilities()
+        )
+    assert len(http.calls) == 3
+
+
 async def test_cloud_schedule_requests_are_signed_and_share_household_lookup():
     http = FakeHttp(
         login_responses()
@@ -613,7 +986,7 @@ def created_schedule_fixture():
         (CleaningRegion("room-test", RegionKind.ROOM, None),),
         (CleaningProfile(suction_level=1, two_pass=False),),
     )
-    options = new_weekly_schedule(
+    options = new_cleaning_schedule(
         "robot-fixture", "New schedule", {"day": [1, 3], "hour": 8, "min": 15}, area
     )
     document = fixture_weekly_schedules()
@@ -628,7 +1001,7 @@ async def test_create_disabled_weekly_schedule_is_confirmed_with_provider_owned_
 ):
     target, options, created = created_schedule_fixture
     http = schedule_http(HttpResponse(200, {}), HttpResponse(200, created))
-    result = await client(http).create_weekly_schedule(
+    result = await client(http).create_cleaning_schedule(
         "robot-fixture", "New schedule", [3, 1], "08:15:00", target
     )
     assert result == {
@@ -636,6 +1009,17 @@ async def test_create_disabled_weekly_schedule_is_confirmed_with_provider_owned_
         "enabled": False,
         "name": "New schedule",
         "regions": ["map-fixture:rid:room-test"],
+        "region_settings": [
+            {
+                "id": "map-fixture:rid:room-test",
+                "mode": "vacuum",
+                "suction_level": 1,
+                "wetness_level": None,
+                "two_pass": False,
+                "smart_scrub": None,
+                "carpet_boost": None,
+            }
+        ],
         "weekdays": (1, 3),
         "time": "08:15",
     }
@@ -647,7 +1031,7 @@ async def test_create_disabled_weekly_schedule_is_confirmed_with_provider_owned_
 async def test_resubmitting_the_same_disabled_schedule_only_reads(created_schedule_fixture):
     target, _, existing = created_schedule_fixture
     http = schedule_http(document=existing)
-    result = await client(http).create_weekly_schedule(
+    result = await client(http).create_cleaning_schedule(
         "robot-fixture", "New schedule", [1, 3], "08:15", target
     )
     assert result["id"] == "fixture.group:fixture.item" and len(http.calls) == 5
@@ -660,7 +1044,7 @@ async def test_multiple_exact_matches_do_not_create_another_schedule(created_sch
     )
     http = schedule_http(document=existing)
     with pytest.raises(ScheduleNotEditable, match="more than one"):
-        await client(http).create_weekly_schedule(
+        await client(http).create_cleaning_schedule(
             "robot-fixture", "New schedule", [1, 3], "08:15", target
         )
     assert len(http.calls) == 5
@@ -671,7 +1055,7 @@ async def test_remove_only_the_selected_robot_schedule_and_confirm_absence():
     http = schedule_http(
         HttpResponse(200, None), HttpResponse(200, {"household_schedules": []}), document=existing
     )
-    response = await client(http).remove_weekly_schedule(
+    response = await client(http).remove_cleaning_schedule(
         "robot-fixture", "fixture.group:fixture.item"
     )
     assert response == {"id": "fixture.group:fixture.item", "removed": True}
@@ -686,7 +1070,7 @@ async def test_remove_only_the_selected_robot_schedule_and_confirm_absence():
 async def test_remove_rejects_unknown_or_foreign_schedule_before_writing():
     http = schedule_http(document=fixture_weekly_schedules(robot="foreign-robot"))
     with pytest.raises(ScheduleNotEditable):
-        await client(http).remove_weekly_schedule("robot-fixture", "fixture.group:fixture.item")
+        await client(http).remove_cleaning_schedule("robot-fixture", "fixture.group:fixture.item")
     assert len(http.calls) == 5
 
 
@@ -698,13 +1082,13 @@ async def test_uncertain_removal_does_not_repeat_the_delete():
         patch("custom_components.roomba_home.core.client.asyncio.sleep", new=AsyncMock()),
         pytest.raises(ScheduleUpdateUnconfirmed),
     ):
-        await client(http).remove_weekly_schedule("robot-fixture", "fixture.group:fixture.item")
+        await client(http).remove_cleaning_schedule("robot-fixture", "fixture.group:fixture.item")
     assert [row[0] for row in http.calls].count("DELETE") == 1
 
 
 async def test_list_editable_weekly_schedules_returns_only_local_selection_fields():
     http = schedule_http()
-    [schedule] = await client(http).list_weekly_schedules("robot-fixture")
+    [schedule] = await client(http).list_cleaning_schedules("robot-fixture")
     assert schedule == {
         "id": "fixture.group:fixture.item",
         "name": "Example schedule",
@@ -713,6 +1097,27 @@ async def test_list_editable_weekly_schedules_returns_only_local_selection_field
         "weekdays": (1, 3),
         "time": "08:15",
     }
+
+
+async def test_once_schedule_update_preserves_native_command_and_enabled_state():
+    before = fixture_weekly_schedules(enabled=True)
+    options = before["household_schedules"][0]["schedules"][0]["options"]
+    options["commands"][0]["command"].pop("robot_id")
+    after = fixture_weekly_schedules(enabled=True)
+    updated = after["household_schedules"][0]["schedules"][0]["options"]
+    updated.update(
+        frequency="ONCE",
+        start={"day": [3], "hour": 22, "min": 39},
+        commands=options["commands"],
+    )
+    http = schedule_http(HttpResponse(200, {}), HttpResponse(200, after), document=before)
+    result = await client(http).update_cleaning_schedule(
+        "robot-fixture", "fixture.group:fixture.item", [3], "22:39", frequency="once"
+    )
+    assert result["frequency"] == "once" and result["weekday"] == 3
+    assert result["enabled"] is True
+    [put] = [row for row in http.calls if row[0] == "PUT"]
+    assert json.loads(put[3]) == {"schedules": after["household_schedules"][0]["schedules"]}
 
 
 @pytest.mark.parametrize(
@@ -732,7 +1137,7 @@ async def test_weekly_schedule_reports_unresolved_map_dependencies(overrides):
     document = fixture_weekly_schedules()
     options = document["household_schedules"][0]["schedules"][0]["options"]
     options["commands"][0]["command"].update(overrides)
-    [schedule] = await client(schedule_http(document=document)).list_weekly_schedules(
+    [schedule] = await client(schedule_http(document=document)).list_cleaning_schedules(
         "robot-fixture"
     )
     assert schedule["regions"] is None
@@ -742,14 +1147,14 @@ async def test_weekly_schedule_reports_unresolved_map_dependencies(overrides):
 async def test_schedule_action_requires_one_associated_household(households):
     http = schedule_http(households=households)
     with pytest.raises(ScheduleNotEditable, match="unique household"):
-        await client(http).list_weekly_schedules("robot-fixture")
+        await client(http).list_cleaning_schedules("robot-fixture")
     assert len(http.calls) == 4
 
 
 async def test_foreign_robot_cannot_access_schedule_actions():
     http = schedule_http()
     with pytest.raises(ScheduleNotEditable, match="not associated"):
-        await client(http).list_weekly_schedules("other-robot")
+        await client(http).list_cleaning_schedules("other-robot")
     assert len(http.calls) == 3
 
 
@@ -763,7 +1168,7 @@ async def test_schedule_update_converges_without_republishing(first_response):
         HttpResponse(200, fixture_weekly_schedules(hour=9)),
     )
     with patch("custom_components.roomba_home.core.client.asyncio.sleep", new=AsyncMock()):
-        result = await client(http).update_weekly_schedule(
+        result = await client(http).update_cleaning_schedule(
             "robot-fixture", "fixture.group:fixture.item", [3, 1], "09:15:00"
         )
     assert result["time"] == "09:15" and result["enabled"] is False
@@ -777,7 +1182,7 @@ async def test_schedule_update_converges_without_republishing(first_response):
 
 async def test_retrying_an_already_applied_schedule_is_read_only():
     http = schedule_http()
-    result = await client(http).update_weekly_schedule(
+    result = await client(http).update_cleaning_schedule(
         "robot-fixture", "fixture.group:fixture.item", [3, 1], "08:15"
     )
     assert result["weekdays"] == (1, 3)
@@ -788,7 +1193,7 @@ async def test_weekly_enable_preserves_start_and_native_command():
     http = schedule_http(
         HttpResponse(200, {}), HttpResponse(200, fixture_weekly_schedules(enabled=True))
     )
-    result = await client(http).set_weekly_schedule_enabled(
+    result = await client(http).set_cleaning_schedule_enabled(
         "robot-fixture", "fixture.group:fixture.item", True
     )
     assert result["enabled"] is True and result["time"] == "08:15"
@@ -798,9 +1203,152 @@ async def test_weekly_enable_preserves_start_and_native_command():
     }
 
 
+@pytest.mark.parametrize("explicit_selection", [False, True])
+async def test_schedule_settings_update_preserves_next_start_and_applies_region_order(
+    created_schedule_fixture, explicit_selection
+):
+    target, _, before = created_schedule_fixture
+    options = before["household_schedules"][0]["schedules"][0]["options"]
+    options.update(enabled=True, frequency="ONCE", start={"day": [2], "hour": 14, "min": 30})
+    if explicit_selection:
+        options["commands"][0]["command"]["select_all"] = False
+    selection = replace(
+        target,
+        version_id="current-revision",
+        regions=(CleaningRegion("second", RegionKind.ZONE, None), target.regions[0]),
+        profiles=(CleaningProfile(CleaningMode.MOP, wetness_level=2), target.profiles[0]),
+    )
+    after = deepcopy(before)
+    new_options = after["household_schedules"][0]["schedules"][0]["options"]
+    command = new_options["commands"][0]["command"]
+    command["user_p2mapv_id"] = "current-revision"
+    command["regions"].insert(
+        0,
+        {
+            "region_id": "second",
+            "type": "zid",
+            "params": {"operatingMode": 4, "padWetness": {"padPlate": 2}},
+        },
+    )
+    new_options["name"] = "Revised schedule"
+    http = schedule_http(HttpResponse(200, None), HttpResponse(200, after), document=before)
+    result = await client(http).update_cleaning_schedule(
+        "robot-fixture", "fixture.group:fixture.item", name="Revised schedule", target=selection
+    )
+    assert result["frequency"] == "once" and result["weekday"] == 2 and result["enabled"] is True
+    assert [area["mode"] for area in result["region_settings"]] == ["mop", "vacuum"]
+    [put] = [request for request in http.calls if request[0] == "PUT"]
+    assert json.loads(put[3]) == {"schedules": after["household_schedules"][0]["schedules"]}
+
+
+async def test_schedule_recovery_rejects_selection_changed_after_preview(created_schedule_fixture):
+    target, _, document = created_schedule_fixture
+    http = schedule_http(document=document)
+    with pytest.raises(ProgramSelectionChanged):
+        await client(http).update_cleaning_schedule(
+            "robot-fixture",
+            "fixture.group:fixture.item",
+            target=target,
+            expected_selection=([{"id": "floor:zid:101", "mode": "mop"}], True),
+        )
+    assert all(row[0] != "PUT" for row in http.calls)
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"unexpected": 1},
+        {"ordered": True},
+        {"ordered": 0},
+        {"select_all": True},
+        {"params": {"routine_modified": 1}},
+        {"params": {"routine_modified": False}},
+        {"user_p2mapv_id": []},
+        {"regions": [{"region_id": "room", "type": "rid", "params": {"unknown": 1}}]},
+        {"regions": [{"region_id": "room", "type": "rid", "params": {"operatingMode": 2}}] * 2},
+        {
+            "regions": [
+                {"region_id": f"room-{i}", "type": "rid", "params": {"operatingMode": 2}}
+                for i in range(33)
+            ]
+        },
+        None,
+    ],
+)
+async def test_schedule_keeps_recognized_timing_when_cleaning_parameters_are_unsupported(
+    created_schedule_fixture, override
+):
+    target, _, document = created_schedule_fixture
+    options = document["household_schedules"][0]["schedules"][0]["options"]
+    if override is None:
+        options["commands"][0]["unsupported_wrapper"] = True
+    else:
+        options["commands"][0]["command"].update(override)
+    [result] = await client(schedule_http(document=document)).list_cleaning_schedules(
+        "robot-fixture"
+    )
+    assert result["time"] == "08:15" and "region_settings" not in result
+    http = schedule_http(document=document)
+    with pytest.raises(ValueError, match="preferences are not supported"):
+        await client(http).update_cleaning_schedule(
+            "robot-fixture", "fixture.group:fixture.item", target=target
+        )
+    assert all(request[0] != "PUT" for request in http.calls)
+
+
+@pytest.mark.parametrize(
+    "override, editable",
+    [
+        ({}, True),
+        ({"params": {"unknown": True}}, False),
+        ({"initiator": "unknown"}, False),
+        ({"time": True}, False),
+        ({"time": 0}, False),
+        ({"frequency": "WEEKLY"}, False),
+        ({"regional": {"operatingMode": 2}}, True),
+        ({"regional": {"operatingMode": 4}}, True),
+    ],
+)
+async def test_native_timed_once_schedule_preserves_inactive_mop_preferences(
+    created_schedule_fixture,
+    override,
+    editable,
+):
+    _, _, document = created_schedule_fixture
+    options = document["household_schedules"][0]["schedules"][0]["options"]
+    options.update(
+        frequency=override.get("frequency", "ONCE"), start={"day": [2], "hour": 7, "min": 30}
+    )
+    command = options["commands"][0]["command"]
+    command.pop("robot_id")
+    command.update(
+        initiator=override.get("initiator", "rmtApp"),
+        time=override.get("time", 12),
+        params=override.get("params", {}),
+    )
+    command["regions"][0]["params"] = override.get(
+        "regional",
+        {
+            "operatingMode": 2,
+            "suctionLevel": 2,
+            "twoPass": False,
+            "carpetBoost": False,
+            "padWetness": {"padPlate": 1},
+            "swScrub": 0,
+        },
+    )
+    [result] = await client(schedule_http(document=document)).list_cleaning_schedules(
+        "robot-fixture"
+    )
+    assert result["time"] == "07:30" and ("region_settings" in result) == editable
+    if not override:
+        [area] = result["region_settings"]
+        assert (area["mode"], area["wetness_level"], area["smart_scrub"]) == ("vacuum", 1, False)
+
+
 async def test_weekly_disable_is_idempotent():
     http = schedule_http()
-    result = await client(http).set_weekly_schedule_enabled(
+    result = await client(http).set_cleaning_schedule_enabled(
         "robot-fixture", "fixture.group:fixture.item", False
     )
     assert result["enabled"] is False and len(http.calls) == 5
@@ -810,7 +1358,7 @@ async def test_weekly_disable_is_idempotent():
 async def test_weekly_activation_requires_an_explicit_boolean(value):
     http = FakeHttp([])
     with pytest.raises(ValueError, match="explicit enabled"):
-        await client(http).set_weekly_schedule_enabled(
+        await client(http).set_cleaning_schedule_enabled(
             "robot-fixture", "fixture.group:fixture.item", value
         )
     assert not http.calls
@@ -819,7 +1367,7 @@ async def test_weekly_activation_requires_an_explicit_boolean(value):
 async def test_schedule_id_must_resolve_in_fresh_household_read():
     http = schedule_http()
     with pytest.raises(ScheduleNotEditable):
-        await client(http).update_weekly_schedule("robot-fixture", "old:group", [3], "08:15")
+        await client(http).update_cleaning_schedule("robot-fixture", "old:group", [3], "08:15")
     assert len(http.calls) == 5
 
 
@@ -827,7 +1375,7 @@ async def test_schedule_id_must_resolve_in_fresh_household_read():
 async def test_rejected_schedule_write_is_not_retried(bad_status):
     http = schedule_http(HttpResponse(bad_status, {}))
     with pytest.raises(ApiError) as error:
-        await client(http).update_weekly_schedule(
+        await client(http).update_cleaning_schedule(
             "robot-fixture", "fixture.group:fixture.item", [1, 3], "09:15"
         )
     assert error.value.status == bad_status
@@ -849,7 +1397,7 @@ async def test_unconfirmed_schedule_write_never_repeats_its_mutation():
         patch("custom_components.roomba_home.core.client.asyncio.sleep", new=AsyncMock()),
         pytest.raises(ScheduleUpdateUnconfirmed),
     ):
-        await client(http).update_weekly_schedule(
+        await client(http).update_cleaning_schedule(
             "robot-fixture", "fixture.group:fixture.item", [1, 3], "09:15"
         )
     assert [row[0] for row in http.calls].count("PUT") == 1
@@ -858,7 +1406,7 @@ async def test_unconfirmed_schedule_write_never_repeats_its_mutation():
 async def test_rate_limited_confirmation_notifies_caller_after_one_attempt():
     http = schedule_http(HttpResponse(200, {}), HttpResponse(429, {}, {"Retry-After": "35"}))
     with pytest.raises(RateLimited) as error:
-        await client(http).update_weekly_schedule(
+        await client(http).update_cleaning_schedule(
             "robot-fixture", "fixture.group:fixture.item", [1, 3], "09:15"
         )
     assert error.value.retry_after == 35
@@ -996,6 +1544,7 @@ def test_only_supported_region_identifiers_appear_in_routine_list(region):
         lambda command: command["regions"].append(command["regions"][0]),
         lambda command: command.update(select_all=True),
         lambda command: command.update(ordered=0),
+        lambda command: command.update(user_p2mapv_id=".."),
         lambda command: command.update(params={"preset": "auto"}),
         lambda command: command["regions"][0].update(metadata={}),
         lambda command: command["regions"][0].update(params=[]),
@@ -1010,6 +1559,192 @@ def test_visual_routine_requires_a_lossless_region_projection(change):
     response = cleaning_routines([original], ROUTINE_ROBOT)[ROUTINE_ID].action_response()
     assert response["editable"] is True
     assert response["region_settings"] is None
+
+
+@pytest.mark.parametrize("timed", [True, False])
+def test_visual_routine_recovers_native_single_area_settings(timed):
+    original = provider_routine()
+    command = original["commanddefs"][0]
+    if timed:
+        del command["ordered"], command["select_all"]
+        command.update(initiator="rmtApp", time=1)
+    else:
+        command["params"] = {"profile": "normal"}
+    command["regions"][0]["params"] = {
+        "operatingMode": 6,
+        "suctionLevel": 4,
+        "padWetness": {"padPlate": 3},
+        "twoPass": True,
+        "swScrub": 0,
+    }
+    row = cleaning_routines([original], ROUTINE_ROBOT)[ROUTINE_ID]
+    assert row.action_response()["region_settings"] == [
+        {
+            "id": "floor:rid:fixture-room",
+            "mode": "vacuum_mop",
+            "suction_level": 4,
+            "wetness_level": 3,
+            "two_pass": True,
+            "smart_scrub": False,
+            "carpet_boost": None,
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "flag", [{}, {"routine_modified": True}, {"routine_modified": False}, {"routine_modified": 1}]
+)
+def test_visual_routine_extracts_native_sequential_mode_without_edit_marker(flag):
+    original = provider_routine()
+    command = original["commanddefs"][0]
+    del command["ordered"], command["select_all"]
+    command.update(initiator="rmtApp", time=1)
+    command["regions"][0]["params"] = {
+        "operatingMode": 512,
+        "suctionLevel": 4,
+        "padWetness": {"padPlate": 3},
+        "swScrub": 0,
+        "twoPass": True,
+        **flag,
+    }
+    response = cleaning_routines([original], ROUTINE_ROBOT)[ROUTINE_ID].action_response()
+    if flag.get("routine_modified", True) is not True:
+        assert response["region_settings"] is None
+    else:
+        (settings,) = response["region_settings"]
+        assert (settings["mode"], settings["suction_level"], settings["wetness_level"]) == (
+            "vacuum_then_mop",
+            4,
+            3,
+        )
+
+
+@pytest.mark.parametrize(
+    ("timed", "change"),
+    [
+        (True, {"time": True}),
+        (True, {"time": 0}),
+        (True, {"initiator": "cloud"}),
+        (True, {"extra": None}),
+        (True, {"params": []}),
+        (
+            True,
+            {
+                "regions": [
+                    {"region_id": region, "type": "rid", "params": {"operatingMode": 2}}
+                    for region in ("room-1", "room-2")
+                ]
+            },
+        ),
+        (False, {"ordered": True}),
+        (False, {"select_all": True}),
+        (False, {"params": {"profile": "normal", "extra": None}}),
+        (False, {"params": {"profile": "smart"}}),
+    ],
+)
+def test_visual_routine_does_not_assume_additional_native_command_semantics(timed, change):
+    original = provider_routine()
+    command = original["commanddefs"][0]
+    if timed:
+        del command["ordered"], command["select_all"]
+        command.update(initiator="rmtApp", time=1)
+    else:
+        command["params"] = {"profile": "normal"}
+    command.update(change)
+    row = cleaning_routines([original], ROUTINE_ROBOT)[ROUTINE_ID]
+    assert row.action_response()["region_settings"] is None
+
+
+@pytest.mark.parametrize("shape", ["tagged", "replay", "edited replay", "timed", "versionless"])
+def test_visual_routine_recovers_native_multi_area_favorites(shape):
+    original = provider_routine()
+    command = original["commanddefs"][0]
+    command["regions"] = [
+        {"region_id": "room-2", "type": "rid", "params": {"operatingMode": 2, "suctionLevel": 1}},
+        {"region_id": "room-1", "type": "rid", "params": {"operatingMode": 2, "suctionLevel": 3}},
+    ]
+    if shape == "versionless":
+        del command["user_p2mapv_id"], command["select_all"]
+        command.update(initiator="rmtApp", time=1)
+        command["regions"][0]["params"]["swScrub"] = 0
+    elif shape == "timed":
+        del command["ordered"], command["select_all"]
+        command.update(initiator="rmtApp", time=1, params={"operatingMode": 2, "twoPass": False})
+    else:
+        command["params"] = {"profile": "normal"}
+        if shape in ("replay", "edited replay"):
+            command["params"].update(routine_type="REPLAY", replay_of="fixture-replay")
+        if shape == "edited replay":
+            command["params"]["routine_modified"] = True
+    row = cleaning_routines([original], ROUTINE_ROBOT)[ROUTINE_ID].action_response()
+    assert row.get("ordered", True) == (shape != "timed")
+    assert row["regions"] == ["floor:rid:room-2", "floor:rid:room-1"]
+    assert [profile["suction_level"] for profile in row["region_settings"]] == [1, 3]
+    assert all(profile["smart_scrub"] is None for profile in row["region_settings"])
+    if shape == "timed":
+        assert all(profile["two_pass"] is False for profile in row["region_settings"])
+    assert "replay_of" not in row and "fixture-replay" not in str(row)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"profile": "smart"},
+        {"replay_of": []},
+        {"routine_modified": False},
+        {"extra": 1},
+    ],
+)
+def test_native_replay_rejects_an_unknown_scope_or_preference(changes):
+    original = provider_routine()
+    command = original["commanddefs"][0]
+    command["params"] = {"routine_type": "REPLAY", "replay_of": "fixture-replay"} | changes
+    row = cleaning_routines([original], ROUTINE_ROBOT)[ROUTINE_ID].action_response()
+    assert row["region_settings"] is None
+
+
+def test_unordered_saved_routine_persists_concrete_profiles_and_matches_across_timestamps():
+    target = replace(ROUTINE_TARGET, ordered=False)
+    with pytest.raises(ValueError, match="positive timestamp"):
+        routine_command(ROUTINE_ROBOT, target)
+    command = routine_command(ROUTINE_ROBOT, target, 12)
+    assert "ordered" not in command and command["params"] == {}
+    original = provider_routine() | {"commanddefs": [command]}
+    row = cleaning_routines([original], ROUTINE_ROBOT)[ROUTINE_ID]
+    assert row.action_response()["ordered"] is False
+    assert routine_matches(row, row.name, command | {"time": 20}, regenerated=True)
+    assert not routine_matches(row, row.name, command | {"ordered": 1}, regenerated=True)
+
+
+@pytest.mark.parametrize(
+    ("confidence", "expected"), [("GOOD_CONFIDENCE", "good"), ("OTHER", None), ([], None)]
+)
+def test_saved_routine_preserves_provider_estimate_and_known_confidence(confidence, expected):
+    original = provider_routine(
+        time_estimates=[{"unit": "minute", "estimate": 57.4833, "confidence": confidence}]
+    )
+    row = cleaning_routines([original], ROUTINE_ROBOT)[ROUTINE_ID]
+    assert row.action_response()["estimate"] == {
+        "duration_minutes": 57.4833,
+        "confidence": expected,
+    }
+
+
+@pytest.mark.parametrize(
+    "estimates",
+    [
+        None,
+        [],
+        [None],
+        [{"unit": "second", "estimate": 3}],
+        [{"unit": "minute", "estimate": True}],
+        [{"unit": "minute", "estimate": float("nan")}],
+        [{"unit": "minute", "estimate": 1}, {"unit": "minute", "estimate": 2}],
+    ],
+)
+def test_saved_routine_omits_unavailable_or_ambiguous_estimate(estimates):
+    row = cleaning_routines([provider_routine(time_estimates=estimates)], ROUTINE_ROBOT)[ROUTINE_ID]
+    assert "estimate" not in row.action_response()
 
 
 def test_visual_routine_exposes_saved_combined_settings():
@@ -1131,6 +1866,19 @@ async def test_favorite_update_keeps_provider_metadata_and_verifies_changes(chan
     assert body["version"] == "fixture-metadata"
     assert "app_edition" not in body
     assert ("time_estimates" in body) is not change_targets
+
+
+async def test_routine_recovery_rejects_selection_changed_after_preview():
+    http = FakeHttp(login_responses() + [HttpResponse(200, [provider_routine()])])
+    with pytest.raises(ProgramSelectionChanged):
+        await client(http).update_cleaning_routine(
+            ROUTINE_ROBOT,
+            ROUTINE_ID,
+            None,
+            ROUTINE_TARGET,
+            expected_selection=([{"id": "floor:zid:100", "mode": "mop"}], True),
+        )
+    assert all(row[0] != "PUT" for row in http.calls)
 
 
 async def test_routine_reads_and_removals_reject_foreign_and_default_items():
