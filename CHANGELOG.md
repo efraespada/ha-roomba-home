@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Pause an active Max 700 Combo cleaning before returning to the dock.
+  Home Assistant confirms arrival.
 - Add a confirmed **Clean everywhere** action to start an untargeted
   cleaning mission using the next-cleaning preferences.
 - Copy a supported routine selection into a new disabled schedule, keeping

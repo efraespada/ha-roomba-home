@@ -454,7 +454,12 @@ version and regions verified at today's reading.
 
 The cycle ended at the dock with no misstatement. The normalised sequence is at [public evidence without identities](evidence/2026-11-23-control.json). The start and final status were also contrasted with an emulator's app.
 
-`MqttCommandSender` returns a transport receipt that `physical_result` It's `unconfirmed`: A PUBACK does not show performance. Coordinator HA adds status check. Canceling and returning to the dock are separate operations. The initial cycle did not validate a sum, fringes and zones or all the contexts of each order. Consultation [the command SDD](../specs/004-command-validation.md).
+`MqttCommandSender` returns a transport receipt with
+`physical_result=unconfirmed`. The Home Assistant coordinator checks the
+reported state. On the Max 700 Combo, a return from active cleaning sends
+`pause` and waits for the same mission to pause before publishing `dock`.
+It confirms arrival at `charge / none`. Each command is published once.
+[Command SDD](../specs/004-command-validation.md)
 
 ### Extension of 0.3.0
 

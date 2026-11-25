@@ -1,5 +1,22 @@
 # Roomba Home validation
 
+## Return during active cleaning
+
+A Max 700 Combo ignored a direct `dock` while actively vacuuming.
+A second physical trial confirmed that `pause` kept the same mission,
+then `dock` produced `hmUsrDock / dock` and reached `charge / none` with
+error code 0. A fresh provider read confirmed the original rooms, zones,
+restrictions, routines, and schedules.
+
+The Home Assistant control tests cover the staged return, a changed or
+unidentified mission, connectivity loss, already paused and returning
+states, and unloading during the action. An isolated Home Assistant
+integration verified one `vacuum.return_to_base` action on the physical
+robot. Roomba reported active cleaning, pause, return, and arrival. The
+action returned `confirmed` at the dock with error code 0, and the
+provider read again found the original map and programs.
+[Anonymized return evidence](evidence/2026-11-26-return-during-cleaning.json)
+
 ## Whole-area and directed cleaning scope
 
 A signed Max 700 Combo suggestion contained `CLEAN_ALL`, the associated

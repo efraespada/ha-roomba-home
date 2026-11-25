@@ -61,6 +61,10 @@ same mission confirms the result.
 - CMD-05: errors and output MUST omit private destination, tokens and original payloads.
 - CMD-06: A skip MUST use a fresh, scoped destination. Confirm it with a new
   matching event in the same mission and reject a changed review before dispatch.
+- CMD-07: On the Max 700 Combo, a return during active cleaning MUST wait
+  for the same mission to pause before publishing `dock`. Confirm arrival
+  from robot state. If the robot starts returning while the pause is
+  pending, observe the return without publishing a second command.
 
 It does not include reset, clear maps and fringes. Retirement changes have been added to
 them by area planning or cleanup as an integral part of the system's production operations
@@ -96,9 +100,11 @@ independent reading of result. A receipt doesn't advance the last step.
 Physical tests read the robot state before and after each command. Pause
 keeps the current mission active. Cancel ends it. In a whole-area Max 700
 Combo trial, a direct return during active vacuuming left the robot
-cleaning. Cancel produced an idle state. A subsequent return reached the
-dock and cleared the mission cycle with error code 0.
-[Whole-area trial](../docs/validation.md#whole-area-and-directed-cleaning-scope)
+cleaning. In a subsequent trial, pause followed by return reached the
+dock and cleared the mission cycle with error code 0. The Home Assistant
+use case requires fresh, connected telemetry and the same mission
+identity before proceeding from pause to dock.
+[Return trial](../docs/validation.md#return-during-active-cleaning)
 
 ## 7. User-facing configuration
 
@@ -158,8 +164,9 @@ they aren't hidden under an effective transport result.
 ## 13. Compatibility, migration, rollout, and rollback
 
 On SKU X185240, physical trials verified whole-area vacuuming from the
-dock, pausing, cancelling, and returning after cancellation. A direct
-return during active vacuuming remains unconfirmed. Check the reported
+dock, pausing, cancelling, and returning after pause or cancellation.
+The staged behavior applies to active cleaning outside mapping and
+mop preparation. Check the reported
 robot state after a timeout because the command may already have been
 published.
 
@@ -209,6 +216,7 @@ The [Contents](../docs/index.md) links reference and research boundaries.
 | CMD-04 | CommandReceipt | Non-physical receipt test | docs / architecture.md |
 | CMD-05 | CLI and errors | Privacy and Inspection Tests | docs / validation.md |
 | CMD-06 | Mission command policy and live timeline projection | Fresh and stale reviews, one send, matched skip, and a physical transition to the next area | [Skip validation](../docs/validation.md#skip-the-current-destination) |
+| CMD-07 | Return-to-base use case | [Control policy tests](../tests/test_application.py) and [Home Assistant service tests](../tests/ha/test_cleaning_controls.py) | [Return validation](../docs/validation.md#return-during-active-cleaning) |
 
 ## 18. Implementation sequence
 

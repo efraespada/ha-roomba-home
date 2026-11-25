@@ -322,6 +322,85 @@ async def test_other_control_transitions_use_one_publication(command, initial, f
     assert port.statuses == ["pending", "confirmed"]
 
 
+RETURN_RUNNING = replace(RUNNING, pause_before_return=True, mission_identity=MISSION_IDENTITY)
+RETURN_PAUSED = replace(RETURN_RUNNING, activity="paused")
+RETURN_TRAVEL = replace(RETURN_RUNNING, activity="returning")
+
+
+async def test_return_waits_for_pause_and_reports_success_only_at_the_dock():
+    port = Port(RETURN_RUNNING, RETURN_RUNNING, RETURN_PAUSED, RETURN_TRAVEL, BASE)
+    await execute_control(port, Command.DOCK, CleaningProfile())
+    assert port.sent == [(Command.PAUSE, None), (Command.DOCK, None)]
+    assert port.statuses == ["pending", "confirmed"]
+    assert port.now == 20
+
+
+@pytest.mark.parametrize(
+    "initial",
+    [
+        RETURN_PAUSED,
+        replace(RETURN_RUNNING, pause_before_return=False),
+        replace(RETURN_RUNNING, mapping=True),
+        replace(RETURN_RUNNING, preparing_mop=True),
+        replace(RETURN_RUNNING, mission_active=None),
+    ],
+)
+async def test_return_sends_only_dock_outside_the_verified_running_cleaning_state(initial):
+    port = Port(initial, BASE)
+    await execute_control(port, Command.DOCK, CleaningProfile())
+    assert port.sent == [(Command.DOCK, None)]
+
+
+@pytest.mark.parametrize("intermediate", [RETURN_TRAVEL, BASE])
+async def test_return_observes_arrival_if_the_robot_starts_docking_on_its_own(intermediate):
+    port = Port(RETURN_RUNNING, intermediate, BASE)
+    await execute_control(port, Command.DOCK, CleaningProfile())
+    assert port.sent == [(Command.PAUSE, None)]
+    assert port.statuses == ["pending", "confirmed"]
+
+
+@pytest.mark.parametrize(
+    "intermediate",
+    [
+        RETURN_RUNNING,
+        replace(RETURN_PAUSED, connected=False),
+        replace(RETURN_PAUSED, mission_identity=None),
+        replace(RETURN_PAUSED, mission_identity=(11, MISSION_IDENTITY[1])),
+        replace(RETURN_PAUSED, docking=None),
+        replace(RETURN_RUNNING, activity="error"),
+    ],
+)
+async def test_return_never_sends_dock_until_the_same_mission_is_paused(intermediate):
+    port = Port(RETURN_RUNNING, intermediate)
+    with pytest.raises(ControlError, match="command_unconfirmed"):
+        await execute_control(port, Command.DOCK, CleaningProfile())
+    assert port.sent == [(Command.PAUSE, None)]
+    assert port.statuses == ["pending", "unconfirmed"]
+
+
+async def test_return_leaves_an_unidentified_cleaning_mission_alone():
+    port = Port(replace(RETURN_RUNNING, mission_identity=None))
+    with pytest.raises(ControlError, match="command_unconfirmed"):
+        await execute_control(port, Command.DOCK, CleaningProfile())
+    assert not port.sent
+    assert port.statuses == ["pending", "unconfirmed"]
+
+
+async def test_return_does_not_send_dock_if_the_integration_unloads_after_pause():
+    class ClosingPort(Port):
+        async def refresh(self):
+            state = await super().refresh()
+            if state is RETURN_PAUSED:
+                self.active = False
+            return state
+
+    port = ClosingPort(RETURN_RUNNING, RETURN_PAUSED)
+    with pytest.raises(ControlError, match="command_unconfirmed"):
+        await execute_control(port, Command.DOCK, CleaningProfile())
+    assert port.sent == [(Command.PAUSE, None)]
+    assert port.statuses == ["pending", "unconfirmed"]
+
+
 async def test_start_on_paused_mission_resumes_existing_mode_without_next_profile():
     current = replace(PAUSED, mode=CleaningMode.MOP)
     port = Port(current, replace(current, activity="cleaning"))

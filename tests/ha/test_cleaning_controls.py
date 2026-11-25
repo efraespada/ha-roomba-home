@@ -151,6 +151,38 @@ async def test_clean_everywhere_uses_an_untargeted_command_and_confirms_start(ha
     assert loaded.command_status["fixture-0"] == "confirmed"
 
 
+async def test_return_to_base_pauses_the_supported_robot_before_docking(hass, loaded):
+    robot = loaded.data["fixture-0"]
+    cleaning = replace(
+        robot,
+        phase="run",
+        cycle="clean",
+        connected=True,
+        capabilities=replace(robot.capabilities, docking=True),
+        telemetry={
+            **robot.telemetry,
+            "mission_number": 10,
+            "mission_started": datetime.fromtimestamp(100, UTC),
+        },
+    )
+    paused = replace(cleaning, phase="stop")
+    docked = replace(cleaning, phase="charge", cycle="none")
+    states = [control_snapshot(state) for state in (cleaning, paused, docked)]
+    with (
+        patch.object(RobotControlAdapter, "refresh", side_effect=states),
+        patch.object(RobotControlAdapter, "wait"),
+        patch.object(RobotControlAdapter, "send", autospec=True) as send,
+    ):
+        await hass.services.async_call(
+            "vacuum", "return_to_base", {"entity_id": "vacuum.robot_0"}, blocking=True
+        )
+    assert [(call.args[0].robot_id, call.args[1]) for call in send.await_args_list] == [
+        ("fixture-0", Command.PAUSE),
+        ("fixture-0", Command.DOCK),
+    ]
+    assert loaded.command_status["fixture-0"] == "confirmed"
+
+
 async def test_maintenance_reset_action_requires_a_supported_part_and_confirmation(hass, loaded):
     loaded.async_reset_maintenance_counter = AsyncMock()
     target = {"entity_id": "vacuum.robot_0"}

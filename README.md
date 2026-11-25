@@ -31,7 +31,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
 ## Features
 
 - **Robot and dock controls.** Start, pause, resume, cancel, or return to the
-  dock. Select vacuuming, mopping, simultaneous cleaning, or sequential
+  dock. Returning from active cleaning pauses the Max 700 Combo first.
+  Select vacuuming, mopping, simultaneous cleaning, or sequential
   vacuuming and mopping where available. Supported models expose suction,
   mop wetness, SmartScrub, passes, carpet boost, and manual dock actions.
   Skip the current destination when Roomba reports a supported mission.

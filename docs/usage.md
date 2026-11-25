@@ -276,13 +276,18 @@ required capabilities cease to be reported.
 | `roomba_home.clean_everywhere` | Starts a new untargeted cleaning with the next-cleaning profile after explicit confirmation. |
 | `vacuum.pause` | Pauses an active mission |
 | `vacuum.stop` | Cancels a mission |
-| `vacuum.return_to_base` | Requests return and checks arrival |
+| `vacuum.return_to_base` | Pauses active Max 700 Combo cleaning before sending the robot to the dock. Confirms arrival. |
 | `vacuum.set_fan_speed` | Saves the next-cleaning suction level |
 | `vacuum.locate` | Requests a sound when the robot supports it |
 | `vacuum.clean_area` | Cleans mapped regions linked to Home Assistant areas |
 
 Resuming preserves the current mission and mode. To change modes, cancel the
 current mission and start a new one with the desired profile.
+
+**Return to base** waits for the same cleaning mission to pause before
+asking the Max 700 Combo to dock. An already paused robot can return
+directly. If the robot starts returning while the pause is pending, Home
+Assistant observes the arrival. [Return validation](validation.md#return-during-active-cleaning)
 
 ### Clean everywhere
 

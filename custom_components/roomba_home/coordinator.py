@@ -2764,6 +2764,7 @@ def control_snapshot(state, timeline=None):
         skip_observation=timeline.skip_observation() if timeline is not None else None,
         mapping_supported=state.capabilities.persistent_maps is True,
         mapping=state.mapping is True,
+        pause_before_return=state.sku == SUPPORTED_SKU,
     )
 
 
