@@ -21,7 +21,8 @@ jobs:
         run: |
           ruff check custom_components tools tests scripts
           ruff format --check custom_components tools tests scripts
-          pytest --timeout=30 --cov=custom_components.roomba_home --cov-branch --cov-fail-under=100
+          # Home Assistant installs its HTTPX alias before other pytest plugins load.
+          pytest -p pytest_homeassistant --timeout=30 --cov=custom_components.roomba_home --cov-branch --cov-fail-under=100
           python scripts/check_privacy.py
           python scripts/validate_specs.py
           node --check custom_components/roomba_home/frontend/roomba-home-map-card.js
