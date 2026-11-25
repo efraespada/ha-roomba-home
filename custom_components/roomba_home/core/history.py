@@ -7,22 +7,13 @@ from hashlib import sha256
 from .errors import ProtocolError
 from .furniture_targets import furniture_links
 from .maps import PersistentMap, RegionKind, map_identifier
+from .mission_areas import REGION_TARGETS, ROOM_STATUSES, AreaResult, command_region_kind
+from .mission_plan import MissionPlan, mission_plan, present_mission_plan
 from .state import RobotState
 from .telemetry import CLEANING_CYCLES, at, convert, integer
 
 OUTCOMES = {"ok": "completed", "cncl": "cancelled", "inc": "incomplete", "stuck": "stuck"}
 MODES = {"vac": "vacuum", "mop": "mop", "vacmop": "vacuum_mop"}
-ROOM_STATUSES = {
-    0: "finished",
-    1: "finished_with_more_passes",
-    2: "partial_incomplete",
-    3: "partial_skipped",
-    4: "kidnapped",
-    5: "user_ended",
-    6: "robot_aborted",
-    7: "skipped",
-    8: "skipped_will_return",
-}
 HISTORY_COMMANDS = ("start", "spot", "point_clean")
 TIMELINE_EVENTS = frozenset(
     {
@@ -39,7 +30,6 @@ TIMELINE_EVENTS = frozenset(
         "error",
     }
 )
-REGION_TARGETS = {"rid": "rooms", "zid": "saved_zones", "tid": "temporary_zones"}
 HISTORY_TARGETS = (
     "whole_map",
     *REGION_TARGETS.values(),
@@ -58,17 +48,6 @@ EXTRA_HISTORY_FIELDS = {
     "last_mission_started_at_dock": ("dockedAtStart", "bool"),
     "last_mission_initiator": ("initiator", "initiator"),
 }
-
-
-@dataclass(frozen=True, repr=False)
-class AreaResult:
-    identity: tuple[str, str, str]
-    timestamp: int
-    status: int | None
-    area: int | None
-    total_area: int | None
-    pass_count: int | None
-    kind: str = "room"
 
 
 def _area_results(events: object, kind: str, field: str) -> tuple[AreaResult, ...]:
@@ -194,13 +173,6 @@ def _terminal_mission_error(row: dict) -> int | None:
     return max(candidates, default=(0, 0, None))[2]
 
 
-def command_region_kind(region: dict) -> str | None:
-    kind = region.get("type", region.get("region_type"))
-    if isinstance(kind, str) and kind in REGION_TARGETS and region.get("region_type", kind) == kind:
-        return kind
-    return None
-
-
 def _mission_target(command: dict) -> tuple[str | None, int | None]:
     match command.get("command"):
         case "point_clean":
@@ -208,10 +180,10 @@ def _mission_target(command: dict) -> tuple[str | None, int | None]:
         case "spot":
             return "local_spot", None
         case "start":
-            regions = command.get("regions", [])
+            regions = command.get("regions")
         case _:
             return None, None
-    if not isinstance(regions, list):
+    if regions is not None and not isinstance(regions, list):
         return None, None
     if not regions:
         if any(command.get(key) for key in ("favorite_id", "geom", "id_multipolys")):
@@ -325,6 +297,7 @@ class MissionReport:
     maps: tuple[tuple[str, str], ...]
     metrics: dict
     timeline: tuple[dict, ...]
+    plan: MissionPlan | None = None
 
     def summary(self) -> dict:
         started = self.metrics.get("last_mission_started")
@@ -341,7 +314,13 @@ class MissionReport:
             "map_count": len(self.maps),
         }
 
-    def detail(self, floors: tuple[PersistentMap, ...]) -> dict:
+    def detail(
+        self, floors: tuple[PersistentMap, ...], *, requested_floor: PersistentMap | None = None
+    ) -> dict:
+        rooms = self.metrics.get("last_mission_room_results", ())
+        zones = self.metrics.get("last_mission_zone_results", ())
+        archived = tuple(floor for floor in floors if (floor.map_id, floor.version_id) in self.maps)
+        label_floors = (requested_floor, *archived) if requested_floor is not None else archived
         return {
             "mission": self.summary(),
             "active_minutes": self.metrics.get("last_mission_active_duration"),
@@ -352,9 +331,16 @@ class MissionReport:
             "started_at_dock": self.metrics.get("last_mission_started_at_dock"),
             "initiator": self.metrics.get("last_mission_initiator"),
             "modes": self.metrics["last_mission_mode_statistics"],
-            "rooms": present_rooms(self.metrics.get("last_mission_room_results", ()), floors),
-            "zones": present_zones(self.metrics.get("last_mission_zone_results", ()), floors),
+            "rooms": present_rooms(rooms, floors),
+            "zones": present_zones(zones, floors),
             "timeline": self.timeline,
+            "plan": (
+                present_mission_plan(
+                    self.plan, (*rooms, *zones), (), None, label_floors, archived=True
+                )
+                if self.plan is not None
+                else None
+            ),
         }
 
 
@@ -409,6 +395,10 @@ def mission_reports(response: object, robot_id: str) -> tuple[MissionReport, ...
             identity = integer(row.get("nMssn"))
         key = sha256(f"{robot_id}:{identity}:{row['timestamp']}".encode()).hexdigest()
         reports[key] = MissionReport(
-            key, _report_maps(row), _mission_metrics(row), _report_timeline(row)
+            key,
+            _report_maps(row),
+            _mission_metrics(row),
+            _report_timeline(row),
+            mission_plan(row.get("cmd")),
         )
     return tuple(reports.values())

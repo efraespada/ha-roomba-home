@@ -1,5 +1,241 @@
 # Roomba Home validation
 
+## Version 0.63.0
+
+The release candidate passed 2,500 Python tests with 100% line and
+branch coverage and 57 card tests. Physical runs on a Max 700 Combo
+confirmed the whole-area start and the staged return in an isolated
+Home Assistant coordinator. Household installation and browser
+screenshots remain pending.
+
+## Return during active cleaning
+
+A Max 700 Combo ignored a direct `dock` while actively vacuuming.
+A second physical trial confirmed that `pause` kept the same mission,
+then `dock` produced `hmUsrDock / dock` and reached `charge / none` with
+error code 0. A fresh provider read confirmed the original rooms, zones,
+restrictions, routines, and schedules.
+
+The Home Assistant control tests cover the staged return, a changed or
+unidentified mission, connectivity loss, already paused and returning
+states, and unloading during the action. An isolated Home Assistant
+integration verified one `vacuum.return_to_base` action on the physical
+robot. Roomba reported active cleaning, pause, return, and arrival. The
+action returned `confirmed` at the dock with error code 0, and the
+provider read again found the original map and programs.
+[Anonymized return evidence](evidence/2026-11-26-return-during-cleaning.json)
+
+## Whole-area and directed cleaning scope
+
+A signed Max 700 Combo suggestion contained `CLEAN_ALL`, the associated
+floor, and no list of regions. The signed history contained one whole-area
+start with null map and region fields and 16 directed starts with a floor
+and destination list. The history projection now recognizes null regions
+in the whole-area record. An opaque favorite reference still requires
+destination evidence before the history can describe its scope.
+
+The Home Assistant harness confirmed that **Clean everywhere** requires
+explicit confirmation, uses the next-cleaning profile, and supplies no
+map target. A paused mission was rejected before publication. The
+availability tests cover a supported robot before its first saved map,
+active and paused missions, missing capability, connectivity, and entity
+control permission.
+
+Isolated Chrome verified the confirmation, cancellation, and service call
+at 358 and 900 pixels using a device fixture with no saved map.
+
+The Home Assistant action also started a new vacuuming mission on one
+physical Max 700 Combo. Roomba reported a new mission identity and
+entered its vacuuming phase. A direct return command during that run
+received no physical confirmation. Ending the trial mission first
+allowed the robot to return to its dock with error code 0. The signed
+report for this trial contained an untargeted `start`, which the
+integration classified as whole-area cleaning.
+
+The suite passed 2,483 Python tests with 100% line and branch coverage,
+57 card tests, and Home Assistant's integration validator.
+[Anonymized scope evidence](evidence/2026-11-26-whole-area-cleaning-scope.json)
+
+## Copying a routine into a schedule
+
+An isolated Home Assistant coordinator read a signed one-room routine
+from a Max 700 Combo and copied its explicit suction and two-pass settings
+into a disabled weekly schedule. A new provider read confirmed the same
+destination and profile, the requested days, and the disabled state. The
+routine was unchanged after copying. Both test entries were removed, and
+the original routines, schedules, and saved floor matched the initial
+reads. The trial sent zero movement commands.
+
+The card regression test copies a saved cleaning zone followed by a room
+with different modes and settings. It verifies the exact order and profile
+of the creation request, rejects stale floors, and excludes furniture and
+automatic-order selections. Isolated Chrome verified the button and save
+flow with the signed one-room routine at 358 and 900 pixels. The suite
+passed 2,473 Python tests with 100% line and branch coverage, 56 card
+tests, and Home Assistant's integration validator.
+[Anonymized schedule copy evidence](evidence/2026-11-26-routine-schedule-copy.json)
+
+## Historical destination plans
+
+The coordinator read two signed Max 700 Combo reports. The first recorded
+two furniture destinations in a requested sequence. Both requested
+vacuuming with different preferences and both had a final `finished`
+result. The mission archive supplied one name. The signed revision from
+the original start command supplied the missing name in one additional
+read. The card retained the mission archive for the drawing.
+
+The other report kept the room's requested suction level and two-pass
+setting. The mission reported `ok` while the room reported `user_ended`
+with zero passes. The projection kept both outcomes and used only the
+mission archive to name the room. Both reports used a different archive
+revision from the revision in the original command. This verification
+sent zero movement commands and made zero map writes.
+
+An isolated Chrome run loaded both real reports from a local test fixture
+at 358 and 900 pixels. It verified destination order, names, settings,
+reported passes, and switching between reports. Authenticated WebSocket
+tests cover the plan with an expired archive and fallback failures.
+The suite passed 2,473 Python tests with 100% line and branch coverage,
+55 card tests, and Home Assistant's integration validator.
+[Anonymized report evidence](evidence/2026-11-26-historical-destination-plans.json)
+
+## Requested settings and reported passes
+
+A reviewed Home Assistant draft directed the docked Max 700 Combo to vacuum
+one room with suction level 1 and two passes enabled. The matching Roomba
+timeline echoed both settings and reported zero passes during the active
+room stage. Its signed history later returned `done: ok` and a room event
+with status `5` (`user_ended`) and `passCount: 0` after a return-to-base
+request. This run verifies the request and reporting path. A natural second
+pass remains unverified.
+
+The robot returned to its dock with error code 0. The active floor revision,
+rooms, zones, restrictions, routines, and schedules matched the initial
+reads. The run changed the robot's reported two-pass setting from off to
+on. A targeted setting write restored off and an independent read confirmed
+it while the robot stayed docked.
+
+Isolated Chrome rendered the live row from a real timeline at 358 and 900
+pixels. The card displayed suction and two passes under **Requested** and
+zero under **Reported passes**. The authenticated WebSocket and automated
+checks verify those fields, preservation of false and zero, and handling of
+null parameter groups. The suite passed 2,465 Python tests with 100% line
+and branch coverage and 55 card tests.
+[Anonymized trial evidence](evidence/2026-11-25-requested-and-reported-passes.json)
+
+## Historical map layers
+
+The integration opened 21 signed reports for the Max 700 Combo using each
+mission's own floor revision. Three included a saved cleaning zone. The
+21 reports had no policy shapes. A separate signed read of an earlier map
+edit revision from the same robot returned a keep-out area, a no-mop area,
+and a virtual wall. The historical projection matched all three against
+the private local snapshot. All calls were reads.
+
+An isolated Chrome run used a real archived report with a saved zone and
+verified the cleaning path, travel path, and coverage controls at 358
+and 900 pixels. Hiding a path kept the final recorded position and zone
+visible. The 3D view and camera controls kept the filters. The authenticated
+Home Assistant regression test checks that a zone and wall come from the
+report revision. The full suite passed 2,463 Python tests with 100% line
+and branch coverage and 55 card tests.
+[Anonymized layer evidence](evidence/2026-11-25-historical-map-layers.json)
+
+## Editing virtual walls
+
+On a docked Max 700 Combo, the coordinator created a horizontal wall,
+changed it to a vertical wall, changed it to a diagonal wall, and removed
+it. Each step took one signed map write. Both moves kept the same identifier.
+The returned archives confirmed the endpoints and preserved a companion
+no-mop zone, the room geometry, and other map layers. With automatic
+backups enabled, Home Assistant saved one snapshot before each write.
+After the companion zone was removed, the parsed active map matched its
+state at the start of this trial. The trial sent zero movement commands.
+
+The authenticated WebSocket tests cover creating, reading, changing, and
+removing a line through Home Assistant. Isolated Chrome verified the
+keyboard endpoint fields, floor-specific confirmation, and resulting
+request at 358 and 900 pixels. The suite passed 2,463 Python tests with
+100% line and branch coverage, 54 card tests, and Home Assistant's
+integration validator.
+[Anonymized wall evidence](evidence/2026-11-25-virtual-wall-editing.json)
+
+## Recovering room names and types
+
+A signed Max 700 Combo trial divided and recombined an open room. The active
+map returned to one room with the original identifier, name, and type. The
+floor border, furniture, restrictions, and all other parsed layers matched
+the pre-edit archive. Roomba recalculated the room outline. Its maximum
+deviation from the original was 0.05 native map units, and the room area
+changed by approximately 0.0077%. The original archive was retained for
+comparison. A later signed read returned the exact pre-edit archive, and
+the active map still showed the room-outline difference. The trial issued
+zero movement commands.
+
+A follow-up trial recorded the active map, set a temporary accented room
+name and type, and received a JSON revision acknowledgement. Home Assistant
+read the published revision and its signed archive before reporting the
+successful edit. The recovery review identified the changed boundary in the
+pre-split backup. A second backup with the matching footprint recovered the
+original room name and type in one write and reported no remaining metadata
+changes on a repeated review. The room footprint, other map layers, and
+original routines matched their state at the start of the metadata trial.
+[Anonymized evidence](evidence/2026-11-25-room-details-recovery.json)
+
+The changes passed 2,452 Python tests with 100% line and branch coverage,
+53 card tests, and Home Assistant's integration validator. Isolated Chrome
+verified the review and confirmation at 358 and 900 pixels using a
+synthetic floor.
+
+## Recovering furniture placements
+
+A signed Max 700 Combo trial saved all 18 supported furniture types and
+read back their type, source, orientation, and ordered corners. Cleanup
+preserved the existing furniture and restored the original floor. A
+separate trial showed that Roomba ignores an unlearned identifier sent as
+robot-detected furniture.
+
+The recovery trial moved a user-added object, removed a detected object,
+and added newer furniture. Roomba removed the detected object's destination
+from a three-area routine. The first recovery returned the expected sources
+and vertices with a heading difference of approximately 0.011 degrees for
+two objects. The integration now accounts for this rounding when it verifies
+the saved furniture layer.
+
+The end-to-end trial reviewed the changes and the linked routine, saved an
+automatic pre-restore backup, and restored both placements in one native
+write. The detected object returned with its original `robot` source and
+the newer object stayed on the map. Program review waited for the matching
+placement, then restored the missing destination with a separate
+confirmation. Roomba returned the same routine ID, three destinations in
+order, original per-area vacuum and mop preferences, and matching furniture
+polygons. Cleanup restored the original map and routines with zero movement
+commands. [Sanitized evidence](evidence/2026-11-25-map-furniture-recovery.json)
+
+The changes passed 2,434 Python tests with 100% line and branch coverage,
+52 card tests, Home Assistant's integration validator, and isolated Chrome
+checks on a synthetic floor at widths of 358 and 900 pixels.
+
+## Recovering map restrictions
+
+A signed Max 700 Combo trial saved a keep-out zone, a no-mop zone, and a
+linear virtual wall. The previous line encoding returned the same point
+twice. The follow-up confirmed that kind `2` with `[A, A, B, B]` retained
+both endpoints during creation and a later policy-layer replacement.
+
+The integration saved a local backup, moved the keep-out zone, and removed
+the no-mop zone and wall. The recovery review showed the three changes and
+confirmation saved an automatic pre-restore backup. One native write
+restored the original identifiers and shapes, kept a newer no-mop zone, and
+returned a new active revision. A repeated review reported zero changes.
+Cleanup restored the original floor and sent zero movement commands.
+[Sanitized evidence](evidence/2026-11-25-map-restriction-recovery.json)
+
+The recovery changes passed 2,423 Python tests with 100% line and branch
+coverage and 51 map card tests. Isolated Chrome verified the reviewed write
+at 358 and 900 pixels with a synthetic floor. Home Assistant's integration
+validator reported zero invalid integrations.
+
 ## Recovering program destinations
 
 A signed Max 700 Combo trial captured two cleaning zones, a routine, and a
@@ -404,12 +640,17 @@ coverage, and the associated mission records supplied 9, 8, and 9 timeline
 events. The comparison used only reads of existing records.
 
 Home Assistant tests cover entity read permission, report ownership,
-expired archives, and unknown report selections. An isolated Chrome
-run verified opening the 3D report view with synthetic data. The suite
+expired archives, and unknown report selections. An isolated Chrome run
+verified opening the 3D report view with synthetic data. A follow-up
+signed read checked three reports, each tied to its own archived
+revision with walls, furniture, route, and coverage. Isolated Chrome used
+one of those real archives to verify the report dialog, overhead and 3D
+rendering, and camera rotation at 358 and 900 pixels. The original suite
 passed 2,012 Python tests with 100% statement and branch coverage, 21 card
 tests, and official hassfest validation. Household installation and cropped
 captures in the user's Chrome session remain pending.
 [Anonymized report evidence](evidence/2026-11-25-archived-cleaning-reports.json)
+[Follow-up report evidence](evidence/2026-11-25-archived-report-rendering.json)
 
 ## Robot software status
 

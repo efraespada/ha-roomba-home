@@ -60,6 +60,9 @@ A change of preference doesn't move the robot.
 - CLN-08: check up, controls and telemetry with an Icon on the domestic HA or authorized
   robot.
 - CLN-09: Validate a complete vacuum-then-mop mission.
+- CLN-10: Verify requested two-pass settings separately from completed
+  passes on a supported robot. Record a natural two-pass finish to confirm
+  the physical behavior.
 
 No maps, accounts and mistakes or consumables are deleted. The motion tests are limited to
 the authorized robot and have an automatic final timings. Absence capacity doesn't mean
@@ -114,6 +117,12 @@ CLN-09 MUST observe vacuuming, mop preparation where applicable, mopping,
 and a final result under the same mission identity. Verify both modes in
 mission history and record the return to the dock. Regional testing requires
 a robot that advertises the mode and a verified directed command.
+
+CLN-10 correlates the requested regional parameters with current and final
+room events. A return-to-base request can leave an overall success code with
+an interrupted room result. The room event supplies the reported pass
+count. A directed run can also update the robot's reported two-pass setting.
+[Directed two-pass evidence](../docs/validation.md#requested-settings-and-reported-passes)
 
 ## 7. User-facing configuration
 
@@ -255,6 +264,7 @@ adjustments, boundaries of sequential mode and without duplication recovery.
 | CLN-07 | Suite and CI | cover report 100 |
 | CLN-08 | Deployment and evidence | Fan domestic, modes and entities with icon |
 | CLN-09 | Command application and mission history | Both phases under the same mission identity, final history, and return to dock |
+| CLN-10 | [Live destination settings](008-mission-detail-and-map-card.md) | [Matched command, room history, and default restoration](../docs/validation.md#requested-settings-and-reported-passes). Natural completion remains open. |
 
 ## 18. Implementation sequence
 

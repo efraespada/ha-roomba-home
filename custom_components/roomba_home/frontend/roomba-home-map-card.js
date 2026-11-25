@@ -29,13 +29,15 @@ const SETTINGS = {
   carpet_boost: "Carpet boost",
 };
 const PRESET_LABELS = { light: "Light", normal: "Normal", deep: "Deep", smart: "Smart recommendations" };
-const RESTRICTION_TYPES = { keep_out: "Keep-out zone", no_mop: "No-mop zone" };
+const RESTRICTION_TYPES = { keep_out: "Keep-out zone", no_mop: "No-mop zone", wall: "Virtual wall" };
+const HISTORY_PATH_LAYERS = ["cleaning", "travel", "unclassified"];
 const PROGRAM_RECOVERY_STATUS = {
   missing_program: "Program deleted",
   unsupported_selection: "Current selection cannot be edited",
   changed_selection: "Destinations or settings have changed",
   unchanged: "Saved destinations already match",
   restore_zones_first: "Restore the matching cleaning zones first",
+  restore_areas_first: "Restore the matching furniture and cleaning zones first",
   unavailable_destination: "A destination or setting is unavailable",
   source_unavailable: "Roomba could not load this program",
 };
@@ -110,12 +112,12 @@ template.innerHTML = `
     summary { cursor:pointer; }
     .result { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; margin-top:9px; }
     .result div { grid-column:1/-1; }
-    #mission-plan ol, #mission-plan ul { padding-inline-start:22px; }
-    #mission-plan li { margin-block:5px; }
-    #mission-plan li .result {
+    .mission-plan ol, .mission-plan ul { padding-inline-start:22px; }
+    .mission-plan li { margin-block:5px; }
+    .mission-plan li .result {
       grid-template-columns:minmax(0,1fr) fit-content(50%); margin-top:0; overflow-wrap:anywhere;
     }
-    #mission-plan li .muted { text-align:end; }
+    .mission-plan li .muted { text-align:end; }
     @container (max-width:360px) { footer { align-items:flex-start; flex-direction:column; } }
     [hidden] { display:none !important; }
   </style>
@@ -238,17 +240,18 @@ template.innerHTML = `
           <select id="restriction-kind">
             <option value="keep_out">Keep-out zone</option>
             <option value="no_mop">No-mop zone</option>
+            <option value="wall">Virtual wall</option>
           </select>
         </label>
         <label id="restriction-select-label">Restriction <select id="restriction-target"></select></label>
         <div id="restriction-shape">
           <button id="place-restriction">Place rectangle on map</button>
-          <details><summary>Rectangle coordinates</summary>
+          <details><summary id="restriction-coordinate-title">Rectangle coordinates</summary>
             <div class="divider-coordinates">
-              <label>First corner X <input id="restriction-x1" type="number" step="any"></label>
-              <label>First corner Y <input id="restriction-y1" type="number" step="any"></label>
-              <label>Opposite corner X <input id="restriction-x2" type="number" step="any"></label>
-              <label>Opposite corner Y <input id="restriction-y2" type="number" step="any"></label>
+              <label><span id="restriction-x1-label">First corner X</span> <input id="restriction-x1" type="number" step="any"></label>
+              <label><span id="restriction-y1-label">First corner Y</span> <input id="restriction-y1" type="number" step="any"></label>
+              <label><span id="restriction-x2-label">Opposite corner X</span> <input id="restriction-x2" type="number" step="any"></label>
+              <label><span id="restriction-y2-label">Opposite corner Y</span> <input id="restriction-y2" type="number" step="any"></label>
             </div>
           </details>
         </div>
@@ -318,12 +321,13 @@ template.innerHTML = `
         <button id="edit-furniture" hidden>Edit furniture</button>
         <button id="manage-routines" hidden>Manage routines</button>
         <button id="manage-schedules" hidden>Manage schedules</button>
+        <button id="clean-everywhere" hidden>Clean everywhere</button>
         <button id="open-map-backups">Map backups</button>
         <button id="open-cleaning-scores" hidden>Room cleaning scores</button>
         <button id="map-impact" hidden disabled>Review map dependencies</button>
         <button id="review-skip" hidden>Skip current area</button>
       </div>
-      <details id="mission-plan" open hidden><summary></summary><div></div></details>
+      <details id="mission-plan" class="mission-plan" open hidden><summary></summary><div></div></details>
       <details id="active" hidden><summary>Current mission measurements</summary><div></div></details>
       <details id="history" hidden><summary>Last mission by area</summary><div></div></details>
     </div>
@@ -354,9 +358,16 @@ template.innerHTML = `
             <button id="history-3d" aria-pressed="false" hidden>3D view</button>
             <button id="history-orbit" aria-label="Rotate recorded map" hidden>⟳</button>
           </div>
+          <div class="legend muted" role="group" aria-label="Recorded map layers">
+            <label hidden><input id="history-cleaning" type="checkbox" checked> Cleaning path</label>
+            <label hidden><input id="history-travel" type="checkbox" checked> Travel path</label>
+            <label hidden><input id="history-unclassified" type="checkbox" checked> Unclassified path</label>
+            <label hidden><input id="history-coverage" type="checkbox" checked> Coverage</label>
+          </div>
           <p class="legend muted" id="history-map-legend"></p>
         </section>
         <p id="history-no-map" class="muted" hidden>Roomba has no map for this report.</p>
+        <details id="history-plan" class="mission-plan" open hidden><summary></summary><div></div></details>
         <details id="history-area-results" hidden><summary>Results by area</summary><div></div></details>
         <details id="history-chronology" hidden><summary>Timeline</summary><ol id="history-timeline"></ol></details>
       </div>
@@ -377,7 +388,10 @@ template.innerHTML = `
         <div class="actions">
           <button id="export-map-backup">Export backup</button>
           <button id="review-map-backup-restore" hidden>Restore floor settings</button>
+          <button id="review-map-backup-room-details" hidden>Restore room names and types</button>
           <button id="review-map-backup-zones" hidden>Restore cleaning zones</button>
+          <button id="review-map-backup-restrictions" hidden>Restore restrictions</button>
+          <button id="review-map-backup-furniture" hidden>Restore furniture</button>
           <button id="review-map-backup-programs" hidden>Recover program destinations</button>
           <button id="pin-map-backup" hidden>Pin backup</button>
           <button id="delete-map-backup" hidden>Delete backup</button>
@@ -385,9 +399,19 @@ template.innerHTML = `
         <section id="map-backup-restore" hidden aria-labelledby="map-backup-restore-title">
           <h4 id="map-backup-restore-title">Restore floor settings?</h4>
           <dl id="map-backup-restore-changes" class="measurements"></dl>
+          <div id="map-backup-restore-room-details" hidden>
+            <label>Room <select id="map-backup-restore-room-choice"></select></label>
+            <dl id="map-backup-restore-room-values" class="measurements"></dl>
+            <ul id="map-backup-restore-room-status"></ul>
+          </div>
           <div id="map-backup-restore-zone-detail" hidden>
             <ul id="map-backup-restore-zone-list"></ul>
             <p id="map-backup-restore-dependency-status" class="muted" role="status" hidden></p>
+          </div>
+          <ul id="map-backup-restore-restrictions" hidden></ul>
+          <div id="map-backup-restore-furniture" hidden>
+            <ul id="map-backup-restore-furniture-list"></ul>
+            <p id="map-backup-restore-furniture-status" class="muted" role="status" hidden></p>
           </div>
           <div id="map-backup-restore-program-detail" hidden>
             <label>Program <select id="map-backup-restore-program-choice"></select></label>
@@ -479,6 +503,7 @@ template.innerHTML = `
         <p id="routine-status" class="muted" role="status"></p>
         <div class="actions">
           <button id="copy-routine" type="button">Duplicate</button>
+          <button id="use-routine-in-schedule" type="button" hidden>Use in schedule</button>
           <button id="remove-routine" type="button">Delete</button>
           <button id="run-routine" type="button">Run saved routine</button>
           <button id="toggle-schedule" type="button" hidden>Enable</button>
@@ -544,6 +569,13 @@ function pathFor(rings, xy) {
     for (const point of points) path.lineTo(...xy(point));
     path.closePath();
   }
+  return path;
+}
+
+function openPath([start, ...points], xy) {
+  const path = new Path2D();
+  path.moveTo(...xy(start));
+  for (const point of points) path.lineTo(...xy(point));
   return path;
 }
 
@@ -670,7 +702,7 @@ function renderMapLegend(element, entries) {
   }));
 }
 
-function drawMissionMap(canvas, geometry, view) {
+function drawMissionMap(canvas, geometry, view, layers = geometry) {
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#101e2a";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -695,7 +727,7 @@ function drawMissionMap(canvas, geometry, view) {
   area(geometry.saved_zones ?? [], "#22504560", "#5bd4b0");
   area(geometry.keep_out ?? [], "#862f555c", "#ff7893");
   area(geometry.no_mop ?? [], "#62452456", "#e8ab6a");
-  for (const item of geometry.coverage) {
+  for (const item of layers.coverage) {
     const color = ROUTE_COLORS[historyMode(item.modes)] ?? "#74889b";
     area(item.polygons, `${color}44`);
   }
@@ -710,7 +742,7 @@ function drawMissionMap(canvas, geometry, view) {
     for (const point of wall.slice(1)) ctx.lineTo(...project(point));
     ctx.stroke();
   }
-  for (const item of geometry.trajectories) {
+  for (const item of layers.trajectories) {
     ctx.strokeStyle = ROUTE_COLORS[historyMode(item.modes)] ?? "#b7c3cd";
     ctx.beginPath();
     ctx.moveTo(...project(item.points[0]));
@@ -817,6 +849,9 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("history-zoom-in").onclick = () => this.changeHistoryView(1.25);
     this.$("history-zoom-out").onclick = () => this.changeHistoryView(0.8);
     this.$("history-reset").onclick = () => this.resetHistoryView();
+    for (const layer of [...HISTORY_PATH_LAYERS, "coverage"]) {
+      this.$(`history-${layer}`).onchange = () => this.drawHistoryMap();
+    }
     this.$("history-3d").onclick = () => {
       this.historyView.elevated = !this.historyView.elevated;
       this.historyView.angle = this.historyView.elevated ? Math.PI / 4 : 0;
@@ -840,6 +875,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("place-point").onclick = () => this.placePoint();
     this.$("manage-routines").onclick = () => this.openRoutines();
     this.$("manage-schedules").onclick = () => this.openRoutines(true);
+    this.$("clean-everywhere").onclick = () => this.reviewCleanEverywhere();
     this.$("open-map-backups").onclick = () => this.openMapBackups();
     this.$("close-map-backups").onclick = () => this.$("map-backups-dialog").close();
     this.$("map-backup-choice").onchange = (event) => this.showMapBackup(event.target.value);
@@ -847,7 +883,11 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("save-map-backup-settings").onclick = () => this.saveMapBackupSettings();
     this.$("export-map-backup").onclick = () => this.exportMapBackup();
     this.$("review-map-backup-restore").onclick = () => this.reviewMapBackupRestore();
+    this.$("review-map-backup-room-details").onclick = () => this.reviewMapBackupRestore("room_details");
+    this.$("map-backup-restore-room-choice").onchange = () => this.showMapBackupRoomDetails();
     this.$("review-map-backup-zones").onclick = () => this.reviewMapBackupRestore("zones");
+    this.$("review-map-backup-restrictions").onclick = () => this.reviewMapBackupRestore("restrictions");
+    this.$("review-map-backup-furniture").onclick = () => this.reviewMapBackupRestore("furniture");
     this.$("review-map-backup-programs").onclick = () => this.reviewMapBackupRestore("programs");
     this.$("map-backup-restore-program-choice").onchange = () => this.showMapBackupProgram();
     this.$("confirm-map-backup-restore").onclick = () => this.confirmMapBackupRestore();
@@ -933,7 +973,10 @@ class RoombaHomeMapCard extends HTMLElement {
     };
     this.$("restriction-operation").onchange = () => this.renderRestrictionEditor();
     this.$("restriction-target").onchange = () => this.renderRestrictionEditor();
-    this.$("restriction-kind").onchange = () => { this.updateRestrictionEdit(); this.draw(); };
+    this.$("restriction-kind").onchange = () => {
+      this.updateRestrictionEdit();
+      this.draw();
+    };
     this.restrictionFields = ["x1", "y1", "x2", "y2"].map((id) => this.$(`restriction-${id}`));
     for (const input of this.restrictionFields) {
       input.oninput = () => {
@@ -946,7 +989,6 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("place-restriction").onclick = () => {
       this.restrictionDraft.placing = 0;
       this.setRestrictionBounds([]);
-      this.$("restriction-edit-status").textContent = "Select the first corner on the map.";
       this.canvas.focus();
     };
     this.$("review-restriction-edit").onclick = () => this.reviewRestrictionEdit();
@@ -1003,6 +1045,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.renderRoutine();
     };
     this.$("copy-routine").onclick = () => this.copyRoutine();
+    this.$("use-routine-in-schedule").onclick = () => this.useRoutineInSchedule();
     this.$("load-quick-routines").onclick = () => this.loadQuickRoutines();
     this.$("estimate-routine").onclick = () => this.estimateRoutine();
     this.$("remove-routine").onclick = () => this.removeRoutine();
@@ -1163,6 +1206,7 @@ class RoombaHomeMapCard extends HTMLElement {
         (data.maps.length > 1 && Boolean(this.selectedFloor));
       this.$("manage-routines").hidden = !data.cleaning;
       this.$("manage-schedules").hidden = !data.can_manage_schedules || !data.map;
+      this.$("clean-everywhere").hidden = !data.can_clean_everywhere;
       this.$("open-cleaning-scores").hidden = !data.map;
       this.$("map-impact").hidden = !data.cleaning;
       this.$("edit-floor").hidden = !data.can_edit_rooms || !data.floor_settings ||
@@ -1214,6 +1258,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.$("floor-name").hidden = true;
       this.$("manage-routines").hidden = true;
       this.$("manage-schedules").hidden = true;
+      this.$("clean-everywhere").hidden = true;
       this.$("open-cleaning-scores").hidden = true;
       if (this.$("cleaning-scores-dialog").open) this.$("cleaning-scores-dialog").close();
       this.$("map-impact").hidden = true;
@@ -1538,15 +1583,25 @@ class RoombaHomeMapCard extends HTMLElement {
     const restore = this.$("review-map-backup-restore");
     restore.hidden = !canRestore || Boolean(backup.restore);
     restore.disabled = backup.busy || !backup.preview;
+    const rooms = this.$("review-map-backup-room-details");
+    rooms.hidden = restore.hidden || !backup.savedRooms;
+    rooms.disabled = restore.disabled;
     const zones = this.$("review-map-backup-zones");
     zones.hidden = restore.hidden || !backup.savedZones;
     zones.disabled = restore.disabled;
+    const restrictions = this.$("review-map-backup-restrictions");
+    restrictions.hidden = restore.hidden || !backup.savedRestrictions;
+    restrictions.disabled = restore.disabled;
+    const furniture = this.$("review-map-backup-furniture");
+    furniture.hidden = restore.hidden || !backup.savedFurniture;
+    furniture.disabled = restore.disabled;
     const programs = this.$("review-map-backup-programs");
     programs.hidden = restore.hidden || !(saved?.program_count || saved?.programs_unchecked?.length);
     programs.disabled = restore.disabled;
     this.$("map-backup-restore").hidden = !backup.restore;
+    const selectedReview = ["programs", "room_details"].includes(backup.restore?.kind);
     this.$("confirm-map-backup-restore").disabled = backup.busy ||
-      (backup.restore?.kind === "programs" && !backup.restore.review_id);
+      (selectedReview && !backup.restore.review_id);
   }
 
   async showMapBackup(id) {
@@ -1557,7 +1612,10 @@ class RoombaHomeMapCard extends HTMLElement {
     const comparison = this.$("map-backup-comparison");
     backup.selected = id;
     backup.preview = false;
+    backup.savedRooms = false;
     backup.savedZones = false;
+    backup.savedRestrictions = false;
+    backup.savedFurniture = false;
     backup.deletePending = null;
     backup.restore = null;
     this.$("map-backup-choice").value = id;
@@ -1570,7 +1628,11 @@ class RoombaHomeMapCard extends HTMLElement {
       const { backup: saved, geometry } = await this.mapBackupRequest(backup, "read_map_backup", { backup_id: id });
       if (!this.backupsOpen(backup) || backup.request !== request) return;
       this.drawMapBackup(canvas, saved, geometry);
+      backup.savedRooms = Boolean(geometry.editable_rooms?.length);
+      backup.roomTypes = geometry.room_naming?.types ?? {};
       backup.savedZones = geometry.regions.some(({ kind }) => kind === "zone");
+      backup.savedRestrictions = Boolean(geometry.keep_out?.length || geometry.no_mop?.length || geometry.virtual_walls?.length);
+      backup.savedFurniture = Boolean(geometry.furniture?.items?.length);
       const current = this.snapshot;
       if (current?.map && current.map.id === saved.map_id) {
         const angle = current.floor_settings?.orientation;
@@ -1667,9 +1729,13 @@ class RoombaHomeMapCard extends HTMLElement {
         ...floor, backup_id: saved.id,
       });
       if (!this.backupsOpen(backup)) return;
-      if (kind !== "programs" && !Object.keys(review.changes).length) {
-        status.textContent = kind === "zones" ? "The recorded zones already match."
-          : "The recorded floor settings already match.";
+      if (kind !== "programs" && !Object.keys(review.changes ?? review.rooms).length) {
+        const unchanged = {
+          zones: "The recorded zones already match.", settings: "The recorded floor settings already match.",
+          restrictions: "The recorded restrictions already match.", furniture: "The recorded furniture already matches.",
+          room_details: "The recorded room names and types already match.",
+        };
+        status.textContent = unchanged[kind];
         return;
       }
       backup.restore = { floor, backup_id: saved.id, kind, review_id: review.review_id };
@@ -1683,22 +1749,46 @@ class RoombaHomeMapCard extends HTMLElement {
     }
   }
 
-  renderMapBackupRestore(kind, { changes, dependencies, unchecked, programs }) {
+  renderMapBackupRestore(kind, { changes, dependencies, unchecked, programs, rooms }) {
     const zones = kind === "zones";
     const labels = {
       zones: ["Restore cleaning zones?", "Restore zones"],
+      restrictions: ["Restore map restrictions?", "Restore restrictions"],
+      furniture: ["Restore saved furniture?", "Restore furniture"],
       settings: ["Restore floor settings?", "Restore settings"],
       programs: ["Recover program destinations", "Restore destinations"],
+      room_details: ["Restore room names and types?", "Restore room details"],
     };
     const [title, action] = labels[kind];
     this.$("map-backup-restore-title").textContent = title;
     this.$("confirm-map-backup-restore").textContent = action;
     this.$("map-backup-restore-zone-detail").hidden = !zones;
+    const restrictions = this.$("map-backup-restore-restrictions");
+    restrictions.hidden = kind !== "restrictions";
+    this.$("map-backup-restore-furniture").hidden = kind !== "furniture";
     this.$("map-backup-restore-program-detail").hidden = kind !== "programs";
+    this.$("map-backup-restore-room-details").hidden = kind !== "room_details";
     const settings = this.$("map-backup-restore-changes");
     settings.hidden = kind !== "settings";
     if (kind === "programs") {
       this.renderMapBackupPrograms(programs, unchecked);
+      return;
+    }
+    if (kind === "room_details") {
+      this.renderMapBackupRoomDetails(rooms);
+      return;
+    }
+    if (kind === "restrictions") {
+      restrictions.replaceChildren(...changes.map(({ id, kind, missing }) => {
+        const item = document.createElement("li");
+        const label = RESTRICTION_TYPES[kind];
+        item.textContent = `${missing ? "Recreate" : "Restore outline"} · ${label} · ${id}`;
+        return item;
+      }));
+      return;
+    }
+    if (kind === "furniture") {
+      this.renderMapBackupFurniture(changes, dependencies, unchecked);
       return;
     }
     if (!zones) {
@@ -1736,6 +1826,60 @@ class RoombaHomeMapCard extends HTMLElement {
     const status = this.$("map-backup-restore-dependency-status");
     status.textContent = notes.join(" ");
     status.hidden = !notes.length;
+  }
+
+  renderMapBackupRoomDetails(rooms) {
+    const choice = this.$("map-backup-restore-room-choice");
+    const ready = this.backups.restore.rooms = rooms.filter(({ status }) => status === "ready");
+    choice.replaceChildren(...ready.map((room, index) => option(index, room.name.from ?? room.id)));
+    choice.parentElement.hidden = !ready.length;
+    const explanations = {
+      missing_room: "Room is missing from the active map",
+      changed_boundary: "Room boundary has changed",
+      unsupported_details: "Saved name or type is unavailable for recovery",
+    };
+    this.$("map-backup-restore-room-status").replaceChildren(...rooms
+      .filter(({ status }) => status !== "ready")
+      .map((room) => {
+        const item = document.createElement("li");
+        item.textContent = `${room.name.to ?? room.id} · ${explanations[room.status]}`;
+        return item;
+      }));
+    this.showMapBackupRoomDetails();
+  }
+
+  showMapBackupRoomDetails() {
+    const backup = this.backups;
+    const review = backup.restore;
+    const room = review.rooms[this.$("map-backup-restore-room-choice").value];
+    review.room = room;
+    review.review_id = room?.review_id;
+    const typeLabel = (type) => backup.roomTypes[type] ?? type ?? "Default";
+    renderMeasurements(this.$("map-backup-restore-room-values"), room ? [
+      ["Room name", `${room.name.from ?? "Unnamed room"} → ${room.name.to}`],
+      ["Room type", `${typeLabel(room.room_type.from)} → ${typeLabel(room.room_type.to)}`],
+    ] : []);
+    this.updateMapBackupControls(backup);
+  }
+
+  renderMapBackupFurniture(changes, dependencies, unchecked) {
+    this.$("map-backup-restore-furniture-list").replaceChildren(...changes.map((object) => {
+      const item = document.createElement("li");
+      const title = document.createElement("strong");
+      title.textContent = `${object.missing ? "Recreate" : "Restore"} ${object.name} · ${object.id}`;
+      item.append(title);
+      const details = [object.source === "robot" ? "Detected by Roomba" : "Added by user"];
+      for (const routine of dependencies) {
+        if (routine.objects.includes(object.id)) details.push(`Routine · ${routine.name ?? "Unnamed"}`);
+      }
+      const line = document.createElement("div");
+      line.textContent = details.join(" · ");
+      item.append(line);
+      return item;
+    }));
+    const status = this.$("map-backup-restore-furniture-status");
+    status.textContent = unchecked.length ? "Some routines could not be checked." : "";
+    status.hidden = !unchecked.length;
   }
 
   renderMapBackupPrograms(programs, unchecked) {
@@ -1795,9 +1939,15 @@ class RoombaHomeMapCard extends HTMLElement {
       data.kind = review.program.kind;
       data.program_id = review.program.id;
     }
+    if (review.kind === "room_details") {
+      if (!review.room || !review.review_id) return;
+      data.room_id = review.room.id;
+    }
     const success = {
       programs: "Cleaning destinations restored.", zones: "Cleaning zones restored.",
-      settings: "Floor settings restored.",
+      settings: "Floor settings restored.", restrictions: "Map restrictions restored.",
+      furniture: "Furniture restored.",
+      room_details: "Room details restored.",
     };
     await this.changeMapBackups(`restore_map_backup_${review.kind}`, data,
       success[review.kind], true);
@@ -1923,6 +2073,7 @@ class RoombaHomeMapCard extends HTMLElement {
     floor.replaceChildren(...Array.from({ length: mission.map_count }, (_, i) => option(i, `Map ${i + 1}`)));
     floor.value = String(report.map_index);
     this.$("history-map-selector").hidden = mission.map_count < 2;
+    this.renderMissionPlan(report.plan, "history-plan");
     this.renderAreaResults("history-area-results", [...report.rooms, ...report.zones], "Unknown outcome");
     this.$("history-timeline").replaceChildren(...report.timeline.map((event) => {
       const line = document.createElement("li");
@@ -1944,13 +2095,35 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("history-3d").hidden = !geometry.walls.length && !geometry.furniture.length;
     this.$("history-3d").setAttribute("aria-pressed", view.elevated);
     this.$("history-orbit").hidden = !view.elevated;
-    const modes = new Set([...geometry.coverage, ...geometry.trajectories].map((layer) => historyMode(layer.modes)).filter(Boolean));
-    const legend = [...modes].map((mode) => [ROUTE_LABELS[mode], ROUTE_COLORS[mode]]);
+    const shown = (layer, available) => {
+      const checkbox = this.$(`history-${layer}`);
+      checkbox.parentElement.hidden = !available;
+      return checkbox.checked;
+    };
+    const pathLayers = geometry.trajectories.map(({ modes }) => {
+      const mode = historyMode(modes);
+      return mode === "traveling" ? "travel" : mode ? "cleaning" : "unclassified";
+    });
+    const enabledPaths = HISTORY_PATH_LAYERS.filter((layer) => shown(layer, pathLayers.includes(layer)));
+    const trajectories = geometry.trajectories.filter((_, index) => enabledPaths.includes(pathLayers[index]));
+    const coverage = shown("coverage", geometry.coverage.length) ? geometry.coverage : [];
+    const modes = new Set([...coverage, ...trajectories].map((layer) => historyMode(layer.modes)).filter(Boolean));
+    const travelPath = enabledPaths.includes("travel");
+    const legend = [...modes].map((mode) => [
+      mode === "traveling" && !travelPath ? "Travel coverage" : ROUTE_LABELS[mode], ROUTE_COLORS[mode],
+    ]);
+    if (trajectories.some(({ modes }) => !historyMode(modes))) legend.push(["Unclassified path", "#b7c3cd"]);
+    if (geometry.saved_zones?.length) legend.push(["Cleaning zone", "#5bd4b0"]);
+    if (geometry.keep_out?.length || geometry.virtual_walls?.length) legend.push(["Keep-out area or wall", "#ff7893"]);
+    if (geometry.no_mop?.length) legend.push(["No-mop area", "#e8ab6a"]);
     if (geometry.docks.length) legend.push(["Dock", "#f0c674"]);
     if (geometry.hazards.length) legend.push(["Obstacle", "#ff8080"]);
     if (geometry.trajectories.length) legend.push(["End of recorded path", "#eaf3f9"]);
     renderMapLegend(this.$("history-map-legend"), legend);
-    drawMissionMap(this.$("history-map"), geometry, view);
+    const canvas = this.$("history-map");
+    const ctx = canvas.getContext("2d");
+    drawMissionMap(canvas, geometry, { ...view, label: (...args) => this.drawLabel.call({ ctx }, ...args) },
+      { coverage, trajectories });
   }
 
   resetHistoryView() {
@@ -2096,8 +2269,8 @@ class RoombaHomeMapCard extends HTMLElement {
     }
   }
 
-  renderMissionPlan(plan) {
-    const view = this.$("mission-plan");
+  renderMissionPlan(plan, id = "mission-plan") {
+    const view = this.$(id);
     const signature = JSON.stringify(plan ?? null);
     if (signature === view.dataset.plan) return;
     view.dataset.plan = signature;
@@ -2107,7 +2280,9 @@ class RoombaHomeMapCard extends HTMLElement {
     rows.replaceChildren();
     summary.textContent = "";
     if (!plan) return;
-    const heading = plan.ordered ? "Planned order" : "Selected destinations";
+    const historical = id === "history-plan";
+    const heading = plan.ordered ? (historical ? "Requested order" : "Planned order")
+      : (historical ? "Requested destinations" : "Selected destinations");
     const remaining = plan.estimated_remaining_seconds;
     const estimate = remaining != null ? ` · About ${Math.ceil(remaining / 60)} min left` : "";
     summary.textContent = `${heading} · ${plan.completed} of ${plan.total} completed${estimate}`;
@@ -2120,7 +2295,7 @@ class RoombaHomeMapCard extends HTMLElement {
       finished_with_more_passes: "More passes expected", partial_incomplete: "Partially cleaned",
       partial_skipped: "Partially skipped", kidnapped: "Robot moved", user_ended: "Ended by user",
       robot_aborted: "Ended by robot", skipped: "Skipped", skipped_will_return: "Skipped, will return",
-      unknown: "Unknown outcome",
+      unknown: "Unknown outcome", unreported: "No final result",
     };
     for (const destination of plan.destinations) {
       const item = document.createElement("li");
@@ -2132,9 +2307,22 @@ class RoombaHomeMapCard extends HTMLElement {
       status.className = "muted";
       const duration = destination.estimated_duration_seconds;
       const planned = duration != null ? `${Math.ceil(duration / 60)} min planned` : null;
-      status.textContent = [MODES[destination.mode], statuses[destination.status], planned]
+      const count = destination.reported_pass_count;
+      const passes = count != null ? `Reported passes ${count}` : null;
+      status.textContent = [MODES[destination.mode], statuses[destination.status], passes, planned]
         .filter(Boolean).join(" · ");
       row.append(name, status);
+      if (destination.requested_settings) {
+        const preferences = document.createElement("div");
+        preferences.className = "muted";
+        const settings = destination.requested_settings;
+        const terms = Object.entries(SETTINGS).flatMap(([key, label]) => {
+          const value = settings[key];
+          return value == null ? [] : [`${label} ${typeof value === "boolean" ? (value ? "on" : "off") : value}`];
+        });
+        preferences.textContent = ["Requested", ...terms].join(" · ");
+        row.append(preferences);
+      }
       item.append(row);
       list.append(item);
     }
@@ -2266,6 +2454,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("review").hidden = !this.geometry;
     const hasSelection = pointMode ? this.point : this.selected.size;
     this.$("review").disabled = !hasSelection || this.submitting || editing || saving;
+    this.$("clean-everywhere").disabled = this.submitting || editing || saving;
     this.$("map-impact").disabled = !this.selected.size || editing;
     const editDisabled = editing || saving || pointMode;
     this.$("edit-floor").disabled = editDisabled;
@@ -2658,7 +2847,8 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("restriction-shape").hidden = operation === "delete" || (!create && !shape);
     this.$("restriction-edit-status").textContent = !create && !shape ? "No restrictions saved." : "";
     this.restrictionDraft.placing = null;
-    this.setRestrictionBounds(shape ? mapBounds(shape.points) : [], false);
+    const bounds = shape?.kind === "wall" ? shape.points.flat() : shape ? mapBounds(shape.points) : [];
+    this.setRestrictionBounds(bounds, false);
   }
 
   setRestrictionBounds(bounds, changed = true) {
@@ -2675,9 +2865,22 @@ class RoombaHomeMapCard extends HTMLElement {
     draft.shape = create ? null : this.geometry.editable_restrictions.find((shape) =>
       shape.id === this.$("restriction-target").value);
     draft.kind = create ? this.$("restriction-kind").value : draft.shape?.kind;
+    const wall = draft.kind === "wall";
+    this.$("place-restriction").textContent = wall ? "Place wall on map" : "Place rectangle on map";
+    this.$("restriction-coordinate-title").textContent = wall ? "Endpoint coordinates" : "Rectangle coordinates";
+    for (const axis of ["x", "y"]) {
+      this.$(`restriction-${axis}1-label`).textContent = `First ${wall ? "endpoint" : "corner"} ${axis.toUpperCase()}`;
+      this.$(`restriction-${axis}2-label`).textContent = `${wall ? "Second endpoint" : "Opposite corner"} ${axis.toUpperCase()}`;
+    }
+    if (draft.placing != null) {
+      const first = wall ? "first endpoint" : "first corner";
+      const second = wall ? "second endpoint" : "opposite corner";
+      this.$("restriction-edit-status").textContent = `Select the ${draft.placing === 0 ? first : second} on the map.`;
+    }
     draft.bounds = draft.changedBounds ? this.restrictionFields.map((input) => input.valueAsNumber) : null;
+    const [x1, y1, x2, y2] = draft.bounds ?? [];
     const boundsValid = draft.bounds?.every(Number.isFinite) &&
-      draft.bounds[0] !== draft.bounds[2] && draft.bounds[1] !== draft.bounds[3];
+      (wall ? x1 !== x2 || y1 !== y2 : x1 !== x2 && y1 !== y2);
     this.$("review-restriction-edit").disabled = this.restrictionSaving ||
       (!create && !draft.shape) || (draft.operation !== "delete" && !boundsValid);
   }
@@ -2846,11 +3049,22 @@ class RoombaHomeMapCard extends HTMLElement {
     this.dialog.showModal();
   }
 
+  reviewCleanEverywhere() {
+    if (!this.snapshot?.can_clean_everywhere || this.submitting ||
+        this.$("clean-everywhere").disabled || this.dialog.open) return;
+    this.confirmation = { everywhere: true, entity: this.config.entity };
+    this.$("confirm-text").textContent =
+      `${this.snapshot.robot} will clean every reachable area using its next-cleaning preferences.`;
+    this.dialog.showModal();
+  }
+
   async submit() {
     const choice = this.confirmation;
-    if (!choice || this.submitting || !this.snapshot ||
-        (choice.point && (!this.pointAvailable || !this.pointModes.includes(choice.mode))) ||
-        choice.id !== this.snapshot.map.id || choice.version !== this.snapshot.map.version ||
+    if (!choice || this.submitting || !this.snapshot) return;
+    if (choice.everywhere) {
+      if (!this.dialog.open || !this.snapshot.can_clean_everywhere || choice.entity !== this.config.entity) return;
+    } else if ((choice.point && (!this.pointAvailable || !this.pointModes.includes(choice.mode))) ||
+        choice.id !== this.snapshot.map?.id || choice.version !== this.snapshot.map?.version ||
         choice.selectionId !== (this.geometry?.selection_id ?? this.snapshot.inventory_id)) return;
     this.submitting = true;
     this.confirmation = null;
@@ -2861,9 +3075,15 @@ class RoombaHomeMapCard extends HTMLElement {
     try {
       const review = { map_id: choice.id, version: choice.version };
       if (choice.selectionId) review.inventory_id = choice.selectionId;
-      const [service, selection] = choice.point
-        ? ["clean_point", {region_id: choice.point.id, x: choice.point.x, y: choice.point.y, mode: choice.mode, review}]
-        : ["clean_map_selection", {...review, regions: choice.regions}];
+      let service = "clean_map_selection";
+      let selection = { ...review, regions: choice.regions };
+      if (choice.everywhere) {
+        service = "clean_everywhere";
+        selection = { confirmed: true };
+      } else if (choice.point) {
+        service = "clean_point";
+        selection = { region_id: choice.point.id, x: choice.point.x, y: choice.point.y, mode: choice.mode, review };
+      }
       await this._hass.callService("roomba_home", service, selection, { entity_id: this.config.entity });
       this.selected.clear();
       this.point = null;
@@ -2931,8 +3151,9 @@ class RoombaHomeMapCard extends HTMLElement {
     status.hidden = !messages.length;
   }
 
-  async openRoutines(scheduleEditor = false) {
-    if (!this.snapshot || !this.geometry || this.routineBusy || this.routineDialog.open) return;
+  async openRoutines(scheduleEditor = false, initialDraft) {
+    if (!this.snapshot || !this.geometry || this.routineBusy ||
+        this.routineDialog.open && !initialDraft) return;
     const entity = this.config.entity;
     this.routineMap = {
       ...this.snapshot.map,
@@ -2946,10 +3167,10 @@ class RoombaHomeMapCard extends HTMLElement {
     this.routines = [];
     this.quickRoutines = null;
     this.routineBusy = true;
-    this.editRoutine("");
+    this.editRoutine("", initialDraft);
     const kind = scheduleEditor ? "schedules" : "routines";
     this.$("routine-status").textContent = `Loading ${kind}…`;
-    this.routineDialog.showModal();
+    if (!this.routineDialog.open) this.routineDialog.showModal();
     try {
       const result = await this.callAction(`list_cleaning_${kind}`, {}, entity);
       if (this.config.entity === entity) this.routines = result[kind];
@@ -2962,16 +3183,16 @@ class RoombaHomeMapCard extends HTMLElement {
     }
   }
 
-  editRoutine(id) {
+  editRoutine(id, initialDraft) {
     const saved = this.routines.find((routine) => routine.id === id);
     const settings = saved?.region_settings;
     const canReplace = settings?.every(({ id }) => this.routineAreas.has(id));
     const selected = this.scheduleEditor ? [...this.selected].filter((id) => this.routineAreas.has(id)) : this.selected;
     this.routineDraft = {
       saved,
-      name: saved?.name ?? "",
+      name: saved?.name ?? initialDraft?.name ?? "",
       regions: saved ? (canReplace ? settings.map((region) => ({ ...region })) : null)
-        : [...selected].map((id) => ({ id })),
+        : initialDraft?.regions ?? [...selected].map((id) => ({ id })),
       ordered: saved?.ordered !== false,
     };
     if (this.scheduleEditor) Object.assign(this.routineDraft, {
@@ -3026,6 +3247,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("add-routine-region-label").hidden = regions === null || locked || regions.length >= 32;
     add.disabled = !remaining.length;
     this.$("copy-routine").disabled = busy || !saved || !regions?.length;
+    this.$("use-routine-in-schedule").hidden = !this.canUseRoutineInSchedule();
     const deleteButton = this.$("remove-routine");
     deleteButton.textContent = "Delete";
     deleteButton.disabled = locked || !saved;
@@ -3396,6 +3618,21 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("routine-name").focus();
   }
 
+  canUseRoutineInSchedule() {
+    const draft = this.routineDraft;
+    return !this.scheduleEditor && !this.routineBusy && this.snapshot?.can_manage_schedules &&
+      this.routineFloorIsCurrent() && draft?.ordered !== false && draft?.regions?.length &&
+      draft.regions.every(({ id }) => this.geometry?.regions.some((area) =>
+        area.id === id && (area.kind === "room" || area.kind === "zone")));
+  }
+
+  async useRoutineInSchedule() {
+    if (!this.routineDialog.open || !this.canUseRoutineInSchedule()) return;
+    const { name, regions } = this.routineDraft;
+    await this.openRoutines(true, { name, regions: regions.map((region) => ({ ...region })) });
+    if (this.routineDialog.open && this.scheduleEditor) this.$("schedule-frequency").focus();
+  }
+
   routineFloorIsCurrent() {
     const map = this.snapshot?.map;
     const review = this.routineMap;
@@ -3644,12 +3881,16 @@ class RoombaHomeMapCard extends HTMLElement {
       const slot = draft.placing;
       if (slot != null && this.mapPoint) {
         const point = this.mapPoint(x, y);
-        this.setRestrictionBounds(slot === 0 ? point : [...draft.bounds.slice(0, 2), ...point]);
         draft.placing = slot === 0 ? 1 : null;
-        this.$("restriction-edit-status").textContent = slot === 0 ? "Select the opposite corner." : "";
+        if (slot !== 0) this.$("restriction-edit-status").textContent = "";
+        this.setRestrictionBounds(slot === 0 ? point : [...draft.bounds.slice(0, 2), ...point]);
       } else if (draft.operation !== "create") {
-        const hit = this.restrictionTargets.findLast(({ path }) =>
-          this.ctx.isPointInPath(path, x, y, "evenodd"));
+        this.ctx.save();
+        this.ctx.lineWidth = 12 * WIDTH / bounds.width;
+        const hit = this.restrictionTargets.findLast(({ path, kind }) => kind === "wall"
+          ? this.ctx.isPointInStroke(path, x, y)
+          : this.ctx.isPointInPath(path, x, y, "evenodd"));
+        this.ctx.restore();
         if (hit && hit.id !== draft.shape?.id) this.renderRestrictionEditor(hit.id);
       }
       return;
@@ -3800,10 +4041,8 @@ class RoombaHomeMapCard extends HTMLElement {
     ctx.strokeStyle = THEMES.exclusion[1];
     ctx.lineWidth = 3;
     ctx.setLineDash([6, 4]);
-    for (const [start, ...points] of walls) {
-      const path = new Path2D();
-      path.moveTo(...xy(start));
-      for (const point of points) path.lineTo(...xy(point));
+    for (const points of walls) {
+      const path = openPath(points, xy);
       ctx.stroke(path);
       this.walls.push(path);
     }
@@ -3827,8 +4066,8 @@ class RoombaHomeMapCard extends HTMLElement {
     }
     if (this.zoneDraft) this.drawZoneDraft(xy);
     if (this.restrictionDraft) {
-      this.restrictionTargets = this.geometry.editable_restrictions.map(({ id, points }) =>
-        ({ id, path: pathFor([[...points, points[0]]], xy) }));
+      this.restrictionTargets = this.geometry.editable_restrictions.map(({ id, kind, points }) =>
+        ({ id, kind, path: kind === "wall" ? openPath(points, xy) : pathFor([[...points, points[0]]], xy) }));
       this.drawRestrictionDraft(xy);
     }
   }
@@ -3880,6 +4119,21 @@ class RoombaHomeMapCard extends HTMLElement {
 
   drawRestrictionDraft(xy) {
     const draft = this.restrictionDraft;
+    if (draft.kind === "wall") {
+      const [x1, y1, x2, y2] = draft.bounds ?? draft.shape?.points.flat() ?? [];
+      if (![x1, y1].every(Number.isFinite)) return;
+      this.drawPointMarker(xy([x1, y1]), "#f6ac9d");
+      if ([x2, y2].every(Number.isFinite)) {
+        const ctx = this.ctx;
+        ctx.strokeStyle = "#f6ac9d";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 4]);
+        ctx.stroke(openPath([[x1, y1], [x2, y2]], xy));
+        ctx.setLineDash([]);
+        this.drawPointMarker(xy([x2, y2]), "#f6ac9d");
+      }
+      return;
+    }
     const ring = draft.bounds?.every(Number.isFinite) ? rectangleRing(draft.bounds)
       : draft.shape ? [...draft.shape.points, draft.shape.points[0]] : null;
     if (!ring) return;

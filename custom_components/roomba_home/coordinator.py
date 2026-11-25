@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager, suppress
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from hashlib import sha256
@@ -46,7 +46,7 @@ from .core.application import (
 from .core.capabilities import supports_point_clean
 from .core.cleaning import CleaningCapabilities, CleaningMode, CleaningProfile
 from .core.cleaning_protocol import reported_cleaning_mode
-from .core.client import RoombaClient, check_status
+from .core.client import MapEditAcknowledgement, RoombaClient, check_status
 from .core.commands import Command, MqttCommandSender
 from .core.dock import DockSnapshot
 from .core.errors import (
@@ -61,7 +61,12 @@ from .core.errors import (
     ScheduleUpdateUnconfirmed,
 )
 from .core.floor_settings import prepare_floor_settings, prepare_floor_settings_restore
-from .core.furniture_edits import confirm_furniture_edit, prepare_furniture_edit
+from .core.furniture_edits import (
+    confirm_furniture_edit,
+    confirm_furniture_restore,
+    prepare_furniture_edit,
+    prepare_furniture_restore,
+)
 from .core.furniture_targets import furniture_regions
 from .core.history import (
     ended_mission_start,
@@ -78,10 +83,11 @@ from .core.live_route import (
     reconcile_live_snapshot,
 )
 from .core.map_programs import (
-    capture_zone_programs,
-    matching_zone_destinations,
+    capture_map_programs,
+    matching_backup_destinations,
     program_selection,
-    review_zone_program,
+    review_map_program,
+    saved_furniture_destinations,
     saved_zone_destinations,
 )
 from .core.map_snapshots import capture_snapshot, read_snapshot, with_backup_programs
@@ -98,8 +104,12 @@ from .core.point_maps import (
     with_archive_destinations,
 )
 from .core.preferences import profile_preferences, restore_profile
-from .core.restriction_edits import confirm_restriction_edit, prepare_restriction_edit
-from .core.room_edits import edited_revision, prepare_room_edit
+from .core.restriction_edits import (
+    confirm_restriction_edit,
+    prepare_restriction_edit,
+    prepare_restriction_restore,
+)
+from .core.room_edits import edited_revision, prepare_room_edit, review_room_details
 from .core.routine_presets import smart_routine_presets
 from .core.schedules import next_schedule_start, once_weekday
 from .core.settings_protocol import DEVICE_CONFIGURATION_SETTINGS, RobotSetting
@@ -499,11 +509,11 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         )
         try:
             record, plan = await self._executor(capture_snapshot, floor, archive, datetime.now(UTC))
-            if zones := saved_zone_destinations(floor.map_id, plan):
-                sources, unchecked = await self._read_backup_programs(
-                    robot_id, {"routine", "schedule"}
-                )
-                programs = capture_zone_programs(zones, sources, unchecked)
+            zones = saved_zone_destinations(floor.map_id, plan)
+            if areas := zones | saved_furniture_destinations(floor.map_id, plan):
+                kinds = {"routine", "schedule"} if zones else {"routine"}
+                sources, unchecked = await self._read_backup_programs(robot_id, kinds)
+                programs = capture_map_programs(areas, sources, unchecked)
                 record = await self._executor(with_backup_programs, record, archive, programs)
             return await history.async_capture(robot_id, record)
         except ProtocolError as error:
@@ -677,6 +687,138 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         confirmed=False,
         review_id=None,
     ):
+        return await self._restore_map_geometry(
+            robot_id,
+            backup_id,
+            map_id,
+            version,
+            inventory_id,
+            settings_id,
+            prepare_zone_restore,
+            confirm_zone_restore,
+            confirmed,
+            review_id,
+            RegionKind.ZONE,
+        )
+
+    async def async_restore_map_room_details(
+        self,
+        robot_id,
+        backup_id,
+        map_id,
+        version,
+        inventory_id,
+        settings_id,
+        *,
+        confirmed=False,
+        room_id=None,
+        review_id=None,
+    ):
+        async with self._io_lock:
+            history = map_history(self.hass, self.config_entry.entry_id)
+            record = await history.async_read(robot_id, backup_id)
+            saved, archived = await self._executor(read_snapshot, record)
+            if saved.map_id != map_id:
+                raise HomeAssistantError("Select the active floor for this backup.")
+            scope = (map_id, version, inventory_id, settings_id)
+            floor = await self._reviewed_settings_floor(robot_id, *scope)
+            plan = await self._floor_plan(robot_id, floor)
+            try:
+                entries = await self._executor(review_room_details, archived, plan)
+            except ValueError as error:
+                raise HomeAssistantError(str(error)) from None
+            ready = {}
+            for row, edit in entries:
+                if edit is not None:
+                    authorized = sha256(
+                        json.dumps(
+                            {
+                                "backup": backup_id,
+                                "floor": scope,
+                                "room": row,
+                            },
+                            sort_keys=True,
+                        ).encode()
+                    ).hexdigest()
+                    row["review_id"] = authorized
+                    ready[row["id"]] = (authorized, edit)
+            if not confirmed:
+                return {"rooms": [row for row, _ in entries], "applied": False}
+            selected = ready.get(room_id)
+            if selected is None or selected[0] != review_id:
+                raise action_error(
+                    "map_changed", "The room recovery review changed. Open it again."
+                )
+            await self._back_up_before_edit(robot_id, floor)
+            active = await self._reviewed_settings_floor(robot_id, *scope)
+            await self._write_map_edit(robot_id, active, plan, selected[1], edited_revision)
+            return {"applied": True}
+
+    async def async_restore_map_restrictions(
+        self,
+        robot_id,
+        backup_id,
+        map_id,
+        version,
+        inventory_id,
+        settings_id,
+        *,
+        confirmed=False,
+        review_id=None,
+    ):
+        return await self._restore_map_geometry(
+            robot_id,
+            backup_id,
+            map_id,
+            version,
+            inventory_id,
+            settings_id,
+            prepare_restriction_restore,
+            confirm_restriction_edit,
+            confirmed,
+            review_id,
+        )
+
+    async def async_restore_map_furniture(
+        self,
+        robot_id,
+        backup_id,
+        map_id,
+        version,
+        inventory_id,
+        settings_id,
+        *,
+        confirmed=False,
+        review_id=None,
+    ):
+        return await self._restore_map_geometry(
+            robot_id,
+            backup_id,
+            map_id,
+            version,
+            inventory_id,
+            settings_id,
+            prepare_furniture_restore,
+            confirm_furniture_restore,
+            confirmed,
+            review_id,
+            RegionKind.FURNITURE,
+        )
+
+    async def _restore_map_geometry(
+        self,
+        robot_id,
+        backup_id,
+        map_id,
+        version,
+        inventory_id,
+        settings_id,
+        prepare,
+        confirm,
+        confirmed,
+        review_id,
+        dependency_kind=None,
+    ):
         async with self._io_lock:
             history = map_history(self.hass, self.config_entry.entry_id)
             record = await history.async_read(robot_id, backup_id)
@@ -688,17 +830,24 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             )
             plan = await self._floor_plan(robot_id, floor)
             try:
-                edit = prepare_zone_restore(archived, plan)
+                edit = prepare(archived, plan)
             except ValueError as error:
                 raise HomeAssistantError(str(error)) from None
             changes = edit.changes(plan)
-            dependencies, unchecked = await self._zone_restore_dependencies(
-                robot_id, map_id, changes
-            )
-            preview = {"changes": changes, "dependencies": dependencies, "unchecked": unchecked}
+            preview = {"changes": changes}
+            if dependency_kind is not None:
+                linked, unchecked = await self._map_restore_dependencies(
+                    robot_id, map_id, dependency_kind, changes
+                )
+                preview.update(dependencies=linked, unchecked=unchecked)
             digest = sha256(
                 json.dumps(
-                    {"preview": preview, "backup": backup_id, "edit": edit.request_body()},
+                    {
+                        "preview": preview,
+                        "backup": backup_id,
+                        "edit": asdict(edit),
+                        "floor": (map_id, version, inventory_id, settings_id),
+                    },
                     sort_keys=True,
                 ).encode()
             ).hexdigest()
@@ -706,41 +855,34 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 return {**preview, "review_id": digest, "applied": False}
             if review_id != digest:
                 raise action_error(
-                    "map_changed", "The zone recovery review changed. Review it again."
+                    "map_changed", "The map recovery review changed. Review it again."
                 )
             await self._back_up_before_edit(robot_id, floor)
             active = await self._reviewed_settings_floor(
                 robot_id, map_id, version, inventory_id, settings_id
             )
-            await self._write_map_edit(robot_id, active, plan, edit, confirm_zone_restore)
+            await self._write_map_edit(robot_id, active, plan, edit, confirm)
             return {**preview, "review_id": digest, "applied": True}
 
-    async def _zone_restore_dependencies(self, robot_id, map_id, changes):
-        dependencies, unchecked = [], []
+    async def _map_restore_dependencies(self, robot_id, map_id, region_kind, changes):
         if not changes:
-            return dependencies, unchecked
-        targets = {f"{map_id}:zid:{zone['id']}": zone["id"] for zone in changes}
-        for kind, read in (
-            ("routine", self.client.list_cleaning_routines),
-            ("schedule", self.client.list_cleaning_schedules),
-        ):
-            try:
-                programs = await read(robot_id)
-            except AuthenticationError:
-                raise
-            except RoombaError, OSError:
-                unchecked.append(kind)
-                continue
+            return [], []
+        targets = {f"{map_id}:{region_kind}:{row['id']}": row["id"] for row in changes}
+        kinds = {"routine", "schedule"} if region_kind is RegionKind.ZONE else {"routine"}
+        key = "zones" if region_kind is RegionKind.ZONE else "objects"
+        sources, unchecked = await self._read_backup_programs(robot_id, kinds)
+        dependencies = []
+        for kind, programs in sources.items():
             if any(not row.get("regions") for row in programs):
                 unchecked.append(kind)
             for row in programs:
-                zones = sorted(
+                linked = sorted(
                     targets[region] for region in (row.get("regions") or ()) if region in targets
                 )
-                if zones:
-                    dependencies.append({"kind": kind, "name": row.get("name"), "zones": zones})
-        dependencies.sort(key=lambda item: (item["kind"], item["name"] or "", item["zones"]))
-        return dependencies, unchecked
+                if linked:
+                    dependencies.append({"kind": kind, "name": row.get("name"), key: linked})
+        dependencies.sort(key=lambda item: (item["kind"], item["name"] or "", item[key]))
+        return dependencies, sorted(unchecked)
 
     async def _read_backup_programs(self, robot_id, kinds):
         sources, unchecked = {}, []
@@ -793,9 +935,13 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 robot_id, {item["kind"] for item in backup["items"]}
             )
             plan = await self._floor_plan(robot_id, floor)
-            current_zones = saved_zone_destinations(floor.map_id, plan)
-            saved_zones = saved_zone_destinations(saved.map_id, archived)
-            matching = matching_zone_destinations(archived, plan, saved_zones, current_zones)
+            current_areas = saved_zone_destinations(
+                floor.map_id, plan
+            ) | saved_furniture_destinations(floor.map_id, plan)
+            saved_areas = saved_zone_destinations(
+                saved.map_id, archived
+            ) | saved_furniture_destinations(saved.map_id, archived)
+            matching = matching_backup_destinations(archived, plan, saved_areas, current_areas)
             destinations = with_archive_destinations(floor, plan)
             capabilities = self.data[robot_id].capabilities.cleaning
             reviews, ready = [], {}
@@ -816,8 +962,8 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                                 *furniture_regions(plan),
                             ),
                         )
-                    status, target, areas = review_zone_program(
-                        item, current, saved_zones, matching, supported, capabilities
+                    status, target, areas = review_map_program(
+                        item, current, saved_areas, matching, supported, capabilities
                     )
                 review = {
                     "kind": source,
@@ -948,14 +1094,25 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
     async def _write_map_edit(self, robot_id, floor, plan, edit, confirm):
         self._maps_due = min(self._maps_due, self._clock())
         try:
-            archive = await self._read_map_action(self.client.edit_map, floor.map_id, edit)
-            edited = await self._executor(confirm, archive, floor, plan, edit)
+            response = await self._read_map_action(self.client.edit_map, floor.map_id, edit)
+            needs_archive = isinstance(response, MapEditAcknowledgement)
+            edited = (
+                response.version
+                if needs_archive
+                else await self._executor(confirm, response, floor, plan, edit)
+            )
             for delay in (0, 0.5, 1.5):
                 if delay:
                     await asyncio.sleep(delay)
                 floors = await self._read_map_action(self._read_maps, robot_id)
                 active = next((item for item in floors if item.map_id == floor.map_id), None)
                 if active and active.version_id == edited:
+                    if needs_archive:
+                        archive = await self._read_map_action(
+                            self.client.map_geometry, active.map_id, edited
+                        )
+                        if await self._executor(confirm, archive, floor, plan, edit) != edited:
+                            break
                     self.async_update_listeners()
                     return active
                 if active is None or active.version_id != floor.version_id:
@@ -1812,7 +1969,31 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 floors = (floor,)
             except ProtocolError:
                 pass
-        return {**report.detail(floors), "geometry": geometry, "map_index": map_index}
+        detail = report.detail(floors)
+        if (
+            floors
+            and report.plan is not None
+            and report.plan.scope[0] == scope[0]
+            and report.plan.scope != scope
+            and any(
+                row["name"] is None and row["kind"] != "temporary_zone"
+                for row in detail["plan"]["destinations"]
+            )
+        ):
+            # A mission archive can omit an object that was on the requested floor.
+            try:
+                async with self._io_lock:
+                    requested_archive = await self._read_map_action(
+                        self.client.map_geometry, *report.plan.scope
+                    )
+                requested_floor, _ = await self._executor(
+                    read_mission_map, requested_archive, *report.plan.scope
+                )
+            except HomeAssistantError, AuthenticationError, ProtocolError:
+                pass
+            else:
+                detail = report.detail(floors, requested_floor=requested_floor)
+        return {**detail, "geometry": geometry, "map_index": map_index}
 
     async def _resolve_point(self, robot_id, region_id, x, y, reviewed_map, mops):
         async with self._io_lock:
@@ -2308,6 +2489,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         reviewed_map=None,
         reviewed_skip=None,
         ordered=True,
+        new_mission=False,
     ):
         async with self._robot_operation(robot_id):
             try:
@@ -2338,7 +2520,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                     ),
                     command,
                     area_profiles[0] if area_profiles else profile,
-                    new_mission=target is not None,
+                    new_mission=new_mission or target is not None,
                     area_profiles=area_profiles,
                     reviewed_skip=skip_target,
                 )
@@ -2582,6 +2764,7 @@ def control_snapshot(state, timeline=None):
         skip_observation=timeline.skip_observation() if timeline is not None else None,
         mapping_supported=state.capabilities.persistent_maps is True,
         mapping=state.mapping is True,
+        pause_before_return=state.sku == SUPPORTED_SKU,
     )
 
 

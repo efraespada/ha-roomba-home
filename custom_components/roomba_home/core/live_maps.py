@@ -10,8 +10,9 @@ from math import pi
 from .application import SkipAreaEvent, SkipObservation
 from .cleaning import CleaningMode
 from .cleaning_protocol import reported_cleaning_mode
-from .history import AreaResult, identify_zones, room_results, zone_results
+from .history import identify_zones, room_results, zone_results
 from .maps import PersistentMap, map_identifier
+from .mission_areas import AreaResult
 from .mission_plan import MissionPlan, mission_plan
 from .point_maps import PointTarget
 from .telemetry import integer

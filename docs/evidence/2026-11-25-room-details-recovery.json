@@ -1,0 +1,22 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "boundary_trial": {
+    "original_room_identifier_name_and_type_preserved": true,
+    "original_floor_border_and_other_parsed_layers_preserved": true,
+    "maximum_room_outline_deviation_in_native_units": 0.05,
+    "approximate_relative_room_area_difference_percent": 0.0077,
+    "original_archive_retained": true,
+    "signed_read_returned_exact_original_archive": true,
+    "current_room_outline_still_differs": true
+  },
+  "room_detail_recovery": {
+    "changed_boundary_identified_in_original_backup": true,
+    "json_revision_acknowledgement_verified_against_signed_archive": true,
+    "accented_label_and_category_round_trip": true,
+    "native_writes_to_restore_metadata": 1,
+    "repeated_review_found_no_metadata_changes": true,
+    "room_geometry_and_original_routines_preserved_during_metadata_trial": true,
+    "movement_commands_sent": 0
+  }
+}

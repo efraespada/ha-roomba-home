@@ -3,7 +3,7 @@
 - Status: As-built baseline
 - Date: 2026-11-23
 - Catalog capability ID: native-commands
-- Last verified: 2026-11-25
+- Last verified: 2026-11-26
 - Owners: ha-roomba-home maintainer
 - Scope: Native command dispatch and independent verification of physical results.
 - Related issues/PRs: No local work without publication.
@@ -61,6 +61,10 @@ same mission confirms the result.
 - CMD-05: errors and output MUST omit private destination, tokens and original payloads.
 - CMD-06: A skip MUST use a fresh, scoped destination. Confirm it with a new
   matching event in the same mission and reject a changed review before dispatch.
+- CMD-07: On the Max 700 Combo, a return during active cleaning MUST wait
+  for the same mission to pause before publishing `dock`. Confirm arrival
+  from robot state. If the robot starts returning while the pause is
+  pending, observe the return without publishing a second command.
 
 It does not include reset, clear maps and fringes. Retirement changes have been added to
 them by area planning or cleanup as an integral part of the system's production operations
@@ -93,9 +97,14 @@ independent reading of result. A receipt doesn't advance the last step.
 | Accepted by broker | PUBACK | Reforms `unconfirmed` for physical result |
 | Untrue | Error or timeout | He doesn't repeat his order. |
 
-The physical test requires known prior status, after consultation and cleanliness at end. At
-the test, pause preserves his mission and stops canceling. The return is checked separately
-and does not mean canceling means returning to the dock.
+Physical tests read the robot state before and after each command. Pause
+keeps the current mission active. Cancel ends it. In a whole-area Max 700
+Combo trial, a direct return during active vacuuming left the robot
+cleaning. In a subsequent trial, pause followed by return reached the
+dock and cleared the mission cycle with error code 0. The Home Assistant
+use case requires fresh, connected telemetry and the same mission
+identity before proceeding from pause to dock.
+[Return trial](../docs/validation.md#return-during-active-cleaning)
 
 ## 7. User-facing configuration
 
@@ -154,10 +163,12 @@ they aren't hidden under an effective transport result.
 
 ## 13. Compatibility, migration, rollout, and rollback
 
-Proven compatibility: SKU X185240, app 3.4.1, vacuuming generic from the base, pause during
-cleaning and paused cancellation after canceling. It does not mean that dock during an
-active mission, sum up or areas have been tested. To stop the emitter does not revere an
-order already sent: you have to check his robot.
+On SKU X185240, physical trials verified whole-area vacuuming from the
+dock, pausing, cancelling, and returning after pause or cancellation.
+The staged behavior applies to active cleaning outside mapping and
+mop preparation. Check the reported
+robot state after a timeout because the command may already have been
+published.
 
 ## 14. Testing strategy and numeric budget
 
@@ -205,6 +216,7 @@ The [Contents](../docs/index.md) links reference and research boundaries.
 | CMD-04 | CommandReceipt | Non-physical receipt test | docs / architecture.md |
 | CMD-05 | CLI and errors | Privacy and Inspection Tests | docs / validation.md |
 | CMD-06 | Mission command policy and live timeline projection | Fresh and stale reviews, one send, matched skip, and a physical transition to the next area | [Skip validation](../docs/validation.md#skip-the-current-destination) |
+| CMD-07 | Return-to-base use case | [Control policy tests](../tests/test_application.py) and [Home Assistant service tests](../tests/ha/test_cleaning_controls.py) | [Return validation](../docs/validation.md#return-during-active-cleaning) |
 
 ## 18. Implementation sequence
 

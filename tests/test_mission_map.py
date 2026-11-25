@@ -28,12 +28,19 @@ def test_mission_history_geometry_keeps_mode_coverage_order_and_gaps(make_point_
             ],
             "hazard": [feature({"type": "Point", "coordinates": [3, 5]})],
             "adHocCleanZones": [feature(polygon)],
+            "cleanZones": [feature(polygon)],
         }
         for name, features in layers.items():
             documents["manifest.json"]["features"].append(
                 {"type": name, "filepath": f"{name}.geojson"}
             )
             documents[f"{name}.geojson"] = {"type": "FeatureCollection", "features": features}
+        documents["policyZones.geojson"]["features"].extend(
+            [
+                feature(polygon, type="NoMopZone"),
+                feature(line([1, 2], [3, 4]), type="KeepOutZone"),
+            ]
+        )
 
     bundle = make_point_bundle(mutate=modify)
     floor, report = read_mission_map(bundle, "map-a", "version.42")
@@ -43,5 +50,8 @@ def test_mission_history_geometry_keeps_mode_coverage_order_and_gaps(make_point_
     assert [path["modes"] for path in report["trajectories"]] == [("traveling",), (), ("mopping",)]
     assert report["trajectories"][-1]["points"] == ((8, 8), (9, 9))
     assert report["hazards"] == ((3, 5),) and report["temporary_zones"]
+    assert report["saved_zones"] == report["no_mop"] == ((((0, 0), (3, 0), (3, 3), (0, 0)),),)
+    assert len(report["keep_out"][0]) == 2
+    assert report["virtual_walls"] == (((1, 2), (3, 4)),)
     with pytest.raises(ProtocolError, match="active version"):
         read_mission_map(bundle, "map-a", "other-revision")

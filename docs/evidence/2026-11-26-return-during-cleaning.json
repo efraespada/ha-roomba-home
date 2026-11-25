@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-26",
+  "tested_model": "Roomba Max 700 Combo",
+  "robots_commanded": 1,
+  "native_trial": {
+    "direct_dock_during_cleaning_confirmed": false,
+    "pause_preserved_mission_identity": true,
+    "dock_after_pause_confirmed": true,
+    "final_error": 0
+  },
+  "isolated_home_assistant_action": {
+    "action": "vacuum.return_to_base",
+    "calls": 1,
+    "observed_phase_and_cycle": [
+      ["run", "clean"],
+      ["stop", "clean"],
+      ["hmUsrDock", "dock"],
+      ["charge", "none"]
+    ],
+    "command_result": "confirmed",
+    "final_error": 0,
+    "rooms_zones_and_restrictions_preserved": true,
+    "routines_and_schedules_preserved": true
+  }
+}

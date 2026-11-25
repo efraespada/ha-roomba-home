@@ -114,7 +114,10 @@ provides updates if the continuous subscription is unavailable.
 with a finished outcome in the same active timeline. Its `total`,
 `ordered`, and `destinations` attributes describe the provider's
 declared targets and their statuses, with names and requested cleaning
-modes when available. Unfinished, skipped, and revisited destinations
+modes when available. A destination can also include `requested_settings`
+from its command and `reported_pass_count` from its timeline event.
+Omitted command preferences use the robot's defaults. Unfinished, skipped,
+and revisited destinations
 keep a separate status. Whole-floor and point runs have their own views.
 The count becomes unknown after the mission ends or the report expires.
 

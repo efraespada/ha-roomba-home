@@ -14,8 +14,11 @@ archive of a removed test floor also remained readable at the time of
 testing. A request to make that floor visible again received an
 acknowledgement, but the floor never returned to the usable map list in
 the verification window. The original floor remained unchanged. iRobot
-documents map rollback for Imprint Smart Maps and a separate remapping flow
-for ClearView. [Trial evidence](evidence/2026-11-25-map-backup-feasibility.json) · [Imprint guide](https://homesupport.irobot.com/articles/en_GB/Knowledge/64102) · [ClearView guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
+documents map rollback for Imprint Smart Maps. Its copy and retrieval guide
+excludes newer ClearView robots such as the Max 700.
+[Trial evidence](evidence/2026-11-25-map-backup-feasibility.json) ·
+[iRobot backup and retrieval](https://homesupport.irobot.com/articles/en_US/Knowledge/53000) ·
+[ClearView guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
 
 1. **Capture and browse.** Available from the floor plan card. Save a
    verified snapshot on demand or automatically before a confirmed map
@@ -25,14 +28,25 @@ for ClearView. [Trial evidence](evidence/2026-11-25-map-backup-feasibility.json)
 2. **Recover supported edits.** Version 0.60.0 previews and restores the
    backed-up name and orientation on the active floor. Version 0.61.0
    recovers changed or removed cleaning zone outlines under their original
-   identifiers. Verify room edits, restrictions, and furniture separately.
+   identifiers. Restriction recovery restores keep-out and no-mop zones
+   and linear virtual walls under the original identifiers while retaining
+   newer restrictions. Furniture recovery restores compatible object IDs,
+   source flags, and placements while retaining newer objects. Routine
+   recovery can reattach furniture destinations pruned after deletion and
+   preserve their per-area profiles. Recover room names and types when the
+   room identifier and footprint match. Recombining a split can redraw the
+   room boundary, so exact room layout recovery requires a verified
+   version-level operation.
    Check the live revision before each write and verify the result from Roomba.
    Version 0.62.0 captures compatible routine and schedule destinations and
    recovers zone links that Roomba prunes after deletion. Each confirmation
    restores the backed-up order and per-area preferences for one surviving
    program and preserves its current name, schedule timing, and enabled state.
    [Zone recovery validation](validation.md#recovering-cleaning-zones) ·
-   [Program recovery validation](validation.md#recovering-program-destinations)
+   [Program recovery validation](validation.md#recovering-program-destinations) ·
+   [Restriction recovery validation](validation.md#recovering-map-restrictions) ·
+   [Furniture recovery validation](validation.md#recovering-furniture-placements) ·
+   [Room details and boundary trial](validation.md#recovering-room-names-and-types)
 3. **Investigate full restoration.** Verify a provider operation for
    importing or reactivating an entire floor after its remote revision is
    gone. Use a disposable floor to prove that the restored map reappears
