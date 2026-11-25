@@ -1,5 +1,25 @@
 # Roomba Home validation
 
+## Recovering map restrictions
+
+A signed Max 700 Combo trial saved a keep-out zone, a no-mop zone, and a
+linear virtual wall. The previous line encoding returned the same point
+twice. The follow-up confirmed that kind `2` with `[A, A, B, B]` retained
+both endpoints during creation and a later policy-layer replacement.
+
+The integration saved a local backup, moved the keep-out zone, and removed
+the no-mop zone and wall. The recovery review showed the three changes and
+confirmation saved an automatic pre-restore backup. One native write
+restored the original identifiers and shapes, kept a newer no-mop zone, and
+returned a new active revision. A repeated review reported zero changes.
+Cleanup restored the original floor and sent zero movement commands.
+[Sanitized evidence](evidence/2026-11-25-map-restriction-recovery.json)
+
+The recovery changes passed 2,423 Python tests with 100% line and branch
+coverage and 51 map card tests. Isolated Chrome verified the reviewed write
+at 358 and 900 pixels with a synthetic floor. Home Assistant's integration
+validator reported zero invalid integrations.
+
 ## Recovering program destinations
 
 A signed Max 700 Combo trial captured two cleaning zones, a routine, and a

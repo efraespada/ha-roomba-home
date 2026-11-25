@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Recover moved or deleted keep-out zones, no-mop zones, and virtual walls
+  from a local floor backup after reviewing the changes. Keep restrictions
+  added after the backup.
+- Preserve distinct virtual wall endpoints when saving the restriction layer.
+
 ## 0.62.0
 
 - Include compatible routine and schedule destinations in local map backups.

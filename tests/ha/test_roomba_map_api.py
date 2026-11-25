@@ -2686,3 +2686,56 @@ async def test_program_recovery_accepts_old_copies_and_checks_floor_identity(
             assert response["result"] == {"programs": [], "unchecked": [], "applied": False}
         else:
             assert "Select the active floor" in response["error"]["message"]
+
+
+async def test_backup_restrictions_requires_control_and_matching_review(
+    hass, entry, configured, hass_ws_client, hass_admin_user, picea_archive, policy_feature
+):
+    rectangle = ((8, 1), (8, 3), (6, 3), (6, 1), (8, 1))
+    moved_shape = ((8, 4), (8, 5), (6, 5), (6, 4), (8, 4))
+    keep = policy_feature("100", "KeepOutZone", [rectangle])
+    moved = policy_feature("100", "KeepOutZone", [moved_shape])
+    wall = policy_feature("101", "KeepOutZone", [[2, 2], [3, 2]], geometry_type="LineString")
+    newer = policy_feature("102", "NoMopZone", [rectangle])
+    history = map_history(hass, entry.entry_id)
+    saved = replace(MAP, version_id="original")
+    record, _ = capture_snapshot(
+        saved, picea_archive(version="original", restrictions=[keep, wall]), datetime.now(UTC)
+    )
+    await history.async_capture("fixture-0", record)
+    await history.async_configure("fixture-0", 5, True)
+    configured.client.map_geometry.return_value = picea_archive(restrictions=[moved, newer])
+    configured.client.edit_map = AsyncMock(
+        return_value=picea_archive(version="version.43", restrictions=[keep, newer, wall])
+    )
+    request = CAPTURE_BACKUP | {
+        "type": "roomba_home/restore_map_backup_restrictions",
+        "backup_id": record["id"],
+    }
+    socket = await hass_ws_client()
+    await socket.send_json(request | {"id": 1})
+    review = (await socket.receive_json())["result"]
+    assert review["changes"] == [
+        {"id": "100", "kind": "keep_out", "missing": False},
+        {"id": "101", "kind": "wall", "missing": True},
+    ]
+    assert review["applied"] is False and len(review["review_id"]) == 64
+    configured.client.edit_map.assert_not_awaited()
+    confirm = request | {"confirmed": True, "review_id": review["review_id"]}
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda _entity, permission: permission == POLICY_READ,
+    ):
+        await socket.send_json(confirm | {"id": 2})
+        assert (await socket.receive_json())["error"]["code"] == "unauthorized"
+    await socket.send_json(confirm | {"id": 3, "review_id": "b" * 64})
+    assert (await socket.receive_json())["error"]["code"] == "map_changed"
+    configured.client.edit_map.assert_not_awaited()
+    configured.client.maps.side_effect = [(MAP,), (MAP,), (replace(MAP, version_id="version.43"),)]
+    await socket.send_json(confirm | {"id": 4})
+    assert (await socket.receive_json())["result"] == review | {"applied": True}
+    configured.client.edit_map.assert_awaited_once()
+    _, edit = configured.client.edit_map.await_args.args
+    assert [item.identifier for item in edit.restrictions] == ["100", "102", "101"]
+    assert len((await history.async_list("fixture-0"))["snapshots"]) == 2

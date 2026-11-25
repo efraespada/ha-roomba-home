@@ -1,0 +1,22 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "linear_wall_round_trip": {
+    "reversed_endpoint_order_collapsed_the_line": true,
+    "duplicate_each_endpoint_preserved_both_endpoints": true,
+    "alternating_endpoints_preserved_both_endpoints": true,
+    "retained_wall_survived_unrelated_restriction_edit": true
+  },
+  "recovery": {
+    "moved_keep_out_zone": true,
+    "removed_no_mop_zone": true,
+    "removed_linear_wall": true,
+    "native_writes_after_confirmation": 1,
+    "saved_identifiers_and_geometry_confirmed": true,
+    "retained_newer_no_mop_zone": true,
+    "automatic_pre_restore_backup": true,
+    "second_review_found_no_changes": true,
+    "original_map_restored_after_cleanup": true,
+    "movement_commands_sent": 0
+  }
+}

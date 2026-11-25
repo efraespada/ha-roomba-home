@@ -464,6 +464,13 @@ the copy saved before the move. Deleting a zone can remove its references
 from routines and schedules, and those references can stay absent after
 recreating the zone.
 
+Choose **Restore restrictions** to review and recover keep-out zones,
+no-mop zones, and virtual walls from the selected backup. For example,
+recover a removed no-mop zone without deleting another zone added later.
+The preview identifies moved and missing restrictions. Confirmation applies
+the saved geometry to the active floor by identifier. Recovery requires
+the same floor boundary and supported restriction types in both versions.
+
 For a backup captured with program destinations, choose **Recover program
 destinations** after recovering the zones. Select a routine or schedule,
 review the destination order and the settings for each area, and choose

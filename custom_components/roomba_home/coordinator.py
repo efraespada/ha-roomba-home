@@ -98,7 +98,11 @@ from .core.point_maps import (
     with_archive_destinations,
 )
 from .core.preferences import profile_preferences, restore_profile
-from .core.restriction_edits import confirm_restriction_edit, prepare_restriction_edit
+from .core.restriction_edits import (
+    confirm_restriction_edit,
+    prepare_restriction_edit,
+    prepare_restriction_restore,
+)
 from .core.room_edits import edited_revision, prepare_room_edit
 from .core.routine_presets import smart_routine_presets
 from .core.schedules import next_schedule_start, once_weekday
@@ -677,6 +681,59 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         confirmed=False,
         review_id=None,
     ):
+        return await self._restore_map_geometry(
+            robot_id,
+            backup_id,
+            map_id,
+            version,
+            inventory_id,
+            settings_id,
+            prepare_zone_restore,
+            confirm_zone_restore,
+            confirmed,
+            review_id,
+            self._zone_restore_dependencies,
+        )
+
+    async def async_restore_map_restrictions(
+        self,
+        robot_id,
+        backup_id,
+        map_id,
+        version,
+        inventory_id,
+        settings_id,
+        *,
+        confirmed=False,
+        review_id=None,
+    ):
+        return await self._restore_map_geometry(
+            robot_id,
+            backup_id,
+            map_id,
+            version,
+            inventory_id,
+            settings_id,
+            prepare_restriction_restore,
+            confirm_restriction_edit,
+            confirmed,
+            review_id,
+        )
+
+    async def _restore_map_geometry(
+        self,
+        robot_id,
+        backup_id,
+        map_id,
+        version,
+        inventory_id,
+        settings_id,
+        prepare,
+        confirm,
+        confirmed,
+        review_id,
+        dependencies=None,
+    ):
         async with self._io_lock:
             history = map_history(self.hass, self.config_entry.entry_id)
             record = await history.async_read(robot_id, backup_id)
@@ -688,17 +745,22 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             )
             plan = await self._floor_plan(robot_id, floor)
             try:
-                edit = prepare_zone_restore(archived, plan)
+                edit = prepare(archived, plan)
             except ValueError as error:
                 raise HomeAssistantError(str(error)) from None
             changes = edit.changes(plan)
-            dependencies, unchecked = await self._zone_restore_dependencies(
-                robot_id, map_id, changes
-            )
-            preview = {"changes": changes, "dependencies": dependencies, "unchecked": unchecked}
+            preview = {"changes": changes}
+            if dependencies is not None:
+                linked, unchecked = await dependencies(robot_id, map_id, changes)
+                preview.update(dependencies=linked, unchecked=unchecked)
             digest = sha256(
                 json.dumps(
-                    {"preview": preview, "backup": backup_id, "edit": edit.request_body()},
+                    {
+                        "preview": preview,
+                        "backup": backup_id,
+                        "edit": edit.request_body(),
+                        "floor": (map_id, version, inventory_id, settings_id),
+                    },
                     sort_keys=True,
                 ).encode()
             ).hexdigest()
@@ -706,13 +768,13 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 return {**preview, "review_id": digest, "applied": False}
             if review_id != digest:
                 raise action_error(
-                    "map_changed", "The zone recovery review changed. Review it again."
+                    "map_changed", "The map recovery review changed. Review it again."
                 )
             await self._back_up_before_edit(robot_id, floor)
             active = await self._reviewed_settings_floor(
                 robot_id, map_id, version, inventory_id, settings_id
             )
-            await self._write_map_edit(robot_id, active, plan, edit, confirm_zone_restore)
+            await self._write_map_edit(robot_id, active, plan, edit, confirm)
             return {**preview, "review_id": digest, "applied": True}
 
     async def _zone_restore_dependencies(self, robot_id, map_id, changes):

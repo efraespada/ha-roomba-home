@@ -25,14 +25,18 @@ for ClearView. [Trial evidence](evidence/2026-11-25-map-backup-feasibility.json)
 2. **Recover supported edits.** Version 0.60.0 previews and restores the
    backed-up name and orientation on the active floor. Version 0.61.0
    recovers changed or removed cleaning zone outlines under their original
-   identifiers. Verify room edits, restrictions, and furniture separately.
+   identifiers. Restriction recovery restores keep-out and no-mop zones
+   and linear virtual walls under the original identifiers while retaining
+   newer restrictions. Room layout and furniture recovery require separate
+   verification.
    Check the live revision before each write and verify the result from Roomba.
    Version 0.62.0 captures compatible routine and schedule destinations and
    recovers zone links that Roomba prunes after deletion. Each confirmation
    restores the backed-up order and per-area preferences for one surviving
    program and preserves its current name, schedule timing, and enabled state.
    [Zone recovery validation](validation.md#recovering-cleaning-zones) ·
-   [Program recovery validation](validation.md#recovering-program-destinations)
+   [Program recovery validation](validation.md#recovering-program-destinations) ·
+   [Restriction recovery validation](validation.md#recovering-map-restrictions)
 3. **Investigate full restoration.** Verify a provider operation for
    importing or reactivating an entire floor after its remote revision is
    gone. Use a disposable floor to prove that the restored map reappears

@@ -378,6 +378,7 @@ template.innerHTML = `
           <button id="export-map-backup">Export backup</button>
           <button id="review-map-backup-restore" hidden>Restore floor settings</button>
           <button id="review-map-backup-zones" hidden>Restore cleaning zones</button>
+          <button id="review-map-backup-restrictions" hidden>Restore restrictions</button>
           <button id="review-map-backup-programs" hidden>Recover program destinations</button>
           <button id="pin-map-backup" hidden>Pin backup</button>
           <button id="delete-map-backup" hidden>Delete backup</button>
@@ -389,6 +390,7 @@ template.innerHTML = `
             <ul id="map-backup-restore-zone-list"></ul>
             <p id="map-backup-restore-dependency-status" class="muted" role="status" hidden></p>
           </div>
+          <ul id="map-backup-restore-restrictions" hidden></ul>
           <div id="map-backup-restore-program-detail" hidden>
             <label>Program <select id="map-backup-restore-program-choice"></select></label>
             <p id="map-backup-restore-program-order" class="muted"></p>
@@ -848,6 +850,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("export-map-backup").onclick = () => this.exportMapBackup();
     this.$("review-map-backup-restore").onclick = () => this.reviewMapBackupRestore();
     this.$("review-map-backup-zones").onclick = () => this.reviewMapBackupRestore("zones");
+    this.$("review-map-backup-restrictions").onclick = () => this.reviewMapBackupRestore("restrictions");
     this.$("review-map-backup-programs").onclick = () => this.reviewMapBackupRestore("programs");
     this.$("map-backup-restore-program-choice").onchange = () => this.showMapBackupProgram();
     this.$("confirm-map-backup-restore").onclick = () => this.confirmMapBackupRestore();
@@ -1541,6 +1544,9 @@ class RoombaHomeMapCard extends HTMLElement {
     const zones = this.$("review-map-backup-zones");
     zones.hidden = restore.hidden || !backup.savedZones;
     zones.disabled = restore.disabled;
+    const restrictions = this.$("review-map-backup-restrictions");
+    restrictions.hidden = restore.hidden || !backup.savedRestrictions;
+    restrictions.disabled = restore.disabled;
     const programs = this.$("review-map-backup-programs");
     programs.hidden = restore.hidden || !(saved?.program_count || saved?.programs_unchecked?.length);
     programs.disabled = restore.disabled;
@@ -1558,6 +1564,7 @@ class RoombaHomeMapCard extends HTMLElement {
     backup.selected = id;
     backup.preview = false;
     backup.savedZones = false;
+    backup.savedRestrictions = false;
     backup.deletePending = null;
     backup.restore = null;
     this.$("map-backup-choice").value = id;
@@ -1571,6 +1578,7 @@ class RoombaHomeMapCard extends HTMLElement {
       if (!this.backupsOpen(backup) || backup.request !== request) return;
       this.drawMapBackup(canvas, saved, geometry);
       backup.savedZones = geometry.regions.some(({ kind }) => kind === "zone");
+      backup.savedRestrictions = Boolean(geometry.keep_out?.length || geometry.no_mop?.length || geometry.virtual_walls?.length);
       const current = this.snapshot;
       if (current?.map && current.map.id === saved.map_id) {
         const angle = current.floor_settings?.orientation;
@@ -1668,8 +1676,8 @@ class RoombaHomeMapCard extends HTMLElement {
       });
       if (!this.backupsOpen(backup)) return;
       if (kind !== "programs" && !Object.keys(review.changes).length) {
-        status.textContent = kind === "zones" ? "The recorded zones already match."
-          : "The recorded floor settings already match.";
+        const scope = { zones: "zones", settings: "floor settings", restrictions: "restrictions" };
+        status.textContent = `The recorded ${scope[kind]} already match.`;
         return;
       }
       backup.restore = { floor, backup_id: saved.id, kind, review_id: review.review_id };
@@ -1687,6 +1695,7 @@ class RoombaHomeMapCard extends HTMLElement {
     const zones = kind === "zones";
     const labels = {
       zones: ["Restore cleaning zones?", "Restore zones"],
+      restrictions: ["Restore map restrictions?", "Restore restrictions"],
       settings: ["Restore floor settings?", "Restore settings"],
       programs: ["Recover program destinations", "Restore destinations"],
     };
@@ -1694,11 +1703,22 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("map-backup-restore-title").textContent = title;
     this.$("confirm-map-backup-restore").textContent = action;
     this.$("map-backup-restore-zone-detail").hidden = !zones;
+    const restrictions = this.$("map-backup-restore-restrictions");
+    restrictions.hidden = kind !== "restrictions";
     this.$("map-backup-restore-program-detail").hidden = kind !== "programs";
     const settings = this.$("map-backup-restore-changes");
     settings.hidden = kind !== "settings";
     if (kind === "programs") {
       this.renderMapBackupPrograms(programs, unchecked);
+      return;
+    }
+    if (kind === "restrictions") {
+      restrictions.replaceChildren(...changes.map(({ id, kind, missing }) => {
+        const item = document.createElement("li");
+        const label = kind === "wall" ? "Virtual wall" : RESTRICTION_TYPES[kind];
+        item.textContent = `${missing ? "Recreate" : "Restore outline"} · ${label} · ${id}`;
+        return item;
+      }));
       return;
     }
     if (!zones) {
@@ -1797,7 +1817,7 @@ class RoombaHomeMapCard extends HTMLElement {
     }
     const success = {
       programs: "Cleaning destinations restored.", zones: "Cleaning zones restored.",
-      settings: "Floor settings restored.",
+      settings: "Floor settings restored.", restrictions: "Map restrictions restored.",
     };
     await this.changeMapBackups(`restore_map_backup_${review.kind}`, data,
       success[review.kind], true);

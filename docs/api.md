@@ -192,6 +192,18 @@ outlines. The confirmation verifies the returned geometry and active
 revision. The restore uses the existing backup retention and permission
 policies. [Zone recovery validation](validation.md#recovering-cleaning-zones)
 
+`roomba_home/restore_map_backup_restrictions` accepts the same backup and
+active floor review fields. It returns a `changes` list with each restored
+restriction's `id`, `kind`, and whether it is `missing`, plus a `review_id`.
+Confirmation requires `confirmed: true` and the matching `review_id`.
+Home Assistant verifies that both policy layers can round-trip, that the
+floor boundary matches, and that the restored shapes still overlap a
+visible room. A different restriction type using a saved identifier stops
+the write. A single `set_virtual_wall` request reapplies the saved shapes
+and retains newer entries by identifier. The returned archive and active
+revision confirm the complete policy layer.
+[Restriction recovery validation](validation.md#recovering-map-restrictions)
+
 `roomba_home/restore_map_backup_programs` accepts the same backup and active
 floor review fields and requires control permission. Preview returns
 `programs` with a `status` for each saved program and the `unchecked` source
@@ -807,10 +819,11 @@ returned archive. The integration accepts the same outline within
 0.0001 native map units and verifies other parsed map geometry, the active
 revision, the restriction IDs, and their types.
 
-Roomba also represents an existing linear virtual wall as a `KeepOutZone`
-line. The Android SDK encodes it as kind `2` with endpoint pairs repeated
-in reverse order. The editor preserves these lines during a replacement
-write. A policy layer with an unknown shape or additional properties is
+Roomba represents a linear virtual wall as a `KeepOutZone` line. A signed
+Max 700 trial verified kind `2` with native vertices `[A, A, B, B]`, where
+`A` and `B` are the two coordinate pairs. The provider retains the first
+and last vertices as endpoints. The editor preserves these lines during a
+replacement write. A policy layer with an unknown shape or additional properties is
 read-only because a replacement write could discard information.
 [Restriction validation](validation.md#restriction-editor-validation-in-0190)
 

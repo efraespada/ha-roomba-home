@@ -110,6 +110,10 @@ and revision. A saved zone is a provider-confirmed region with its own ID.
   and recover missing targets in a surviving program on the same floor.
   Review the ordered profiles, verify the restored zone geometry and current
   selection, and preserve the current program name, timing, and enabled state.
+- EDIT-14: Recover moved and missing keep-out zones, no-mop zones, and
+  virtual walls from a backup with the same floor boundary. Preview changed
+  identifiers and preserve unrelated active restrictions. Verify the full
+  replacement layer and distinct endpoints for each linear wall.
 - Bulk edits and cross-floor copies require a verified operations contract.
 - Roomba remains the owner of robot and map data. Editing a map never starts a cleaning mission.
 
@@ -237,6 +241,13 @@ destinations and profiles. Later changes to surviving destinations prevent
 the recovery, and partial reads identify the unavailable program source.
 Complete floor recovery requires proof
 that Roomba restores the archive to its usable floor inventory.
+
+Restriction recovery requires supported policy layers in the archived and
+active floor and the same boundary digest. Apply the stored outlines and
+line endpoints under their original IDs, retaining current restrictions
+added later. A conflicting type or a shape outside visible rooms prevents
+the update. Verify the replacement layer and active revision after one
+reviewed write.
 [Local map history acceptance and trial evidence](../docs/roadmap.md#local-map-history-and-recovery)
 
 ## 11. Security, permissions, and privacy
@@ -321,6 +332,7 @@ screenshots.
 | EDIT-11 | [Floor settings restoration](../docs/api.md#local-map-backup-commands) | [Settings tests](../tests/test_floor_settings.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed restoration](../docs/validation.md#restoring-backed-up-floor-settings) |
 | EDIT-12 | [Cleaning zone recovery](../docs/api.md#local-map-backup-commands) | [Geometry and verification tests](../tests/test_zone_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-cleaning-zones) |
 | EDIT-13 | [Program destination recovery](../docs/api.md#local-map-backup-commands) | [Selection policy tests](../tests/test_map_programs.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-program-destinations) |
+| EDIT-14 | [Restriction recovery](../docs/api.md#local-map-backup-commands) | [Policy tests](../tests/test_restriction_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-map-restrictions) |
 
 ## 18. Implementation sequence
 

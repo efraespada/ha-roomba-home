@@ -144,8 +144,9 @@ reload the dashboard. Use one card per robot.
   Browse saved revisions offline, pin important versions, export a backup,
   or enable automatic snapshots before map edits and removal. Review and
   restore the recorded name, orientation, and cleaning zones on the current
-  floor. Recover backed-up zone destinations in compatible routines and
-  schedules, including their cleaning order and per-area settings.
+  floor. Recover keep-out and no-mop zones and virtual walls from a backup.
+  Recover backed-up zone destinations in compatible routines and schedules,
+  including their cleaning order and per-area settings.
   [Map backups](docs/usage.md#local-map-backups)
 - **Edit rooms** divides a room, merges two adjacent rooms, and edits room
   names and types on a supported Max 700 floor plan. Choose **Divide a

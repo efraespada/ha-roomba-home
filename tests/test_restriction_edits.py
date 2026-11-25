@@ -11,6 +11,7 @@ from custom_components.roomba_home.core.restriction_edits import (
     RestrictionEdit,
     confirm_restriction_edit,
     prepare_restriction_edit,
+    prepare_restriction_restore,
 )
 
 MAP = PersistentMap("map-a", "version.42", "Ground floor", ())
@@ -32,7 +33,7 @@ def test_restriction_create_resize_and_remove_preserve_other_types(picea_archive
                     3,
                     ["101", 1, 8, 1, 8, 3, 6, 3, 6, 1],
                     ["100", 6, 4, 6, 4, 7, 3, 7, 3, 6],
-                    ["200", 2, 2, 2, 3, 2, 3, 2, 2, 2],
+                    ["200", 2, 2, 2, 2, 2, 3, 2, 3, 2],
                 ]
             },
         },
@@ -82,6 +83,64 @@ def test_restrictions_can_overlap_and_removing_the_last_sends_a_zero_count(
 
     empty = picea_archive(version="version.43", mutate=remove_layer)
     assert confirm_restriction_edit(empty, MAP, before, delete) == "version.43"
+
+
+def test_restore_recreates_restrictions_and_leaves_later_items(picea_archive, policy_feature):
+    keep = policy_feature("100", "KeepOutZone", [RECTANGLE])
+    mop = policy_feature("101", "NoMopZone", [SMALL_RECTANGLE])
+    wall = policy_feature("102", "KeepOutZone", [[2, 2], [3, 2]], geometry_type="LineString")
+    newer = policy_feature("103", "NoMopZone", [RECTANGLE])
+    moved = policy_feature("100", "KeepOutZone", [SMALL_RECTANGLE])
+    active = read_floor_plan(picea_archive(restrictions=[moved, newer]), MAP)
+    saved = read_floor_plan(picea_archive(restrictions=[keep, mop, wall]), MAP)
+    edit = prepare_restriction_restore(saved, active)
+    assert edit.changes(active) == [
+        {"id": "100", "kind": "keep_out", "missing": False},
+        {"id": "101", "kind": "no_mop", "missing": True},
+        {"id": "102", "kind": "wall", "missing": True},
+    ]
+    payload = edit.request_body()["edit_cmd"]["params"]["virwall"]
+    assert payload[0] == 4
+    assert [row[:2] for row in payload[1:]] == [["100", 1], ["103", 6], ["101", 6], ["102", 2]]
+    assert payload[-1] == ["102", 2, 2, 2, 2, 2, 3, 2, 3, 2]
+    archive = picea_archive(version="version.43", restrictions=[keep, newer, mop, wall])
+    assert confirm_restriction_edit(archive, MAP, active, edit) == "version.43"
+    after = read_floor_plan(archive, replace(MAP, version_id="version.43"))
+    assert prepare_restriction_restore(saved, after).changes(after) == []
+
+
+@pytest.mark.parametrize(
+    ("problem", "error"),
+    [
+        ("saved format", "fully supported"),
+        ("current format", "fully supported"),
+        ("missing border", "boundary has changed"),
+        ("changed border", "boundary has changed"),
+        ("incompatible type", "identifier is in use"),
+        ("no visible room", "no longer overlaps"),
+    ],
+)
+def test_restore_rejects_unsafe_coordinate_or_identifier_changes(
+    picea_archive, policy_feature, problem, error
+):
+    keep = policy_feature("100", "KeepOutZone", [RECTANGLE])
+    saved = read_floor_plan(picea_archive(restrictions=[keep]), MAP)
+    current = read_floor_plan(picea_archive(restrictions=[]), MAP)
+    if problem == "saved format":
+        saved = replace(saved, policy_shapes=None)
+    elif problem == "current format":
+        current = replace(current, policy_shapes=None)
+    elif problem == "missing border":
+        saved = replace(saved, border_digest=None)
+    elif problem == "changed border":
+        current = replace(current, border_digest="another frame")
+    elif problem == "incompatible type":
+        other = policy_feature("100", "NoMopZone", [RECTANGLE])
+        current = read_floor_plan(picea_archive(restrictions=[other]), MAP)
+    else:
+        current = replace(current, rooms=())
+    with pytest.raises(ValueError, match=error):
+        prepare_restriction_restore(saved, current)
 
 
 @pytest.mark.parametrize(

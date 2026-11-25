@@ -419,6 +419,48 @@ test("zone recovery previews active dependencies and binds confirmation to the r
   assert.equal(card.$("map-backups-status").textContent, "Cleaning zones restored.");
 });
 
+test("restriction recovery previews moved zones and missing walls before saving", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  card.snapshot = { map: { id: "floor", version: "current" }, inventory_id: "inventory",
+    floor_settings: { id: "settings", name: "Ático", orientation: 0 } };
+  const dialog = card.$("map-backups-dialog");
+  dialog.showModal = function () { this.open = true; };
+  const saved = { id: "a".repeat(64), map_id: "floor", version: "older" };
+  const reviewId = "b".repeat(64);
+  let changes = [
+    { id: "100", kind: "keep_out", missing: false },
+    { id: "101", kind: "no_mop", missing: true },
+    { id: "102", kind: "wall", missing: true },
+  ];
+  const requests = [];
+  card._hass = { callWS: async (request) => {
+    if (request.type === "roomba_home/map_backups") return { snapshots: [saved], can_manage: true, retention: 5 };
+    if (request.type === "roomba_home/read_map_backup") return { backup: saved,
+      geometry: { regions: [region], virtual_walls: [[[2, 2], [3, 2]]] } };
+    requests.push(JSON.parse(JSON.stringify(request)));
+    if (request.confirmed) return { applied: true };
+    return { changes, review_id: reviewId, applied: false };
+  } };
+  card.drawMapBackup = () => {};
+  card.refresh = async () => {};
+  await card.openMapBackups();
+  assert.equal(card.$("review-map-backup-restrictions").hidden, false);
+  await card.reviewMapBackupRestore("restrictions");
+  const details = card.$("map-backup-restore-restrictions");
+  assert.equal(details.hidden, false);
+  assert.deepEqual(Array.from(details.children, ({ textContent }) => textContent), [
+    "Restore outline · Keep-out zone · 100", "Recreate · No-mop zone · 101", "Recreate · Virtual wall · 102",
+  ]);
+  await card.confirmMapBackupRestore();
+  assert.deepEqual(requests[1], { ...requests[0], confirmed: true, review_id: reviewId });
+  assert.equal(card.$("map-backups-status").textContent, "Map restrictions restored.");
+  changes = [];
+  await card.reviewMapBackupRestore("restrictions");
+  assert.equal(card.$("map-backup-restore").hidden, true);
+  assert.equal(card.$("map-backups-status").textContent, "The recorded restrictions already match.");
+});
+
 test("program recovery previews settings and confirms only the selected program", async () => {
   const { card } = mockCard(0);
   card.config = { entity: "vacuum.example" };
