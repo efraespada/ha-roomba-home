@@ -321,6 +321,7 @@ template.innerHTML = `
         <button id="edit-furniture" hidden>Edit furniture</button>
         <button id="manage-routines" hidden>Manage routines</button>
         <button id="manage-schedules" hidden>Manage schedules</button>
+        <button id="clean-everywhere" hidden>Clean everywhere</button>
         <button id="open-map-backups">Map backups</button>
         <button id="open-cleaning-scores" hidden>Room cleaning scores</button>
         <button id="map-impact" hidden disabled>Review map dependencies</button>
@@ -874,6 +875,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("place-point").onclick = () => this.placePoint();
     this.$("manage-routines").onclick = () => this.openRoutines();
     this.$("manage-schedules").onclick = () => this.openRoutines(true);
+    this.$("clean-everywhere").onclick = () => this.reviewCleanEverywhere();
     this.$("open-map-backups").onclick = () => this.openMapBackups();
     this.$("close-map-backups").onclick = () => this.$("map-backups-dialog").close();
     this.$("map-backup-choice").onchange = (event) => this.showMapBackup(event.target.value);
@@ -1204,6 +1206,7 @@ class RoombaHomeMapCard extends HTMLElement {
         (data.maps.length > 1 && Boolean(this.selectedFloor));
       this.$("manage-routines").hidden = !data.cleaning;
       this.$("manage-schedules").hidden = !data.can_manage_schedules || !data.map;
+      this.$("clean-everywhere").hidden = !data.can_clean_everywhere;
       this.$("open-cleaning-scores").hidden = !data.map;
       this.$("map-impact").hidden = !data.cleaning;
       this.$("edit-floor").hidden = !data.can_edit_rooms || !data.floor_settings ||
@@ -1255,6 +1258,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.$("floor-name").hidden = true;
       this.$("manage-routines").hidden = true;
       this.$("manage-schedules").hidden = true;
+      this.$("clean-everywhere").hidden = true;
       this.$("open-cleaning-scores").hidden = true;
       if (this.$("cleaning-scores-dialog").open) this.$("cleaning-scores-dialog").close();
       this.$("map-impact").hidden = true;
@@ -2450,6 +2454,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("review").hidden = !this.geometry;
     const hasSelection = pointMode ? this.point : this.selected.size;
     this.$("review").disabled = !hasSelection || this.submitting || editing || saving;
+    this.$("clean-everywhere").disabled = this.submitting || editing || saving;
     this.$("map-impact").disabled = !this.selected.size || editing;
     const editDisabled = editing || saving || pointMode;
     this.$("edit-floor").disabled = editDisabled;
@@ -3044,11 +3049,22 @@ class RoombaHomeMapCard extends HTMLElement {
     this.dialog.showModal();
   }
 
+  reviewCleanEverywhere() {
+    if (!this.snapshot?.can_clean_everywhere || this.submitting ||
+        this.$("clean-everywhere").disabled || this.dialog.open) return;
+    this.confirmation = { everywhere: true, entity: this.config.entity };
+    this.$("confirm-text").textContent =
+      `${this.snapshot.robot} will clean every reachable area using its next-cleaning preferences.`;
+    this.dialog.showModal();
+  }
+
   async submit() {
     const choice = this.confirmation;
-    if (!choice || this.submitting || !this.snapshot ||
-        (choice.point && (!this.pointAvailable || !this.pointModes.includes(choice.mode))) ||
-        choice.id !== this.snapshot.map.id || choice.version !== this.snapshot.map.version ||
+    if (!choice || this.submitting || !this.snapshot) return;
+    if (choice.everywhere) {
+      if (!this.dialog.open || !this.snapshot.can_clean_everywhere || choice.entity !== this.config.entity) return;
+    } else if ((choice.point && (!this.pointAvailable || !this.pointModes.includes(choice.mode))) ||
+        choice.id !== this.snapshot.map?.id || choice.version !== this.snapshot.map?.version ||
         choice.selectionId !== (this.geometry?.selection_id ?? this.snapshot.inventory_id)) return;
     this.submitting = true;
     this.confirmation = null;
@@ -3059,9 +3075,15 @@ class RoombaHomeMapCard extends HTMLElement {
     try {
       const review = { map_id: choice.id, version: choice.version };
       if (choice.selectionId) review.inventory_id = choice.selectionId;
-      const [service, selection] = choice.point
-        ? ["clean_point", {region_id: choice.point.id, x: choice.point.x, y: choice.point.y, mode: choice.mode, review}]
-        : ["clean_map_selection", {...review, regions: choice.regions}];
+      let service = "clean_map_selection";
+      let selection = { ...review, regions: choice.regions };
+      if (choice.everywhere) {
+        service = "clean_everywhere";
+        selection = { confirmed: true };
+      } else if (choice.point) {
+        service = "clean_point";
+        selection = { region_id: choice.point.id, x: choice.point.x, y: choice.point.y, mode: choice.mode, review };
+      }
       await this._hass.callService("roomba_home", service, selection, { entity_id: this.config.entity });
       this.selected.clear();
       this.point = null;

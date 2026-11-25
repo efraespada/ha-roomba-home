@@ -40,10 +40,11 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   frequency, automatic solution dispensing, and drying duration.
   [Robot settings](docs/usage.md#robot-settings) · [Dock settings](docs/usage.md#dock-settings)
 - **Room and zone cleaning.** Select regions and review the robot and
-  destinations before sending a command. The map supports zoom and shows
+  destinations before sending a command. **Clean everywhere** starts a new
+  run across the robot's reachable area after confirmation. Zoom in to see
   keep-out areas, no-mop areas, virtual walls, detected carpet, dock locations,
-  and the observed route. Supported maps also have a rotatable 3D view. The integration
-  also exposes actions for selecting regions, estimating planned duration,
+  and the observed route. Supported maps also have a rotatable 3D view.
+  The integration exposes actions for selecting regions, estimating planned duration,
   and vacuuming a verified point within a room. Supported robots can vacuum
   and then mop a selected destination in the same mission.
 - **Saved floors.** Start a mapping-only run and see when it is active or

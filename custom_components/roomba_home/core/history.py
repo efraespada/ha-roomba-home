@@ -180,10 +180,10 @@ def _mission_target(command: dict) -> tuple[str | None, int | None]:
         case "spot":
             return "local_spot", None
         case "start":
-            regions = command.get("regions", [])
+            regions = command.get("regions")
         case _:
             return None, None
-    if not isinstance(regions, list):
+    if regions is not None and not isinstance(regions, list):
         return None, None
     if not regions:
         if any(command.get(key) for key in ("favorite_id", "geom", "id_multipolys")):

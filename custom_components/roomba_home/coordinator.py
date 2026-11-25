@@ -2489,6 +2489,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         reviewed_map=None,
         reviewed_skip=None,
         ordered=True,
+        new_mission=False,
     ):
         async with self._robot_operation(robot_id):
             try:
@@ -2519,7 +2520,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                     ),
                     command,
                     area_profiles[0] if area_profiles else profile,
-                    new_mission=target is not None,
+                    new_mission=new_mission or target is not None,
                     area_profiles=area_profiles,
                     reviewed_skip=skip_target,
                 )

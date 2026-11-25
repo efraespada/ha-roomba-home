@@ -385,13 +385,28 @@ async def websocket_floor_plan(hass, connection, message):
         connection.send_error(message["id"], "map_unavailable", "Floor maps are unavailable.")
         return
     can_control = connection.user.permissions.check_entity(entity_id, POLICY_CONTROL)
+    cleaning = state.capabilities.cleaning
+    can_clean_everywhere = (
+        can_control
+        and bool(cleaning.modes)
+        and state.connected is True
+        and state.activity in {"docked", "idle"}
+        and state.cycle == "none"
+    )
     mapping = {
         "can_start": can_control and state.capabilities.persistent_maps is True,
         "activity": (state.activity or "mapping") if state.mapping is True else None,
     }
     if not maps:
         connection.send_result(
-            message["id"], {"robot": state.name, "map": None, "maps": [], "mapping": mapping}
+            message["id"],
+            {
+                "robot": state.name,
+                "map": None,
+                "maps": [],
+                "mapping": mapping,
+                "can_clean_everywhere": can_clean_everywhere,
+            },
         )
         return
     live_floor = account.live_floor(state)
@@ -401,7 +416,6 @@ async def websocket_floor_plan(hass, connection, message):
     active_floor = floor == live_floor
     # The archive revision and the associated region inventory can change independently.
     inventory_id = floor.inventory_id
-    cleaning = state.capabilities.cleaning
     can_clean_point = can_control and supports_point_clean(state.capabilities.digital_spot)
     now = datetime.now(UTC)
     path = account.live_path(robot_id) if active_floor else None
@@ -418,6 +432,7 @@ async def websocket_floor_plan(hass, connection, message):
         },
         "can_edit_rooms": can_control,
         "can_manage_schedules": can_control and state.capabilities.schedules is True,
+        "can_clean_everywhere": can_clean_everywhere,
         "can_clean_point": can_clean_point,
         "point_modes": [mode for mode in CleaningMode if mode in (cleaning.modes or ())]
         if can_clean_point

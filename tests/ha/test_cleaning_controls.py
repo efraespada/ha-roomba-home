@@ -14,7 +14,11 @@ from homeassistant.helpers import entity_registry as er
 
 from custom_components.roomba_home.button import RoombaResetProfile
 from custom_components.roomba_home.const import DOMAIN
-from custom_components.roomba_home.coordinator import RoombaCoordinator
+from custom_components.roomba_home.coordinator import (
+    RobotControlAdapter,
+    RoombaCoordinator,
+    control_snapshot,
+)
 from custom_components.roomba_home.core.capabilities import DeviceCapabilities, DockCapabilities
 from custom_components.roomba_home.core.cleaning import (
     CleaningCapabilities,
@@ -96,6 +100,55 @@ async def test_mapping_action_requires_confirmation_and_paused_mapping_is_visibl
     )
     assert hass.states.get(sensor).state == "on"
     assert hass.states.get("vacuum.robot_0").state == "paused"
+
+
+async def test_clean_everywhere_requires_confirmation_and_does_not_resume(hass, loaded):
+    robot = loaded.data["fixture-0"]
+    target = {"entity_id": "vacuum.robot_0"}
+    paused = control_snapshot(replace(robot, phase="stop", cycle="clean", connected=True))
+    service = "clean_everywhere"
+    with (
+        patch.object(RobotControlAdapter, "refresh", return_value=paused) as refresh,
+        patch.object(RobotControlAdapter, "send") as send,
+    ):
+        for value in ({}, {"confirmed": False}):
+            with pytest.raises(vol.Invalid):
+                await hass.services.async_call(DOMAIN, service, target | value, blocking=True)
+        refresh.assert_not_awaited()
+        with pytest.raises(HomeAssistantError) as error:
+            await hass.services.async_call(
+                DOMAIN, service, target | {"confirmed": True}, blocking=True
+            )
+        assert error.value.translation_key == "unsupported_start"
+    send.assert_not_awaited()
+
+
+async def test_clean_everywhere_uses_an_untargeted_command_and_confirms_start(hass, loaded):
+    robot = loaded.data["fixture-0"]
+    idle = replace(robot, phase="charge", cycle="none", connected=True)
+    cleaning = replace(idle, phase="run", cycle="clean", mode=2)
+    profile = CleaningProfile(CleaningMode.VACUUM, suction_level=1, two_pass=False)
+    loaded.profiles["fixture-0"] = profile
+    with (
+        patch.object(
+            RobotControlAdapter,
+            "refresh",
+            side_effect=[control_snapshot(idle), control_snapshot(cleaning)],
+        ),
+        patch.object(RobotControlAdapter, "wait"),
+        patch.object(RobotControlAdapter, "send", autospec=True) as send,
+    ):
+        await hass.services.async_call(
+            DOMAIN,
+            "clean_everywhere",
+            {"entity_id": "vacuum.robot_0", "confirmed": True},
+            blocking=True,
+        )
+    send.assert_awaited_once()
+    adapter, command, sent_profile = send.await_args.args
+    assert adapter.target is None
+    assert command is Command.VACUUM and sent_profile == profile
+    assert loaded.command_status["fixture-0"] == "confirmed"
 
 
 async def test_maintenance_reset_action_requires_a_supported_part_and_confirmation(hass, loaded):

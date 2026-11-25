@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-26",
+  "tested_model": "Roomba Max 700 Combo",
+  "signed_reads": {
+    "clean_all_suggestion_is_floor_scoped": true,
+    "clean_all_suggestion_contains_no_region_list": true,
+    "untargeted_start_reports": 1,
+    "directed_start_reports_for_the_same_floor": 16,
+    "null_region_history_classified_as_whole_area": true,
+    "movement_commands_sent": 0
+  },
+  "control_harness": {
+    "confirmation_required": true,
+    "paused_mission_rejected_before_send": true,
+    "next_cleaning_profile_used_without_map_target": true
+  },
+  "physical_trial": {
+    "robots_commanded": 1,
+    "clean_everywhere_started_a_new_vacuum_mission": true,
+    "direct_return_confirmed_during_active_mission": false,
+    "cancellation_before_return_confirmed": true,
+    "final_docked": true,
+    "final_error": 0,
+    "signed_trial_start_was_untargeted": true,
+    "signed_trial_history_classified_as_whole_area": true
+  },
+  "isolated_chrome": {
+    "viewport_widths_px": [358, 900],
+    "confirmation_and_cancellation_verified_without_a_saved_map": true
+  }
+}

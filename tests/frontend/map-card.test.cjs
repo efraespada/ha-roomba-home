@@ -1085,6 +1085,40 @@ test("mapping can be started without a saved floor after an explicit review", as
   assert.equal(card.$("review-mapping").hidden, true);
 });
 
+test("clean everywhere confirms the robot and sends a new untargeted mission", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  card.snapshot = { robot: "Example", map: null, can_clean_everywhere: true };
+  card.geometry = null;
+  card.draw = () => {};
+  card.updateSelection = () => {};
+  const calls = [];
+  card._hass = { callService: async (...args) => calls.push(args) };
+  const dialog = card.$("confirm-dialog");
+  dialog.showModal = function () { this.open = true; };
+  dialog.close = function () { this.open = false; };
+  await card.submit();
+  assert.equal(calls.length, 0);
+  card.reviewCleanEverywhere();
+  assert.equal(dialog.open, true);
+  assert.equal(card.$("confirm-text").textContent,
+    "Example will clean every reachable area using its next-cleaning preferences.");
+  card.snapshot.can_clean_everywhere = false;
+  await card.submit();
+  assert.equal(calls.length, 0);
+  card.snapshot.can_clean_everywhere = true;
+  card.config.entity = "vacuum.other";
+  await card.submit();
+  assert.equal(calls.length, 0);
+  card.config.entity = "vacuum.example";
+  await card.submit();
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [["roomba_home", "clean_everywhere",
+    { confirmed: true }, { entity_id: "vacuum.example" }]]);
+  assert.equal(dialog.open, false);
+  await card.submit();
+  assert.equal(calls.length, 1);
+});
+
 test("floor removal rechecks the reviewed revision and sends only one confirmed submission", async () => {
   const { card } = mockCard(0);
   card.config = { entity: "vacuum.example" };

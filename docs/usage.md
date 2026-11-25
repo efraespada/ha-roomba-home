@@ -273,6 +273,7 @@ required capabilities cease to be reported.
 | Action | Behavior |
 |---|---|
 | `vacuum.start` | Starts with the next-cleaning profile. Resumes an existing paused mission. |
+| `roomba_home.clean_everywhere` | Starts a new untargeted cleaning with the next-cleaning profile after explicit confirmation. |
 | `vacuum.pause` | Pauses an active mission |
 | `vacuum.stop` | Cancels a mission |
 | `vacuum.return_to_base` | Requests return and checks arrival |
@@ -282,6 +283,28 @@ required capabilities cease to be reported.
 
 Resuming preserves the current mission and mode. To change modes, cancel the
 current mission and start a new one with the desired profile.
+
+### Clean everywhere
+
+Choose **Clean everywhere** on the floor plan card and confirm the robot.
+Roomba cleans its reachable surroundings using the next-cleaning
+preferences. The action applies to the robot's physical location. The
+displayed floor and selected room list do not constrain it. It is available
+while the robot is idle or docked, including before it has a saved map.
+For a paused mission, use `vacuum.start` to resume it.
+
+```yaml
+action: roomba_home.clean_everywhere
+target:
+  entity_id: vacuum.example_robot
+data:
+  confirmed: true
+```
+
+**Clean all rooms** under **Recent and suggested routines** still loads a
+directed draft with the rooms on the displayed floor. Use that draft to
+exclude rooms or assign settings to individual destinations.
+[Scope validation](validation.md#whole-area-and-directed-cleaning-scope)
 
 ### Skip the current destination
 

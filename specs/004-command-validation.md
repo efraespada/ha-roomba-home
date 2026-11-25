@@ -3,7 +3,7 @@
 - Status: As-built baseline
 - Date: 2026-11-23
 - Catalog capability ID: native-commands
-- Last verified: 2026-11-25
+- Last verified: 2026-11-26
 - Owners: ha-roomba-home maintainer
 - Scope: Native command dispatch and independent verification of physical results.
 - Related issues/PRs: No local work without publication.
@@ -93,9 +93,12 @@ independent reading of result. A receipt doesn't advance the last step.
 | Accepted by broker | PUBACK | Reforms `unconfirmed` for physical result |
 | Untrue | Error or timeout | He doesn't repeat his order. |
 
-The physical test requires known prior status, after consultation and cleanliness at end. At
-the test, pause preserves his mission and stops canceling. The return is checked separately
-and does not mean canceling means returning to the dock.
+Physical tests read the robot state before and after each command. Pause
+keeps the current mission active. Cancel ends it. In a whole-area Max 700
+Combo trial, a direct return during active vacuuming left the robot
+cleaning. Cancel produced an idle state. A subsequent return reached the
+dock and cleared the mission cycle with error code 0.
+[Whole-area trial](../docs/validation.md#whole-area-and-directed-cleaning-scope)
 
 ## 7. User-facing configuration
 
@@ -154,10 +157,11 @@ they aren't hidden under an effective transport result.
 
 ## 13. Compatibility, migration, rollout, and rollback
 
-Proven compatibility: SKU X185240, app 3.4.1, vacuuming generic from the base, pause during
-cleaning and paused cancellation after canceling. It does not mean that dock during an
-active mission, sum up or areas have been tested. To stop the emitter does not revere an
-order already sent: you have to check his robot.
+On SKU X185240, physical trials verified whole-area vacuuming from the
+dock, pausing, cancelling, and returning after cancellation. A direct
+return during active vacuuming remains unconfirmed. Check the reported
+robot state after a timeout because the command may already have been
+published.
 
 ## 14. Testing strategy and numeric budget
 

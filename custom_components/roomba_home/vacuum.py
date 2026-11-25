@@ -265,6 +265,9 @@ class RoombaVacuum(RoombaEntity, StateVacuumEntity):
     async def async_start(self):
         await self.account.async_command(self.robot_id, Command.VACUUM)
 
+    async def async_clean_everywhere(self, confirmed):
+        await self.account.async_command(self.robot_id, Command.VACUUM, new_mission=True)
+
     async def async_locate(self, **kwargs):
         await self.account.async_command(self.robot_id, Command.LOCATE)
 

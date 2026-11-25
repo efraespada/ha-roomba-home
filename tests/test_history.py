@@ -96,7 +96,9 @@ def test_history_retains_only_the_command_label_and_drops_point_geometry(command
     [
         ({"command": "start"}, "whole_map", None),
         ({"command": "start", "regions": []}, "whole_map", None),
+        ({"command": "start", "p2map_id": None, "regions": None}, "whole_map", None),
         ({"command": "start", "favorite_id": "fixture"}, None, None),
+        ({"command": "start", "favorite_id": "fixture", "regions": None}, None, None),
         ({"command": "start", "regions": "unknown"}, None, None),
         ({"command": "start", "regions": [None]}, None, None),
         ({"command": "start", "regions": [{"type": ["rid"]}]}, None, None),

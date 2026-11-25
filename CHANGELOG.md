@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a confirmed **Clean everywhere** action to start an untargeted
+  cleaning mission using the next-cleaning preferences.
 - Copy a supported routine selection into a new disabled schedule, keeping
   its destination order and individual settings.
 - Show the original destination sequence, requested per-area settings, and

@@ -1,5 +1,36 @@
 # Roomba Home validation
 
+## Whole-area and directed cleaning scope
+
+A signed Max 700 Combo suggestion contained `CLEAN_ALL`, the associated
+floor, and no list of regions. The signed history contained one whole-area
+start with null map and region fields and 16 directed starts with a floor
+and destination list. The history projection now recognizes null regions
+in the whole-area record. An opaque favorite reference still requires
+destination evidence before the history can describe its scope.
+
+The Home Assistant harness confirmed that **Clean everywhere** requires
+explicit confirmation, uses the next-cleaning profile, and supplies no
+map target. A paused mission was rejected before publication. The
+availability tests cover a supported robot before its first saved map,
+active and paused missions, missing capability, connectivity, and entity
+control permission.
+
+Isolated Chrome verified the confirmation, cancellation, and service call
+at 358 and 900 pixels using a device fixture with no saved map.
+
+The Home Assistant action also started a new vacuuming mission on one
+physical Max 700 Combo. Roomba reported a new mission identity and
+entered its vacuuming phase. A direct return command during that run
+received no physical confirmation. Ending the trial mission first
+allowed the robot to return to its dock with error code 0. The signed
+report for this trial contained an untargeted `start`, which the
+integration classified as whole-area cleaning.
+
+The suite passed 2,483 Python tests with 100% line and branch coverage,
+57 card tests, and Home Assistant's integration validator.
+[Anonymized scope evidence](evidence/2026-11-26-whole-area-cleaning-scope.json)
+
 ## Copying a routine into a schedule
 
 An isolated Home Assistant coordinator read a signed one-room routine

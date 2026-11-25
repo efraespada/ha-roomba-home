@@ -1165,6 +1165,14 @@ usual reviewed cleaning command. The provider favorite inventory is
 independent of this start.
 [Quick routine validation](validation.md#recent-and-suggested-routines)
 
+`roomba_home.clean_everywhere` uses the native untargeted `start` command
+with the current next-cleaning profile. It sends no map identifier,
+revision, or destination list. The service requires `confirmed: true` and
+reads the robot's state before sending. A paused, active, or unavailable
+robot cannot start a new mission through this action. The floor-plan
+WebSocket supplies `can_clean_everywhere` for the card affordance.
+[Scope validation](validation.md#whole-area-and-directed-cleaning-scope)
+
 ## Primary sources
 
 The concrete authentication and Shadow names come from capture of the app as well with its native SDK. The repository does not have an APK and its code broken down. For transport rules have been consulted [AWS SigV4 firm](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv-create-signed-request.html), [custom authentication of AWS IoT](https://docs.aws.amazon.com/iot/latest/developerguide/custom-auth.html) and [Device Shadow's themes](https://docs.aws.amazon.com/iot/latest/developerguide/device-shadow-mqtt.html).

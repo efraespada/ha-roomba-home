@@ -712,6 +712,49 @@ async def test_mapping_status_is_available_before_the_first_saved_floor(
         assert snapshot["mapping"] == {"can_start": False, "activity": "paused"}
 
 
+@pytest.mark.parametrize(
+    ("connected", "phase", "cycle", "modes", "can_control", "available"),
+    [
+        (True, "charge", "none", frozenset({CleaningMode.VACUUM}), True, True),
+        (True, "charge", "clean", frozenset({CleaningMode.VACUUM}), True, False),
+        (True, "stop", "clean", frozenset({CleaningMode.VACUUM}), True, False),
+        (False, "charge", "none", frozenset({CleaningMode.VACUUM}), True, False),
+        (True, "charge", "none", frozenset(), True, False),
+        (True, "charge", "none", frozenset({CleaningMode.VACUUM}), False, False),
+    ],
+)
+async def test_clean_everywhere_is_only_offered_for_an_idle_controllable_robot(
+    configured,
+    hass_ws_client,
+    hass_admin_user,
+    connected,
+    phase,
+    cycle,
+    modes,
+    can_control,
+    available,
+):
+    robot_id = "fixture-0"
+    state = configured.data[robot_id]
+    capabilities = replace(
+        state.capabilities, cleaning=replace(state.capabilities.cleaning, modes=modes)
+    )
+    configured.data[robot_id] = replace(
+        state, connected=connected, phase=phase, cycle=cycle, capabilities=capabilities
+    )
+    configured._maps[robot_id] = ()
+    socket = await hass_ws_client()
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda _entity_id, policy: policy == POLICY_READ or can_control,
+    ):
+        await socket.send_json({"id": 1, "type": "roomba_home/floor_plan", "entity_id": ENTITY})
+        response = (await socket.receive_json())["result"]
+    assert response["map"] is None
+    assert response["can_clean_everywhere"] is available
+
+
 async def test_mapping_completion_refreshes_saved_floors_before_the_regular_poll(configured):
     robot_id = "fixture-0"
     ready = configured.data[robot_id]

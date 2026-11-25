@@ -28,6 +28,7 @@ Roomba Home. Other models require their own captures and tests.
 | Function | Protocol or capability | Home Assistant surface | Physical evidence |
 |---|---|---|---|
 | Vacuum | Capability 2, command mode 2 | Vacuum entity and profile | Native and HA 0.1.0 and 0.3.0 cycles |
+| Whole-area start | Untargeted native `start` with the selected profile | Confirmed **Clean everywhere** on the card and a Home Assistant action | The action started a physical Max 700 Combo run. Signed history classified the trial as whole-area cleaning. [Validation](validation.md#whole-area-and-directed-cleaning-scope) |
 | Mop only | Capability 4, command mode 4 | Selector and profile | Preparation, mopping, pause, resume, cancellation, and return with HA 0.3.0 |
 | Vacuum and mop | Capability 32, command mode 6 | Selector and profile | Sustained mode 6, pause, cancellation, and return |
 | Vacuum then mop | Capability 512 and mode 512 in regional parameters for directed cleaning | Next-cleaning selector and per-destination settings in saved routines | Whole-floor and Android furniture trials switched from vacuuming to mopping under one mission identity. [Directed trial](validation.md#directed-vacuum-then-mop) |
