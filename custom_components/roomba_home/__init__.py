@@ -43,3 +43,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await entry.runtime_data.async_close()
         return True
     return False
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    from .map_history import async_remove_map_history
+
+    await async_remove_map_history(hass, entry.entry_id)

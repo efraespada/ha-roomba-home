@@ -1,0 +1,110 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "android_app": {
+    "target": "furniture",
+    "wire_target_type": "tid",
+    "single_destination": true,
+    "furniture_id_linked_to_polygon": true,
+    "whole_command_params_present": false,
+    "regional_params": {
+      "operatingMode": 512,
+      "padWetness": { "padPlate": 2 },
+      "suctionLevel": 2,
+      "swScrub": 0,
+      "twoPass": false
+    },
+    "physical_modes": [2, 4],
+    "seconds_to_vacuum": 8,
+    "seconds_to_mop": 339,
+    "same_mission_identity": true,
+    "error_during_floor_cleaning": 0,
+    "history": {
+      "outcome": "ok",
+      "area_sqft": 89,
+      "mode_stats": {
+        "vac": { "nMin": 4, "sqft": 43 },
+        "mop": { "nMin": 9, "sqft": 37 }
+      }
+    },
+    "docked": true,
+    "manual_return_sent": false
+  },
+  "installed_home_assistant": {
+    "version": "0.24.1",
+    "core_configuration_check_passed": true,
+    "served_module_matched_candidate": true,
+    "map_cards_loaded": 3,
+    "registered_robots": 3,
+    "registered_docks": 3,
+    "live_furniture_name_resolved_from_requested_map_revision": true,
+    "live_saved_zone_name_resolved_from_requested_map_revision": true,
+    "historical_saved_zone_name_preserved_after_removal": true
+  },
+  "saved_zone_publication": {
+    "zone_in_active_archive_before_launch": true,
+    "zone_unresolved_in_home_assistant_before_launch": true,
+    "android_routine_preselected_zone": true,
+    "wire_target_type": "zid",
+    "single_destination": true,
+    "launch_revision_matched_active_revision": true,
+    "zone_listed_during_run": true,
+    "history_matches_destination": true,
+    "vacuum_outcome": "ok",
+    "vacuum_area_sqft": 45,
+    "docked": true
+  },
+  "home_assistant_saved_zone_sequence": {
+    "launch_version": "0.24.0",
+    "confirmation_showed_exact_destination": true,
+    "wire_target_type": "zid",
+    "ordered": 1,
+    "regional_operating_mode": 512,
+    "whole_command_params_present": false,
+    "physical_modes": [2, 4],
+    "seconds_to_vacuum": 18,
+    "seconds_to_mop": 325,
+    "same_mission_identity": true,
+    "error_during_physical_transition": 0,
+    "history": {
+      "outcome": "ok",
+      "exact_saved_zone": true,
+      "area_sqft": 89,
+      "mode_stats": {
+        "vac": { "nMin": 4, "sqft": 34 },
+        "mop": { "nMin": 6, "sqft": 50 }
+      }
+    },
+    "docked": true,
+    "manual_return_sent": false
+  },
+  "cleanup": {
+    "disposable_zone_removed": true,
+    "previous_routines_restored": true,
+    "room_identifiers_and_polygons_unchanged": true,
+    "zone_layer_borders_and_restrictions_unchanged": true,
+    "floor_name_and_orientation_unchanged": true,
+    "removed_zone_id_retained_in_inventory": true,
+    "automatically_changed_archive_layers": ["dockPoses", "floorTypes", "furniture", "rooms"]
+  },
+  "active_archive_projection": {
+    "installed_version": "0.25.0",
+    "core_configuration_check_passed": true,
+    "served_module_matched_candidate": true,
+    "stale_zone_omitted_from_card": true,
+    "temporary_zone_created_from_card": true,
+    "archive_only_zone_selectable_before_launch": true,
+    "wire_target_type": "zid",
+    "regional_operating_mode": 2,
+    "seconds_to_vacuum": 17,
+    "zone_listed_during_run": true,
+    "live_card_showed_saved_zone_name": true,
+    "history_outcome": "ok",
+    "history_matches_destination": true,
+    "area_sqft": 45,
+    "docked": true,
+    "temporary_zone_and_routine_removed_from_card": true,
+    "historical_name_preserved_after_removal": true,
+    "restored_room_and_routine_shortcuts_seen_in_official_app": true
+  }
+}

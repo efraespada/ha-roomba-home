@@ -1,3 +1,87 @@
+list_map_routines:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    map_id:
+      selector:
+        text:
+    version:
+      selector:
+        text:
+get_map_cleaning_scores:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    map_id:
+      selector:
+        text:
+get_software_status:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+start_mapping:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    confirmed:
+      required: true
+      selector:
+        boolean:
+reset_maintenance_counter:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    part:
+      required: true
+      example: filter
+      selector:
+        select:
+          translation_key: maintenance_counter_part
+          options:
+            - side_brush
+            - main_brushes
+            - filter
+            - mop_roller
+            - dock_washing_system
+            - mop_washing_system
+    confirmed:
+      required: true
+      selector:
+        boolean:
+skip_current_area:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    review_id:
+      selector:
+        text:
+list_voice_languages:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+install_voice_language:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    language:
+      required: true
+      example: cs-cz
+      selector:
+        text:
 list_cleaning_regions:
   target:
     entity:
@@ -70,6 +154,19 @@ clean_point:
           max: 0.99
           step: 0.01
           mode: box
+    mode:
+      example: mop
+      selector:
+        select:
+          options:
+            - vacuum
+            - mop
+            - vacuum_mop
+            - vacuum_then_mop
+          translation_key: point_cleaning_mode
+    review:
+      selector:
+        object:
 list_cleaning_schedules:
   target:
     entity:
@@ -85,14 +182,26 @@ update_cleaning_schedule:
       required: true
       selector:
         text:
+    frequency:
+      selector:
+        select:
+          options: [weekly, once]
+          translation_key: schedule_frequency
     weekdays:
-      required: true
       selector:
         object:
     time:
-      required: true
       selector:
         time:
+    name:
+      selector:
+        text:
+    regions:
+      selector:
+        object:
+    floor:
+      selector:
+        object:
 set_cleaning_schedule_enabled:
   target:
     entity:
@@ -117,8 +226,13 @@ create_cleaning_schedule:
       required: true
       selector:
         text:
+    frequency:
+      default: weekly
+      selector:
+        select:
+          options: [weekly, once]
+          translation_key: schedule_frequency
     weekdays:
-      required: true
       selector:
         object:
     time:
@@ -127,6 +241,9 @@ create_cleaning_schedule:
         time:
     regions:
       required: true
+      selector:
+        object:
+    floor:
       selector:
         object:
 remove_cleaning_schedule:
@@ -139,6 +256,36 @@ remove_cleaning_schedule:
       required: true
       selector:
         text:
+estimate_cleaning_routine:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    regions:
+      required: true
+      selector:
+        object:
+    floor:
+      selector:
+        object:
+run_cleaning_draft:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    regions:
+      required: true
+      selector:
+        object:
+    floor:
+      required: true
+      selector:
+        object:
+    ordered:
+      selector:
+        boolean:
 list_cleaning_routines:
   target:
     entity:
@@ -158,6 +305,9 @@ create_cleaning_routine:
       required: true
       selector:
         object:
+    ordered:
+      selector:
+        boolean:
 update_cleaning_routine:
   target:
     entity:
@@ -174,7 +324,20 @@ update_cleaning_routine:
     regions:
       selector:
         object:
+    ordered:
+      selector:
+        boolean:
 remove_cleaning_routine:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    routine_id:
+      required: true
+      selector:
+        text:
+run_cleaning_routine:
   target:
     entity:
       integration: roomba_home

@@ -1,9 +1,18 @@
+from dataclasses import replace
+
 import pytest
 
-from custom_components.roomba_home.core.cleaning import CleaningCapabilities, CleaningMode
+from custom_components.roomba_home.core.cleaning import (
+    CleaningCapabilities,
+    CleaningMode,
+    CleaningProfile,
+)
 from custom_components.roomba_home.core.errors import ProtocolError
 from custom_components.roomba_home.core.maps import AreaTarget, CleaningRegion, RegionKind
-from custom_components.roomba_home.core.time_estimates import parse_time_estimates
+from custom_components.roomba_home.core.time_estimates import (
+    parse_time_estimates,
+    routine_time_estimate,
+)
 
 ROBOT = "fixture-robot"
 ROOM_A = CleaningRegion("room-a", RegionKind.ROOM, "Example room")
@@ -154,3 +163,76 @@ def test_malformed_estimate_documents_are_rejected(document):
 def test_valid_response_without_a_map_has_no_estimates():
     result = parse_time_estimates({**response([]), "smart_maps": []}, ROBOT, TARGET, CAPABILITIES)
     assert all(region["estimates"] == [] for region in result["regions"])
+
+
+def test_routine_time_combines_different_modes_in_order_and_keeps_zero():
+    profile = CleaningProfile(CleaningMode.MOP, smart_scrub=False)
+    target = replace(TARGET, profiles=(profile, CleaningProfile(two_pass=True)))
+    data = response(
+        [
+            {**estimate(operatingMode=4, swScrub=0), "value": 0},
+            {**estimate(operatingMode=4, swScrub=1), "value": 500},
+        ]
+    )
+    data["smart_maps"][0]["areas"].append(
+        {
+            "area_id": ROOM_B.region_id,
+            "area_type": "region",
+            "estimates": [
+                estimate(operatingMode=2, suctionLevel=3, twoPass=True),
+                {**estimate(operatingMode=2, suctionLevel=1, twoPass=True), "value": 150},
+                {**estimate(operatingMode=2, suctionLevel=3), "value": 120},
+            ],
+        }
+    )
+    matrix = parse_time_estimates(data, ROBOT, target, CAPABILITIES)
+    result = routine_time_estimate(target, matrix, {"suction_level": 3, "smart_scrub": True})
+    assert result == {
+        "map_id": TARGET.map_id,
+        "version": TARGET.version_id,
+        "duration_seconds": 145,
+        "partial_duration_seconds": None,
+        "areas": [
+            {"id": ROOM_A.segment_id(TARGET.map_id), "duration_seconds": 0, "ambiguous": False},
+            {"id": ROOM_B.segment_id(TARGET.map_id), "duration_seconds": 145, "ambiguous": False},
+        ],
+    }
+
+
+def test_routine_time_keeps_missing_zones_and_conflicting_room_rows_out_of_total():
+    zone = CleaningRegion(ROOM_A.region_id, RegionKind.ZONE, None)
+    target = replace(TARGET, regions=(zone, ROOM_B, ROOM_A), profiles=(CleaningProfile(),) * 3)
+    data = response(
+        [
+            estimate(operatingMode=2, suctionLevel=1),
+            estimate(operatingMode=2, suctionLevel=2),
+        ]
+    )
+    data["smart_maps"][0]["areas"].append(
+        {
+            "area_id": ROOM_B.region_id,
+            "area_type": "region",
+            "estimates": [
+                estimate(operatingMode=2, suctionLevel=1),
+                {**estimate(operatingMode=2, suctionLevel=1, twoPass=True), "value": 215},
+            ],
+        }
+    )
+    matrix = parse_time_estimates(data, ROBOT, target, CAPABILITIES)
+    result = routine_time_estimate(target, matrix, {})
+    assert result["duration_seconds"] is None and result["partial_duration_seconds"] == 145
+    assert [(row["duration_seconds"], row["ambiguous"]) for row in result["areas"]] == [
+        (None, False),
+        (None, True),
+        (145, False),
+    ]
+
+
+def test_routine_time_without_a_compatible_profile_has_no_duration():
+    target = replace(TARGET, profiles=(CleaningProfile(CleaningMode.MOP), CleaningProfile()))
+    matrix = parse_time_estimates(
+        response([estimate(operatingMode=2, suctionLevel=2)]), ROBOT, target, CAPABILITIES
+    )
+    result = routine_time_estimate(target, matrix, {})
+    assert result["duration_seconds"] is None and result["partial_duration_seconds"] is None
+    assert all(row["duration_seconds"] is None and not row["ambiguous"] for row in result["areas"])

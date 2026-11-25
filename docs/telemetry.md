@@ -36,10 +36,11 @@ Both sensors use Roomba data.
 - Active map, room, and zone counts. **Map data available** reports the success
   of the last read. Known area associations survive a failed read, with counts
   unknown until the next successful read.
-- Local and cloud schedule counts and the next active weekly schedule. Weekly
-  time attributes use Monday as day 1. The next start requires a valid robot
-  timezone, a complete weekly schedule, and an unambiguous local time. A real
-  scheduled run reported origin `cloud`.
+- Local and cloud schedule counts and the next active cloud start. Weekly
+  and one-time entries use Monday as day 1. The next start requires a
+  valid robot time zone and a known occurrence. The cloud schedule count
+  publishes weekly times and one-time summaries. A one-time occurrence
+  is anchored by its provider creation timestamp.
 - Mop presence, dock maintenance, clean water, and consumable alerts. Clean
   water alerts use refill and mop-wash codes.
 
@@ -67,11 +68,23 @@ options to add a native image for each active, visible saved map. For a robot
 with one such map, the image can show the observed mission path and heading.
 **Current room** requires a current position that falls strictly inside exactly
 one labeled room. **Last live position update** is the timestamp supplied by
-Roomba. The sensor and position marker expire at the provider deadline. An
-active mission's earlier observed path can remain until the mission ends.
-Gaps in MQTT position indices remain gaps in the drawing. Home Assistant can
-record room names when this feature is enabled. Floor geometry and positions
-are omitted from diagnostics.
+Roomba. **Last live route activity** reports the latest recognized activity
+along the route, with states `traveling`, `vacuuming`, `mopping`, and
+`vacuum_mop`. A different configured cleaning mode can remain selected
+while the robot travels to or from an area. The live sensors and position
+marker expire at the provider deadline. An active mission's earlier route
+can remain until the mission ends. The image leaves gaps in the drawing
+when consecutive positions are unavailable. Home Assistant can record room
+names and route activity when this feature is enabled. Floor geometry and
+positions are omitted from diagnostics.
+The continuous position subscription updates the room, route activity, and
+position timestamp independently of state polling. The floor card animates
+between adjacent reported positions and leaves the route open at a missing
+sample. With reduced motion enabled, the marker updates directly.
+Its **Estimated coverage** layer accumulates vacuum and mop footprints for
+the current mission and clips the display to the floor's rooms. Coverage
+uses Roomba's reported activity and retains gaps where a path is unavailable.
+The **Mission area** sensor continues to expose Roomba's reported area.
 Floor plan labels use bundled Noto Sans. The image can shorten labels to fit
 within a room or omit them when no placement fits. The current-room sensor
 keeps the full name reported by Roomba.
@@ -84,16 +97,34 @@ exact match in the current associated map inventory. Room area values retain
 their provider units, which have yet to be verified.
 
 **Last live timeline update** appears after a matched active-mission reply.
+The `stage_started_at` attribute contains the reported UTC start of the
+recognized current stage when that timestamp falls inside the mission.
 Its `stage`, `rooms`, and `active_rooms` attributes expose the recognized
-stage, final room results, and in-progress room measurements, respectively.
+stage, final room results, and in-progress room measurements. The
+`zones` and `active_zones` attributes preserve the equivalent zone and
+furniture measurements. The **Zones and furniture in the last mission**
+sensor exposes completed-mission results separately as `zones`.
+Labels depend on map opt-in and the availability of the relevant revision.
 The integration requests a timeline at most once per 45 seconds for a mission
 and treats it as stale after 100 seconds. The timestamp, stage, and results
-clear on a mission change or after expiry. The bounded MQTT position window
-preserves multiple updates in a refresh and keeps gaps visible.
+clear on a mission change or after expiry. Bounded position polling still
+provides updates if the continuous subscription is unavailable.
 
-The estimates action reports planned duration per room and profile. The
-capture verified live position and a planned estimate, while mission
-percentage, coverage, and a remaining-time counter still require validation.
+**Completed destinations in the current mission** counts the destinations
+with a finished outcome in the same active timeline. Its `total`,
+`ordered`, and `destinations` attributes describe the provider's
+declared targets and their statuses, with names and requested cleaning
+modes when available. Unfinished, skipped, and revisited destinations
+keep a separate status. Whole-floor and point runs have their own views.
+The count becomes unknown after the mission ends or the report expires.
+
+**Estimated cleaning time remaining** combines the provider's planned
+duration for each directed room with the live mission stage and its time.
+The state is in seconds. The `estimated_duration_seconds` attribute is
+available for a complete plan. Remaining time is approximate and may
+differ from Roomba Home's displayed value. The active estimate becomes
+unknown on an interrupted stage or when an unfinished destination lacks
+a duration. Global coverage and percentage still require verification.
 [View estimates](usage.md#rooms-zones-and-dock) ·
 [Live map evidence](evidence/2026-11-24-live-progress.json)
 
@@ -268,6 +299,7 @@ binary sensors. Code and level sensors retain the provider's scale. The
 | Operation: minutes | min | `ro-currentstate` → `runtimeStats.min` |
 | Connection (code) | Informed Value | `rw-constatus` → `connectedv2` |
 | Robot's firmware | Informed Value | `rw-software` → `softwareVer` |
+| Robot firmware last updated | Timestamp | `rw-software` → `lastSwUpdate` in UTC |
 | Driver's firmware | Informed Value | `rw-software` → `subModSwVer.con` |
 | MCU's firmware | Informed Value | `rw-software` → `subModSwVer.mcu` |
 | Navigation firmware | Informed Value | `rw-software` → `subModSwVer.nav` |

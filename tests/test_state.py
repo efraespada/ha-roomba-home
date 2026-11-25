@@ -99,6 +99,20 @@ def test_mop_preparation_requires_an_active_cleaning_cycle(phase, cycle, error, 
     assert robot.preparing_mop is expected
 
 
+def test_reported_name_supersedes_account_label_without_entering_telemetry():
+    details = {"name": "Cached account name"}
+    actual = project_state(
+        "fixture", details, {"rw-settings": {"state": {"reported": {"name": "Ático"}}}}
+    )
+    assert actual.name == actual.reported_name == "Ático"
+    assert "robot_name" not in actual.telemetry
+    malformed = project_state(
+        "fixture", details, {"rw-settings": {"state": {"reported": {"name": " "}}}}
+    )
+    assert malformed.name == "Cached account name"
+    assert malformed.reported_name is None
+
+
 def test_unrecognized_phase_and_cycle_are_not_exposed_as_state_strings():
     result = project_state(
         "fixture",

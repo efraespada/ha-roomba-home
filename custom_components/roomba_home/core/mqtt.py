@@ -23,6 +23,7 @@ from .live_maps import (
     mission_timeline,
     position_batch,
 )
+from .live_route import RawRouteReference, raw_route_reference
 from .models import CloudSession
 
 SHADOWS = (
@@ -126,6 +127,7 @@ class MqttShadowReader:
         positions: dict[str, list[PositionBatch]] | None = None,
         timeline_requests: dict[str, int] | None = None,
         timelines: dict[str, MissionTimeline] | None = None,
+        raw_routes: dict[str, RawRouteReference] | None = None,
     ) -> list[ShadowReply]:
         """Keep accepted replies at the deadline when partial reads are enabled."""
         shadows = tuple(dict.fromkeys(shadows))
@@ -148,6 +150,7 @@ class MqttShadowReader:
             if robot_id in requested
         }
         reports = {}
+        references: dict[str, RawRouteReference] = {}
         batches: dict[str, dict[int, PositionBatch]] = {
             robot_id: {} for robot_id in live_topics.values()
         }
@@ -175,7 +178,9 @@ class MqttShadowReader:
                 if getattr(message, "retain", False):
                     return
                 try:
-                    batch = position_batch(json.loads(message.payload), int(time.time()))
+                    document = json.loads(message.payload)
+                    now = int(time.time())
+                    batch = position_batch(document, now)
                 except ValueError, RecursionError:
                     return
                 if batch is not None:
@@ -185,6 +190,13 @@ class MqttShadowReader:
                         if len(saved) > 32:
                             del saved[min(saved)]
                         received.notify_all()
+                elif raw_routes is not None:
+                    reference = raw_route_reference(document, live_robot, now)
+                    if reference is not None:
+                        with received:
+                            previous = references.get(live_robot)
+                            if previous is None or previous.timestamp <= reference.timestamp:
+                                references[live_robot] = reference
                 return
             if expected_report := report_topics.get(message.topic):
                 if getattr(message, "retain", False):
@@ -287,6 +299,8 @@ class MqttShadowReader:
                         positions[robot_id] = list(reversed(recent))
                 if timelines is not None:
                     timelines.update(reports)
+                if raw_routes is not None:
+                    raw_routes.update(references)
                 return list(replies.values())
         finally:
             client.disconnect()

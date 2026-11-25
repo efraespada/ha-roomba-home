@@ -111,6 +111,9 @@
       "software_version": {
         "name": "Robot firmware"
       },
+      "software_updated_at": {
+        "name": "Robot firmware last updated"
+      },
       "controller_firmware": {
         "name": "Controller firmware"
       },
@@ -393,6 +396,7 @@
           "rooms": "Rooms",
           "saved_zones": "Saved zones",
           "temporary_zones": "Temporary zones",
+          "furniture": "Furniture",
           "mixed_regions": "Mixed regions",
           "map_point": "Map point",
           "local_spot": "Current position"
@@ -410,14 +414,32 @@
       "current_room": {
         "name": "Current room"
       },
+      "live_route_activity": {
+        "name": "Last live route activity",
+        "state": {
+          "traveling": "Travelling",
+          "vacuuming": "Vacuuming",
+          "mopping": "Mopping",
+          "vacuum_mop": "Vacuuming and mopping"
+        }
+      },
       "position_updated": {
         "name": "Last live position update"
       },
       "last_mission_rooms": {
         "name": "Rooms in the last mission"
       },
+      "last_mission_zones": {
+        "name": "Zones and furniture in the last mission"
+      },
       "live_timeline_updated": {
         "name": "Last live mission timeline update"
+      },
+      "live_destinations_completed": {
+        "name": "Completed destinations in the current mission"
+      },
+      "live_estimated_remaining": {
+        "name": "Estimated cleaning time remaining"
       }
     },
     "binary_sensor": {
@@ -496,6 +518,9 @@
       "mission_at_dock": {
         "name": "Docked during cleaning"
       },
+      "mapping": {
+        "name": "Mapping in progress"
+      },
       "preparing_mop": {
         "name": "Preparing the mop"
       },
@@ -551,7 +576,54 @@
         }
       }
     },
+    "text": {
+      "robot_name": {
+        "name": "Robot name"
+      }
+    },
     "select": {
+      "voice_language": {
+        "name": "Voice language",
+        "state": {
+          "de-de": "German (Germany)",
+          "en-gb": "English (United Kingdom)",
+          "en-us": "English (United States)",
+          "es-es": "Spanish (Spain)",
+          "es-xl": "Spanish (Latin America)",
+          "fr-ca": "French (Canada)",
+          "fr-fr": "French (France)",
+          "it-it": "Italian (Italy)",
+          "ja-jp": "Japanese (Japan)",
+          "pt-br": "Portuguese (Brazil)",
+          "zh-cn": "Mandarin (China)",
+          "zh-hk": "Cantonese",
+          "zh-tw": "Mandarin (Taiwan)"
+        }
+      },
+      "mop_wash_temperature": {
+        "name": "Mop wash temperature",
+        "state": {
+          "room_temperature": "Room temperature",
+          "hot": "Hot",
+          "very_hot": "Very hot"
+        }
+      },
+      "mop_wash_frequency": {
+        "name": "Mop wash frequency",
+        "state": {
+          "standard": "Standard",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "mop_drying_duration": {
+        "name": "Mop drying duration",
+        "state": {
+          "three_hours": "3 hours",
+          "four_hours": "4 hours",
+          "five_hours": "5 hours"
+        }
+      },
       "next_cleaning_mode": {
         "name": "Next cleaning mode",
         "state": {
@@ -563,6 +635,9 @@
       }
     },
     "number": {
+      "voice_volume": {
+        "name": "Voice volume"
+      },
       "auto_evacuation_area": {
         "name": "Auto-empty area"
       },
@@ -580,6 +655,12 @@
       }
     },
     "switch": {
+      "automatic_mop_detergent": {
+        "name": "Automatic cleaning solution"
+      },
+      "child_pet_lock": {
+        "name": "Child and pet lock"
+      },
       "default_smart_scrub": {
         "name": "Default SmartScrub"
       },
@@ -600,8 +681,14 @@
       }
     },
     "button": {
+      "skip_current_area": {
+        "name": "Skip current area"
+      },
       "reset_cleaning_profile": {
         "name": "Reset next cleaning preferences"
+      },
+      "reboot_robot": {
+        "name": "Reboot robot"
       },
       "empty_bin": {
         "name": "Empty dustbin"
@@ -638,6 +725,15 @@
     "pause_requires_cleaning": {
       "message": "Pause requires the robot to be cleaning the floor."
     },
+    "unsupported_skip": {
+      "message": "This robot does not report support for skipping an area."
+    },
+    "skip_requires_destination": {
+      "message": "Skipping requires a current destination in the robot's live mission."
+    },
+    "skip_destination_changed": {
+      "message": "The current destination changed. Review it again before skipping."
+    },
     "command_unconfirmed": {
       "message": "The command result is unconfirmed. Refresh the state before repeating the action."
     },
@@ -652,6 +748,9 @@
     },
     "robot_setting_unconfirmed": {
       "message": "The robot did not confirm the setting change."
+    },
+    "unsupported_robot_setting": {
+      "message": "This value is not supported for the robot setting."
     },
     "unsupported_profile": {
       "message": "These cleaning preferences are not supported by the robot. Choose compatible values or reset the next cleaning preferences."
@@ -678,10 +777,13 @@
       "message": "Select a room ID from the active map."
     },
     "invalid_map_point": {
-      "message": "Select a point inside the room and outside any keep-out zones."
+      "message": "Keep the point inside the room, outside keep-out zones and, when mopping, outside no-mop zones."
     },
     "map_unavailable": {
       "message": "The current robot map could not be read."
+    },
+    "map_selection_required": {
+      "message": "Provide the map ID when the robot has more than one active floor."
     },
     "map_rate_limited": {
       "message": "Roomba Home is limiting map requests. Wait before requesting another room or zone cleaning."
@@ -698,14 +800,56 @@
     "unsupported_dock_action": {
       "message": "The dock does not support this operation."
     },
+    "software_status_unavailable": {
+      "message": "Roomba's installed software or firmware catalog is unavailable."
+    },
+    "mapping_unsupported": {
+      "message": "This robot does not report support for saved maps."
+    },
+    "mapping_requires_dock": {
+      "message": "Return the robot to its dock and finish any active mission before starting a new map."
+    },
+    "mapping_in_progress": {
+      "message": "Finish or cancel the mapping run before starting a cleaning mission."
+    },
+    "part_reset_unavailable": {
+      "message": "This part's maintenance counter is unavailable on the selected robot."
+    },
+    "part_reset_unconfirmed": {
+      "message": "Roomba did not confirm the reset. Check the counter before repeating the action."
+    },
+    "voice_language_not_installed": {
+      "message": "Select a voice language that is installed on this robot."
+    },
+    "voice_catalog_unavailable": {
+      "message": "The Roomba voice catalog or the installed voice inventory is unavailable."
+    },
+    "voice_install_unavailable": {
+      "message": "Voice installation is unavailable for this robot."
+    },
+    "voice_install_requires_dock": {
+      "message": "Keep the robot on its charging dock while installing a voice."
+    },
+    "voice_install_busy": {
+      "message": "A Roomba software deployment is already in progress."
+    },
+    "unsupported_voice_pack": {
+      "message": "Choose a voice available in this robot model's catalog."
+    },
+    "voice_install_failed": {
+      "message": "Roomba reported a voice installation failure (code {code})."
+    },
+    "voice_install_unconfirmed": {
+      "message": "Roomba did not confirm the voice installation."
+    },
     "dock_not_ready": {
       "message": "The dock is not ready. Check its status and reported problems before continuing."
     },
-    "unsupported_area_mode": {
-      "message": "Sequential cleaning is not available by region. Select another mode for this region."
-    },
     "schedule_not_editable": {
-      "message": "Select an editable weekly schedule belonging to this robot and a valid time."
+      "message": "Select a schedule belonging to this robot, a valid local time, and weekdays for weekly cleaning."
+    },
+    "schedule_timezone_unavailable": {
+      "message": "Roomba has not reported a valid time zone for this robot. A one-time schedule needs the robot's local time."
     },
     "schedule_rate_limited": {
       "message": "Roomba Home is limiting requests. Wait before checking cleaning schedules again."
@@ -733,6 +877,68 @@
     }
   },
   "services": {
+    "get_map_cleaning_scores": {
+      "name": "Get room cleaning scores",
+      "description": "Read Roomba's room scores, recorded mission times, and suggested cleaning settings for the selected floor.",
+      "fields": {
+        "map_id": {
+          "name": "Map ID",
+          "description": "ID of an active floor. Omit it for a robot with a single active floor."
+        }
+      }
+    },
+    "get_software_status": {
+      "name": "Get robot software status",
+      "description": "Read the reported robot and dock software, last robot update, and firmware versions returned by Roomba's catalog."
+    },
+    "start_mapping": {
+      "name": "Start a mapping run",
+      "description": "Send the docked robot to explore its surroundings and save a map without cleaning.",
+      "fields": {
+        "confirmed": {
+          "name": "Ready to map",
+          "description": "Confirm that the robot is on its dock and the area is ready to explore. Roomba can replace its oldest map if it has reached its map limit."
+        }
+      }
+    },
+    "reset_maintenance_counter": {
+      "name": "Reset maintenance counter",
+      "description": "Reset reported usage after replacing or cleaning a robot or dock part.",
+      "fields": {
+        "part": {
+          "name": "Part",
+          "description": "The part that was replaced or cleaned."
+        },
+        "confirmed": {
+          "name": "Maintenance completed",
+          "description": "Confirm that you replaced or cleaned this part."
+        }
+      }
+    },
+    "list_voice_languages": {
+      "name": "List robot voices",
+      "description": "Read the selected voice, installed voices, and available downloads for the robot."
+    },
+    "install_voice_language": {
+      "name": "Install robot voice",
+      "description": "Install and select a catalog voice while the robot is on its charging dock.",
+      "fields": {
+        "language": {
+          "name": "Language code",
+          "description": "Choose a lowercase code from the List robot voices action. An additional voice may replace the current download."
+        }
+      }
+    },
+    "skip_current_area": {
+      "name": "Skip current area",
+      "description": "Skip the current Roomba destination in the active mission.",
+      "fields": {
+        "review_id": {
+          "name": "Destination review",
+          "description": "Optional identifier supplied by the map card to match the reviewed destination."
+        }
+      }
+    },
     "list_cleaning_regions": {
       "name": "List cleaning regions",
       "description": "List the rooms and zones from the robot map, with their identifiers for automations."
@@ -758,8 +964,8 @@
       }
     },
     "clean_point": {
-      "name": "Vacuum a point on the map",
-      "description": "Vacuum around a point in a room on the robot's active map.",
+      "name": "Clean a point on the map",
+      "description": "Clean around a point in a room on the robot's active map.",
       "fields": {
         "region_id": {
           "name": "Room",
@@ -772,34 +978,58 @@
         "y": {
           "name": "Y position",
           "description": "Fraction along the room's Y axis on the map, between 0 and 1."
+        },
+        "mode": {
+          "name": "Cleaning mode",
+          "description": "Use a cleaning mode supported by your robot. Defaults to vacuum."
+        },
+        "review": {
+          "name": "Reviewed map",
+          "description": "Optional map ID, version and inventory ID from the reviewed floor plan."
         }
       }
     },
     "list_cleaning_schedules": {
       "name": "List editable cleaning schedules",
-      "description": "Read editable weekly cleaning schedules for the selected robot."
+      "description": "Read editable weekly and one-time cleaning schedules for the selected robot."
     },
     "update_cleaning_schedule": {
-      "name": "Change weekly cleaning start",
-      "description": "Change when an existing cleaning schedule starts. Keeps its routine and enabled state.",
+      "name": "Update a cleaning schedule",
+      "description": "Change the schedule name, starting time, or cleaning preferences. Keeps its enabled state.",
       "fields": {
         "schedule_id": {
           "name": "Schedule",
           "description": "Identifier returned by the List editable cleaning schedules action."
         },
+        "frequency": {
+          "name": "Frequency",
+          "description": "Choose weekly or the next occurrence of the local time when changing the start."
+        },
         "weekdays": {
           "name": "Days of the week",
-          "description": "List of ISO weekdays from 1 (Monday) to 7 (Sunday)."
+          "description": "For weekly cleaning, list ISO weekdays from 1 (Monday) to 7 (Sunday)."
         },
         "time": {
           "name": "Local time",
-          "description": "Start time in the robot’s timezone, to the nearest minute."
+          "description": "Optional start time in the robot’s timezone, to the nearest minute."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Schedule name in Roomba Home."
+        },
+        "regions": {
+          "name": "Regions and preferences",
+          "description": "Ordered list of rooms or zones from one active map with optional settings."
+        },
+        "floor": {
+          "name": "Reviewed floor",
+          "description": "Optional map ID, revision, and inventory ID from the floor plan used to select the areas."
         }
       }
     },
     "set_cleaning_schedule_enabled": {
       "name": "Enable or disable a cleaning schedule",
-      "description": "Change whether a weekly cleaning schedule runs. Keeps its routine and time.",
+      "description": "Change whether a cleaning schedule runs. Keeps its routine and time.",
       "fields": {
         "schedule_id": {
           "name": "Schedule",
@@ -813,15 +1043,19 @@
     },
     "create_cleaning_schedule": {
       "name": "Create a cleaning schedule",
-      "description": "Save a disabled weekly routine for the selected robot and regions.",
+      "description": "Save a disabled cleaning schedule for the selected robot and regions.",
       "fields": {
         "name": {
           "name": "Name",
           "description": "Schedule name in Roomba Home."
         },
+        "frequency": {
+          "name": "Frequency",
+          "description": "Choose weekly or the next occurrence of the local time."
+        },
         "weekdays": {
           "name": "Days of the week",
-          "description": "List of ISO weekdays from 1 (Monday) to 7 (Sunday)."
+          "description": "For weekly cleaning, list ISO weekdays from 1 (Monday) to 7 (Sunday)."
         },
         "time": {
           "name": "Local time",
@@ -830,6 +1064,10 @@
         "regions": {
           "name": "Regions and preferences",
           "description": "Ordered list of rooms or zones from one active map with optional settings."
+        },
+        "floor": {
+          "name": "Reviewed floor",
+          "description": "Optional map ID, revision, and inventory ID from the floor plan used to select the areas."
         }
       }
     },
@@ -865,6 +1103,52 @@
         }
       }
     },
+    "list_map_routines": {
+      "name": "List recent and suggested routines",
+      "description": "Reads the current floor's native recent and suggested cleaning routines.",
+      "fields": {
+        "map_id": {
+          "name": "Floor plan ID",
+          "description": "The selected floor plan. A single available floor can be selected automatically."
+        },
+        "version": {
+          "name": "Floor revision",
+          "description": "Require this revision to be current."
+        }
+      }
+    },
+    "run_cleaning_draft": {
+      "name": "Run a cleaning draft",
+      "description": "Starts the reviewed areas with their individual cleaning preferences.",
+      "fields": {
+        "regions": {
+          "name": "Areas and preferences",
+          "description": "An ordered list of area identifiers and optional cleaning preferences."
+        },
+        "floor": {
+          "name": "Reviewed floor",
+          "description": "The map ID, current revision, and optional inventory ID."
+        },
+        "ordered": {
+          "name": "Use listed order",
+          "description": "Defaults to the listed order. Clear it to let Roomba choose."
+        }
+      }
+    },
+    "estimate_cleaning_routine": {
+      "name": "Estimate a cleaning routine",
+      "description": "Reads Roomba's planned cleaning durations for the selected areas and preferences.",
+      "fields": {
+        "regions": {
+          "name": "Areas and preferences",
+          "description": "An ordered list of area identifiers and optional cleaning preferences."
+        },
+        "floor": {
+          "name": "Reviewed floor",
+          "description": "The optional map ID, revision, and inventory ID to verify before estimating."
+        }
+      }
+    },
     "list_cleaning_routines": {
       "name": "List cleaning routines",
       "description": "Read saved Roomba Home routines for this vacuum."
@@ -880,6 +1164,10 @@
         "regions": {
           "name": "Regions and preferences",
           "description": "Ordered list of regions from one current floor plan with optional cleaning settings."
+        },
+        "ordered": {
+          "name": "Use listed order",
+          "description": "Defaults to the listed order. Clear it to let Roomba choose."
         }
       }
     },
@@ -898,6 +1186,10 @@
         "regions": {
           "name": "Regions and preferences",
           "description": "Ordered list of regions from one current floor plan with optional cleaning settings."
+        },
+        "ordered": {
+          "name": "Use listed order",
+          "description": "Use with a region selection. Clear it to let Roomba choose."
         }
       }
     },
@@ -909,6 +1201,42 @@
           "name": "Routine",
           "description": "Identifier returned by List cleaning routines."
         }
+      }
+    },
+    "run_cleaning_routine": {
+      "name": "Run a cleaning routine",
+      "description": "Start a saved routine with its ordered destinations and cleaning settings.",
+      "fields": {
+        "routine_id": {
+          "name": "Routine",
+          "description": "Identifier returned by List cleaning routines."
+        }
+      }
+    }
+  },
+  "selector": {
+    "schedule_frequency": {
+      "options": {
+        "weekly": "Weekly",
+        "once": "Once"
+      }
+    },
+    "maintenance_counter_part": {
+      "options": {
+        "side_brush": "Edge-sweeping brush",
+        "main_brushes": "Multi-surface brushes",
+        "filter": "High-efficiency filter",
+        "mop_roller": "Mop roller",
+        "dock_washing_system": "Dock mop-washing system",
+        "mop_washing_system": "Robot mop-washing system"
+      }
+    },
+    "point_cleaning_mode": {
+      "options": {
+        "vacuum": "Vacuum",
+        "mop": "Mop",
+        "vacuum_mop": "Vacuum and mop",
+        "vacuum_then_mop": "Vacuum then mop"
       }
     }
   },

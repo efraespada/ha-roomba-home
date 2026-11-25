@@ -25,6 +25,7 @@ jobs:
           python scripts/check_privacy.py
           python scripts/validate_specs.py
           node --check custom_components/roomba_home/frontend/roomba-home-map-card.js
+          node --test tests/frontend/map-card.test.cjs
       - name: Validate with official hassfest
         env:
           HA_CORE_VALIDATOR_DIR: ${{ runner.temp }}/ha-core-validator

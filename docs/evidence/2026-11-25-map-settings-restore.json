@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "signed_probe": {
+    "name_and_orientation_confirmed_in_one_request": true,
+    "accented_twenty_character_name_preserved": true,
+    "original_floor_confirmed": true
+  },
+  "backup_restore": {
+    "review_wrote_to_roomba": false,
+    "automatic_backup_before_restore": true,
+    "write_requests_after_confirmation": 1,
+    "saved_name_and_orientation_restored": true,
+    "active_revision_and_destination_inventory_preserved": true,
+    "native_archive_byte_for_byte_equal": true,
+    "movement_commands_sent": 0
+  }
+}

@@ -22,7 +22,7 @@ Each robot has a device of Home Assistant and an entity `vacuum`. The recognized
 
 | Model | Observed inventory | Cleansing | Advanced database and data |
 | --- | ---: | --- | --- |
-| X185240 | 3 | Vacuuming, mopping and simultaneously confirmed physically in a robot. The complete sequential began vacuuming. | 3 recognized bases. Mapping, history and programs with consumables or progress as advertised by each computer |
+| X185240 | 3 | Vacuuming, mopping, simultaneous cleaning, and a completed directed vacuum-then-mop mission | 3 recognized bases. Maps, history, schedules, consumables, and reported mission progress |
 | R981040 | 1 | Reported account association. The transport of Roomba Home remains to be validated for this model | The integration setup filters this model. |
 
 Power and moisture have their stated levels. SmartScrub and two passing carpet boost they are created according to the modality and capabilities of each robot. The physical tests were performed in two authorized robots. [Function matrix](capabilities.md)
@@ -37,10 +37,15 @@ Power and moisture have their stated levels. SmartScrub and two passing carpet b
 | `sensor`, `binary_sensor` | Batteries, phases and models. Reforms of production with advanced technologies as well have been found to be useful for monitoring how best we can achieve these challenges while at the same time applying them so that they will get more information about their jobs or what's going on in this area? |
 | `event` | Appearing, changing and solving problems by source. |
 | Regional actions | `roomba_home.list_cleaning_regions`, `roomba_home.list_cleaning_estimates` and `roomba_home.clean_regions` with individual configuration of regions from the same map. |
+| Active mission | `roomba_home.skip_current_area` skips a reported room, zone, or furniture destination and uses Roomba's correlated timeline to confirm it. |
 | Vacuuming per point | `roomba_home.clean_point` with room and relative position, validated against an active map or its exclusions. |
 | Timing actions | `roomba_home.create_cleaning_schedule`, `list_cleaning_schedules`, `update_cleaning_schedule`, `set_cleaning_schedule_enabled` and `remove_cleaning_schedule`. |
 
-To mop, select `mop` at the next cleanup selector and run `vacuum.start`. The options `vacuum_mop` and `vacuum_then_mop` allow the other profiles when they are advertised. Regional clearance supports the three most direct modes. [Examples and use](usage.md) · [Telemetery inventory](telemetry.md)
+To mop, select `mop` as the next cleaning mode and run `vacuum.start`.
+Supported robots can also run `vacuum_mop` and `vacuum_then_mop`.
+Choose an independent profile for each destination in an ordered routine.
+[Examples and use](usage.md) · [Telemetry inventory](telemetry.md) ·
+[Directed sequence validation](validation.md#directed-vacuum-then-mop)
 
 ## 4.
 
@@ -137,16 +142,20 @@ The diagnoses retain typed values and code by source. Private catches are held o
 
 [Results, times and reach](validation.md) · [Quality monitoring](evidence/2026-11-23-cleaning-quality.json)
 
-## 6.
+## 6. Physical verification
 
-The remaining physical tests include checking the complete course across several rooms and applying adjustments to each, a saved zone, second stage of sequential and effect from mopping and reload with resumption. The checked maps offer rooms. One also offered a temporary region. The change of start and timings have been verified while maintaining the routine. [Function limits](capabilities.md)
+The ordered furniture run completed both destinations. The directed
+vacuum-then-mop run completed both phases. Each result is correlated to
+the original command and reported mission identity.
+[Ordered results](validation.md#ordered-furniture-completion-and-area-results-in-0230) ·
+[Directed sequence](validation.md#directed-vacuum-then-mop)
 
-## 7. Evidence necessary to extend monitoring
+## 7. Remaining physical verification
 
-| Function | Unpending evidence |
+| Function | Evidence still needed |
 | --- | --- |
-| Retirement and advanced adjustments by region | Order, mode and transition to mopping of the same mission. |
-| Closed areas, time zones and several maps | Inventory with a persistent area or several maps and mission that will identify select destinations. For a temporary zone, to observe a mission with clear area and destination `tid` confirmed in the record. |
+| Regional preferences | Measure the physical effect of each requested setting across several room targets. |
+| Multiple maps | Select and complete missions on different saved maps associated with one robot. |
 | Persistent adjustments in operation | Two passing ride, vacuuming carpet modulation and automatic emptying as you reach the set surface. The saved value has been checked with the robot. |
 | Manual filled | A database that adverties manual and after-command reading. |
 | Mode shooting | Scheduled missions of mopping or simultaneous and confirmed mode information at first. |

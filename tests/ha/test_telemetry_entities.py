@@ -11,7 +11,12 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.roomba_home.binary_sensor import RoombaMetricBinary
-from custom_components.roomba_home.const import DOMAIN, POLL_SECONDS
+from custom_components.roomba_home.const import (
+    DOMAIN,
+    PARTS_SECONDS,
+    POLL_SECONDS,
+    SERIAL_REFRESH_SECONDS,
+)
 from custom_components.roomba_home.coordinator import RoombaCoordinator
 from custom_components.roomba_home.core.actions import Command
 from custom_components.roomba_home.core.capabilities import DockCapabilities
@@ -26,6 +31,7 @@ from custom_components.roomba_home.core.telemetry import DETAIL_SHADOWS
 from custom_components.roomba_home.core.transport import HttpResponse
 from custom_components.roomba_home.diagnostics import async_get_config_entry_diagnostics
 from custom_components.roomba_home.sensor import RoombaMetricSensor
+from custom_components.roomba_home.vacuum import RoombaVacuum
 
 
 def entity_id(hass, entry, suffix, domain="sensor", robot="fixture-0"):
@@ -310,31 +316,66 @@ async def test_last_mission_command_is_an_enum_discovered_from_history(hass, ent
 async def test_room_history_and_live_timeline_keep_stable_entities(hass, entry, loaded):
     robot = loaded.data["fixture-0"]
     rooms = [{"room": "Office", "pass_count": 2}]
+    zones = [{"kind": "furniture", "name": "Sofa", "pass_count": 0}]
+    destinations = [{"kind": "room", "name": "Office", "status": "finished"}]
+    stage_started = datetime.now(UTC).isoformat()
     active = replace(
         robot,
         telemetry=robot.telemetry
         | {
             "last_mission_rooms": rooms,
+            "last_mission_zones": zones,
             "live_timeline_updated": datetime.now(UTC),
             "live_timeline_stage": "start",
+            "live_timeline_stage_started": stage_started,
             "live_timeline_rooms": rooms,
             "live_timeline_active_rooms": rooms,
+            "live_timeline_zones": zones,
+            "live_timeline_active_zones": zones,
+            "live_destinations_completed": 1,
+            "live_estimated_remaining": 85,
+            "live_timeline_plan": {
+                "completed": 1,
+                "total": 1,
+                "ordered": True,
+                "destinations": destinations,
+                "estimated_duration_seconds": 502,
+            },
         },
     )
     loaded.async_set_updated_data(loaded.data | {robot.robot_id: active})
     await hass.async_block_till_done()
     history_id = entity_id(hass, entry, "last_mission_rooms")
     timeline_id = entity_id(hass, entry, "live_timeline_updated")
+    zones_id = entity_id(hass, entry, "last_mission_zones")
+    completion_id = entity_id(hass, entry, "live_destinations_completed")
+    estimate_id = entity_id(hass, entry, "live_estimated_remaining")
     assert hass.states.get(history_id).state == "1"
     assert hass.states.get(history_id).attributes["rooms"] == rooms
     assert hass.states.get(timeline_id).attributes["stage"] == "start"
+    assert hass.states.get(timeline_id).attributes["stage_started_at"] == stage_started
     assert hass.states.get(timeline_id).attributes["rooms"] == rooms
     assert hass.states.get(timeline_id).attributes["active_rooms"] == rooms
+    assert hass.states.get(timeline_id).attributes["zones"] == zones
+    assert hass.states.get(timeline_id).attributes["active_zones"] == zones
+    assert hass.states.get(zones_id).state == "1"
+    assert hass.states.get(zones_id).attributes["zones"] == zones
+    assert hass.states.get(completion_id).state == "1"
+    assert hass.states.get(completion_id).attributes["total"] == 1
+    assert hass.states.get(completion_id).attributes["ordered"] is True
+    assert hass.states.get(completion_id).attributes["destinations"] == destinations
+    assert hass.states.get(estimate_id).state == "85"
+    assert hass.states.get(estimate_id).attributes["estimated_duration_seconds"] == 502
 
     loaded.async_set_updated_data(loaded.data | {robot.robot_id: robot})
     await hass.async_block_till_done()
     assert hass.states.get(history_id).state == "unknown"
     assert hass.states.get(timeline_id).state == "unknown"
+    assert hass.states.get(zones_id).state == "unknown"
+    assert hass.states.get(completion_id).state == "unknown"
+    assert "destinations" not in hass.states.get(completion_id).attributes
+    assert hass.states.get(estimate_id).state == "unknown"
+    assert hass.states.get(estimate_id).attributes["estimated_duration_seconds"] is None
 
 
 async def test_phase_problems_and_documented_mission_error_are_visible_in_ha(hass, entry, loaded):
@@ -463,6 +504,7 @@ async def reader(hass, entry, cloud_session):
     coordinator.client.ensure_session = AsyncMock(return_value=cloud_session)
     coordinator.client.request = AsyncMock(return_value={"parts": []})
     coordinator.client.http.request = AsyncMock(return_value=HttpResponse(200, {"parts": []}))
+    coordinator.client.robot_serial_number = AsyncMock(return_value="EXAMPLE-SERIAL")
 
     def read(session, shadows=None):
         if shadows == DETAIL_SHADOWS:
@@ -504,6 +546,60 @@ async def test_optional_sources_use_their_own_cadence_and_exclude_unsupported_ro
     reader._clock = lambda: 2000
     await reader._async_update_data()
     assert reader.client.request.await_count == 6
+
+
+async def test_robot_serials_update_device_registry_and_survive_optional_failures(
+    hass, entry, reader
+):
+    serials = reader.client.robot_serial_number
+    serials.side_effect = ["EXAMPLE-123", ProtocolError("Unavailable"), "EXAMPLE-321"]
+    with patch("custom_components.roomba_home.coordinator.RoombaCoordinator", return_value=reader):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    registry = dr.async_get(hass)
+
+    def device(identifier):
+        return registry.async_get_device_by_identifier(
+            (DOMAIN, f"{entry.unique_id}_{identifier}"), entry.entry_id
+        )
+
+    robot = device("fixture-0")
+    assert robot.serial_number == "EXAMPLE-123"
+    assert device("fixture-1").serial_number is None
+    assert reader._serials_due == 100 + PARTS_SECONDS
+    assert {call.args for call in serials.await_args_list} == {
+        ("fixture-0",),
+        ("fixture-1",),
+        ("fixture-2",),
+    }
+    report = await async_get_config_entry_diagnostics(hass, entry)
+    assert "EXAMPLE-123" not in json.dumps(report)
+    assert "EXAMPLE-123" not in str(hass.states.get("vacuum.robot_0").attributes)
+    await reader.async_refresh()
+    assert serials.await_count == 3
+
+    serials.side_effect = RateLimited(120)
+    reader._clock = lambda: 100 + PARTS_SECONDS
+    await reader.async_refresh()
+    assert serials.await_count == 4
+    assert reader._serials_due == 220 + PARTS_SECONDS
+    assert device("fixture-0").serial_number == "EXAMPLE-123"
+    assert device("fixture-1").serial_number is None
+
+    serials.side_effect = ["EXAMPLE-456", "EXAMPLE-789", "EXAMPLE-321"]
+    reader._clock = lambda: 220 + PARTS_SECONDS
+    await reader.async_refresh()
+    assert reader.last_update_success
+    assert device("fixture-0").id == robot.id
+    assert device("fixture-0").serial_number == "EXAMPLE-456"
+    assert device("fixture-1").serial_number == "EXAMPLE-789"
+    assert reader._serials_due == 220 + PARTS_SECONDS + SERIAL_REFRESH_SECONDS
+    reader._serials.clear()
+    registry.async_get_or_create_from_info(
+        config_entry_id=entry.entry_id,
+        device_info=RoombaVacuum(reader, "fixture-0").device_info,
+    )
+    assert device("fixture-0").serial_number == "EXAMPLE-456"
 
 
 async def test_partial_mqtt_poll_preserves_availability_and_last_read_of_each_robot(

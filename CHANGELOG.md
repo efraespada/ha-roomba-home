@@ -1,5 +1,335 @@
 # Changelog
 
+## 0.62.0
+
+- Include compatible routine and schedule destinations in local map backups.
+  After restoring a cleaning zone, review the affected program and recover
+  its destinations, order, and per-area settings while keeping its current
+  name, timing, and enabled state.
+- Publish the integration as a versioned GitHub release for HACS. This
+  release includes the map editor, schedules, live route and coverage, and
+  backup features introduced since 0.14.0.
+
+## 0.61.0
+
+- Recover moved or removed cleaning zones from a backup of the same floor.
+  Review each change and currently linked routines and schedules before
+  confirming one map update using the original zone identifiers.
+
+## 0.60.0
+
+- Review and restore the backed-up name and orientation of an active floor.
+  Home Assistant verifies the current floor settings and sends one update
+  with the reviewed changes.
+
+## 0.59.0
+
+- Save, preview, pin, and export local floor backups per Roomba. Backups keep
+  the native archive, floor settings, revision, and destination inventory.
+- Configure retention and opt in to automatic backups before saving map
+  edits or removing a floor. Open existing backups while Roomba is offline.
+
+## 0.58.0
+
+- Manage weekly and one-time Roomba schedules from the floor plan card.
+  Create, duplicate, enable, disable, and remove schedules, and edit the name,
+  timing, destination order, and recognized per-area cleaning preferences.
+- Preserve the existing start and enabled state when only the cleaning
+  preferences change. Revalidate the selected floor and areas before saving.
+
+## 0.57.0
+
+- Animate consecutive live positions across reported intervals of up to six
+  seconds. Continue from the visible position when a new report arrives
+  during an animation and preserve unobserved gaps.
+- Preserve per-area settings from verified native multi-area favorites.
+  Choose a listed or automatic cleaning order for rooms and saved zones.
+
+## 0.56.0
+
+- Apply Roomba's Smart recommendations to individual rooms or all eligible
+  rooms in an ordered routine draft, keeping each area's selected mode.
+
+## 0.55.0
+
+- Follow the active floor for robots with multiple saved maps after
+  Roomba identifies the current floor. Keep a manually selected floor
+  or reviewed edit in view.
+
+## 0.54.0
+
+- Show the serial number reported by Roomba in the robot's Home Assistant
+  device details.
+
+## 0.53.0
+
+- Show Roomba's temporary obstacle detections on the live floor plan with
+  an independent visibility toggle.
+- Recover earlier coverage from the declared portion of a live map when
+  Roomba appends extra route records.
+- Animate the marker through all consecutive positions in a batch.
+  Keep movement animation running through coverage and obstacle updates.
+
+## 0.52.0
+
+- Shade estimated vacuum and mop coverage on the live floor plan, with
+  separate filters for each cleaning mode.
+- Toggle cleaning and travel paths independently.
+- Accumulate earlier passes for the current mission and recover coverage
+  from raw snapshots aligned to the observed route.
+
+## 0.51.0
+
+- Keep an independent Roomba position subscription open during active
+  missions and send position and route changes directly to the floor card.
+- Preserve valid positions across small clock differences with Roomba.
+- Animate the marker between adjacent reported positions and preserve gaps
+  in the available path.
+
+## 0.50.0
+
+- Show estimated cleaning time remaining for directed missions with verified
+  room estimates and matching live stages.
+- Confirm live room outcomes against the requested floor when Roomba sends
+  the robot's internal map revision in the same mission.
+
+## 0.49.0
+
+- Show the current mission's declared destinations, order, requested cleaning
+  modes, and observed outcomes in the map card.
+- Expose the number of destinations Roomba has finished as a Home Assistant
+  sensor with the full destination list in its attributes.
+
+## 0.48.0
+
+- Browse Roomba's recent and suggested routines for the active floor.
+- Load supported selections into an editable draft or open the point picker.
+- Start a reviewed draft with its own per-area settings and order.
+
+## 0.47.0
+
+- Estimate a routine before saving or starting it. Show the planned duration
+  for each area and identify incomplete estimates.
+- Verify the current floor revision before and after an estimate request.
+
+## 0.46.0
+
+- Apply the verified Max 700 Combo Light, Normal, and Deep presets to one
+  area or all selected areas while preserving their modes and order.
+- Read Android-created sequential routines that omit the edit marker.
+
+## 0.45.0
+
+- Edit, duplicate, and run supported single-area routines originally saved in
+  Roomba Home, including the app's timestamped command format.
+- Show Roomba's saved routine duration estimate and its confidence in the
+  floor plan editor and the list action.
+
+## 0.44.0
+
+- Read Roomba's room cleaning scores, recorded mission times, traffic
+  classification, and suggested cleaning settings for the active floor.
+- Open the scores from the floor plan card or read them through the
+  Home Assistant action.
+
+## 0.43.0
+
+- Create, reschedule, enable, disable, and remove one-time cleanings in
+  Roomba Home. Keep the selected destinations and per-area preferences.
+- Include one-time entries in the next-cloud-start calculation when
+  Roomba's timestamps establish their upcoming occurrence.
+
+## 0.42.0
+
+- Distinguish mopping and simultaneous vacuuming and mopping in live
+  route segments. Use the same activity colors in the card and floor image.
+- Expose the last fresh route activity as a sensor on the robot device
+  when saved floor plans are enabled.
+- Include the provider's stage start timestamp in the live timeline sensor.
+
+## 0.41.0
+
+- Recover earlier parts of the live route from a Roomba map snapshot when
+  its positions match the current mission. The live stream still drives the
+  robot marker and current room.
+
+## 0.40.0
+
+- Color the live route by reported travel and vacuuming activity. The map
+  keeps gaps between missing samples and shows a legend for the visible route.
+
+## 0.39.0
+
+- Browse recent cleaning reports with their recorded metrics and timeline.
+- Show the original mission map in 2D or 3D, with coverage and route segments
+  by cleaning mode. Keep measurements available when the archive is missing.
+
+## 0.38.0
+
+- Show the reported firmware installation time and check Roomba's public
+  catalog for the installed robot and dock software.
+- Document the feasibility and roadmap for local map snapshots and recovery.
+
+## 0.37.0
+
+- Start and monitor mapping runs. Review and remove a saved floor from the card.
+- Load newly mapped floors while Roomba is still publishing their room inventory.
+
+## 0.36.0
+
+- Allow a manual mop wash to interrupt drying on the Max 700 Combo dock.
+
+## 0.35.0
+
+- Reset supported maintenance counters after the operator confirms the work.
+
+## 0.34.0
+
+- Install downloadable robot voices and confirm the result from Roomba.
+
+## 0.33.0
+
+- Reboot a robot with connection-cycle confirmation and list catalog voices.
+
+## 0.32.0
+
+- Rename the robot and select an installed voice.
+
+## 0.31.0
+
+- Use all four supported point-cleaning modes and display the active target.
+
+## 0.30.0
+
+- Mark a spot to vacuum on the floor plan or enter its room-relative
+  position with the keyboard. Confirm the marked point before sending the
+  command. Home Assistant checks the reviewed map revision and room inventory.
+
+## 0.29.0
+
+- Configure automatic mop washing on a compatible dock. The dock device
+  exposes water temperature, wash frequency, automatic cleaning solution,
+  and drying duration. Roomba confirms each change through its settings
+  shadow.
+
+## 0.28.0
+
+- Add a **Voice volume** slider and a **Child and pet lock** switch to the
+  robot's configuration entities. Both update after Roomba reports the
+  requested value.
+- Report the installed integration version in diagnostics.
+
+## 0.27.0
+
+- Show a rotatable 3D floor plan on maps with Roomba wall geometry. Keep
+  destination selection and live position aligned as the camera rotates.
+- Show detected carpets and dock locations reported in the map archive. Use
+  the overhead view while editing the map.
+
+## 0.26.1
+
+- Show the pending and confirmed skip result in the map card.
+
+## 0.26.0
+
+- Skip the current destination during an active mission from the floor plan,
+  a robot button, or a Home Assistant action. Confirm the result using the
+  matching skip event reported by Roomba.
+- Accept vacuum then mop in the direct per-region cleaning action.
+
+## 0.25.0
+
+- Use the active floor plan to offer newly saved native cleaning zones and
+  remove deleted destinations when Roomba's inventory is still updating.
+- Keep a routine confirmation open while the destination inventory catches
+  up to the same selectable floor plan.
+
+## 0.24.1
+
+- Resolve saved-zone names in live and finished results from the exact
+  map revision used by the mission, including zones removed after that run.
+
+## 0.24.0
+
+- Run directed cleaning with **Vacuum then mop**, including saved routines
+  with a sequence assigned to an individual destination. Send the mode and
+  preferences with that destination in the ordered Roomba command.
+- Use a new remote mission to confirm the start of a directed sequence.
+  A submitted start leaves completion to the mission history.
+- Resolve live destination names from the map revision used to start the
+  mission if the robot is already advertising a different revision.
+
+## 0.23.0
+
+- Show cleaning results for zones and furniture alongside rooms. The card
+  displays Roomba's reported outcome, area, and pass count for each result.
+- Expose zone and furniture history in a dedicated sensor and include
+  zone results in correlated live mission timeline data when Roomba reports them.
+
+## 0.22.0
+
+- Select both rooms directly on the floor plan when merging. Pick a room
+  on the map before placing the divider for a split.
+- Keep room edit drafts open while Roomba publishes destination metadata
+  for the same map revision. Validate the selected rooms and the requested
+  edit against the active archive when saving.
+
+## 0.21.0
+
+- Add furniture, rooms, and saved zones to the same ordered routine with
+  individual cleaning settings. Read and edit supported furniture routines
+  created in Roomba Home.
+- Run a saved routine from the map card or with
+  `roomba_home.run_cleaning_routine`. Resolve its destinations against the
+  active map when starting the robot.
+
+## 0.20.0
+
+- Show furniture on supported Max 700 maps and add, move, resize, rotate, or
+  remove it from the Home Assistant floor plan. Saving checks the active
+  revision and preserves the source and geometry of untouched objects.
+
+## 0.19.0
+
+- Create, move, resize, or remove keep-out and no-mop areas on a supported
+  Max 700 floor plan. Preview each change and verify the saved restrictions
+  against the active map. Existing virtual walls are preserved.
+- Keep a reviewed cleaning selection when Roomba publishes room metadata
+  and the map revision and available cleaning targets stay the same.
+
+## 0.18.0
+
+- Rename a floor or preview and save its orientation from the map card.
+- Apply the saved orientation to map geometry, overlays, and live position in
+  the card, and to the native Home Assistant floor image and trajectory.
+
+## 0.17.0
+
+- Rename a room and set its Roomba room type from the floor plan card. Preview
+  the label on the map and confirm the updated revision with the same room ID.
+
+## 0.16.1
+
+- Allow a cleaning zone to extend beyond a room boundary when part of it still
+  overlaps a visible room, matching the saved shapes observed in Roomba Home.
+
+## 0.16.0
+
+- Create, move, resize, rename, and remove rectangular cleaning zones from a
+  supported Max 700 floor plan. Preview the shape and confirm the saved map
+  revision in Roomba.
+- Display saved zone outlines while Roomba updates the list of cleaning
+  destinations. The editor identifies which zones are ready to select.
+
+## 0.15.0
+
+- Divide one room or merge two adjacent rooms from the floor plan card.
+  Review the divider or room pair before saving and confirm the new
+  active revision through Roomba.
+- Select visible rooms from the active map on the supported Max 700 even
+  while Roomba is updating the destination inventory. Hide room IDs the
+  active map no longer contains. Refresh the map inventory after a mission.
+
 ## 0.14.0
 
 - Refresh the floor plan when Roomba changes its region inventory, even if the

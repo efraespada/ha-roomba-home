@@ -1,0 +1,22 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "official_app": {
+    "manual_wash_confirmed_in_app": true,
+    "before": {"phase": "charge", "wash": 601, "dry": 702, "fault": 0},
+    "during": {"phase": "padWash", "wash": 602, "dry": 701, "fault": 0},
+    "after": {"phase": "charge", "wash": 601, "dry": 701, "fault": 0}
+  },
+  "integration_transport": {
+    "command": "washPad",
+    "publications": 1,
+    "broker_acknowledged": true,
+    "before": {"phase": "charge", "wash": 601, "dry": 702, "fault": 0},
+    "during": {"phase": "padWash", "wash": 602, "dry": 701, "fault": 0},
+    "after": {"phase": "charge", "wash": 601, "dry": 701, "fault": 0},
+    "elapsed_seconds_from_first_active_read_to_completion": 250,
+    "drying_restarted_after_trial": true,
+    "final_robot_docked": true,
+    "same_map_revision_and_destination_inventory": true
+  }
+}

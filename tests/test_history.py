@@ -3,7 +3,58 @@ from datetime import UTC, datetime
 import pytest
 
 from custom_components.roomba_home.core.errors import ProtocolError
-from custom_components.roomba_home.core.history import history_metrics
+from custom_components.roomba_home.core.history import history_metrics, mission_reports
+
+
+def test_mission_reports_expose_only_owned_cleaning_records_and_exact_archive_references():
+    row = {
+        "robot_id": "fixture-a",
+        "missionId": "private-mission",
+        "timestamp": 1700000500,
+        "startTime": 1700000000,
+        "durationM": 8,
+        "sqft": 100,
+        "done": "ok",
+        "cmd": {"command": "point_clean"},
+        "p2maps": [
+            None,
+            {"p2map_id": "..", "p2mapv_id": "version"},
+            {"p2map_id": "map", "p2mapv_id": "../version"},
+            {"p2map_id": "private-floor", "p2mapv_id": "version"},
+            {"p2map_id": "private-floor", "p2mapv_id": "version"},
+        ],
+        "timeline": {
+            "finEvents": [
+                None,
+                {"type": [], "ts": 1700000000},
+                {"type": "unrecognized", "ts": 1700000000},
+                {"type": "travel"},
+                {"type": "padWash", "ts": 1700000100, "ets": 1700000110, "secret": "not rendered"},
+                {"type": "charge", "ts": 1700000500, "ets": 1700000200},
+                {"type": "start", "ts": 1700000000},
+            ]
+        },
+    }
+    earlier = {
+        "robot_id": "fixture-a",
+        "timestamp": 1700000000,
+        "cmd": {"command": "start"},
+        "nMssn": 7,
+    }
+    other_robot = {**row, "robot_id": "fixture-b"}
+    mapping = {**row, "cmd": {"command": "train"}}
+    latest, previous = mission_reports([earlier, other_robot, mapping, row], "fixture-a")
+    assert len(latest.key) == 64
+    assert latest.key == mission_reports([row], "fixture-a")[0].key
+    assert latest.maps == (("private-floor", "version"),)
+    assert not previous.maps and not previous.timeline
+    assert previous.summary()["started_at"] is None
+    assert latest.summary()["duration_minutes"] == 8
+    assert latest.summary()["area_m2"] == 9.29
+    detail = latest.detail(())
+    assert [item["type"] for item in detail["timeline"]] == ["start", "padWash", "charge"]
+    assert [item["duration_seconds"] for item in detail["timeline"]] == [None, 10, None]
+    assert "private" not in repr(detail) and "not rendered" not in repr(detail)
 
 
 def test_history_keeps_the_confirmed_origin_of_its_latest_record():
@@ -263,3 +314,94 @@ def test_room_history_uses_exact_map_revision_and_latest_observation():
     from dataclasses import replace
 
     assert present_rooms(results, (replace(mapped, version_id="changed"),))[0]["room"] is None
+
+
+def test_zone_history_uses_the_mission_target_with_its_requested_map_revision():
+    from custom_components.roomba_home.core.history import present_zones, zone_results
+    from custom_components.roomba_home.core.maps import CleaningRegion, PersistentMap, RegionKind
+
+    def zone(identity, timestamp, *, map_id="private-map", version="revision", **details):
+        return {
+            "type": "zone",
+            "ts": timestamp,
+            "zone": {
+                "zid": identity,
+                "p2mapId": map_id,
+                "p2mapvId": version,
+                **details,
+            },
+        }
+
+    events = [
+        zone("160", 15, map_id="different-map", version="previous", area=3),
+        zone("160", 19, area=2),
+        zone("160", 20, version="previous", status=0, area=5, totalArea=10, passCount=0),
+        zone("saved", 27, status=2, area=11),
+        zone("orphan", 28, status=100),
+        zone("temporary", 31, status=5),
+    ]
+    command = {
+        "command": "start",
+        "p2map_id": "private-map",
+        "user_p2mapv_id": "revision",
+        "regions": [
+            {"type": "tid", "region_id": "160"},
+            {"type": "zid", "region_id": "saved"},
+            {"type": "tid", "region_id": "temporary"},
+            {"type": "rid", "region_id": "ignored"},
+            {"type": "tid", "region_id": []},
+            None,
+        ],
+        "id_multipolys": [
+            {
+                "id": "160",
+                "metadata": {"furniture_id": "furniture-1"},
+                "poly": [[0, 0], [0, 1], [1, 1], [1, 0]],
+            }
+        ],
+    }
+    floor = PersistentMap(
+        "private-map",
+        "revision",
+        "Floor",
+        (
+            CleaningRegion("furniture-1", RegionKind.FURNITURE, "Sofa"),
+            CleaningRegion("saved", RegionKind.ZONE, "Near the entrance"),
+            CleaningRegion("temporary", RegionKind.ZONE, "Unrelated saved zone"),
+        ),
+    )
+    results = zone_results(events, command)
+    rows = present_zones(results, (floor,))
+    assert [(r["kind"], r["name"], r["area"]) for r in rows] == [
+        ("zone", None, 3),
+        ("furniture", "Sofa", 5),
+        ("saved_zone", "Near the entrance", 11),
+        ("zone", None, None),
+        ("temporary_zone", None, None),
+    ]
+    assert rows[1] == {
+        "kind": "furniture",
+        "name": "Sofa",
+        "area": 5,
+        "status": "finished",
+        "status_code": 0,
+        "total_area": 10,
+        "pass_count": 0,
+    }
+    raw = present_zones(zone_results(events), (floor,))
+    assert raw[3]["kind"] == "saved_zone" and raw[3]["name"] == "Near the entrance"
+    assert present_zones(zone_results(events, {"command": "start"}), (floor,)) == raw
+    assert present_zones(zone_results(events, {"command": "point_clean"}), (floor,)) == raw
+    assert present_zones(zone_results(events, command | {"user_p2mapv_id": []}), (floor,)) == raw
+    assert "private-map" not in repr(rows) and "furniture-1" not in repr(rows)
+
+    stored = {
+        "robot_id": "fixture",
+        "timestamp": 33,
+        "timeline": {"finEvents": events},
+        "cmd": command | {"regions": command["regions"][:1]},
+    }
+    summary = history_metrics([stored], "fixture")
+    assert summary["last_mission_target"] == "furniture"
+    assert summary["last_mission_target_count"] == 1
+    assert summary["last_mission_zone_results"][1] == results[1]

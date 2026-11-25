@@ -1,6 +1,7 @@
 """Shared identity and availability for robot and dock entities."""
 
 from homeassistant.helpers import device_registry
+from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.helpers.update_coordinator import BaseCoordinatorEntity
 
 from .const import DOMAIN
@@ -44,6 +45,7 @@ class RoombaEntity(BaseCoordinatorEntity[RobotUpdates]):
             model=state.sku,
             name=state.name,
             sw_version=state.telemetry.get("software_version"),
+            serial_number=coordinator.robot_serial_number(robot_id) or UNDEFINED,
         )
         self._attr_device_info = robot_info
         if dock:

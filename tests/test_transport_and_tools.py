@@ -7,7 +7,11 @@ import pytest
 
 from custom_components.roomba_home.core.errors import ProtocolError
 from custom_components.roomba_home.core.models import AppProfile
-from custom_components.roomba_home.core.transport import GZIP_JSON_ACCEPT, AiohttpTransport
+from custom_components.roomba_home.core.transport import (
+    GZIP_JSON_ACCEPT,
+    RAW_MAP_ACCEPT,
+    AiohttpTransport,
+)
 from tools.bootstrap_profile import profile_from_capture
 from tools.validate_api import private_json, reference_reads, safe_route
 
@@ -58,15 +62,18 @@ async def test_transport_preserves_bytes_disables_redirects_and_bounds_time():
     [
         (GZIP_JSON_ACCEPT, "application/gzip", [b"opaque"], b"opaque"),
         (GZIP_JSON_ACCEPT, "application/json", [b'{"state":2}'], {"state": 2}),
+        (RAW_MAP_ACCEPT, "binary/octet-stream", [b"opaque"], b"opaque"),
         ("application/json", "application/gzip", [b"opaque"], None),
     ],
 )
 async def test_binary_transport_is_explicit_and_preserves_the_response(accept, mime, chunks, data):
     response = Response(chunks)
     response.content_type = mime
-    result = await AiohttpTransport(Session(response)).request(
+    http = Session(response)
+    result = await AiohttpTransport(http).request(
         "GET", "https://fixture.test", headers={"Accept": accept}
     )
+    assert http.call.auto_decompress is (accept != RAW_MAP_ACCEPT)
     assert result.data == data and response.closed
 
 

@@ -13,13 +13,16 @@ from ..compatibility import VALIDATED_MODEL
 from .actions import Command
 from .capabilities import supports_point_clean
 from .capability_protocol import project_capabilities
-from .cleaning import CleaningProfile
-from .cleaning_protocol import CleaningSetting, cleaning_parameters
+from .cleaning import CleaningMode, CleaningProfile
+from .cleaning_protocol import cleaning_parameters
 from .errors import ProtocolError
-from .maps import AreaTarget
+from .furniture_targets import furniture_command_fields
+from .maps import AreaTarget, FurnitureRegion
 from .models import CloudSession
 from .mqtt import MqttProfile
 from .point_maps import PointTarget
+from .settings_protocol import RobotSetting
+from .voice_catalog import VOICE_DEPLOYMENT_ID, VoicePack
 
 
 def command_body(
@@ -34,13 +37,16 @@ def command_body(
         raise ValueError("Use a positive timestamp in seconds.")
     value = {"command": command.value, "time": timestamp, "initiator": "rmtApp"}
     if command is Command.POINT_CLEAN:
-        if not isinstance(target, PointTarget) or profile not in (None, CleaningProfile()):
-            raise ValueError("Point cleaning requires a mapped point and the vacuum profile.")
+        effective = CleaningProfile() if profile is None else profile
+        if not isinstance(target, PointTarget) or not isinstance(effective, CleaningProfile):
+            raise ValueError("Point cleaning requires a mapped point and a cleaning mode.")
+        if effective != CleaningProfile(effective.mode):
+            raise ValueError("Point cleaning only accepts a mode.")
         value.update(
             p2map_id=target.map_id,
             user_p2mapv_id=target.version_id,
             geom={"center": target.center},
-            params=cleaning_parameters(CleaningProfile()),
+            params=cleaning_parameters(effective),
         )
         return json.dumps(value, separators=(",", ":")).encode()
     if profile is not None and (
@@ -55,8 +61,18 @@ def command_body(
         and len(target.profiles) != len(target.regions)
     ):
         raise ValueError("Only a new cleaning mission accepts a map and regions.")
+    if target is not None and any(isinstance(region, FurnitureRegion) for region in target.regions):
+        if not target.profiles:
+            raise ValueError("Furniture cleaning requires a profile for each destination.")
+        value.update(
+            p2map_id=target.map_id,
+            user_p2mapv_id=target.version_id,
+            **furniture_command_fields(target),
+        )
+        return json.dumps(value, separators=(",", ":")).encode()
+    effective = profile or CleaningProfile()
     if command is Command.VACUUM:
-        value["params"] = cleaning_parameters(profile or CleaningProfile())
+        value["params"] = cleaning_parameters(effective)
     if target is not None:
         value["p2map_id"] = target.map_id
         value["user_p2mapv_id"] = target.version_id
@@ -69,10 +85,17 @@ def command_body(
             }
             for region in target.regions
         ]
-        if target.profiles:
-            value["params"] = {}
-            value["ordered"] = 1
-            for region, selection in zip(value["regions"], target.profiles, strict=True):
+        profiles = target.profiles
+        if not profiles and effective.mode is CleaningMode.VACUUM_THEN_MOP:
+            profiles = (effective,) * len(target.regions)
+        if profiles:
+            if any(selection.mode is CleaningMode.VACUUM_THEN_MOP for selection in profiles):
+                del value["params"]
+            else:
+                value["params"] = {}
+            if target.ordered:
+                value["ordered"] = 1
+            for region, selection in zip(value["regions"], profiles, strict=True):
                 region["params"] = cleaning_parameters(selection)
     return json.dumps(value, separators=(",", ":")).encode()
 
@@ -102,6 +125,7 @@ class MqttCommandSender:
             device = project_capabilities(robot, {})
             self.capabilities = device.cleaning
             self.point_clean = supports_point_clean(device.digital_spot)
+            self.mapping = device.persistent_maps is True
             index = next(
                 i
                 for i, t in enumerate(session.raw["connection_tokens"])
@@ -114,9 +138,9 @@ class MqttCommandSender:
         except (KeyError, TypeError, ValueError, StopIteration) as error:
             raise ProtocolError("An authorized, validated modern robot is required.") from error
         self.topic = f"{prefix}/things/{robot_id}/cmd"
-        self._settings_topic = (
-            f"{self.profile.devices[robot_id]}/things/{robot_id}/shadow/name/rw-settings/update"
-        )
+        shadow_prefix = f"{self.profile.devices[robot_id]}/things/{robot_id}/shadow/name"
+        self._settings_topic = f"{shadow_prefix}/rw-settings/update"
+        self._software_topic = f"{shadow_prefix}/rw-software/update"
         self.client_factory = client_factory
 
     def __repr__(self):
@@ -129,28 +153,43 @@ class MqttCommandSender:
         target: AreaTarget | PointTarget | None = None,
     ) -> CommandReceipt:
         body = command_body(command, int(time.time()), profile, target)
-        if profile is not None:
-            profile.validate(self.capabilities)
+        if command is Command.START_MAPPING and not self.mapping:
+            raise ValueError("Mapping is not supported by the robot.")
         if command is Command.POINT_CLEAN:
             if not self.point_clean:
                 raise ValueError("Point cleaning is not supported by the robot.")
-            CleaningProfile().validate(self.capabilities)
+            (profile or CleaningProfile()).validate(self.capabilities)
+        elif profile is not None:
+            profile.validate(self.capabilities)
         if isinstance(target, AreaTarget):
             for selection in target.profiles:
                 selection.validate(self.capabilities)
         self._publish(self.topic, body)
         return CommandReceipt(command, True)
 
-    def write_cleaning_setting(self, setting: CleaningSetting, value: int | bool) -> None:
+    def write_robot_setting(self, setting: RobotSetting, value: int | bool | str) -> None:
         """Write one supported preference. The caller must verify reported state."""
-        if not isinstance(setting, CleaningSetting) or not setting.accepts(
-            value, self.capabilities
-        ):
-            raise ValueError("This cleaning setting is not supported by the robot.")
+        if not isinstance(setting, RobotSetting) or not setting.accepts(value, self.capabilities):
+            raise ValueError("This setting is not supported by the robot.")
         body = json.dumps(
             {"state": {"desired": setting.desired(value)}}, separators=(",", ":")
         ).encode()
         self._publish(self._settings_topic, body)
+
+    def install_voice_pack(self, deployment_id: str, pack: VoicePack) -> None:
+        if (
+            not isinstance(deployment_id, str)
+            or not VOICE_DEPLOYMENT_ID.fullmatch(deployment_id)
+            or not isinstance(pack, VoicePack)
+        ):
+            raise ValueError("Expected a catalog voice package and a voice deployment ID.")
+        body = {
+            "state": {
+                "desired": {"deploymentId": deployment_id},
+                "reported": {"deploymentMpkg": pack.metapackage},
+            }
+        }
+        self._publish(self._software_topic, json.dumps(body, separators=(",", ":")).encode())
 
     def _publish(self, topic: str, body: bytes) -> None:
         connected = threading.Event()

@@ -64,9 +64,9 @@
       "id": "native-commands",
       "title": "Native commands and physical validation",
       "status": "as-built-baseline",
-      "scope": "Single experimental command submission and evidence from an authorized physical cycle",
+      "scope": "Single native command dispatch and physical verification, including the current destination skip",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-23",
+      "lastVerified": "2026-11-25",
       "specs": [
         "specs/004-command-validation.md"
       ],
@@ -75,17 +75,23 @@
         "tools/send_command.py"
       ],
       "code": [
-        "custom_components/roomba_home/core/commands.py"
+        "custom_components/roomba_home/core/commands.py",
+        "custom_components/roomba_home/core/application.py",
+        "custom_components/roomba_home/core/live_maps.py"
       ],
       "tests": [
-        "tests/test_commands.py"
+        "tests/test_commands.py",
+        "tests/test_application.py",
+        "tests/test_live_maps.py",
+        "tests/ha/test_areas.py"
       ],
       "documentation": [
         "docs/api.md",
         "docs/development.md",
         "docs/validation.md",
         "docs/architecture.md",
-        "docs/evidence/2026-11-23-control.json"
+        "docs/evidence/2026-11-23-control.json",
+        "docs/evidence/2026-11-25-skip-current-area.json"
       ]
     },
     {
@@ -180,7 +186,7 @@
       "status": "proposed",
       "scope": "Capability-based mode and parameter combinations, next-cleaning controls, and physical confirmation",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-23",
+      "lastVerified": "2026-11-25",
       "specs": [
         "specs/006-cleaning-profiles.md"
       ],
@@ -216,16 +222,17 @@
         "docs/evidence/2026-11-23-default-suction.json",
         "docs/evidence/2026-11-23-persistent-cleaning-options.json",
         "docs/capabilities.md",
-        "docs/evidence/2026-11-23-cleaning-quality.json"
+        "docs/evidence/2026-11-23-cleaning-quality.json",
+        "docs/evidence/2026-11-25-directed-sequence.json"
       ]
     },
     {
       "id": "device-capabilities",
       "title": "Capability-driven integration",
       "status": "proposed",
-      "scope": "Shared discovery, device coordination, dock actions, regions, recovery, and live map position",
+      "scope": "Shared discovery, device coordination, dock actions, regions, recovery, live map position, and cleaning schedules",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-23",
+      "lastVerified": "2026-11-25",
       "specs": [
         "specs/007-device-capabilities.md"
       ],
@@ -274,16 +281,18 @@
         "docs/evidence/2026-11-23-cleaning-modes.json",
         "docs/evidence/2026-11-23-point-clean.json",
         "docs/evidence/2026-11-23-spot-and-live-map.json",
-        "docs/evidence/2026-11-24-live-progress.json"
+        "docs/evidence/2026-11-24-live-progress.json",
+        "docs/evidence/2026-11-25-directed-sequence.json",
+        "docs/evidence/2026-11-25-once-schedule.json"
       ]
     },
     {
       "id": "mission-detail-and-map-card",
       "title": "Mission Detail and Interactive Floor Maps",
       "status": "proposed",
-      "scope": "Per-room history, live progress, dashboard selection, and household checks",
+      "scope": "Per-room history and cleaning scores, archived reports, live progress and route recovery, dashboard selection, and household checks",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-24",
+      "lastVerified": "2026-11-25",
       "specs": [
         "specs/008-mission-detail-and-map-card.md"
       ],
@@ -295,7 +304,10 @@
       ],
       "code": [
         "custom_components/roomba_home/core/history.py",
+        "custom_components/roomba_home/core/clean_scores.py",
+        "custom_components/roomba_home/core/mission_map.py",
         "custom_components/roomba_home/core/live_maps.py",
+        "custom_components/roomba_home/core/live_route.py",
         "custom_components/roomba_home/core/point_maps.py",
         "custom_components/roomba_home/core/mqtt.py",
         "custom_components/roomba_home/map_api.py",
@@ -303,44 +315,96 @@
       ],
       "tests": [
         "tests/test_history.py",
+        "tests/test_clean_scores.py",
+        "tests/test_mission_map.py",
+        "tests/test_live_route.py",
         "tests/test_mqtt.py",
         "tests/ha/test_live_map_entities.py",
-        "tests/ha/test_roomba_map_api.py"
+        "tests/ha/test_roomba_map_api.py",
+        "tests/frontend/map-card.test.cjs"
       ],
       "documentation": [
         "README.md",
         "docs/usage.md",
         "docs/telemetry.md",
         "docs/validation.md",
-        "docs/evidence/2026-11-24-live-progress.json"
+        "docs/evidence/2026-11-24-live-progress.json",
+        "docs/evidence/2026-11-25-ordered-furniture-completion.json",
+        "docs/evidence/2026-11-25-directed-sequence.json",
+        "docs/evidence/2026-11-25-archived-cleaning-reports.json",
+        "docs/evidence/2026-11-25-live-route-activity.json",
+        "docs/evidence/2026-11-25-live-route-backfill.json",
+        "docs/evidence/2026-11-25-wet-route-activity.json",
+        "docs/evidence/2026-11-25-room-cleaning-scores.json"
       ]
     },
     {
       "id": "map-zone-editor",
       "title": "Map and Zone Editor",
       "status": "proposed",
-      "scope": "Verified edits to saved zones, room names, and room boundaries",
+      "scope": "Floor settings, rooms, cleaning zones, restrictions and furniture, local floor backups, and settings and zone recovery",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-24",
+      "lastVerified": "2026-11-25",
       "specs": [
         "specs/009-map-zone-editor.md"
       ],
       "documentation": [
         "docs/validation.md",
-        "docs/api.md"
+        "docs/api.md",
+        "docs/usage.md",
+        "docs/evidence/2026-11-25-map-furniture.json",
+        "docs/evidence/2026-11-25-room-destination-publication.json",
+        "docs/evidence/2026-11-25-map-backup-feasibility.json",
+        "docs/evidence/2026-11-25-local-map-backups.json",
+        "docs/evidence/2026-11-25-map-settings-restore.json",
+        "docs/evidence/2026-11-25-cleaning-zone-recovery.json",
+        "docs/roadmap.md",
+        "README.md"
       ],
-      "workflows": [],
-      "entrypoints": [],
-      "code": [],
-      "tests": []
+      "workflows": [
+        ".github/workflows/validate.yml"
+      ],
+      "entrypoints": [
+        "custom_components/roomba_home/map_api.py",
+        "custom_components/roomba_home/map_history_api.py"
+      ],
+      "code": [
+        "custom_components/roomba_home/core/room_edits.py",
+        "custom_components/roomba_home/core/restriction_edits.py",
+        "custom_components/roomba_home/core/zone_edits.py",
+        "custom_components/roomba_home/core/map_edits.py",
+        "custom_components/roomba_home/core/floor_settings.py",
+        "custom_components/roomba_home/core/furniture_edits.py",
+        "custom_components/roomba_home/core/map_snapshots.py",
+        "custom_components/roomba_home/map_history.py",
+        "custom_components/roomba_home/core/maps.py",
+        "custom_components/roomba_home/core/point_maps.py",
+        "custom_components/roomba_home/core/client.py",
+        "custom_components/roomba_home/coordinator.py",
+        "custom_components/roomba_home/image.py",
+        "custom_components/roomba_home/frontend/roomba-home-map-card.js"
+      ],
+      "tests": [
+        "tests/test_room_edits.py",
+        "tests/test_restriction_edits.py",
+        "tests/test_zone_edits.py",
+        "tests/test_floor_settings.py",
+        "tests/test_furniture_edits.py",
+        "tests/test_map_snapshots.py",
+        "tests/ha/test_map_history.py",
+        "tests/test_api_client.py",
+        "tests/frontend/map-card.test.cjs",
+        "tests/ha/test_live_map_entities.py",
+        "tests/ha/test_roomba_map_api.py"
+      ]
     },
     {
       "id": "saved-cleaning-routines",
       "title": "Saved Cleaning Routines",
       "status": "implemented",
-      "scope": "Edition-aware listing, creation, update, and removal of one-robot routines",
+      "scope": "Editing and launching supported one-robot routines with per-target profiles, fixed presets, furniture destinations, and draft estimates",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-24",
+      "lastVerified": "2026-11-25",
       "specs": [
         "specs/010-saved-cleaning-routines.md"
       ],
@@ -353,17 +417,35 @@
       ],
       "code": [
         "custom_components/roomba_home/core/routines.py",
-        "custom_components/roomba_home/core/client.py"
+        "custom_components/roomba_home/core/routine_presets.py",
+        "custom_components/roomba_home/core/quick_routines.py",
+        "custom_components/roomba_home/core/time_estimates.py",
+        "custom_components/roomba_home/core/furniture_targets.py",
+        "custom_components/roomba_home/core/client.py",
+        "custom_components/roomba_home/frontend/roomba-home-map-card.js"
       ],
       "tests": [
         "tests/test_api_client.py",
-        "tests/ha/test_schedules.py"
+        "tests/test_routine_presets.py",
+        "tests/test_quick_routines.py",
+        "tests/test_time_estimates.py",
+        "tests/ha/test_schedules.py",
+        "tests/test_furniture_targets.py",
+        "tests/ha/test_roomba_map_api.py",
+        "tests/frontend/map-card.test.cjs"
       ],
       "documentation": [
         "README.md",
         "docs/api.md",
         "docs/usage.md",
-        "docs/validation.md"
+        "docs/validation.md",
+        "docs/evidence/2026-11-25-map-furniture.json",
+        "docs/evidence/2026-11-25-furniture-routine.json",
+        "docs/evidence/2026-11-25-ordered-furniture-completion.json",
+        "docs/evidence/2026-11-25-native-single-area-routines.json",
+        "docs/evidence/2026-11-25-fixed-routine-presets.json",
+        "docs/evidence/2026-11-25-routine-draft-estimates.json",
+        "docs/evidence/2026-11-25-quick-routines.json"
       ]
     }
   ]

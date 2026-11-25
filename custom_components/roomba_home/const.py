@@ -16,15 +16,16 @@ PLATFORMS = (
     "number",
     "switch",
     "button",
+    "text",
     "image",
 )
 POLL_SECONDS = 60
 ACTIVE_POLL_SECONDS = 15
 DETAIL_SECONDS = 300
 PARTS_SECONDS = 1800
+SERIAL_REFRESH_SECONDS = 86400
 MAPS_SECONDS = 900
 HISTORY_SECONDS = 1800
-VERSION = "0.14.0"
 
 
 def selected_robots(entry):

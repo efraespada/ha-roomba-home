@@ -1,13 +1,15 @@
-"""Capability-bounded cleaning levels for the next mission and the robot defaults."""
+"""Capability-bounded cleaning levels and persistent robot settings."""
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntity, NumberMode
-from homeassistant.const import EntityCategory, UnitOfArea
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfArea
 
 from .coordinator import action_error
-from .core.cleaning_protocol import (
+from .core.settings_protocol import (
     AUTO_EVACUATION_MAX_AREA,
     AUTO_EVACUATION_MIN_AREA,
-    CleaningSetting,
+    MAX_VOICE_VOLUME,
+    MIN_VOICE_VOLUME,
+    RobotSetting,
 )
 from .entity import RoombaEntity, discover_entities
 
@@ -16,13 +18,13 @@ LEVELS = {
     "wetness_level": "pad_wetness",
 }
 DEFAULT_LEVELS = {
-    "suction_level": CleaningSetting.SUCTION,
-    "wetness_level": CleaningSetting.WETNESS,
+    "suction_level": RobotSetting.SUCTION,
+    "wetness_level": RobotSetting.WETNESS,
 }
-AUTO_EVACUATION_AREA = CleaningSetting.AUTO_EVACUATION_AREA
+AUTO_EVACUATION_AREA = RobotSetting.AUTO_EVACUATION_AREA
 
 
-def _integer_level(value, *, round_converted=False):
+def _integer_level(value, *, round_converted=False, error_key="unsupported_profile"):
     try:
         if type(value) not in {int, float}:
             raise ValueError
@@ -33,7 +35,7 @@ def _integer_level(value, *, round_converted=False):
             raise ValueError
         return level
     except TypeError, ValueError, OverflowError:
-        raise action_error("unsupported_profile", "Cleaning level is not supported") from None
+        raise action_error(error_key, "This value is not supported") from None
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -46,6 +48,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 yield f"default_{field}", RoombaDefaultCleaningLevel
         if _auto_evacuation_area(state) is not None:
             yield "auto_evacuation_area", RoombaAutoEvacuationArea
+        if (
+            RobotSetting.VOICE_VOLUME.observed(state.telemetry, state.capabilities.cleaning)
+            is not None
+        ):
+            yield "voice_volume", RoombaVoiceVolume
 
     discover_entities(entry, async_add_entities, candidates)
 
@@ -113,13 +120,15 @@ class RoombaDefaultCleaningLevel(RoombaCleaningLevel):
         )
 
     async def _async_apply_level(self, level):
-        await self.account.async_set_cleaning_setting(self.robot_id, self.setting, level)
+        await self.account.async_set_robot_setting(self.robot_id, self.setting, level)
 
 
 def _auto_evacuation_area(state):
-    if state is None or not state.capabilities.supports_auto_evacuation_area:
-        return None
-    return AUTO_EVACUATION_AREA.observed(state.telemetry, state.capabilities.cleaning)
+    return (
+        AUTO_EVACUATION_AREA.observed_on(state.telemetry, state.capabilities)
+        if state is not None
+        else None
+    )
 
 
 class RoombaAutoEvacuationArea(RoombaEntity, NumberEntity):
@@ -147,4 +156,32 @@ class RoombaAutoEvacuationArea(RoombaEntity, NumberEntity):
         level = _integer_level(
             value, round_converted=self.unit_of_measurement != self.native_unit_of_measurement
         )
-        await self.account.async_set_cleaning_setting(self.robot_id, AUTO_EVACUATION_AREA, level)
+        await self.account.async_set_robot_setting(self.robot_id, AUTO_EVACUATION_AREA, level)
+
+
+class RoombaVoiceVolume(RoombaEntity, NumberEntity):
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_native_min_value = MIN_VOICE_VOLUME
+    _attr_native_max_value = MAX_VOICE_VOLUME
+    _attr_native_step = 1
+    _attr_mode = NumberMode.SLIDER
+    _attr_translation_key = "voice_volume"
+    _attr_icon = "mdi:volume-high"
+
+    @property
+    def available(self):
+        return super().available and self.native_value is not None
+
+    @property
+    def native_value(self):
+        state = self.robot
+        return (
+            RobotSetting.VOICE_VOLUME.observed(state.telemetry, state.capabilities.cleaning)
+            if state is not None
+            else None
+        )
+
+    async def async_set_native_value(self, value):
+        level = _integer_level(value, error_key="unsupported_robot_setting")
+        await self.account.async_set_robot_setting(self.robot_id, RobotSetting.VOICE_VOLUME, level)

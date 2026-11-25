@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "integration_version": "0.62.0",
+  "captured_editable_programs": 2,
+  "automatic_pre_restore_backup": true,
+  "original_rotated_zone_vertices_recovered": true,
+  "missing_target_detected_in_routine_and_schedule": true,
+  "separately_confirmed_program_recoveries": 2,
+  "original_program_ids_destination_order_and_area_profiles_preserved": true,
+  "new_names_schedule_time_weekday_and_disabled_state_preserved": true,
+  "original_geometry_and_program_lists_restored_after_cleanup": true,
+  "robot_movement_commands_sent": 0
+}

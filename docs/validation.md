@@ -1,5 +1,1036 @@
 # Roomba Home validation
 
+## Recovering program destinations
+
+A signed Max 700 Combo trial captured two cleaning zones, a routine, and a
+disabled schedule in a local backup. The trial changed both program names
+and the scheduled day and time after capture. Deleting one linked zone
+pruned it from both programs. Zone recovery reproduced its original rotated
+outline. Each program review displayed the recovered zone and the original
+sequence and vacuum and mop preferences. Separate confirmations returned
+the same two program IDs, destinations, and per-area preferences while
+keeping the newer names, scheduled time, weekday, and disabled state.
+Cleanup restored the original floor geometry, settings, and program lists.
+The trial sent zero movement commands.
+[Sanitized evidence](evidence/2026-11-25-program-destination-recovery.json)
+
+Version 0.62.0 passed 2,415 Python tests with 100% statement and branch
+coverage, 50 map card tests, and Home Assistant's integration validator.
+
+## Recovering cleaning zones
+
+A signed Max 700 Combo trial saved two temporary cleaning zones and linked
+both to a temporary routine and a disabled schedule. Moving and renaming
+one zone retained both targets and their settings in each program. Deleting
+the second zone reduced both programs to one target. Roomba accepted one
+batch write restoring the moved zone and recreating the deleted zone under
+its original identifier. The recreated destination remained absent from
+both programs after the restore was confirmed.
+
+A separate run verified the integration's local backup, recovery review,
+two currently linked programs, automatic pre-restore backup, one native
+write, and the published geometry and zone identifiers. The trials sent
+zero movement commands. Cleanup removed the temporary programs and zones
+and confirmed the original floor geometry, settings, and program lists.
+Map writes generated new revisions during the trials.
+[Sanitized evidence](evidence/2026-11-25-cleaning-zone-recovery.json)
+
+A follow-up signed trial recovered a rotated zone with its original vertices
+and reattached its destination through separate routine and schedule edits.
+Roomba confirmed the same program IDs, area order, vacuum and mop preferences,
+scheduled time, and disabled state. This verified the protocol for a separate
+program recovery flow. The current card recovers cleaning zone geometry and
+previews the programs that currently refer to those zones.
+
+Version 0.61.0 passed 2,388 Python tests with 100% statement and branch
+coverage and 49 card tests. Isolated Chrome verified the review, current
+program dependencies, and confirmation at 358 and 900 pixels with synthetic
+data. Household installation and screenshots of this version remain pending.
+
+## Restoring backed-up floor settings
+
+A signed Max 700 Combo trial captured an active floor, then temporarily
+changed its name and rotation. The restore review read the local backup and
+the current floor without sending a write. Confirmation saved an automatic
+pre-restore copy and sent one settings request. A fresh Roomba read returned
+the recorded name and angle with identical revision, destination inventory,
+and native archive bytes. The trial fully restored the original floor and
+sent zero movement commands. A separate signed probe confirmed that an
+accented 20-character name and orientation can be set together on an
+existing floor and that both original settings can be restored.
+
+Home Assistant tests verified that a backup of an older revision can restore
+settings on the same floor, denied confirmation without control permission,
+and refused to write after the current settings changed during automatic
+capture. [Sanitized evidence](evidence/2026-11-25-map-settings-restore.json)
+
+Version 0.60.0 passed 2,368 Python tests with 100% statement and branch
+coverage and 48 card tests. Isolated Chrome verified the review, accented
+name, angle, and confirmation at 358 and 900 pixels with synthetic data.
+Household installation and screenshots of this version remain pending.
+
+## Local map backups
+
+A signed Max 700 Combo trial used the live attic floor to verify automatic
+backup before a temporary rename. The recorded floor settings and native
+archive matched the active revision before the write. The trial restored
+the original name and confirmed the same revision, destination inventory,
+orientation, and archive bytes. Repeating the capture returned the same
+ID and timestamp, and pinning the saved copy persisted in private storage
+with file mode `0600`. The trial sent zero movement commands.
+
+A fresh isolated Home Assistant instance then read the pinned snapshot
+after closing Roomba's connection. It rebuilt the floor geometry from the
+local archive and recovered the original binary byte for byte. Authenticated
+Home Assistant tests separately verified export after unloading the provider
+entry, per-robot isolation, stale revisions, retention, and failure before
+a provider edit when an automatic backup cannot be saved.
+[Sanitized evidence](evidence/2026-11-25-local-map-backups.json)
+
+Version 0.59.0 passed 2,354 Python tests with 100% statement and branch
+coverage and 47 card tests. Hassfest and specification validation passed.
+Isolated Chrome verified the offline preview, accented names, layer legend,
+and JSON export at 358 and 900 pixels with synthetic data. Installation and
+new screenshots from the household dashboard remain pending.
+
+## Schedule editor and per-area settings
+
+Roomba Home Android 3.4.1 exposed an existing weekly schedule's cleaning
+preferences from **Edit automation**. Four observed weekly schedules used
+ordered regional commands. The integration read the recognized profiles
+from all four and checked both attic schedules against the current floor.
+The captured one-time Android command also exposed an inactive mop
+wetness value in a vacuum region. The editor loaded it and kept it available
+when switching the room to mop mode.
+
+Two signed trials on the Max 700 Combo used disabled temporary schedules.
+One updated a weekly entry's name and changed its room from vacuum to mop.
+The other loaded the native timestamped one-time format and changed its
+room to mop. Both read back the exact wetness and SmartScrub settings,
+original start and frequency, and disabled state. Both trial entries were
+removed. The original schedules and floor matched their preflight reads.
+The trials sent zero movement commands.
+[Sanitized schedule editor evidence](evidence/2026-11-25-schedule-editor.json)
+
+Version 0.58.0 passed 2,329 Python tests with 100% statement and branch
+coverage and 45 card tests. Hassfest and specification validation passed.
+The schedule editor passed a weekly creation and one-time settings edit in
+isolated Chrome at 358 and 900 pixels with synthetic data. Household
+installation and screenshots of this version remain pending.
+
+## Native multi-area favorites
+
+The signed edition 1 collection contained six favorites across three
+Max 700 Combo robots. Each favorite contained one robot command. Four
+favorites had five or six rooms and used ordered Replay or timestamped
+formats. The integration recovered the complete regional settings from all
+six favorites and resolved every destination against its current floor.
+One six-room favorite used automatic order. The Android Automations view
+grouped schedule rows by robot separately from saved favorites.
+
+A signed one-room trial created an automatic-order favorite and repeated
+the create request to verify it returned the same ID. The trial changed
+the favorite to listed order, read back identical regional preferences,
+and then removed it. The original favorites and floor matched the
+preflight reads, and the trial sent zero movement commands. Home Assistant
+tests cover dispatch with different modes per area, an explicit current
+floor revision, and furniture validation.
+
+Version 0.57.0 passed 2,303 Python tests with 100% statement and branch
+coverage and 43 card tests. Hassfest and specification validation passed.
+The motion, coverage filters, and automatic-order editor also passed in
+isolated Chrome at 358 and 900 pixels with synthetic data. Household
+installation and screenshots of this version remain pending.
+
+## Recent and suggested routines
+
+The signed Max 700 Combo floor request returned three recent routines and
+two suggestions, clean all rooms and clean a point. Android opened the
+same furniture destination as the first recent entry. Two archived
+furniture polygons resolved to their current outlines, with a maximum
+observed difference of 0.05 mm. The current floor projection could load
+all three recent drafts. [Native routine guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
+
+On a second Max 700 Combo, the candidate loaded a provider recent routine
+for one room and started that reviewed vacuum-only draft through the
+Home Assistant vacuum entity and the real robot command transport.
+The signed mission history matched the sole room, the reviewed revision,
+and the exact per-area preferences. Roomba reported one minute before the
+trial cancellation. The robot returned to its dock without an error, and
+the floor archive, account favorites, and robot schedules matched their
+preflight values.
+[Anonymized trial evidence](evidence/2026-11-25-quick-routines.json)
+
+The suite passed 2,207 Python tests with 100% statement and branch coverage
+and 31 card tests. Hassfest and specification validation passed. The routine
+list, draft import, and start review rendered in isolated Chrome at 358 and
+900 pixels. Household installation and screenshots remain pending.
+
+## Routine draft estimates
+
+The signed estimate table returned 36 profile rows for the current room
+on a Max 700 Combo. A comparison across seven favorites captured from
+Android 3.4.1 matched their saved times to the second. Normal combined
+cleaning matched 3,449 seconds, Deep combined cleaning matched 6,899,
+and Deep sequential cleaning matched 7,200.
+
+The Android draft with a furniture area and a room displayed 58 minutes
+beside the room and omitted the time for the furniture and the full draft.
+The integration retained both areas in order and reported the room's
+3,449 seconds as partial. The read confirmed the same floor revision
+afterward. The trial sent zero robot, favorite, or map writes.
+[Anonymized draft evidence](evidence/2026-11-25-routine-draft-estimates.json)
+
+The Home Assistant vacuum entity also returned the same reviewed subtotal
+from Roomba through an in-memory coordinator. The suite passed 2,164 Python
+tests with 100% statement and branch coverage and 29 card tests. Hassfest
+and specification validation passed. The mixed partial estimate rendered
+and reset on a changed revision in isolated Chrome at 358 and 900 pixels.
+Household installation and screenshots of this version remain pending.
+
+## Fixed routine presets
+
+The Max 700 Combo advertised `digiCap.cleaningProfiles: 2`. In Android
+3.4.1, the Light, Normal, and Deep preferences showed three combinations
+of suction, liquid, and passes across vacuuming, mopping, combined
+cleaning, and sequential cleaning. Signed favorite reads confirmed the
+Deep parameters in all four modes. The sequential favorite used mode
+512 without an edit marker. The candidate read its exact regional profile.
+The four Smart editor screens displayed no fixed room levels.
+[iRobot routine guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
+
+A signed save and edit test mixed one room and two furniture destinations
+with three different modes and profiles. Roomba confirmed the initial
+order and every setting. Applying one preset to all three areas during a
+reorder retained all three modes. The verified floor archive and six
+original favorites stayed intact. The test removed the four temporary
+routines and sent no movement commands.
+[Anonymized preset evidence](evidence/2026-11-25-fixed-routine-presets.json)
+
+The suite passed 2,155 Python tests with 100% statement and branch
+coverage and 26 card tests. Hassfest and specification validation passed.
+In isolated Chrome, both preset controls worked on synthetic mixed-mode
+areas at 358 and 900 pixels. Household installation and screenshots of
+this version remain pending.
+
+## Smart routine recommendations
+
+The current signed score response for a Max 700 Combo included seven
+room recommendations. Six rooms received suction and liquid level 1.
+The seventh received level 3, two passes, SmartScrub, and carpet boost.
+The response matched the active floor revision.
+
+On the attic robot, Android saved a temporary favorite with **Smart**
+selected. That record contained concrete suction and liquid level 2 for
+its room. A signed read for the same floor revision recommended level 1
+for both. The captured favorite supplied concrete region parameters.
+The integration exposes the signed preferences in its recommendation
+preset. [iRobot Smart routine guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
+
+The integration read the attic recommendations through its production
+coordinator and saved a temporary ordered routine with a furniture
+destination and one room through the Home Assistant vacuum entity. The
+signed read-back confirmed the order, the furniture's chosen suction,
+and the room's recommended settings in its selected mop mode.
+Both temporary favorites were removed. The final signed reads matched
+the preflight favorites and floor revision.
+[Recommendation tests](../tests/test_routine_presets.py) ·
+[Draft tests](../tests/frontend/map-card.test.cjs)
+
+## Native single-area routines
+
+Roomba Home Android 3.4.1 saved Light, Normal, Deep, and Smart with one
+room on the current Max 700 Combo floor. All four records stored the
+concrete combined vacuum-and-mop settings for that room. The app displayed
+58 minutes for Light, Normal, and Smart, and 115 minutes for Deep. Roomba
+returned minute estimates with good confidence. An integration read matched
+all four profiles and read two original ordered app routines with the
+Normal profile tag.
+
+Smart and Normal saved the same parameters in this trial. Reopening the
+Smart routine showed Normal in the app. The integration exposes the
+recorded room settings. Adaptive selection in other conditions requires
+additional verification. [Android trial evidence](evidence/2026-11-25-native-single-area-routines.json) · [iRobot map and routine guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
+
+The vacuum action started the Android-created Light routine on R2D2 via
+the integration command path. The robot washed its mop and reached the
+cleaning phase. The cancellation test returned it to the dock. Signed
+history matched the active map revision, the room, and every saved regional
+parameter. The report recorded two minutes and a cancelled outcome. A
+separate read confirmed that R2D2 was docked and drying had resumed.
+
+A signed rename preserved the estimate and all regional settings. A
+duplicate kept the saved settings and accepted a suction edit independently.
+The trial removed the duplicate and the four app test routines. A fresh
+read matched all six original active favorites and the existing floor revision.
+
+The suite passed 2,142 Python tests with 100% statement and branch
+coverage and 25 card tests. Hassfest and specification validation passed.
+The estimate dialog rendered with synthetic data at 358 and 900 pixels
+in an isolated Chrome profile. Household installation and screenshots of
+this version remain pending.
+
+## Room cleaning scores
+
+A read with the production client on a Max 700 Combo matched the current
+floor plan and the room inventory from its saved archive. A second floor
+read confirmed that the revision stayed current. Roomba reported one room
+score of `0.0`, a range boundary of `0.7`, normal traffic, and timestamps
+for the update and for its latest processed, cleaned, and unfinished
+mission records. The suggested profile was combined vacuuming and mopping,
+suction level 1, wetness level 1, and three disabled options for two passes,
+SmartScrub, and carpet boost. The trial issued zero robot or map commands.
+[Anonymized trial evidence](evidence/2026-11-25-room-cleaning-scores.json)
+
+The suite passed 2,120 Python tests with 100% statement and branch
+coverage and 24 card tests. Hassfest and specification validation passed.
+An isolated Chrome session rendered the score dialog with synthetic data
+at 358 and 900 pixels. Household installation and screenshots remain
+pending.
+
+## One-time cleaning schedules
+
+In Roomba Home Android, saving a future time without weekly repeat days
+showed a single execution. The signed read confirmed `frequency: ONCE`
+and one ISO weekday. The native command relied on the robot ID in the
+schedule options. The test removed that entry and verified the five
+original household schedules. [Roomba Home release notes](https://homesupport.irobot.com/articles/en_US/Knowledge/40500)
+
+The integration created a disabled entry, edited its time, converted it
+to weekly and back to one-time, selected tomorrow, and confirmed
+activation and deactivation. All edits preserved the selected destination.
+Deletion and a fresh read confirmed that the test entry was removed.
+
+A separate test armed a one-time vacuuming schedule. The integrated
+next-start calculation matched the planned time. Roomba reported an
+active cloud-initiated mission 28 seconds after that time. The trial
+cancelled the mission after confirming start, returned R2D2 to its dock,
+and restored drying. Roomba had already removed the one-time schedule.
+A signed read matched all five original household schedule groups.
+
+The automated suite covers frequency and ownership, idempotent writes,
+weekly compatibility, one-time dates, and daylight saving transitions.
+The suite passed 2,097 Python tests with 100% statement and branch
+coverage and 22 card tests. Household installation and screenshots
+remain pending. [Anonymized trial evidence](evidence/2026-11-25-once-schedule.json)
+
+## Wet-cleaning route activity
+
+Two localized missions on the Max 700 Combo completed through Roomba Home
+Android. The combined run recorded 3.25 m² and the mop-only run recorded
+3.07 m². The archived route of each mission established how the live
+position codes correspond to movement. Code 6 matched 182 combined
+vacuum-and-mop points and code 4 matched 154 mop-only points. One sample
+of each code matched travel. The comparison used the nearest
+unambiguous trajectory within 4 cm. Code 0 occurred mainly on travel.
+[Anonymized wet-cleaning evidence](evidence/2026-11-25-wet-route-activity.json)
+
+The first combined start returned to the point picker while the dock
+was actively drying. The next start succeeded after ending the drying
+cycle. The mop-only picker initially disabled Start for the displayed
+point. Moving the point enabled Start and the mission began. Post-mission
+pad washing and drying matched the dock's documented lifecycle.
+[AutoWash dock documentation](https://homesupport.irobot.com/articles/en_US/Knowledge/10014)
+
+The matched mop timeline reported that the active zone stage began 232
+seconds after mission start. The request was read 339 seconds into the
+mission. The app showed elapsed time for the point. The stage timestamp
+is exposed separately from the last timeline update and whole-mission
+elapsed time.
+
+The final device read confirmed charging, zero mission errors, and
+automatic drying. Both runs kept the original floor, rooms, cleaning
+zones, and restrictions. Roomba advanced the map revision and changed
+four of ten furniture entries. The trial sent zero map-edit requests.
+
+Home Assistant tests cover the four activity options, expiry and mission
+end, confirmed stage times, and both map views. The suite passed 2,076
+Python tests with 100% statement and branch coverage and 22 card tests.
+Household installation and cropped screenshots remain pending.
+
+## Live route recovery
+
+The late-join replay used a localized vacuum mission already completed
+by the Max 700 Combo. It started with 20 direct position samples from
+partway through the mission. The production client fetched the signed
+route object from Roomba's update. The replay also used an earlier copy
+captured while the robot was cleaning. Each restored 64 preceding
+positions and kept all 20 direct positions. The recovered samples
+matched the direct recording's operating modes. The maximum coordinate
+difference was 1.12 cm. The live marker kept its direct position.
+
+The automated checks cover cross-robot and expired URLs, broken objects,
+unrelated or insufficient motion, optional read failure, rate of retry,
+and removal of the route when the mission ends. The replay sent zero
+commands. Household installation and cropped captures remain pending.
+[Anonymized replay evidence](evidence/2026-11-25-live-route-backfill.json)
+
+## Live route activity
+
+The Max 700 Combo completed one localized vacuum mission started from
+Roomba Home Android. The app showed elapsed time and followed the return
+to the dock. The MQTT stream supplied 283 positions in 122 batches, with
+mode value 0 during travel and 5 during vacuuming. The archived four-minute
+report showed 3.25 m² cleaned, five travel segments, and four vacuuming
+segments. The test resumed the drying cycle that was active beforehand.
+
+One raw map snapshot contained 83 positions whose indices and modes
+matched the incremental stream. The snapshot used a different coordinate
+origin. The available live state provided area cleaned and elapsed time.
+A provider-backed remaining-time value and mission coverage denominator
+still need verification.
+
+Roomba advanced the saved floor revision during the mission. The same
+floor, room geometry, clean zones, and restrictions were retained. Ten
+furniture observations were present before and afterward, with six
+identical across both revisions. The trial issued zero map-edit requests.
+
+Home Assistant tests check the live map payload and expiry. Card tests
+verify route colors, a matching legend, and gaps between batches.
+[Anonymized live route evidence](evidence/2026-11-25-live-route-activity.json)
+
+## Archived cleaning reports
+
+The official Android app showed 18 map-backed cleaning reports for the
+Max 700 Combo. The integration returned the same 18 and two other signed
+cleaning records with no map reference. The first three map-backed reports
+matched the app's recorded durations of 14, 11, and 9 minutes. Each archive
+identified the exact historical revision referenced by the mission. All
+three differed from the currently active revision.
+
+The archived routes contained 15, 5, and 9 separate segments. One report
+included simultaneous vacuuming and mopping. The same archives supplied
+coverage, and the associated mission records supplied 9, 8, and 9 timeline
+events. The comparison used only reads of existing records.
+
+Home Assistant tests cover entity read permission, report ownership,
+expired archives, and unknown report selections. An isolated Chrome
+run verified opening the 3D report view with synthetic data. The suite
+passed 2,012 Python tests with 100% statement and branch coverage, 21 card
+tests, and official hassfest validation. Household installation and cropped
+captures in the user's Chrome session remain pending.
+[Anonymized report evidence](evidence/2026-11-25-archived-cleaning-reports.json)
+
+## Robot software status
+
+On the Max 700 Combo, the Android app showed the installed robot build,
+dock firmware, and the date of the last update. Its software detail page
+reported that the robot was up to date. The integration read the same
+installed values, retained the UTC time from `rw-software.lastSwUpdate`,
+and received an empty firmware list for the installed version and dock.
+The comparison used read-only requests while the robot was docked.
+The suite passed 1,998 Python tests with 100% statement and branch
+coverage, 18 dashboard tests, and official hassfest validation.
+[Anonymized software evidence](evidence/2026-11-25-software-status.json)
+
+## Mapping and floor removal
+
+On a docked Max 700 Combo, the official Android app started a mapping-only
+cycle. The cycle stayed `train` while its phase changed from `run` to
+`stop` and back after pause and resume. Roomba returned to the dock on its
+own and published a second map with a different map identifier. The original
+settings, revision, room and zone inventory, and geometry layers matched the
+pre-run snapshot.
+
+The new floor was active and visible before the API supplied room metadata.
+The app saved its name, and the signed archive supplied a visible room
+even while the separate room inventory was absent. The app showed a
+20-character first-name limit and a 16-character rename limit. The
+settings endpoint accepted and returned an accented 20-character name on
+the disposable floor without changing its geometry revision.
+
+The integration started, paused, resumed, and cancelled a second short
+mapping run in the same attic. It returned the robot to the dock and
+restarted drying. One signed visibility request removed the disposable
+floor. A separate list and archive read confirmed the original map and its
+destinations were intact and it was the only visible floor on that robot.
+An individual metadata read still returned the removed map with
+`visible: false`, while its former active revision did not match the
+read-back. The removed map was also absent from a list requested with
+`visible=false`.
+
+The suite passed 1,971 Python tests with 100% statement and branch
+coverage, 18 dashboard tests, and official hassfest validation. Household
+deployment and cropped Chrome screenshots remain pending.
+[Anonymized lifecycle evidence](evidence/2026-11-25-map-lifecycle.json)
+
+## Washing during drying
+
+With the Max 700 Combo dock drying, the official Android app accepted a
+manual wash after confirmation. The robot reported `padWash`, wash state
+`602`, dry state `701`, and dock error `0`. The wash completed with the
+robot charging and drying stopped.
+
+After starting drying again, the integration transport sent one `washPad`
+command. It received an acknowledgement and observed the same wash and
+drying state changes. The robot returned to charging after roughly four
+minutes with dock error `0`. The trial restarted drying and verified the
+same map revision and destination inventory. Home Assistant tests confirm
+that the wash button remains available during drying. Other busy-state
+checks are preserved.
+The suite passed 1,950 Python tests with 100% statement and branch
+coverage, 16 dashboard tests, and official hassfest validation.
+[Anonymized dock wash evidence](evidence/2026-11-25-wash-during-drying.json)
+
+## Maintenance counter reset
+
+The official Android app showed reset controls for the four tracked
+replacement parts and completion controls for the two washing systems on a
+Max 700 Combo. A signed read listed the same six counters, and the public
+catalog marked the dust bag counter as disabled. The native SDK specifies
+a one-part zero-counter request. The household counters were preserved.
+
+Home Assistant tests cover explicit confirmation, disabled or missing
+counters, signed request scoping, lost acknowledgements and delayed
+provider confirmation. A live write remains to be verified after a part is
+replaced or serviced. The suite passed 1,948 Python tests with 100%
+statement and branch coverage, 16 dashboard tests, and official hassfest
+validation.
+
+## Voice pack installation
+
+The official Android app downloaded and installed Czech on a docked Max
+700 Combo. Independent reads confirmed download, installation and
+automatic selection. Spanish (Spain) was selected again after the trial.
+The robot reported one slot for additional voices and 13 factory voices.
+
+A Danish attempt during an outstanding deployment reached error 139 and
+preserved the installed and active voices. The official app installed the
+same Danish package after the pending deployment ended. The integration
+transport then replaced that Danish pack with Czech from a fresh catalog
+response. Independent reported state matched the deployment ID and
+confirmed installation nine seconds after the request. The integration
+restored Spanish (Spain). Czech remains in the additional slot. The map,
+factory voices, docked state and active drying were preserved.
+
+Home Assistant tests cover availability, pending deployments, a missed
+acknowledgement, terminal provider errors, correlation, timeouts, and
+selecting an already installed voice. The physical check used the
+integration transport. Deployment in the household installation remains
+pending. The suite passed 1,932 Python tests with 100% statement and
+branch coverage, 16 dashboard tests, and official hassfest validation.
+[Anonymized voice installation evidence](evidence/2026-11-25-voice-installation.json)
+
+## Robot reboot and voice catalog
+
+The 0.33.0 integration adds a configuration button for reboot. The app
+reboot and the integration's direct `reset` publication both produced a
+connection drop and a subsequent return. With the integration transport,
+the robot first reported offline after 36 seconds and was back, docked and
+charging, after 91 seconds. The associated map, its region inventory, the
+robot name, and the selected voice matched the readings before the command.
+The app trial interrupted an active drying cycle. After the experiments,
+the original dock returned to active drying.
+
+The public model catalog returned 25 languages. The same robot reported
+13 installed voices, leaving 12 additional options in its catalog response.
+The count matched the additional options in the official app, and the
+current voice remained Spanish (Spain). The suite passed 1,904 Python
+tests with 100% statement and branch coverage and 16 dashboard tests.
+[Reboot and voice catalog evidence](evidence/2026-11-25-reboot-and-voice-catalog.json)
+
+## Robot name and voice language
+
+The 0.32.0 integration adds a configuration text entity for the robot name
+and a selector for its installed voices. The official Android app and the
+integration's MQTT writer changed both settings on a docked Max 700 Combo.
+Independent reported-state reads confirmed each change and restoration,
+including a name with an accented character. The installed inventory had
+13 options before and after the trial.
+
+Home Assistant tests cover native configuration actions, an installed voice
+removed since the last poll, and an external rename. Device and entity
+identifiers and the Home Assistant device alias remain stable. The suite
+passed 1,892 Python tests with 100% statement and branch coverage and 16
+dashboard tests. The household Chrome session still needs deployment and
+visual verification.
+[Robot settings evidence](evidence/2026-11-25-robot-identity.json)
+
+## Point cleaning from the floor plan
+
+Version 0.30.0 added a marker and confirmation dialog for point vacuuming.
+Dashboard tests verify pointer placement on a rotated 3D floor, keyboard
+coordinates, an overlapping saved zone, rejection of a keep-out location,
+and one submission after confirmation. A changed map revision invalidates
+the previous confirmation. Authenticated Home Assistant tests cover the
+control permission, the older unreviewed service call, and rejection of
+stale map and inventory identifiers before a command is published.
+
+Version 0.31.0 adds mopping to the point action and card. The official app
+started a mopping mission on the Max 700 Combo. Independent reads saw pad
+preparation, a mopping run, automatic return and pad washing, then charging.
+Roomba's history reported success and 36 ft². Its command contained
+`point_clean`, the selected map revision, `geom.center`, and mode 4 as the
+sole parameter. Roomba published a newer revision of the same map after the
+run. The test used the cleaning controls and made no map edits.
+[Point mopping evidence](evidence/2026-11-25-point-modes.json)
+
+The first simultaneous attempt stopped at the dock with a full dirty-water
+tank (654). After dock maintenance and a new point selection, the official app
+sent `point_clean` with mode 6. The robot prepared the pad, vacuumed and
+mopped together, and returned to the dock. History reported success and
+37 ft². The new parser also recognized the active point from the correlated
+live timeline.
+
+The fourth localized-cleaning choice sent mode 512 as the sole parameter.
+The same mission reported vacuum mode (2) first and mop mode (4) after the
+transition. Roomba reported success, 76 ft², and a return to charging.
+The live timeline and history preserved the original point and mode 512.
+
+A final archive comparison confirmed the same map, rooms, borders, saved
+zone outlines, and restrictions. Roomba refreshed detected furniture
+geometry and the reported dock point in its automatic revisions. The robot
+stayed in its dock after completing the test series.
+
+Home Assistant tests cover the optional mode, the vacuum default, the
+visible choices by capability, and stale map reviews. The card and service
+reject wet points in no-mop zones. A dock fault that appears after sending
+the wet command produces an unconfirmed result and a dock-readiness error.
+The live marker tests cover the current mission, the requested map revision,
+and expiry. The suite passed 1,875 Python tests with 100% statement and
+branch coverage and 16 dashboard tests. The household card still needs
+verification in Chrome.
+[Earlier vacuum point evidence](evidence/2026-11-23-point-clean.json)
+
+## Automatic mop wash settings
+
+The official Android app and independent Roomba reads established all four
+settings and their supported values on a Max 700 Combo. An isolated Home
+Assistant instance loaded the 0.29.0 install archive and registered three
+selectors and one switch on the robot's linked dock device.
+
+The Home Assistant services exercised every offered water temperature,
+wash frequency, dispensing state, and drying duration. After each change,
+the entity state matched an independent `rw-settings.state.reported` read.
+Changing the wash frequency preserved the area and time interval fields.
+All original values were restored with the robot docked. No mission, wash,
+or drying cycle started during these settings tests.
+
+The suite passed 1,846 Python tests with 100% statement and branch coverage,
+twelve card tests, and official hassfest validation.
+[Anonymized settings trial](evidence/2026-11-25-dock-preferences.json)
+
+## Robot configuration controls
+
+With a docked Max 700 Combo, the official Android app lowered the voice
+volume from 100% to 76%, then restored 100%. A separate trial enabled and
+disabled the child and pet lock. An independent Roomba client observed the
+corresponding `rw-settings.state.reported` changes and the original values
+after restoration.
+
+An isolated Home Assistant instance checked and loaded the 0.28.0 install
+archive with only the test robot configured. `number.set_value` changed the
+volume to 76%. `switch.turn_on` enabled the lock. The entity state matched
+the independent Roomba reading after each action. The same Home Assistant
+services restored 100% and disabled the lock. Diagnostics reported the
+loaded integration version. The robot stayed docked throughout the trials.
+
+The full suite passed 1,823 Python tests with 100% statement and branch
+coverage, twelve card tests, and official hassfest validation.
+[Anonymized test results](evidence/2026-11-25-device-configuration.json)
+
+## 3D floor plan
+
+The official Android app on a Max 700 Combo displayed a raised floor plan
+with wall faces, furniture, and a dock. Switching the 3D view off returned
+to the original overhead map. The test left the robot at the dock and made
+no map edits.
+
+An active map archive contained ten exterior wall segments, one carpet
+polygon, one dock point, and ten furniture footprints. The dashboard uses
+those planar features and draws estimated vertical surfaces. Its WebSocket
+tests verify that the optional geometry uses the same permissions and revision
+as the rooms. Frontend tests cover camera rotation, selection alignment, dock
+and live-marker alignment, furniture visibility, and editing in the overhead
+view. The complete suite passed 1,809 Python tests with 100% statement and
+branch coverage and twelve card tests.
+[Archive types and units](api.md#floor-plan-display-layers)
+
+## Skip the current destination
+
+On a Max 700 Combo, the Android app started an ordered vacuum run at two
+furniture destinations. The user confirmed skipping while the dining
+table was active. The app marked the table as skipped and showed the robot
+traveling toward the sofa within the same mission. Home Assistant
+subsequently read a skipped result for the table and a finished result for
+the sofa. The robot docked without a return command.
+
+The device advertised `cap.mc: 3` in its associated robot capabilities.
+The native SDK uses its basic `skip` command for this control. A direct
+diagnostic login received HTTP 403, so this Android trial used the official
+app and the installed Home Assistant timeline and history as evidence.
+
+The installed 0.26.0 card then confirmed a skip during another two-target
+vacuum mission. The Android app showed the table omitted and the robot
+traveling to the sectional sofa. Home Assistant reported
+`last_command_result: confirmed` while the same mission remained active.
+The mission finished and the official app recorded 4.6 m² cleaned.
+On 0.26.1, the card showed pending and confirmed feedback when the only
+destination in another vacuum mission was skipped. The official app
+reported the area omitted and the robot returning to the dock.
+Home Assistant recorded the area as skipped in history, retained its
+confirmed command result, and reported the robot charging at the dock.
+The final installation showed all three robots and their docks.
+The suite passed 1,805 Python tests with 100% statement and branch coverage
+and ten card tests. It covers the stale-review guard and visible feedback.
+[Anonymized skip evidence](evidence/2026-11-25-skip-current-area.json)
+
+## Immediate saved-zone selection in 0.25.0
+
+The installed 0.25.0 card showed one room after the previous trial's
+zone was removed. An independent read still found the removed zone ID in
+Roomba's inventory. The card used the active map archive to omit it.
+
+The editor then drew and saved a new disposable rectangle. The area
+appeared as a cleaning destination immediately. An independent read
+confirmed its outline and absence from the associated inventory before
+launch. **Run saved routine** selected that zone alone and started the
+robot. The command carried one `zid`, regional vacuum mode 2, and the
+confirmed active map revision. Roomba reported vacuuming after 17
+seconds, and an independent read found the new ID in the inventory
+during that mission.
+
+The robot returned to the dock without intervention. Mission history
+reported success, the exact saved-zone ID, and 45 ft² (4.18 m²) cleaned.
+The Home Assistant card removed the temporary routine and zone. The
+cleaning list returned to the original single room while the historical
+result kept the zone's name. Reopening the floor in the official app
+confirmed the original room, an empty zone overlay, and the previous
+routine shortcuts. The package passed `ha core check`, 1,785
+Python tests with 100% statement and branch coverage, nine card tests,
+and official hassfest validation.
+
+## Directed vacuum then mop
+
+On a Max 700 Combo, the official Android app started a single furniture
+destination using regional mode 512. The robot reported physical mode 2
+(vacuuming) and switched to mode 4 (mopping) under the same remote mission
+identity. Both phases reported error code 0.
+It returned to its dock and finished the post-mission pad wash. Roomba
+recorded a successful mission with 89 ft² (8.27 m²) total, including
+4 minutes of vacuuming and 9 minutes of mopping in its per-mode history.
+
+Home Assistant passed `ha core check` and restarted with 0.24.0. All three
+map cards loaded, and the served card module matched the tested package.
+The installed **Current mission measurements** panel displayed the
+furniture name even though Roomba advertised a newer active map revision
+than the one used to start the mission.
+
+A temporary saved zone appeared in the active archive before Roomba's
+destination inventory listed it. Home Assistant displayed the saved routine
+with an unresolved destination. Opening the same routine in the Android app
+preselected the zone. The app sent its ID as the sole `zid` destination and
+the robot started vacuuming. An independent read during the run found the
+zone in the associated inventory under the same active revision. The run
+finished with 45 ft² (4.18 m²) cleaned and a natural return to the dock.
+Mission history confirmed the exact saved zone. The Home Assistant card
+offered the destination after its map refresh at mission end.
+
+The installed 0.24.0 card then launched the saved routine on the same
+zone. The command targeted one `zid` with `ordered: 1`, regional mode 512,
+and no command-level cleaning parameters. Roomba reported vacuuming after
+18 seconds and mopping after 325 seconds under the same mission identity.
+The robot completed the sequence, washed its pad, and returned to a
+charging state. Its final result was `ok` with 89 ft² (8.27 m²) total.
+The history included 4 minutes of vacuuming and 6 minutes of mopping.
+
+The live timeline used its own event revision while the command referenced
+the saved user map revision. Version 0.24.1 resolves saved-zone names from
+the exact command archive for live and finished results. This also
+preserves the historical name when the zone is later removed.
+After Core restarted with 0.24.1, the installed card showed the correct
+zone name during the mopping phase. The integration registry listed all
+three robots and their docks. The served module matched the tested package.
+
+The trial zone and routine were removed. An independent read confirmed
+the original room identifiers and polygons, borders, restrictions, floor
+name, orientation, and routine list. Roomba retained automatic updates
+to learned data, including furniture, floor types, and dock poses. Its
+inventory retained the removed zone ID after the active archive returned
+to its original zone layer. The historical card kept the zone's name.
+[Anonymized sequence evidence](evidence/2026-11-25-directed-sequence.json)
+
+## Ordered furniture completion and area results in 0.23.0
+
+A Max 700 Combo completed a vacuum mission through two furniture targets
+in order. The command requested suction levels 2 and 1 for the dining
+table and sofa, respectively. A correlated MQTT timeline showed the table
+finished and the sofa in progress, then recorded both finished as the
+robot returned to the dock. The final history reported `ok`, both zone
+results with status 0, the requested order and profiles, and 65 ft²
+(6.04 m²) cleaned. The robot docked without a return command.
+
+The raw timeline's zone revision differed from the user map revision in
+the command. Replaying the captured history and active report through
+the integration resolved the two furniture names and preserved their
+individual area values, outcome codes, and reported pass counts.
+
+Roomba automatically published a new active map revision after the run.
+The new archive updated detected furniture, inferred floor type, dock
+pose, and a simplified room outline. The room identifier, room name,
+room polygon, borders, zone layer, and restriction layer matched the
+original. The trial issued no map edits or routine mutations.
+
+The full suite passed 1,772 Python tests at 100% statement and branch
+coverage and nine card tests. Home Assistant passed `ha core check` and
+restarted with 0.23.0. The installed **Last mission by area** card then
+showed both furniture names, status **finished**, and the two distinct
+sets of provider measurements from the historical revision.
+[Evidence](evidence/2026-11-25-ordered-furniture-completion.json)
+
+## Ordered furniture routine validation in 0.21.0
+
+A signed API trial saved a mixed routine with a room and two furniture
+destinations, with a different suction level for each. Reloading confirmed
+the order and profile of every entry. Saving the same routine again
+returned the existing record. The trial reordered it and removed the
+temporary favorite after confirming the updated settings. The active floor
+and original favorite list matched the baseline.
+
+Home Assistant passed `ha core check` and restarted with 0.21.0. In the
+installed editor, a temporary routine saved a sofa and dining table with
+suction levels 1 and 3. Moving the dining table first kept the suction
+settings attached to the same objects on a fresh read. **Run saved routine**
+displayed the saved order before sending the start.
+
+The robot entered area cleaning. After more than five minutes it was
+sent back to its dock. Roomba recorded a cancelled mission with 36 ft²
+(3.34 m²) cleaned. History retained the dining table followed by the sofa,
+the matching suction levels 3 and 1, and the active map revision.
+The timeline contained a zone event with status 0 for the dining table.
+There was no sofa result in that run. Roomba reported the robot docked
+with error code 0. The temporary routine, dashboard card, and transfer
+archive were removed. A separate API read verified the original map
+layers and the absence of the trial routine.
+
+The full suite passed 1,766 tests with 100% Python statement and branch
+coverage. Seven JavaScript tests passed. The furniture cases verify
+mixed ordering, per-target profiles, map revalidation, and confirmation
+before launch. Hassfest, Ruff, and SDD validation passed.
+[Routine evidence](evidence/2026-11-25-furniture-routine.json) ·
+[Installed routine editor](screenshots/roomba-furniture-routine.jpg)
+
+## Furniture editor validation in 0.20.0
+
+Home Assistant passed `ha core check` and restarted with 0.20.0.
+The installed card placed a chair, changed its center, dimensions, and
+rotation, then removed it. Reopening the editor read back the changed
+placement and confirmed the original ten detected objects after removal.
+An independent Roomba read found their original identifiers, sources,
+orientations, and outlines. A derived cleaning outline changed during the
+trial. A final write restored that outline and an independent read
+confirmed the exact original archive layers. The robot remained docked.
+The temporary Home Assistant card and transfer archive were removed.
+
+The full suite passed 1,745 tests with 100% Python statement and branch
+coverage. Six JavaScript tests passed, including furniture placement on
+a rotated map and confirmation before dispatch. Hassfest, Ruff, SDD
+validation, and the privacy scan passed.
+[Furniture edit protocol](api.md#furniture-edits) ·
+[Installed furniture controls](screenshots/roomba-furniture-editor.jpg)
+
+## Restriction editor validation in 0.19.0
+
+On the Max 700 Combo, the Android app created a no-mop rectangle, added
+a separate keep-out rectangle, moved and resized each, and removed each
+independently. All six saves returned HTTP 200 and a new binary map
+revision. Each update kept the existing restriction ID and preserved the
+other rectangle. Removing the final restriction left an empty policy
+layer with the original rooms, borders, and cleaning zones. The robot
+remained docked throughout the trial.
+
+All six captured exchanges were replayed through the integration's request
+serializer and archive verifier. The generated write preserved the IDs,
+types, and outlines in each request, and the returned revision passed the
+read-back checks.
+
+Home Assistant passed `ha core check` and restarted with 0.19.0. The
+installed card created both types, moved and resized each, and removed
+each independently. An independent Roomba read verified every active
+revision, the retained restriction count, and unchanged rooms, borders,
+cleaning zones, floor settings, and destination inventory. The final map
+matched the original policy layer exactly. The robot's Home Assistant
+entity was docked. The temporary card and transfer archive were removed.
+
+The full suite passed 1,708 tests with 100% Python statement and branch
+coverage. Five JavaScript tests checked the card, including two-click
+restriction placement in native coordinates and a room confirmation that
+survives inventory publication. Hassfest, Ruff, SDD validation, and the
+privacy scan passed.
+[Restriction protocol](api.md#restriction-edits) ·
+[Installed restriction controls](screenshots/roomba-restriction-editor.jpg)
+
+### Furniture edit investigation
+
+The Android app added a temporary chair to a map with ten automatically
+detected objects, saved a change to the chair's position, size, and
+orientation, and removed it. All three operations returned a new map
+archive. Each app request marked the retained furniture as user-edited.
+The chair's removal preserved the ten original outlines but changed
+source and orientation metadata. A full write with the original source
+flags restored the original layer.
+
+A separate signed request sent only the temporary chair and confirmed
+whole-layer replacement. The subsequent restoration returned all ten
+original objects with identical geometry and properties. An independent
+provider read confirmed the restored map, including the other archive
+layers. An additional create, update, and removal sent the complete
+list with the original source flags. Each response and active read-back
+preserved all untouched furniture properties. The final map again matched
+the original. [Furniture edit evidence](evidence/2026-11-25-map-furniture.json)
+
+The Android app saved a temporary routine containing a sofa followed by
+a dining table. The provider returned HTTP 201 and the active favorite
+list included the routine. Its ordered regions contained two furniture
+polygons and separate parameter blocks with the same default settings.
+Home Assistant removed the test routine and a direct provider read
+confirmed its absence. The trial saved the routine without starting it.
+[Furniture routine contract](api.md#furniture-targets-in-routines)
+
+## Floor settings validation in 0.18.0
+
+The signed client renamed the test floor with an accented label and saved
+a clockwise quarter-turn. The active archive revision, region inventory,
+routine list, and schedule list were unchanged. The client restored and
+verified the exact original name, angle, and archive.
+
+After Core passed its configuration check and restarted, the installed
+card saved an accented floor name and showed it in the header. Cancelling
+a rotation preview restored the original projection. A saved clockwise
+turn persisted through a full dashboard reload, and the inverse turn
+restored the original projection. A final Roomba read confirmed the
+original name, exact angle, room inventory, and boundary. The robot's
+Home Assistant entity reported docked. The test card and transfer
+archive were removed.
+
+The local suite passed 1,679 tests with 100% Python statement and branch
+coverage. The native image test checks the rotated room, path, and heading.
+Three JavaScript tests verify map projection, inverse click coordinates,
+and preview cancellation with the original selection.
+[Floor settings protocol](api.md#floor-name-and-orientation) ·
+[Installed rotation controls](screenshots/roomba-floor-rotation.jpg)
+
+## Room naming validation in 0.17.0
+
+On the Android app, a custom room name and the Spanish bathroom preset
+saved separately through the map-version route. The editor exposed a
+31-character limit for custom labels. Home Assistant uses the native
+room-type identifiers verified by Roomba.
+
+The integration saved and read back all eight room types on a single-room
+Max 700 map. A temporary routine and disabled weekly schedule retained
+the same ordered region and settings through the edits. A final API read
+confirmed the restored room name, type, geometry, and original lists
+after the temporary routine and schedule were removed.
+
+Home Assistant passed `ha core check` and restarted with 0.17.0. The
+installed card saved an accented test label and its bathroom type, then
+reopened the active revision with both values. The editor restored the
+original label and type. An independent read confirmed the original floor
+and room names, room and border geometry, zero test zones, and a docked robot.
+The temporary card and transfer archive were removed.
+
+The local suite passed 1,650 tests with 100% Python statement and branch
+coverage. It covers rename validation, mismatched acknowledgments, a delayed
+region label, and stable cleaning selection after the revision changes.
+[Room naming protocol](api.md#room-naming) ·
+[Installed room naming controls](screenshots/roomba-room-name-editor.jpg)
+
+## Cleaning zone editor validation
+
+Home Assistant passed `ha core check` and restarted with 0.16.0. A temporary
+map card on the test robot created a cleaning zone, moved it, changed its
+size and name, and removed it. A reload showed the accented name intact.
+The card distinguished the saved outline from the absent cleaning destination.
+The final check confirmed the original room geometry, outer border, and
+restrictions with zero saved or listed zones. The dashboard was restored
+and the transfer archive removed. The editor issued no cleaning commands.
+
+Version 0.16.1 accepts rectangles that overlap a room while extending
+past its boundary. Its geometry checks were verified with three saved
+outlines from the Android captures. After a Core restart, the installed
+card saved and removed one of those shapes on the test floor. The full
+suite passed 1,633 tests with 100% Python statement and branch coverage.
+[Official app cleaning-zone lifecycle](#official-app-cleaning-zone-lifecycle) ·
+[Installed cleaning-zone controls](screenshots/roomba-zone-editor.jpg)
+
+## Room boundary editor validation in 0.15.0
+
+The Home Assistant installation verified the candidate archive checksum,
+passed `ha core check`, and restarted Core. The previous 0.14.0 component
+was backed up. The three vacuum entities were present after restart. The
+dashboard JavaScript resource was updated to the 0.15.0 URL and the existing
+floor-plan cards loaded.
+
+Using a temporary card for the test robot, **Edit rooms** saved a division
+and displayed two selectable room destinations. The review dialog showed
+the new room as the cleaning target and was cancelled before dispatch.
+**Merge rooms** then saved the two adjacent rooms as one and the refreshed
+card showed the original single destination. The temporary dashboard card
+and transfer archive were removed.
+
+The local suite passed 1,606 tests with 100% Python statement and branch
+coverage. It includes the signed write contract, divider validation,
+same-version inventory delays, stale edit rejection, permissions, and
+an unconfirmed save. The official app test verified physical vacuuming
+in the new room separately.
+[Official app room division and merge](#official-app-room-division-and-merge)
+[Editor controls](screenshots/roomba-room-editor.jpg)
+
+### Installed room editor validation in 0.22.0
+
+Home Assistant accepted the update with `ha core check` and restarted Core.
+The card resource pointed to 0.22.0 and served the exact JavaScript from
+this revision. In the installed editor, saving a divider exposed two
+cleaning destinations immediately. The merge editor started with no room
+selected and only enabled review after two adjacent rooms were clicked
+on the canvas. The confirmation named both rooms. Saving returned the card
+to one destination. An independent API read confirmed that the active
+archive matched all original layers and the robot was docked. The temporary
+card was removed.
+
+The full suite passed 1,766 Python tests with 100% statement and branch
+coverage, eight card tests, and official hassfest validation.
+[Anonymized results](evidence/2026-11-25-room-destination-publication.json)
+
+### Controlled room destination publication
+
+A repeat test on a Max 700 Combo started with one visible room and two IDs
+in the inventory. Dividing twice created three visible rooms with one ID
+absent from both inventory responses. It stayed absent after more than a
+minute at the dock. The first directed vacuum job cleaned 60 square feet
+in an already listed room. Both endpoints still listed two rooms after
+the robot returned.
+
+The official Android app then started a vacuum job with only the newly
+created room selected. Six seconds after the start action, independent
+reads found the new ID in both the list and detail responses. The robot
+reported phase `run`, and the map revision matched the pre-mission read.
+The official app requested estimates and sent telemetry around the start
+action. The inventory update occurred without an HTTP map-version write.
+The app's running timeline showed the selected room's vacuuming step.
+The final API history confirmed the exclusive target, the matching map
+revision, and 47 square feet cleaned before the robot returned to the dock.
+Two merges restored the active
+archive to its original room and all original layer contents with the
+same floor name and orientation. The separate inventory still held all
+three IDs. [Anonymized results](evidence/2026-11-25-room-destination-publication.json)
+
+### Installed room boundary recheck
+
+On 2026-11-25, version 0.18.0 divided and merged a single-room test floor
+from the Home Assistant card. The second room appeared immediately and the
+cleaning confirmation named it as the sole destination. The confirmation
+was cancelled without starting a mission.
+
+An independent Roomba read showed that both metadata endpoints already
+listed two room IDs before the division. The split reused the retained
+ID from the earlier Android trial. After the merge, both endpoints still
+listed two IDs and the card again offered exactly one room. Comparing the
+active map with the baseline confirmed identical rooms, borders, cleaning
+zones, restrictions, floor name, and orientation. The temporary dashboard
+card was removed. [Room publication evidence](evidence/2026-11-25-room-destination-publication.json)
+
 ## Floor plan and routine dashboard validation in 0.14.0
 
 The complete suite passed 1,581 tests with 100% Python statement and branch
@@ -109,6 +1140,58 @@ saved-zone cleaning outcome remains unverified. A read-back after removing
 the temporary zone confirmed that the original rooms, boundaries, and
 restrictions were preserved.
 [Map and zone editor SDD](../specs/009-map-zone-editor.md)
+
+### Official app room division and merge
+
+On 2026-11-25, a room division in the official Android app on a physical
+device produced two room shapes and one listed room destination. A repeat
+on the Android emulator started with one room in both sources. Proxyman
+decoded the app's `split_room` write and its HTTP 200 archive. The two
+resulting polygons shared edges, and each listed the other in
+`adjacentRoomIDs`. The associated destination inventory remained at one
+room after saving and again after confirming the exit from the editor.
+
+In initial merge attempts, the app prompted for adjacent rooms and
+sent no map-version write. After reopening the app, both selections
+were visible and **Save** became enabled. The app sent `arrange_room`
+with the two split room IDs. Its HTTP 200 archive contained one room
+with the original ID and a `borders` layer identical to the baseline.
+After confirming the exit from the editor, a metadata read returned the
+merged revision as active with the original room inventory. The robot
+stayed docked throughout the emulator test.
+
+The MQTT observation captured a `service.mapedit` schematic-data read.
+Both successful writes used the HTTPS map service.
+
+A follow-up division again kept one room in both map metadata responses and
+in the estimated-duration entries. Naming the new room sent a successful
+`set_room_metadata` write, with one listed room still present afterward.
+The official app offered the new room immediately. Its directed vacuum
+mission reached the new room and showed active vacuuming there. Both map
+metadata responses then contained two matching room IDs during the mission
+under the same revision, before the robot returned to the dock. This was
+the first observed publication of the second ID in the metadata.
+
+The follow-up merge restored the original room ID, name, and outer boundary.
+After another vacuum mission used the restored room and the robot docked,
+the active archive and app showed one room. The last metadata reads still
+listed the removed room. The integration uses visible rooms from the archive
+associated with the requested map and active revision.
+[Room edit requests and responses](api.md#room-division-and-merge)
+
+### Official app cleaning-zone lifecycle
+
+An Android emulator trial started with a single-room map and zero saved
+cleaning zones. Four saves on the active map created a rectangle, moved it,
+changed its name and size, and removed it. The three writes that kept the
+zone used `set_permanent_area` and returned the same ID. The removal used
+`del_permanent_area`. Every response was HTTP 200 with a new map archive.
+
+The active archive reflected the expected changes after each save. The
+associated inventory continued to advertise zero zone destinations. The
+final read confirmed zero zones in both sources, the same outer border,
+and one room. The robot remained in its dock throughout this trial.
+[Cleaning-zone write contract](api.md#cleaning-zone-edits)
 
 ### Region inventory changes
 
@@ -582,6 +1665,186 @@ of vacuuming. The hidden plane had been loaded onto the app before his mission. 
 cartography was received as a compressed file, to be interpreted.
 
 A short additional test verified a response from the timeline associated with that same mission to start and relocate events. The second reader stopped after receiving a list of events and the messages that came up to date are preserved. A remaining time counter and an overall percentage while cleaning remains to be verified. The return to the dock of the two initial tests and maintenance have been established. After an additional test, the robot continued to report back after five minutes. That return had been stopped and the state held outside confirmed of the dock with an active error 0. [Position and map evidence](evidence/2026-11-24-live-progress.json)
+
+## Live mission destinations
+
+On a Max 700 Combo, a three-minute vacuum-only run selected one room.
+The current-state shadow reported 0 and then 21 square feet cleaned
+(about 1.95 m²). The archived command matched the selected room, map
+revision, and cleaning settings. After cancellation the robot docked
+with error code 0. The floor archive, six favorites, and schedules were
+unchanged.
+
+The production parser replayed eight previously captured ordered
+two-furniture timeline reports. Five showed the first destination
+finished while the second remained active. Three showed both finished.
+Another 112 reports from three single-destination runs covered pending,
+travel, cleaning, and completion for furniture and saved zones. Home
+Assistant tests covered the floor snapshot, sensor projection, map
+revision mismatch, and timeline expiry. Chrome rendered the card with
+synthetic data at 358 and 900 pixels, including accented names, long
+labels, and disappearance on expiry. The 0.49.0 card requires
+verification on the physical Home Assistant installation.
+[Sanitized evidence](evidence/2026-11-25-live-itinerary.json)
+
+## Android device settings comparison
+
+The signed Max 700 Combo parts read agreed with the Android **Robot
+health** screen for remaining life on the edge brush, main brushes, and
+filter. The app displayed whole hours. Dividing the API's remaining
+minutes by 60 and taking the integer part yielded the same three
+readings. The dust bag displayed a status bar in the app. Its signed
+parts projection supplied no consumable life count.
+
+The **Robot settings** screen included an **About** view with name, model,
+serial, software version, and update date. It also listed automatic pad
+washing, emptying frequency, voice, volume, child and pet lock, locate,
+reboot, and Wi-Fi change. The robot page exposed a factory reset
+and removal entry. The review opened the settings and maintenance
+screens and performed a read-only parts check. The two device lifecycle
+flows remain open in the device specification.
+[Device capability specification](../specs/007-device-capabilities.md)
+
+## Robot serial number
+
+The authenticated asset lookup returned a 21-character serial and the
+exact requested robot identifier for two associated Max 700 Combo units.
+Both serials matched the values in the respective Android **About**
+screens.
+The Home Assistant registry tests cover setup, later discovery, identity
+preservation across refresh, and handling of unavailable and rate-limited
+responses. The public evidence records the match and format.
+[Signed lookup tests](../tests/test_api_client.py) ·
+[Registry tests](../tests/ha/test_telemetry_entities.py) ·
+[iRobot serial-number guide](https://homesupport.irobot.com/s/article/274)
+
+## Estimated time during a directed mission
+
+During a physical single-room vacuum mission, Android showed approximately
+9, 9, 8, and 7 minutes at 46, 70, 109, and 148 seconds after mission start.
+The signed estimate matrix returned 502 seconds for the room and reported
+profile. The correlated timeline recorded the start of the room stage at
+47 seconds. Replaying the reports projected 502, 479, 440, and 401 seconds.
+Both displays rounded to the same minute in three of the four samples.
+The robot reported a different internal revision for the same declared
+room identity. The command used the verified user revision throughout.
+After cancellation the robot returned to the dock with error code 0.
+[Sanitized timing evidence](evidence/2026-11-25-live-timing-and-position.json)
+
+## Continuous position and cleaning coverage
+
+A read-only subscription during a separate user-started vacuum-and-mop
+mission collected 254 position messages over 416 seconds. The median
+interval was one second and the longest observed interval was six seconds.
+The stream also announced 48 raw map snapshots. Four shadow reads from
+a separate authenticated client completed while the subscription remained
+open. Roomba stamped 226 reports one second ahead of reception. The
+previous coordinator's clock check accepted 27 of the recorded positions.
+After aligning the clock checks, replay accepted 253 valid positions and
+still dismissed one malformed report. The continuous coordinator then
+delivered 11 positions and resolved the current room in a separate
+read-only check of that same mission. The median interval was one second.
+The snapshots exposed grid labels and mode-tagged motion. The
+provider returned the raw snapshot even when asked for the GeoJSON bundle.
+The captured interval mainly contained simultaneous vacuuming and mopping.
+[Sanitized position evidence](evidence/2026-11-25-live-timing-and-position.json)
+
+A follow-up read found the same mission completed and the robot on its dock.
+The accompanying archive contained combined vacuum-and-mop and travel
+coverage. A card replay of the 253 valid position batches animated 251 of
+252 transitions. The previous card animated 224. All 27 transitions newly
+animated had consecutive indexes and intervals of four to six seconds.
+The remaining transition had a missing index. The replay interrupted 83
+active animations with new samples and measured zero position jumps at
+retargeting. The follow-up sent zero movement commands. The household
+dashboard still needs verification with this animation.
+[Sanitized replay evidence](evidence/2026-11-25-live-motion-continuity.json)
+
+## Live coverage reconstruction
+
+Three physical Max 700 Combo mission archives contained mode-tagged
+trajectories and independent coverage polygons. An exploratory radius fit
+compared footprints against those polygons. The production grid then
+replayed the same reports. It reached 95.0% intersection over union for
+vacuuming, 96.6% and 97.6% for mopping, and 95.3% for simultaneous
+cleaning. These measurements quantify fit on the calibration archives.
+Two separate vacuum-only archives from the second floor reached 89.2%
+and 89.3% without changing the fitted radius.
+
+The final archive from the user-started combined mission supplied
+travel and combined vacuum-and-mop polygons. Replaying its last
+captured live snapshot with 3,878 positions reached 96.3% intersection
+over union against the native combined coverage polygon. The offline
+comparison derived its translation from the extents of the two routes.
+Their extents agreed within 1 cm. Neither the footprint radius nor the
+grid size changed for this comparison.
+
+Replaying two raw map snapshots from a separate physical combined run
+increased estimated covered grid rows from 135 to 166. A physical
+vacuum-only snapshot produced only the vacuum layer. The live stream
+announcements examined here supplied mode-tagged routes. A published
+native live coverage polygon layer remains unverified. The raw floor
+raster preserved the same room and boundary labels during the run.
+Its changes tracked a few cells, while the reported route grew by
+thousands of samples. In the active combined mission, the integration
+coordinator delivered 14 positions
+and painted 66 grid rows in a separate 25-second, read-only verification.
+Replaying a late join with 30 positions from that combined mission
+aligned 446 earlier snapshot points and expanded the covered grid from
+689 cells to 6,241.
+Android showed the cleaning route with shaded bands and offered separate
+controls for cleaning and travel paths. The household dashboard still
+needs verification with the new rendering.
+[Coverage evidence](evidence/2026-11-25-live-coverage.json) ·
+[iRobot live and archived map guide](https://homesupport.irobot.com/s/article/20500)
+
+## Live temporary obstacles
+
+During a user-started Max 700 Combo mission, the Android map displayed
+orange cones with its temporary-obstacles layer enabled. The initial
+snapshot had no detections. Later snapshots provided 2, 11, and 13
+records in field 15. Three visible or partially visible markers matched
+the projected record coordinates within six pixels on an approximately
+360-pixel-wide map. Only the verified coordinates are projected.
+
+Two later snapshots each had two extra route samples beyond their
+declared count. Replaying the declared prefix against 315 direct
+positions placed all 11 obstacles and recovered 161 missing earlier
+positions. In two separate late-join replays, a consistent group of
+recent positions placed all 13 obstacles while leaving the original
+route samples intact. In a third replay, the positions did not sufficiently
+overlap the snapshot and the layer stayed hidden.
+
+An isolated Home Assistant coordinator also projected 13 obstacles
+from the active physical mission and received 39 distinct live position
+updates with a one-second median interval. Replaying those updates in
+the card animated 12 adjacent transitions and 22 more by following
+their intermediate positions. Four transitions did not meet the
+animation criteria. The household card still
+needs verification. [Decoder tests](../tests/test_live_route.py) ·
+[Authenticated map tests](../tests/ha/test_roomba_map_api.py) ·
+[Card tests](../tests/frontend/map-card.test.cjs)
+
+## Multiple saved floors
+
+A Max 700 Combo point-cleaning report declared its saved floor and user
+revision. An untargeted Max 700 Combo cleaning report omitted the pair.
+Its completed relocalization event confirmed the saved floor identifier
+with an internal revision. The confirmed floor IDs matched the signed
+mission archives in both cases.
+
+The production resolver replayed the point-cleaning report alongside an
+archived second floor from the same robot's mapping trial. The untargeted
+report also resolved correctly with an added synthetic floor. Each robot
+had one visible floor at the time of verification. Home Assistant tests
+exercised publishing on the confirmed floor, active-floor selection,
+visibility after timeline expiry, and route clearing when the bound
+revision changed. Card tests checked automatic following, manual
+selection, and protection of an open draft. An isolated Chrome profile
+also verified the selector and automatic switches at 358 and 900
+pixels wide.
+[Home Assistant WebSocket tests](../tests/ha/test_roomba_map_api.py) ·
+[Card tests](../tests/frontend/map-card.test.cjs)
 
 ## Unverified scenarios
 

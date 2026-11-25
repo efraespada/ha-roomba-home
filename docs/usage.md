@@ -10,19 +10,44 @@ Use your own IDs from the entity registry and the region listing action.
 Enable **Show saved floor plans and live room updates** in the integration
 options, register the JavaScript module from the [README](../README.md#floor-plan-dashboard),
 and add the card using your Roomba vacuum entity. The card can switch between
-associated floors. The live marker shows the last unexpired position. The
+associated floors. With multiple maps saved, **Follow active floor** switches
+to the floor Roomba identifies for the current mission. Select a named floor
+to keep it in view. An in-progress selection or edit also keeps its floor
+until you finish or close it. The live marker shows the last unexpired position. The
 route shows observed segments and leaves gaps where samples were missing.
+The live route legend distinguishes travel, vacuuming, mopping, and their
+simultaneous use. The native image uses the same colors for recognized
+activities. When Home Assistant joins a mission in progress, it can
+recover earlier segments if a Roomba snapshot matches the current route.
+Segments with an unrecognized mode use the generic route color.
+The marker follows intermediate positions in each update when the
+reported samples form a continuous path. If another report arrives while
+the marker is moving, it continues from the point shown on screen.
+
+During a cleaning run, **Estimated coverage** shades the observed vacuum
+and mop passes. Uncheck **Mop** to isolate where Roomba vacuumed, or
+uncheck **Vacuum** to inspect mopping. With both selected, purple indicates
+where both activities were observed. The card clears the estimate when
+the mission ends. Open **Cleaning history** to see the coverage polygons
+Roomba published for the completed mission.
+Use **Cleaning path** and **Travel path** to show or hide each trace.
+These controls leave the coverage and position layers visible.
+When Roomba reports temporary obstacles on the displayed floor, orange
+triangles mark their positions. Use **Temporary obstacles** to hide or
+show them. The markers expire with the snapshot and clear when the
+mission or floor revision changes. Saved keep-out and no-mop zones have
+their own overlays.
 
 Use the map or the accessible buttons below it to select rooms and saved
 zones. Use the zoom buttons to change scale and drag the map to pan it.
 The legend distinguishes keep-out areas and virtual walls from no-mop areas.
-The saved map and its restrictions remain managed by Roomba. The card shows
-a notice when the map contains zone geometry that Roomba has yet to list for
-cleaning, or when a saved zone is selectable from the list without a matching
-outline.
+The card shows a notice for zone outlines that cannot be resolved as a
+cleaning destination, or legacy destinations without a matching outline.
 Choose **Review selection** to check the robot and destinations, then **Start
 cleaning** to submit the selection with the robot's next-cleaning preferences.
-A map revision or region inventory change requires a new selection. A user
+A change to the map revision or available destinations requires a new selection.
+A room inventory update that leaves the available destinations and their labels
+the same keeps the cleaning confirmation open. A user
 needs permission to read the vacuum to see its map and permission to control
 it to start cleaning.
 
@@ -30,11 +55,156 @@ Choose **Review map dependencies** with one or more areas selected to see
 which known routine or weekly schedule targets them. Roomba can return
 entries with unresolved destinations, which the review flags for manual checking.
 
-Open **Last mission by room** for the reported result, area, and pass count.
-This information is also available from the **Last mission rooms** sensor.
+Choose **Edit rooms** on a supported Max 700 map. For a division, pick the
+room on the map or in the list. Choose **Place divider on map**, then pick
+two points to preview the divider. Expand **Divider coordinates** to adjust
+the points with the keyboard. For a merge, select two adjacent rooms on the
+map or in the lists. The map highlights both selections. Choose **Review
+map edit** and **Save map** to publish the change.
+Editing requires control permission and an idle or docked robot. A boundary
+change may reset the affected room preferences. Review routines and schedules that
+refer to those rooms. [Roomba map settings](https://homesupport.irobot.com/s/article/20500)
+
+For a new name, choose **Rename a room**, then pick the room on the map or
+from the list. Enter up to 31 characters and choose the room type. For
+example, use `Guest bathroom` with **Bathroom**, or `Reading nook` with
+**Other**. The new label appears on the draft map. Review the room, name,
+and type before choosing **Save map**. Existing routine and schedule targets
+keep the room's identifier. [Room naming contract](api.md#room-naming)
+
+New visible rooms can be selected from the active map before Roomba updates
+its room inventory. A room edit stays open through that metadata update as
+long as the active map revision stays the same. Use the usual cleaning
+confirmation when you are ready to clean a newly divided room. After a merge,
+the removed room disappears from the card even while Roomba's separate
+inventory still lists it. Saving boundaries leaves the robot idle.
+[Room edit validation](validation.md#installed-room-editor-validation-in-0220)
+
+Choose **Floor settings** while the robot is idle or docked. **Rename floor**
+accepts up to 20 characters for a newly mapped unnamed floor and up to 16
+to rename a named floor. Use **Floor settings** to give a new floor its name.
+**Rotate floor**
+previews left or right quarter-turns. **Cancel** discards the preview. Choose
+**Review floor edit** and **Save floor** to apply it across Home Assistant and
+Roomba Home. The room and zone destinations keep their saved identifiers.
+[Floor settings protocol](api.md#floor-name-and-orientation)
+
+Choose **Edit cleaning zones** with the robot idle or docked. To add a zone,
+enter a name of up to 16 characters, select **Place rectangle on map**, and
+choose two opposite corners. You can also enter those points under
+**Rectangle coordinates**. Place at least part of the rectangle on a visible
+room and keep it clear of keep-out areas and virtual walls. Review the shape
+and choose **Save map**.
+
+Choose **Edit a cleaning zone** to rename it or place new corners to move or
+resize it. A rename preserves the existing outline. Choose **Remove a cleaning zone**,
+select the zone, and confirm the removal. On supported Max 700 maps, the
+cleaning area list updates as soon as Roomba confirms the new map revision.
+[Saved-zone validation](validation.md#directed-vacuum-then-mop)
+[Cleaning-zone protocol](api.md#cleaning-zone-edits)
+
+Choose **Edit restrictions** while the robot is idle or docked. A
+**Keep-out zone** excludes the marked area from vacuuming and mopping.
+A **No-mop zone** excludes it from mopping. Select **Place rectangle on map**
+and choose opposite corners, or enter them under **Rectangle coordinates**.
+At least part of the rectangle must overlap a mapped room. Choose
+**Review restriction**, then **Save map**.
+
+Use **Move or resize a restriction** to draw replacement corners for the
+selected restriction. Use **Remove a restriction** to remove it after
+review. These operations preserve the other restrictions and existing
+virtual walls. If Roomba returns a restriction the editor cannot preserve,
+the controls are disabled and the stored shapes remain visible.
+[Restriction write protocol](api.md#restriction-edits)
+
+Choose **Show furniture** to see the objects stored on a supported map.
+Use **Edit furniture** when the robot is idle or docked. Choose a type
+and enter the object's width, depth, and rotation. Use **Place on map**
+to choose its center or enter **Center X** and **Center Y** with the
+keyboard. The highlighted edge shows orientation, including for square
+objects. Choose **Review furniture edit** and **Save map**.
+
+Use **Move, resize, or rotate** to change one object while retaining its
+type and identifier. Select the object on the map or in the list, which
+labels objects as **Detected** or **Added**. Use **Remove furniture** to
+review a deletion. Other objects retain their original provenance and
+geometry. [Furniture write protocol](api.md#furniture-edits)
+
+Open **Last mission by area** for the reported result, area, and pass count.
+The **Zones and furniture in the last mission** sensor counts the reported
+zone events. Its `zones` attribute includes the type, label when available,
+status, area, total area, and pass count of each destination. The existing
+room results sensor continues to count rooms. When an older map revision
+is unavailable, history still shows the result and destination type.
 **Current mission measurements** shows in-progress room readings when a fresh
 timeline reply provides them.
 [Mission telemetry](telemetry.md)
+
+## Room cleaning scores
+
+Choose **Room cleaning scores** on the floor plan card. For rooms with a
+current reading, the card shows the value on Roomba's own scale, traffic
+classification, when the score was updated, and the settings Roomba
+suggested. Recorded mission times belong to the score record and can
+differ from the latest cleaning report.
+
+Use the **Get room cleaning scores** action to read the same values in an
+automation. Enable saved floor plans first. Omit `map_id` for a robot with
+one active floor. For multiple floors, use the floor plan response's map
+ID or the map prefix of a region ID from **List cleaning regions**.
+
+```yaml
+action: roomba_home.get_map_cleaning_scores
+target:
+  entity_id: vacuum.example_robot
+response_variable: room_scores
+```
+
+Read the room list from `room_scores["vacuum.example_robot"].rooms`.
+The action returns an empty list when Roomba has no scores for the current
+revision. [Cleaning score API](api.md#room-cleaning-score-reads)
+
+## Cleaning history
+
+Open **Cleaning history** in the floor plan card. Select a report to see the
+recorded duration, area, outcome, available per-mode measurements, and
+timeline. The list includes recent cleaning records with missing maps, so
+the count can exceed the map-backed history displayed in Roomba Home.
+
+Use the map view to zoom and pan the original report. The legend identifies
+travel, vacuuming, mopping, and simultaneous cleaning. Turn on **3D view**
+when the archive provides walls or furniture, and use the rotate button to
+inspect it from another angle. The archive is scoped to the mission's
+original revision. A report can still show its measurements and timeline
+after its map becomes unavailable. [Report protocol](api.md#archived-cleaning-reports)
+
+## Map a floor
+
+Choose **Map a floor** in the card and confirm once the robot is on its dock
+and the area is ready to explore. This action is also available before the
+first map is saved. Roomba explores the floor in a mapping-only cycle and
+publishes the completed map after returning to the dock. At the model's map
+limit, Roomba may replace the oldest map.
+[iRobot ClearView guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
+
+The **Mapping in progress** binary sensor stays on if a mapping run is
+paused. Use `vacuum.pause` to pause it and `vacuum.start` to resume it.
+Use `vacuum.stop` to cancel and `vacuum.return_to_base` to send the robot to
+the dock. The next saved floor list is refreshed at the end of the run.
+
+```yaml
+action: roomba_home.start_mapping
+target:
+  entity_id: vacuum.roomba
+data:
+  confirmed: true
+```
+
+To remove a saved floor, select it and choose **Remove floor**. Review the
+name before confirming. Saved routines and schedules that reference its
+rooms or zones may need new destinations. Removing the floor uses Roomba's
+map visibility setting, and the card refreshes the floor list after Roomba
+confirms the change. [Provider contract](api.md#mapping-runs-and-floor-removal)
 
 ## Choose a cleaning mode and preferences
 
@@ -60,6 +230,14 @@ omitted and the robot uses its settings. Reported values are separate sensors.
 In one physical trial a request for mop wetness 1 and enabled SmartScrub left
 global wetness at 2 and SmartScrub enabled. [Mopping evidence](evidence/2026-11-23-mop-preferences.json)
 
+For directed **Vacuum then mop**, choose the mode and confirm the selected
+areas on the floor plan, or call `vacuum.clean_area` with linked areas. Set
+the mode beside an individual destination in **Manage routines** to use it
+only for that destination. Other destinations keep their own settings and
+order. A submitted start confirms the robot began the mission. Its current
+cleaning mode and mission history show the two physical phases.
+[Physical validation](validation.md#directed-vacuum-then-mop)
+
 Home Assistant converts square feet to the nearest whole square meter
 for the automatic emptying threshold. Controls become unavailable if their
 required capabilities cease to be reported.
@@ -77,7 +255,26 @@ required capabilities cease to be reported.
 | `vacuum.clean_area` | Cleans mapped regions linked to Home Assistant areas |
 
 Resuming preserves the current mission and mode. To change modes, cancel the
-current mission and start a new one with the desired profile. Before starting,
+current mission and start a new one with the desired profile.
+
+### Skip the current destination
+
+Enable live floor plans to use **Skip current area** on the card or robot
+device. The card asks for confirmation. If Roomba moves to a different
+destination before confirmation, review the new destination first. Roomba
+continues the current mission and reports the omitted area in its timeline.
+
+```yaml
+action: roomba_home.skip_current_area
+target:
+  entity_id: vacuum.example_robot
+```
+
+The action confirms only a new skipped result for the current area. Allow
+the robot to report the new destination before issuing another skip.
+[Physical validation](validation.md#skip-the-current-destination)
+
+Before starting a new mission,
 the integration checks readiness and active errors. A missing bin blocks
 vacuuming and emptying. Mopping checks the mop, water system, and dock state.
 A water-system-only issue can leave vacuuming available when the robot reports
@@ -111,8 +308,10 @@ attribute and last-command sensor report `pending`, `submitted`,
 `confirmed`, or `unconfirmed`. Locate remains submitted after the broker
 acknowledges it. Mopping can remain submitted during preparation. A later read
 can confirm the same mission when floor cleaning begins, for up to five minutes
-after preparation. Whole-map vacuum then mop remains submitted while only the
-vacuum stage is observed. Refresh an unconfirmed result before retrying.
+after preparation. Whole-map vacuum then mop reports submitted after the
+vacuum phase begins. A directed sequence reports submitted after a new
+remote mission starts. Use mission history to verify both phases completed.
+Refresh an unconfirmed result before retrying.
 Commands are serialized per robot. State reads are shared across the account.
 Reported cleaning settings are refreshed after a start.
 
@@ -126,6 +325,39 @@ appears in history.
 **Preparing the mop** indicates washing or refilling during a cleaning cycle.
 Observed preparation took about 150 seconds. Pause is available once the
 robot reports floor cleaning. The dock device controls manual wash.
+
+With floor plans enabled, **Last live route activity** identifies what the
+robot reported along its latest fresh position. Use `mopping` or
+`vacuum_mop` as state conditions for an automation that needs to know
+whether the robot is using the mop. The entity reads as unknown when the
+position expires or the mission ends. [Route telemetry](telemetry.md)
+The **Last live mission timeline update** sensor exposes the reported
+`stage_started_at` timestamp for the current stage. This can anchor elapsed
+time for a selected cleaning area, including a localized point.
+
+For a directed cleaning run, the floor plan card lists the destinations
+and shows how many have finished. **Planned order** appears when Roomba
+commits to an order. The **Completed destinations in the current mission**
+sensor can trigger an automation as soon as the first destination finishes.
+Replace the example entity ID with the one shown for your robot.
+
+```yaml
+alias: Notify when Roomba completes a destination
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.roomba_completed_destinations_in_the_current_mission
+    above: 0
+actions:
+  - action: persistent_notification.create
+    data:
+      message: Roomba reported its first completed destination.
+```
+
+**Estimated cleaning time remaining** reports seconds for ongoing directed
+cleaning with a verified estimate for each remaining destination. The card
+rounds up to minutes and shows each available planned duration. The reading
+becomes unknown on pause, once the estimate is exhausted, or when the
+mission ends. [Timing and telemetry](telemetry.md#how-to-interpret-progress)
 
 Use the robot and dock problem event entities for new, changed, or cleared
 codes. The entity requires an explicit normal reading before clearing a
@@ -185,17 +417,86 @@ indicates that Roomba returned no usable estimate. Use the results to compare
 profiles before starting a mission.
 
 Compatible docks expose buttons to empty the bin, wash the mop, and dry it.
-Manual refill requires a dock that reports refill support. Check dock status
-and the relevant consumables before starting. The **Last recorded mission
+On the Max 700 Combo dock, **Wash mop** can interrupt active drying. The
+wash starts from the dock and the component state reports its progress.
+Use **Dry mop** to start drying again after a manual wash finishes.
+Manual refill requires a dock that advertises the manual action. Check dock
+status and the relevant consumables before starting. The **Last recorded mission
 destination** sensor shows the target type and `region_count` when Roomba
 reports them. The mission error sensor retains the recorded error code after
 the robot docks.
 
-## Vacuum a map point
+## Local map backups
 
-Use **List cleaning regions** to get the room identifier and call `roomba_home.clean_point`
-with robot and two fractions between 0 and 1. Each fraction measures the position from his
-or her minimum axis at a rectangle that embraces an area, and onto its motif.
+Open **Map backups** on the floor plan card and choose **Back up current
+floor**. Home Assistant verifies the current revision and saves the original
+Roomba archive with its name, orientation, destination inventory, and capture
+time. Repeating a backup of the same archive and settings reuses the copy.
+
+Choose a backup to see its rooms, zones, restrictions, furniture, and dock.
+When that floor is open on the live map, the backup panel identifies changes
+to its revision, name, or rotation. The panel can show saved floors even if
+Roomba has gone offline or removed the floor from its inventory. Choose
+**Export backup** to download a JSON file with the exact archive and metadata.
+The export includes private floor geometry and names.
+
+**Backup settings** defaults to retaining five unpinned copies per robot.
+Pin a copy to protect it from retention. Storage limits are 20 backups and
+approximately 16 MiB of compressed archives per robot. Enable **Back up
+before saving map edits or removing a floor** to save the reviewed floor
+before the confirmed write to Roomba. If that backup fails, the edit stops
+and the card reports the error. Unload and reload keep the stored copies.
+Removing the integration entry removes its stored copies.
+
+To recover the backed-up name or rotation, display the same floor on the
+live map and choose a saved copy in **Map backups**. Select **Restore floor
+settings**, review the current and backed-up values, and confirm while
+Roomba is idle. For example, use a backup saved before a rename and a
+rotation to restore both settings in one operation. Home Assistant checks
+the active floor again before sending the change.
+
+Choose **Restore cleaning zones** to review moved, renamed, or removed
+zones from the same floor. The preview shows the backed-up zones and the
+current routines and schedules that refer to the affected targets. The
+confirmed change writes the backed-up outlines with their original zone
+identifiers. For example, recover a moved reading-area zone by selecting
+the copy saved before the move. Deleting a zone can remove its references
+from routines and schedules, and those references can stay absent after
+recreating the zone.
+
+For a backup captured with program destinations, choose **Recover program
+destinations** after recovering the zones. Select a routine or schedule,
+review the destination order and the settings for each area, and choose
+**Restore destinations**. For example, a schedule can recover the removed
+entryway at its original position with **Mop** and wetness level 2 while
+keeping a later start time and its current disabled state. The action
+requires the same zone name and outline, the same coordinate frame, and
+unchanged settings and order for the areas the program still contains.
+The review lists programs with missing zones, changed settings, or
+unsupported selections so you can inspect them before editing the program.
+[Recovery roadmap](roadmap.md#local-map-history-and-recovery)
+
+## Clean a map point
+
+Choose **Clean a point** on a supported floor plan and select a cleaning
+mode. The available choices are **Vacuum**, **Mop**, **Vacuum and mop**,
+and **Vacuum then mop**, according to the robot's capabilities. Click
+inside a room and choose **Review selection**. For keyboard
+placement, expand **Enter a position in a room** and enter X and Y percentages from
+the minimum axes of that room's bounding rectangle. Choose **Place point**
+to preview it before reviewing.
+
+During a localized run, the card shows the reported target and cleaning mode
+when the live timeline matches the viewed map revision.
+
+The card binds the point to the reviewed map revision and destination
+inventory. Home Assistant rechecks the room and map boundary at dispatch.
+Choose the point again if Roomba updates the map. Floors with virtual walls
+are excluded because the map cannot establish which side is reachable.
+
+For an automation, use **List cleaning regions** to get the room ID and
+call `roomba_home.clean_point`. Specify each coordinate as a fraction
+strictly between 0 and 1, measured from that room's minimum X and Y axes.
 
 ```yaml
 action: roomba_home.clean_point
@@ -205,19 +506,182 @@ data:
   region_id: example_map:rid:room_a
   x: 0.4
   y: 0.55
+  mode: mop
 ```
 
-The robot needs regular digital cleanup, vacuuming and an active map. The action rejects
-points outside the room, about its edge or an exclusion area. The order requested vacuuming
-with robot settings. The supplier's coordinates are computed at the time and have been put
-out of sensors. The result **Submitted** indicates that the initiation of an vacuuming new
-remote. At the end, **Last recorded mission command** can show **Cleanup at a point on the
-map** According to his robot's history.
+The action requires map-based spot cleaning support. It rejects points on
+or outside the room boundary and inside keep-out areas. Wet modes also
+require usable no-mop outlines and a point outside those areas. Omitting
+`mode` defaults to vacuuming. **Submitted** indicates that the robot
+reported a new remote mission. **Last recorded mission command** shows
+the point-cleaning command after Roomba records it in mission history.
+
+## Robot settings
+
+Open the robot's **Device info** in Home Assistant to find its reported
+serial number and installed software version.
+
+On the robot device page, open **Configuration**. **Robot name** changes
+the name stored in Roomba and preserves Home Assistant entity IDs and
+custom device names. Enter up to 63 characters. **Voice language** lists
+the voices already installed on this robot, including downloaded voices.
+Automations use lowercase option codes such as `en-gb` and `es-es`.
+
+Use **List robot voices** to see the current code, installed options,
+and additional downloads published for the selected model.
+
+```yaml
+action: roomba_home.list_voice_languages
+target:
+  entity_id: vacuum.example_robot
+response_variable: robot_voices
+```
+
+The response contains `current`, `installed`, and `downloadable` for each
+selected vacuum. To add a voice, keep the robot on its charging dock
+and pass a code from that list to **Install robot voice**.
+
+```yaml
+action: roomba_home.install_voice_language
+target:
+  entity_id: vacuum.example_robot
+data:
+  language: cs-cz
+```
+
+The action installs and selects the voice. It replaces the current
+additional package when the robot has one download slot. The installed
+voice selector updates after Roomba reports the new inventory.
+The **Last command result** sensor shows whether Roomba confirmed the
+deployment, and the software deployment sensor reports progress and errors.
+[iRobot voice settings](https://homesupport.irobot.com/articles/en_US/Knowledge/11189)
+
+Use **Reboot robot** for a normal restart. The **Last command result**
+sensor confirms the restart when Roomba reports the robot disconnecting
+and then coming back online. A reboot can interrupt dock drying.
+[iRobot reboot instructions](https://homesupport.irobot.com/articles/en_US/Knowledge/9087)
+
+**Voice volume** accepts whole percentages from 0 to
+100. The lock applies to the robot's physical buttons. Remote controls remain
+available. [iRobot child and pet lock](https://homesupport.irobot.com/articles/en_US/Knowledge/64000)
+
+The controls appear when Roomba reports valid settings for that robot. Adjust
+them while the robot is connected and idle or docked. Home Assistant waits for
+the reported value to match the request. Changing either setting leaves the
+next-cleaning preferences intact.
+
+```yaml
+actions:
+  - action: text.set_value
+    target:
+      entity_id: text.example_robot_robot_name
+    data:
+      value: Loft vacuum
+  - action: select.select_option
+    target:
+      entity_id: select.example_robot_voice_language
+    data:
+      option: en-gb
+  - action: number.set_value
+    target:
+      entity_id: number.example_robot_voice_volume
+    data:
+      value: 35
+  - action: switch.turn_on
+    target:
+      entity_id: switch.example_robot_child_and_pet_lock
+```
+
+## Robot software status
+
+The robot's diagnostics show its installed firmware and the last update time
+reported by Roomba. The linked dock has its own reported firmware sensor.
+Use **Get robot software status** to check the provider catalog for that
+installed version and model.
+
+```yaml
+action: roomba_home.get_software_status
+target:
+  entity_id: vacuum.roomba
+response_variable: roomba_software
+```
+
+The response includes `installed_version`, `last_installed_at`,
+`dock_version`, `status`, and `catalog_versions`. An empty applicable catalog
+returns `up_to_date`. A nonempty list of other versions returns
+`catalog_candidates`. Roomba manages the device's staged firmware rollout.
+[iRobot update behavior](https://homesupport.irobot.com/articles/en_US/Knowledge/550) · [Max 700 release notes](https://homesupport.irobot.com/articles/en_US/Knowledge/70550)
+
+## Dock settings
+
+Open the robot's linked dock device and find these configuration entities.
+
+| Entity | Choices |
+| --- | --- |
+| Mop wash temperature | Room temperature, Hot, Very hot |
+| Mop wash frequency | Standard washes before and after cleaning. Medium adds washes during refills. High also washes between rooms. |
+| Automatic cleaning solution | Enable or disable the dock's automatic StayClean dispensing |
+| Mop drying duration | 3, 4, or 5 hours |
+
+Choose a setting while the robot is connected and idle or docked. Home
+Assistant confirms the new value from Roomba. Use the separate dock buttons
+to run a wash or dry cycle. [Max 700 firmware notes](https://homesupport.irobot.com/articles/en_US/Knowledge/70550)
+
+```yaml
+actions:
+  - action: select.select_option
+    target:
+      entity_id: select.example_dock_mop_wash_frequency
+    data:
+      option: medium
+  - action: select.select_option
+    target:
+      entity_id: select.example_dock_mop_drying_duration
+    data:
+      option: three_hours
+```
+
+## Reset a maintenance counter
+
+After replacing a part or cleaning a washing system, run **Reset maintenance
+counter** on the robot's vacuum entity. Choose the part and confirm that the
+work is complete. The integration rereads the selected counter from Roomba
+and updates the corresponding robot or dock sensor after confirmation.
+
+```yaml
+action: roomba_home.reset_maintenance_counter
+target:
+  entity_id: vacuum.roomba
+data:
+  part: filter
+  confirmed: true
+```
+
+The Max 700 Combo offers the edge-sweeping brush, multi-surface brushes, filter,
+mop roller, robot mop-washing system, and dock mop-washing system. The dust
+bag status comes from the dock, and Roomba's parts catalog disables its
+usage counter. The washer reset records completed maintenance. Use the
+dock's wash action to start a wash cycle.
 
 ## Cleaning schedules
 
-**Creating a cleaning schedule** keeps an off-date weekly routine. Use **List cleaning regions** identifiers and select regions from the same map. Order and preferences are held by
-region.
+Open **Manage schedules** on the floor plan to list this robot's schedules.
+Choose **New schedule** or select an existing entry. Set the start time,
+select **Weekly** with one or more days or **Once**, then choose the areas
+and their cleaning modes and preferences. The order buttons set the sequence
+for rooms and saved zones. Saving a new entry keeps it disabled until you
+choose **Enable schedule**. Select **Delete** and confirm to remove it.
+
+Editing only the name or cleaning settings keeps the existing start and
+enabled state. For a schedule on another saved floor, switch to that floor
+before editing its areas. If the card cannot resolve the current destinations
+or preferences, you can still change timing, enable or disable, and remove
+the schedule.
+
+**Create a cleaning schedule** saves a disabled entry in Roomba Home. Use
+**List cleaning regions** to pick destinations from one active floor. The
+schedule preserves their order and cleaning preferences. Weekly schedules
+use ISO weekdays from 1 (Monday) to 7 (Sunday).
 
 ```yaml
 action: roomba_home.create_cleaning_schedule
@@ -234,12 +698,31 @@ data:
       two_pass: false
 ```
 
-Local and local programs Roomba Home are consulted with separate sensors. Execut **List
-editable cleaning schedules** about the entity `vacuum` to check out the weekly schedules
-that you can modify. The local response includes name, identifier and date of activation.
+For a one-time cleaning, set `frequency: once` and provide its local time.
+Home Assistant uses the time zone reported by the robot to select today's
+or tomorrow's occurrence. Omit `weekdays` for one-time cleaning.
 
-Pass the identifier back to **Change the start of a weekly cleanup**. The day goes from 1
-(Monday) 7 (Sunday) The hour uses the robot's time zone.
+```yaml
+action: roomba_home.create_cleaning_schedule
+target:
+  entity_id: vacuum.example_robot
+data:
+  name: Vacuum the entryway once
+  frequency: once
+  time: "16:45:00"
+  regions:
+    - id: example_map:rid:entryway
+      mode: vacuum
+```
+
+**List editable cleaning schedules** returns the IDs, names, targets,
+frequencies, local times, enabled status, and any recognized per-area
+settings of entries you can change.
+A one-time entry reports `frequency: once` and the single planned
+`weekday`. Weekly entries report `weekdays`. Use the ID with **Update a
+cleaning schedule** to change timing, name, or `regions`. Send `time` to
+change the occurrence, or omit it to keep the current start. For example,
+change the entryway to mop on its existing schedule.
 
 ```yaml
 action: roomba_home.update_cleaning_schedule
@@ -247,17 +730,15 @@ target:
   entity_id: vacuum.example_robot
 data:
   schedule_id: example_household:example_schedule
-  weekdays: [2, 5]
-  time: "10:15:00"
+  regions:
+    - id: example_map:rid:entryway
+      mode: mop
+      wetness_level: 2
 ```
 
-Each change reads the current schedule and preserves its routine with their activation. If
-Roomba Home does not confirm the result, check with your schedule before repeating. The
-identifier and name are only returned to the requested action. Sensors and diagnoses
-continue to show summaries.
-
-Use **To activate or turn off a cleaning schedule** to change your activation with the same
-identifier. The schedule keeps his day, time and routine
+Both actions accept a `floor` object with the reviewed `map_id`, `version`,
+and optional `inventory_id` to catch a stale area selection. Use **Enable
+or disable a cleaning schedule** to change its enabled state.
 
 ```yaml
 action: roomba_home.set_cleaning_schedule_enabled
@@ -268,28 +749,114 @@ data:
   enabled: true
 ```
 
-**Remove a cleaning schedule** Withdrawal of Roomba Home The time associated with the
-identifier shall be activated or disabled. The three exchange and release actions confirm
-the result by re-viewing his robot's list.
+**Remove a cleaning schedule** removes the selected entry. Schedule writes
+are confirmed against a fresh read. The schedule-count sensors expose
+aggregate schedule information.
 
 ## Saved cleaning routines
 
 Choose **Manage routines** in the floor plan card. Selecting areas on the
 map first prepopulates a new routine. For supported routines on that floor,
 use the order buttons and per-area controls to edit destinations and cleaning
-preferences. **Duplicate** starts a new routine with the current draft's
+preferences. **Add a cleaning area** includes the floor's supported
+furniture alongside rooms and saved zones. **Duplicate** starts a new
+routine with the current draft's
 settings. **Delete** asks for confirmation. A name-only update can preserve
 the original settings of a routine with unavailable or unsupported targets.
-Routine management sends commands to the saved routines collection and leaves
-the robot idle.
+For rooms and saved zones, select **Let Roomba choose** to keep per-area
+settings while leaving the route order to the robot. The order buttons
+switch the draft to **Use listed order**. Furniture uses listed order.
+The card shows the estimate saved by Roomba and its confidence when available.
+Saving changes and removing routines leave the robot idle. **Run saved
+routine** asks for confirmation and displays the saved order preference.
+
+On a supported Max 700 Combo, use **Cleaning preset** to apply Light, Normal,
+or Deep to one destination. **Apply preset to all areas** applies the same
+preset to every destination, keeping each area's cleaning mode and the order
+you set. For example, choose Mop in the kitchen and Vacuum in the hallway,
+then apply Light to both. You can still fine-tune individual settings before
+saving. The levels use the robot's own scale.
+
+| Preset | Suction when vacuuming | Liquid when mopping | Passes |
+| --- | --- | --- | --- |
+| Light | 1 | 1 | 1 |
+| Normal | 2 | 2 | 1 |
+| Deep | 4 | 3 | 2 |
+
+The verified settings turn SmartScrub off in wet modes and leave carpet
+boost to the firmware. The card offers a preset when the robot supports
+its required settings. [Max 700 preset validation](validation.md#fixed-routine-presets)
+
+Choose **Smart recommendations** to load the selected room's current
+preferences from Roomba. The same option in **Apply preset to all areas**
+uses each eligible room's own recommendation. The draft keeps the order
+and the cleaning mode you chose for every area. Furniture, saved zones,
+and rooms without compatible recommendations keep their settings.
+For example, a room set to **Vacuum** can receive its recommended suction
+and passes while a room set to **Mop** receives its recommended liquid
+and scrubbing settings. Review or adjust the values before saving.
+[Smart recommendation validation](validation.md#smart-routine-recommendations)
+
+Choose **Estimate draft** after selecting areas and settings. The card shows
+the planned time for each area. When some areas lack an estimate, **Known
+time** shows the subtotal and the number of areas it covers. Changing the
+selection, order, settings, or floor clears the result. The estimate uses
+Roomba's duration table for the current floor.
+
+The corresponding response-only action accepts the same regional settings
+as **Create a cleaning routine**.
+
+```yaml
+action: roomba_home.estimate_cleaning_routine
+target:
+  entity_id: vacuum.example_robot
+data:
+  regions:
+    - id: example_map:rid:kitchen
+      mode: mop
+      smart_scrub: false
+      two_pass: false
+    - id: example_map:rid:hall
+      mode: vacuum
+      suction_level: 2
+      two_pass: true
+response_variable: draft_estimate
+```
+
+The response has the complete `duration_seconds` when every area has a
+reliable estimate, `partial_duration_seconds` for the known areas in an
+incomplete selection, and per-area details in selection order.
+[Draft estimate validation](validation.md#routine-draft-estimates)
+
+### Recent and suggested routines
+
+Choose **Recent and suggested routines** inside **Manage routines**. The
+card shows the latest entries Roomba provides for the current floor.
+Choose **Load draft** to reuse a recent selection and its settings. A
+suggestion to clean all rooms loads the current rooms with your configured
+cleaning defaults. **Choose point** opens the floor plan's point picker.
+
+Review the areas, their order, and their individual preferences before
+choosing **Run draft** and **Confirm start**. You can save the draft as a
+routine from the same editor. A missing area or a changed furniture outline
+can make a recent selection unavailable on the current floor.
+
+Automations can read the same entries through **List recent and suggested
+routines**. **Run a cleaning draft** accepts `regions`, optional `ordered`, and a
+reviewed `floor` object with `map_id`, `version`, and optional `inventory_id`.
+[Quick routines protocol](api.md#recent-and-suggested-floor-routines)
 
 Use **List cleaning routines** for a vacuum to get its saved routine names,
 identifiers, regions, recognized per-region settings, and editability. The
-response includes supported single-robot start routines. Weekly schedules
-have separate actions.
+response includes the supported single-robot start routines used by
+Roomba Home, including multi-area favorites. It reports `ordered: false`
+when Roomba chooses the order. Its optional `estimate`
+contains `duration_minutes` and `confidence` for the saved configuration.
+Weekly schedules have separate actions.
 
-**Create a cleaning routine** saves an ordered selection from one current
-map. Specify optional cleaning preferences per region. The action saves the
+**Create a cleaning routine** saves a selection from one current map.
+Specify optional cleaning preferences per region. Set `ordered: false` to
+let Roomba choose the order for rooms and saved zones. The action saves the
 routine without starting the vacuum. List the robot's regions first to get
 the identifiers.
 
@@ -298,21 +865,36 @@ action: roomba_home.create_cleaning_routine
 target:
   entity_id: vacuum.example_robot
 data:
-  name: Vacuum the entryway
+  name: Clean the entryway and sofa
   regions:
     - id: example_map:rid:entryway
-      mode: vacuum
+      mode: vacuum_then_mop
       suction_level: 1
+      wetness_level: 2
+    - id: example_map:furniture:17
+      mode: vacuum
+      suction_level: 3
 ```
 
+Create a routine from the card first to find your furniture identifiers in
+**List cleaning routines**. **Run a cleaning routine** accepts the saved
+routine ID. Launch resolves the selected objects again against the active
+map and requires the existing per-area cleaning capabilities.
+
 Use **Update a cleaning routine** with its ID and a new name, replacement
-regions, or both. A rename keeps the original destinations and settings.
+regions, or both. To use automatic order for a replacement, send
+`ordered: false` with the regions. A rename keeps the original settings,
+destinations, and order preference.
 **Remove a cleaning routine** deletes the selected editable routine. If an
 action reports an unconfirmed result, list the routines before retrying.
 [Provider contract](api.md#saved-cleaning-routines)
 
 ## Current limitations
 
-The vacuuming per room have been verified, the pause and resumption of a two-bedroom mission. Filling, washing and drying buttons have been tested. A number of challenges remained to be met. saved zone The complete course with adjustments per stay, the second stage of after and manual completion. [Capability matrix](capabilities.md)
+The integration polls Roomba's cloud. The latest reading can lag behind the
+robot, and entity availability relies on its reported connection state. The
+capability matrix tracks which controls and measurements have been verified
+on each supported model. [Capability matrix](capabilities.md)
 
-Current monitoring uses regular consultations. A cloud reading can be old and availability also requires an explicit state of connection. The [validation](validation.md) retains the historic results and current campaign. See also [official documentation of vacuum](https://contributors.home-assistant.io/core/entities/vacuum/).
+The validation log records trials on the physical robot and the Home
+Assistant test environment. [Validation log](validation.md)

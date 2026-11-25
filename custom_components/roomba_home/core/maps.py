@@ -2,19 +2,23 @@
 
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from hashlib import sha256
+from math import tau
 
 from .cleaning import CleaningProfile
 from .errors import ProtocolError
 
 _IDENTIFIER = re.compile(r"[A-Za-z0-9_.-]{1,128}")
+SAVED_ZONE_IDS = tuple(str(identifier) for identifier in range(100, 140))
 
 
 class RegionKind(StrEnum):
     ROOM = "rid"
     ZONE = "zid"
+    FURNITURE = "furniture"
 
 
 @dataclass(frozen=True, repr=False)
@@ -28,16 +32,35 @@ class CleaningRegion:
 
 
 @dataclass(frozen=True, repr=False)
+class FurnitureRegion(CleaningRegion):
+    outline: tuple[tuple[float, float], ...]
+
+
+@dataclass(frozen=True, repr=False)
 class PersistentMap:
     map_id: str
     version_id: str
     name: str | None
     regions: tuple[CleaningRegion, ...]
+    orientation: float | None = None
+
+    @property
+    def geometry_key(self) -> tuple[str, str, tuple[CleaningRegion, ...]]:
+        return self.map_id, self.version_id, self.regions
 
     @property
     def inventory_id(self) -> str:
-        regions = [(region.region_id, region.kind, region.name) for region in self.regions]
-        return sha256(json.dumps(regions).encode()).hexdigest()
+        return _region_digest(self.regions)
+
+    @property
+    def selection_id(self) -> str:
+        return _region_digest(
+            sorted(self.regions, key=lambda region: (region.kind, region.region_id))
+        )
+
+    @property
+    def settings_id(self) -> str:
+        return sha256(json.dumps((self.name, self.orientation)).encode()).hexdigest()
 
 
 @dataclass(frozen=True, repr=False)
@@ -46,6 +69,12 @@ class AreaTarget:
     version_id: str
     regions: tuple[CleaningRegion, ...]
     profiles: tuple[CleaningProfile, ...] = ()
+    ordered: bool = True
+
+
+def _region_digest(regions: Iterable[CleaningRegion]) -> str:
+    content = [(region.region_id, region.kind, region.name) for region in regions]
+    return sha256(json.dumps(content).encode()).hexdigest()
 
 
 def map_identifier(value: object) -> bool:
@@ -72,6 +101,12 @@ def _name(value: object) -> str | None:
     return None
 
 
+def _read_orientation(value: object) -> float | None:
+    if type(value) in (int, float) and -tau <= value <= tau:
+        return float(value)
+    return None
+
+
 def parse_maps(response: object, robot_id: str) -> tuple[PersistentMap, ...]:
     """Accept only current, visible maps associated with the requested robot."""
     if not isinstance(response, list):
@@ -88,9 +123,10 @@ def parse_maps(response: object, robot_id: str) -> tuple[PersistentMap, ...]:
         identifier, version = item.get("p2map_id"), item.get("active_p2mapv_id")
         if not map_identifier(identifier) or not map_identifier(version):
             raise ProtocolError("Active map is missing a valid identifier or version")
-        raw_regions = item.get("rooms_metadata")
+        # A newly mapped floor is visible before Roomba publishes its room inventory.
+        raw_regions = item.get("rooms_metadata", [])
         if not isinstance(raw_regions, list):
-            raise ProtocolError("Active map is missing region metadata")
+            raise ProtocolError("Active map has invalid region metadata")
         regions = {}
         for raw in raw_regions:
             if not isinstance(raw, dict):
@@ -98,10 +134,9 @@ def parse_maps(response: object, robot_id: str) -> tuple[PersistentMap, ...]:
             region_id, metadata = raw.get("room_id"), raw.get("room_metadata")
             if not map_identifier(region_id) or not isinstance(metadata, dict):
                 continue
-            try:
-                kind = RegionKind(metadata.get("region_type"))
-            except ValueError:
+            if metadata.get("region_type") not in (RegionKind.ROOM, RegionKind.ZONE):
                 continue
+            kind = RegionKind(metadata["region_type"])
             key = (kind, region_id)
             if key in regions:
                 raise ProtocolError("An active map contains duplicate region identifiers")
@@ -109,7 +144,11 @@ def parse_maps(response: object, robot_id: str) -> tuple[PersistentMap, ...]:
         if identifier in maps:
             raise ProtocolError("The map list contains duplicate active map identifiers")
         maps[identifier] = PersistentMap(
-            identifier, version, _name(item.get("name")), tuple(regions.values())
+            identifier,
+            version,
+            _name(item.get("name")),
+            tuple(regions.values()),
+            _read_orientation(item.get("user_orientation_rad")),
         )
     return tuple(maps.values())
 

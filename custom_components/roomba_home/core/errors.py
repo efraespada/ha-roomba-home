@@ -33,6 +33,10 @@ class RoutineUpdateUnconfirmed(RoombaError):
     """Roomba did not confirm the routine write in a subsequent read."""
 
 
+class ProgramSelectionChanged(RoombaError):
+    """A routine or schedule's selection changed before the requested write."""
+
+
 class ApiError(RoombaError):
     """A remote operation failed without exposing its response body."""
 

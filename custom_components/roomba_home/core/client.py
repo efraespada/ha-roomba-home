@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
@@ -11,11 +12,14 @@ import aiohttp
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from botocore.credentials import Credentials
+from yarl import URL
 
+from .clean_scores import read_clean_scores
 from .cleaning import CleaningCapabilities
 from .errors import (
     ApiError,
     AuthenticationError,
+    ProgramSelectionChanged,
     ProtocolError,
     RateLimited,
     RoutineNotEditable,
@@ -23,9 +27,16 @@ from .errors import (
     ScheduleNotEditable,
     ScheduleUpdateUnconfirmed,
 )
-from .history import history_metrics
+from .floor_settings import FloorSettingsEdit
+from .furniture_edits import FurnitureEdit
+from .history import MissionReport, history_metrics, mission_reports
+from .live_route import RawRouteReference
+from .map_programs import program_selection
 from .maps import AreaTarget, PersistentMap, map_identifier, parse_maps
 from .models import AppProfile, CloudSession, LoginDetails, relative_api_path, trusted_url
+from .quick_routines import QUICK_ROUTINE_LIMIT, read_quick_routines
+from .restriction_edits import RestrictionEdit
+from .room_edits import RoomEdit
 from .routines import (
     APP_EDITION,
     FAVORITES_PATH,
@@ -39,16 +50,23 @@ from .routines import (
 from .schedules import (
     SCHEDULE_ITEM_PATH,
     associated_households,
+    cleaning_schedule_start,
     editable_schedules,
-    new_weekly_schedule,
+    new_cleaning_schedule,
     schedule_metrics,
+    schedule_name,
     schedule_removed,
-    weekly_start,
+    schedule_start,
 )
+from .telemetry import RESETTABLE_PARTS, convert
 from .time_estimates import parse_time_estimates
-from .transport import GZIP_JSON_ACCEPT, HttpResponse, HttpTransport
+from .transport import GZIP_JSON_ACCEPT, RAW_MAP_ACCEPT, HttpResponse, HttpTransport
+from .voice_catalog import VoicePack, catalog_voice_languages, catalog_voice_pack
+from .zone_edits import CleaningZoneEdit
 
 DISCOVERY_URL = "https://disc-prod.iot.irobotapi.com/v1/discover/endpoints"
+VOICE_CATALOG_URL = "https://content-prod.iot.irobotapi.com/v2/app/langpacks"
+FIRMWARE_CATALOG_URL = "https://content-prod.iot.irobotapi.com/v2/firmware"
 
 
 def check_status(response: HttpResponse) -> None:
@@ -193,6 +211,7 @@ class RoombaClient:
         params: dict[str, Any] | None = None,
         data: Any = None,
         accept: str = "application/json",
+        allow_empty: bool = False,
     ) -> Any:
         """Issue a signed request; caller owns the operation's product semantics."""
         method = method.upper()
@@ -215,7 +234,7 @@ class RoombaClient:
             body=body,
         )
         check_status(response)
-        if response.data is None and method != "DELETE":
+        if response.data is None and method != "DELETE" and not allow_empty:
             raise ProtocolError("Expected an API JSON response.")
         return response.data
 
@@ -224,6 +243,86 @@ class RoombaClient:
         if not isinstance(robots, dict) or not all(isinstance(v, dict) for v in robots.values()):
             raise ProtocolError("Expected a robot association object.")
         return robots
+
+    async def robot_serial_number(self, robot_id: str) -> str:
+        session = await self.ensure_session()
+        if robot_id not in session.raw["robots"]:
+            raise ProtocolError("An associated robot is required.")
+        document = await self.request("GET", "/v1/robots", params={"robot_id": robot_id})
+        if (
+            not isinstance(document, dict)
+            or document.get("RobotID") != robot_id
+            or not isinstance(serial := document.get("SerialNumber"), str)
+            or not re.fullmatch(r"[A-Za-z0-9-]{1,64}", serial)
+        ):
+            raise ProtocolError("Expected a serial number for the selected robot.")
+        return serial
+
+    async def robot_parts(self, robot_id: str) -> dict[str, Any]:
+        parts = await self.request("GET", f"/v1/robots/{robot_id}/parts")
+        if not isinstance(parts, dict) or not isinstance(parts.get("parts"), list):
+            raise ProtocolError("Expected the robot consumables list")
+        return parts
+
+    async def reset_part(self, robot_id: str, part_id: str) -> None:
+        session = await self.ensure_session()
+        if robot_id not in session.raw["robots"] or part_id not in RESETTABLE_PARTS.values():
+            raise ProtocolError("An associated robot and a supported part are required")
+        response = await self.request(
+            "POST",
+            f"/v1/robots/{robot_id}/parts",
+            data={"parts": [{"part_id": part_id, "counter": 0}]},
+        )
+        expected = {"part_id": part_id, "counter": 0}
+        if (
+            not isinstance(response, dict)
+            or response.get("robot_id") != robot_id
+            or response.get("parts") != [expected]
+        ):
+            raise ProtocolError("Roomba did not acknowledge the requested part reset")
+
+    async def voice_catalog(self, sku: str) -> tuple[str, ...]:
+        return catalog_voice_languages(await self._voice_catalog(sku), sku)
+
+    async def firmware_candidates(
+        self, sku: str, installed: str, dock_version: str | None
+    ) -> tuple[str, ...]:
+        """Read the provider catalog without transferring account credentials."""
+        if (
+            not isinstance(sku, str)
+            or not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", sku)
+            or convert("version", installed) is None
+            or (dock_version is not None and convert("version", dock_version) is None)
+        ):
+            raise ProtocolError("Expected valid model and installed firmware versions")
+        params = {"sku": sku, "softwareVer": installed}
+        if dock_version is not None:
+            params["dockFwVer"] = dock_version
+        response = await self.http.request("GET", f"{FIRMWARE_CATALOG_URL}?{urlencode(params)}")
+        check_status(response)
+        items = response.data.get("firmware") if isinstance(response.data, dict) else None
+        if not isinstance(items, list):
+            raise ProtocolError("Expected a firmware catalog")
+        versions = set()
+        for item in items:
+            if not isinstance(item, dict):
+                raise ProtocolError("Invalid firmware catalog entry")
+            model, version = item.get("sku"), convert("version", item.get("version"))
+            if not isinstance(model, str) or model.casefold() != sku.casefold() or version is None:
+                raise ProtocolError("Invalid firmware catalog entry")
+            if version != installed:
+                versions.add(version)
+        return tuple(sorted(versions))
+
+    async def voice_pack(self, sku: str, language: str) -> VoicePack | None:
+        return catalog_voice_pack(await self._voice_catalog(sku), sku, language)
+
+    async def _voice_catalog(self, sku: str):
+        if not isinstance(sku, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", sku):
+            raise ProtocolError("Expected a Roomba model identifier.")
+        response = await self.http.request("GET", f"{VOICE_CATALOG_URL}/{sku}")
+        check_status(response)
+        return response.data
 
     async def maps(self, robot_id: str) -> tuple[PersistentMap, ...]:
         session = await self.ensure_session()
@@ -248,6 +347,65 @@ class RoombaClient:
             raise ProtocolError("Expected a binary persistent map bundle.")
         return response
 
+    async def map_cleaning_scores(self, robot_id: str, floor: PersistentMap) -> dict:
+        session = await self.ensure_session()
+        if robot_id not in session.raw["robots"] or not map_identifier(floor.map_id):
+            raise ProtocolError("Cleaning scores require an associated map.")
+        data = await self.request(
+            "GET", "/v1/p2maps/clean-score", params={"p2map_id": floor.map_id}
+        )
+        return read_clean_scores(data, floor)
+
+    async def map_quick_routines(self, robot_id, floor, capabilities):
+        session = await self.ensure_session()
+        if robot_id not in session.raw["robots"] or not map_identifier(floor.map_id):
+            raise ProtocolError("Quick routines require an associated map.")
+        data = await self.request(
+            "GET", f"/v1/p2maps/{floor.map_id}/routines", params={"limit": QUICK_ROUTINE_LIMIT}
+        )
+        return read_quick_routines(data, robot_id, floor, capabilities)
+
+    async def edit_map(
+        self, map_id: str, edit: RoomEdit | CleaningZoneEdit | RestrictionEdit | FurnitureEdit
+    ) -> bytes:
+        if not map_identifier(map_id):
+            raise ProtocolError("A valid map identifier is required.")
+        response = await self.request(
+            "POST",
+            f"/v1/p2maps/{map_id}/versions",
+            data=edit.request_body(),
+            accept=GZIP_JSON_ACCEPT,
+        )
+        if not isinstance(response, bytes) or not response:
+            raise ProtocolError("Expected a binary edited map bundle.")
+        return response
+
+    async def update_floor_settings(
+        self, robot_id: str, floor: PersistentMap, edit: FloorSettingsEdit
+    ) -> None:
+        if not map_identifier(floor.map_id):
+            raise ProtocolError("A valid map identifier is required.")
+        response = await self.request(
+            "POST",
+            f"/v1/p2maps/{floor.map_id}/settings",
+            params={"trigger_fast_updates": "true"},
+            data=edit.request_body(),
+        )
+        maps = parse_maps([response], robot_id)
+        if not maps or not edit.matches(floor, maps[0]):
+            raise ProtocolError("Roomba did not confirm the selected floor settings.")
+
+    async def remove_floor(self, map_id: str) -> None:
+        if not map_identifier(map_id):
+            raise ProtocolError("A valid map identifier is required.")
+        await self.request(
+            "POST",
+            f"/v1/p2maps/{map_id}/settings",
+            params={"trigger_fast_updates": "true"},
+            data={"visible": False},
+            allow_empty=True,
+        )
+
     async def live_map_topic(self, robot_id: str) -> str | None:
         """Request the native live-map channel for an associated robot."""
         session = await self.ensure_session()
@@ -259,11 +417,29 @@ class RoombaClient:
         topic = response.get("mqtt_topic") if isinstance(response, dict) else None
         return topic if isinstance(topic, str) else None
 
+    async def raw_live_route(self, reference: RawRouteReference) -> bytes:
+        """Use the broker's presigned object URL without sending account headers."""
+        try:
+            response = await self.http.request(
+                "GET", URL(reference.url, encoded=True), headers={"Accept": RAW_MAP_ACCEPT}
+            )
+        except aiohttp.ClientError:
+            raise ProtocolError("Live map object is unavailable.") from None
+        if response.status != 200 or not isinstance(response.data, bytes) or not response.data:
+            raise ProtocolError("Live map object is unavailable.")
+        return response.data
+
     async def mission_history(self, robot_id: str) -> dict:
+        return history_metrics(await self._mission_history_document(robot_id), robot_id)
+
+    async def mission_reports(self, robot_id: str) -> tuple[MissionReport, ...]:
+        return mission_reports(await self._mission_history_document(robot_id), robot_id)
+
+    async def _mission_history_document(self, robot_id: str) -> object:
         session = await self.ensure_session()
         if robot_id not in session.raw["robots"]:
             raise ProtocolError("Mission history requires an associated robot")
-        response = await self.request(
+        return await self.request(
             "GET",
             f"/v1/{robot_id}/missionhistory",
             params={
@@ -273,7 +449,6 @@ class RoombaClient:
                 "supportedDoneCodes": "dndEnd,returnHomeEnd",
             },
         )
-        return history_metrics(response, robot_id)
 
     async def cleaning_time_estimates(
         self, robot_id: str, target: AreaTarget, capabilities: CleaningCapabilities
@@ -319,11 +494,16 @@ class RoombaClient:
         return [row.action_response() for row in rows.values()]
 
     async def create_cleaning_routine(self, robot_id: str, name: str, target: AreaTarget) -> dict:
-        command = routine_command(robot_id, target)
+        stamp = int(self.clock().timestamp())
+        command = routine_command(robot_id, target, stamp)
         name = routine_name(name)
 
         def match(rows):
-            candidates = [row for row in rows.values() if routine_matches(row, name, command)]
+            candidates = [
+                row
+                for row in rows.values()
+                if routine_matches(row, name, command, regenerated=True)
+            ]
             if len(candidates) > 1:
                 raise RoutineNotEditable("Several saved routines match this request.")
             return candidates[0] if candidates else None
@@ -335,7 +515,7 @@ class RoombaClient:
             "POST",
             FAVORITES_PATH,
             params=APP_EDITION,
-            data=new_routine(name, command, int(self.clock().timestamp())),
+            data=new_routine(name, command, stamp),
         )
         created = await self._confirm_routine(robot_id, match)
         return created.action_response()
@@ -346,15 +526,23 @@ class RoombaClient:
             raise RoutineNotEditable("The saved routine is unavailable or read-only.")
         return row
 
-    async def update_cleaning_routine(self, robot_id, routine_id, name, target=None) -> dict:
+    async def update_cleaning_routine(
+        self, robot_id, routine_id, name, target=None, *, expected_selection=None
+    ) -> dict:
         row = await self._editable_routine(robot_id, routine_id)
+        if (
+            expected_selection is not None
+            and program_selection(row.action_response()) != expected_selection
+        ):
+            raise ProgramSelectionChanged
         name = routine_name(name) if name is not None else row.name
-        command = row.command if target is None else routine_command(robot_id, target)
-        if routine_matches(row, name, command):
+        stamp = int(self.clock().timestamp())
+        command = row.command if target is None else routine_command(robot_id, target, stamp)
+        regenerated = target is not None
+        if routine_matches(row, name, command, regenerated=regenerated):
             return row.action_response()
         payload = dict(row.payload)
         payload.pop("app_edition", None)
-        stamp = int(self.clock().timestamp())
         payload.update(
             name=name, commanddefs=[command], last_modified=stamp, last_user_modified=stamp
         )
@@ -366,7 +554,11 @@ class RoombaClient:
 
         def match(rows):
             updated = rows.get(row.identity)
-            return updated if updated and routine_matches(updated, name, command) else None
+            return (
+                updated
+                if updated and routine_matches(updated, name, command, regenerated=regenerated)
+                else None
+            )
 
         updated = await self._confirm_routine(robot_id, match)
         return updated.action_response()
@@ -407,28 +599,55 @@ class RoombaClient:
             raise ScheduleNotEditable("The selected robot has no unique household")
         return f"/v1/households/{next(iter(households))}/settings/schedule"
 
-    async def list_weekly_schedules(self, robot_id: str) -> list[dict]:
+    async def list_cleaning_schedules(self, robot_id: str) -> list[dict]:
         path = await self._schedule_path(robot_id)
         rows = editable_schedules(await self.request("GET", path), robot_id)
         return [row.action_response() for row in rows.values()]
 
-    async def update_weekly_schedule(
-        self, robot_id: str, schedule_id: str, weekdays: list[int], local_time: str
+    async def update_cleaning_schedule(
+        self,
+        robot_id: str,
+        schedule_id: str,
+        weekdays: list[int] | None = None,
+        local_time: str | None = None,
+        *,
+        frequency="weekly",
+        name: str | None = None,
+        target: AreaTarget | None = None,
+        expected_selection=None,
     ) -> dict:
-        start = weekly_start(weekdays, local_time)
-        return await self._change_weekly_schedule(robot_id, schedule_id, start=start)
+        start = (
+            None if local_time is None else cleaning_schedule_start(weekdays, local_time, frequency)
+        )
+        return await self._change_cleaning_schedule(
+            robot_id,
+            schedule_id,
+            start=start,
+            frequency=frequency.upper(),
+            name=name,
+            target=target,
+            expected_selection=expected_selection,
+        )
 
-    async def set_weekly_schedule_enabled(
+    async def set_cleaning_schedule_enabled(
         self, robot_id: str, schedule_id: str, enabled: bool
     ) -> dict:
         if type(enabled) is not bool:
-            raise ValueError("Use an explicit enabled state for the weekly schedule")
-        return await self._change_weekly_schedule(robot_id, schedule_id, enabled=enabled)
+            raise ValueError("Use an explicit enabled state for the cleaning schedule")
+        return await self._change_cleaning_schedule(robot_id, schedule_id, enabled=enabled)
 
-    async def create_weekly_schedule(
-        self, robot_id: str, name: str, weekdays: list[int], local_time: str, target: AreaTarget
+    async def create_cleaning_schedule(
+        self,
+        robot_id: str,
+        name: str,
+        weekdays: list[int],
+        local_time: str,
+        target: AreaTarget,
+        *,
+        frequency="weekly",
     ) -> dict:
-        options = new_weekly_schedule(robot_id, name, weekly_start(weekdays, local_time), target)
+        start = cleaning_schedule_start(weekdays, local_time, frequency)
+        options = new_cleaning_schedule(robot_id, name, start, target, frequency=frequency)
         path = await self._schedule_path(robot_id)
 
         def find_creation(document):
@@ -448,40 +667,58 @@ class RoombaClient:
         created = await self._confirm_schedule(path, find_creation)
         return created.action_response()
 
-    async def remove_weekly_schedule(self, robot_id: str, schedule_id: str) -> dict:
+    async def remove_cleaning_schedule(self, robot_id: str, schedule_id: str) -> dict:
         path = await self._schedule_path(robot_id)
         rows = editable_schedules(await self.request("GET", path), robot_id)
         if (schedule := rows.get(schedule_id)) is None:
-            raise ScheduleNotEditable("The weekly schedule is not available for the selected robot")
+            raise ScheduleNotEditable(
+                "The cleaning schedule is not available for the selected robot"
+            )
         await self._mutate_cloud_object("DELETE", f"{path}/{schedule.group_id}", data=None)
         await self._confirm_schedule(
             path, lambda document: schedule_removed(document, schedule.group_id)
         )
         return {"id": schedule_id, "removed": True}
 
-    async def _change_weekly_schedule(
+    async def _change_cleaning_schedule(
         self,
         robot_id: str,
         schedule_id: str,
         *,
         start: dict | None = None,
+        frequency: str | None = None,
         enabled: bool | None = None,
+        name: str | None = None,
+        target: AreaTarget | None = None,
+        expected_selection=None,
     ) -> dict:
         path = await self._schedule_path(robot_id)
         rows = editable_schedules(await self.request("GET", path), robot_id)
         if (schedule := rows.get(schedule_id)) is None:
-            raise ScheduleNotEditable("The weekly schedule is not available for the selected robot")
+            raise ScheduleNotEditable(
+                "The cleaning schedule is not available for the selected robot"
+            )
+        if (
+            expected_selection is not None
+            and program_selection(schedule.action_response()) != expected_selection
+        ):
+            raise ProgramSelectionChanged
         options = dict(schedule.options)
         expected_start = schedule.start
         if start is not None:
-            expected_start = {
-                "weekdays": tuple(start["day"]),
-                "time": f"{start['hour']:02d}:{start['min']:02d}",
-            }
             options["start"] = {**schedule.options["start"], **start}
+            options["frequency"] = frequency
+            expected_start = schedule_start(options)
         if enabled is not None:
             options["enabled"] = enabled
-        if schedule.start == expected_start and schedule.options["enabled"] == options["enabled"]:
+        if name is not None:
+            options["name"] = schedule_name(name)
+        if target is not None:
+            options["commands"] = schedule.replace_selection(target)
+        checked_fields = ("enabled", "commands", "name")
+        if schedule.start == expected_start and all(
+            schedule.options.get(key) == options.get(key) for key in checked_fields
+        ):
             return schedule.action_response()
 
         await self._mutate_cloud_object(
@@ -496,8 +733,7 @@ class RoombaClient:
             if (
                 updated is not None
                 and updated.start == expected_start
-                and updated.options["enabled"] is options["enabled"]
-                and updated.options["commands"] == schedule.options["commands"]
+                and all(updated.options.get(key) == options.get(key) for key in checked_fields)
             ):
                 return updated
             return None

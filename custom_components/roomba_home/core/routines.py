@@ -4,15 +4,32 @@ import re
 from dataclasses import dataclass
 from uuid import uuid4
 
-from .cleaning import CleaningMode, CleaningProfile
-from .cleaning_protocol import regional_cleaning_parameters, reported_cleaning_mode
+from .cleaning_protocol import (
+    cleaning_parameters,
+    parse_regional_profile,
+    regional_cleaning_parameters,
+)
 from .errors import ProtocolError
-from .maps import AreaTarget, command_region_id, map_identifier
+from .furniture_targets import furniture_command_fields, furniture_links
+from .maps import AreaTarget, FurnitureRegion, RegionKind, command_region_id, map_identifier
+from .telemetry import number
 
 FAVORITES_PATH = "/v1/user/favorites"
 APP_EDITION = {"app_edition": "1"}
 ROUTINE_ID = re.compile(r"[0-9a-fA-F]{32}")
 ROUTINE_ITEM_PATH = re.compile(rf"{FAVORITES_PATH}/{ROUTINE_ID.pattern}")
+_ROUTINE_COMMAND_FIELDS = {
+    "robot_id",
+    "command",
+    "p2map_id",
+    "user_p2mapv_id",
+    "regions",
+}
+_ESTIMATE_CONFIDENCE = {
+    "GOOD_CONFIDENCE": "good",
+    "PARTIAL_CONFIDENCE": "partial",
+    "POOR_CONFIDENCE": "poor",
+}
 
 
 def routine_name(value: str) -> str:
@@ -36,68 +53,142 @@ class CleaningRoutine:
         regions = self.command.get("regions")
         if not isinstance(regions, list) or not map_identifier(map_id):
             regions = []
+        links = furniture_links(self.command.get("id_multipolys"))
         recognized = [
             (identifier, item)
             for item in regions
-            if (identifier := command_region_id(map_id, item)) is not None
+            if (identifier := _routine_region_id(map_id, item, links)) is not None
         ]
         settings = None
         if (
             1 <= len(recognized) == len(regions) <= 32
             and len({identifier for identifier, _ in recognized}) == len(regions)
-            and self.command.get("select_all") is False
-            and self.command.get("ordered") == 1
-            and self.command.keys()
-            == {
-                "robot_id",
-                "command",
-                "ordered",
-                "select_all",
-                "p2map_id",
-                "user_p2mapv_id",
-                "regions",
-            }
+            and _round_trip_command(self.command, regions, links)
         ):
-            profiles = [routine_region_profile(item) for _, item in recognized]
+            common = self.command.get("params", {}) if "ordered" not in self.command else {}
+            profiles = [routine_region_profile(item, common) for _, item in recognized]
             if all(profile is not None for profile in profiles):
                 settings = [
                     {"id": identifier, **profile}
                     for (identifier, _), profile in zip(recognized, profiles, strict=True)
                 ]
-        return {
+        result = {
             "id": self.identity,
             "name": self.name,
             "regions": [identifier for identifier, _ in recognized],
             "region_settings": settings,
             "editable": not self.payload.get("default"),
         }
+        if (
+            settings is not None
+            and "ordered" not in self.command
+            and self.command.get("params") is not None
+        ):
+            result["ordered"] = False
+        if (estimate := _routine_estimate(self.payload.get("time_estimates"))) is not None:
+            result["estimate"] = estimate
+        return result
 
 
-def routine_region_profile(region: dict) -> dict | None:
+def _routine_estimate(estimates):
+    if not isinstance(estimates, list) or len(estimates) != 1:
+        return None
+    entry = estimates[0]
+    if (
+        not isinstance(entry, dict)
+        or entry.get("unit") != "minute"
+        or (minutes := number(entry.get("estimate"))) is None
+    ):
+        return None
+    confidence = entry.get("confidence")
+    return {
+        "duration_minutes": minutes,
+        "confidence": _ESTIMATE_CONFIDENCE.get(confidence) if isinstance(confidence, str) else None,
+    }
+
+
+def _routine_region_id(map_id, region, links):
+    if isinstance(region, dict) and region.get("type") == "tid":
+        identity = region.get("region_id")
+        if map_identifier(identity) and identity in links:
+            return f"{map_id}:{RegionKind.FURNITURE}:{links[identity]}"
+        return None
+    return command_region_id(map_id, region)
+
+
+def _round_trip_command(command, regions, links):
+    fields = command.keys()
+    ordered_fields = _ROUTINE_COMMAND_FIELDS | {"ordered"}
+    timed_fields = _ROUTINE_COMMAND_FIELDS | {"initiator", "time"}
+    if "user_p2mapv_id" in command and not map_identifier(command["user_p2mapv_id"]):
+        return False
+    if fields == timed_fields:
+        return len(regions) == 1 and _timed_app_command(command)
+    if fields == timed_fields | {"params"}:
+        common = command["params"]
+        return _timed_app_command(command) and (
+            common == {} or _routine_profile(common) is not None
+        )
+    if type(command.get("ordered")) is not int or command["ordered"] != 1:
+        return False
+    if fields == (ordered_fields - {"user_p2mapv_id"}) | {"initiator", "time"}:
+        return _timed_app_command(command)
+    if fields == ordered_fields | {"select_all"}:
+        return command["select_all"] is False
+    if fields == ordered_fields | {"select_all", "params"}:
+        return command["select_all"] is False and _ordered_routine_params(command["params"])
+    return (
+        fields == ordered_fields | {"initiator", "time", "id_multipolys"}
+        and _timed_app_command(command)
+        and bool(links)
+        and links.keys() == {item["region_id"] for item in regions if item["type"] == "tid"}
+    )
+
+
+def _timed_app_command(command):
+    return command["initiator"] == "rmtApp" and type(command["time"]) is int and command["time"] > 0
+
+
+def _ordered_routine_params(params):
+    if params == {"profile": "normal"}:
+        return True
+    return (
+        isinstance(params, dict)
+        and params.keys() <= {"profile", "routine_type", "routine_modified", "replay_of"}
+        and params.get("profile", "normal") == "normal"
+        and params.get("routine_type") == "REPLAY"
+        and params.get("routine_modified", True) is True
+        and map_identifier(params.get("replay_of"))
+    )
+
+
+def _routine_profile(params):
+    if (
+        isinstance(params, dict)
+        and params.get("operatingMode") == 2
+        and type(params.get("swScrub")) is int
+        and params["swScrub"] == 0
+    ):
+        # Some native vacuum routines include the disabled mop switch.
+        params = {key: value for key, value in params.items() if key != "swScrub"}
+    return parse_regional_profile(params)
+
+
+def routine_region_profile(
+    region: dict, common: dict | None = None, *, inactive_mop=False
+) -> dict | None:
     """Project settings that can be written back without dropping provider data."""
     if region.keys() != {"region_id", "type", "params"}:
         return None
-    params = region["params"]
-    if not isinstance(params, dict):
+    if not isinstance(params := region["params"], dict):
         return None
-    code = params.get("operatingMode")
-    mode = CleaningMode.VACUUM_MOP if code == 32 else reported_cleaning_mode(code)
-    wetness = params.get("padWetness")
-    scrub = params.get("swScrub")
-    try:
-        profile = CleaningProfile(
-            mode=mode,
-            suction_level=params.get("suctionLevel"),
-            wetness_level=wetness.get("padPlate") if isinstance(wetness, dict) else None,
-            two_pass=params.get("twoPass"),
-            smart_scrub=bool(scrub) if type(scrub) is int and scrub in (0, 1) else None,
-            carpet_boost=params.get("carpetBoost"),
-        )
-    except ValueError:
-        return None
-    if regional_cleaning_parameters(profile) != params or any(
-        (level or 0) > 99 for level in (profile.suction_level, profile.wetness_level)
-    ):
+    settings = (common or {}) | params
+    profile = (
+        parse_regional_profile(settings, inactive_mop=True)
+        if inactive_mop
+        else _routine_profile(settings)
+    )
+    if profile is None:
         return None
     return {
         "mode": profile.mode.value,
@@ -138,25 +229,34 @@ def cleaning_routines(document: object, robot_id: str) -> dict[str, CleaningRout
     return result
 
 
-def routine_command(robot_id: str, target: AreaTarget) -> dict:
+def routine_command(robot_id: str, target: AreaTarget, timestamp: int = 0) -> dict:
     if not isinstance(target, AreaTarget) or not target.regions or not target.profiles:
         raise ValueError("Select areas with cleaning profiles on one current map.")
-    return {
+    command = {
         "robot_id": robot_id,
         "command": "start",
-        "ordered": 1,
-        "select_all": False,
         "p2map_id": target.map_id,
         "user_p2mapv_id": target.version_id,
-        "regions": [
-            {
-                "region_id": area.region_id,
-                "type": area.kind.value,
-                "params": regional_cleaning_parameters(profile),
-            }
-            for area, profile in zip(target.regions, target.profiles, strict=True)
-        ],
     }
+    if any(isinstance(region, FurnitureRegion) for region in target.regions):
+        if type(timestamp) is not int or timestamp <= 0:
+            raise ValueError("A furniture routine requires a positive timestamp.")
+        return {
+            **command,
+            "time": timestamp,
+            "initiator": "rmtApp",
+            **furniture_command_fields(target, saved_routine=True),
+        }
+    encode = regional_cleaning_parameters if target.ordered else cleaning_parameters
+    command["regions"] = [
+        {"region_id": area.region_id, "type": area.kind.value, "params": encode(profile)}
+        for area, profile in zip(target.regions, target.profiles, strict=True)
+    ]
+    if target.ordered:
+        return {**command, "ordered": 1, "select_all": False}
+    if type(timestamp) is not int or timestamp <= 0:
+        raise ValueError("An unordered routine requires a positive timestamp.")
+    return {**command, "time": timestamp, "initiator": "rmtApp", "params": {}}
 
 
 def new_routine(name: str, command: dict, timestamp: int) -> dict:
@@ -172,7 +272,13 @@ def new_routine(name: str, command: dict, timestamp: int) -> dict:
     }
 
 
-def routine_matches(routine: CleaningRoutine, name: str, command: dict) -> bool:
+def routine_matches(
+    routine: CleaningRoutine, name: str, command: dict, *, regenerated: bool = False
+) -> bool:
+    ignore_time = regenerated and "time" in command
+    if regenerated and ("ordered" in routine.command) != ("ordered" in command):
+        return False
     return routine.name == name and all(
-        routine.command.get(key) == value for key, value in command.items()
+        (ignore_time and key == "time") or routine.command.get(key) == value
+        for key, value in command.items()
     )

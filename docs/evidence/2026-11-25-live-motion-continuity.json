@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "user_started_mission": {
+    "state_at_followup": "charging",
+    "direct_position_messages": 254,
+    "valid_position_batches": 253,
+    "raw_snapshot_announcements": 48,
+    "median_message_arrival_interval_seconds": 1.02,
+    "maximum_message_arrival_interval_seconds": 6.05,
+    "archived_coverage_activities": ["traveling", "vacuuming+mopping"],
+    "robot_movement_commands_sent_by_trial": 0
+  },
+  "card_replay": {
+    "transitions": 252,
+    "previously_animated": 224,
+    "animated_after_change": 251,
+    "recovered_consecutive_transitions_with_four_to_six_second_intervals": 27,
+    "unanimated_missing_index_transitions": 1,
+    "animation_interruptions_tested": 83,
+    "maximum_retargeting_position_jump_metres": 0
+  }
+}

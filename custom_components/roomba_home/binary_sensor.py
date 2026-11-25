@@ -48,6 +48,8 @@ def binary_candidates(state):
         yield "preparing_mop", RoombaMetricBinary
     if state.capabilities.docking is True and state.mission_at_dock is not None:
         yield "mission_at_dock", RoombaMetricBinary
+    if state.capabilities.persistent_maps is True and state.mapping is not None:
+        yield "mapping", RoombaMetricBinary
     if state.capabilities.maintenance is True:
         yield "maintenance_required", RoombaMetricBinary
     if state.capabilities.dock.recognized is True:
@@ -110,6 +112,8 @@ class RoombaMetricBinary(RoombaEntity, BinarySensorEntity):
             return self.robot.preparing_mop
         if self.key == "mission_at_dock":
             return self.robot.mission_at_dock
+        if self.key == "mapping":
+            return self.robot.mapping
         if self.key in PHASE_PROBLEMS:
             code = observations(self.robot)[self.key]
             return bool(code) if code is not None else None

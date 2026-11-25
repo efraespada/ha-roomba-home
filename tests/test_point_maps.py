@@ -32,6 +32,29 @@ def test_rejects_room_holes_polygon_boundaries_and_keep_outs(make_point_bundle, 
         resolve_room_point(make_point_bundle(), AREA, *fraction)
 
 
+def test_no_mop_zone_applies_only_to_wet_point_cleaning(make_point_bundle):
+    def add_outline(documents):
+        zone = documents["policyZones.geojson"]["features"][1]
+        zone["geometry"] = {
+            "type": "Polygon",
+            "coordinates": [[[5, 1], [7, 1], [7, 3], [5, 3], [5, 1]]],
+        }
+
+    bundle = make_point_bundle(mutate=add_outline)
+    assert resolve_room_point(bundle, AREA, 0.6, 0.2).center == (6, 2)
+    assert resolve_room_point(bundle, AREA, 0.1, 0.1, mops=True).center == (1, 1)
+    for x in (0.5, 0.6):
+        with pytest.raises(ValueError, match="no-mop zone"):
+            resolve_room_point(bundle, AREA, x, 0.2, mops=True)
+
+
+def test_missing_no_mop_outline_blocks_only_wet_point_cleaning(make_point_bundle):
+    bundle = make_point_bundle()
+    assert resolve_room_point(bundle, AREA, 0.1, 0.1).center == (1, 1)
+    with pytest.raises(ProtocolError):
+        resolve_room_point(bundle, AREA, 0.1, 0.1, mops=True)
+
+
 @pytest.mark.parametrize("value", [True, "0.3", None, 0, 1, float("inf"), float("nan")])
 def test_fractions_must_be_strict_numeric_values(make_point_bundle, value):
     with pytest.raises(ValueError, match="fraction"):

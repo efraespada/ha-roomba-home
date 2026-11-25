@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "zone_and_program_trial": {
+    "temporary_zones": 2,
+    "temporary_routines": 1,
+    "temporary_disabled_schedules": 1,
+    "move_preserved_region_order_and_settings": true,
+    "delete_pruned_region_from_routine_and_schedule": true,
+    "recreated_region_still_absent_from_programs": true
+  },
+  "verified_restore": {
+    "local_backup_read": true,
+    "currently_linked_programs_in_review": 2,
+    "automatic_backup_before_restore": true,
+    "native_writes_on_confirmation": 1,
+    "moved_and_missing_zones_recovered": 2,
+    "original_zone_ids_preserved": true,
+    "confirmed_new_map_revision": true,
+    "original_floor_geometry_settings_and_programs_restored_after_cleanup": true,
+    "robot_movement_commands_sent": 0
+  },
+  "separate_program_reattachment_trial": {
+    "rotated_zone_recovered_with_original_vertices": true,
+    "original_routine_and_schedule_ids_preserved": true,
+    "original_destination_order_and_per_area_settings_preserved": true,
+    "original_scheduled_time_and_disabled_state_preserved": true,
+    "temporary_data_cleaned_up": true
+  }
+}

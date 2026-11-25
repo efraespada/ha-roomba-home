@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "capability": {
+    "field": "cap.mc",
+    "observed_value": 3,
+    "sdk_command": "skip"
+  },
+  "android_trial": {
+    "mode": "vacuum",
+    "destinations": ["dining_table", "sofa"],
+    "skip_confirmed_while_first_destination_active": true,
+    "first_destination_reported_skipped": true,
+    "continued_to_second_destination_in_same_mission": true,
+    "second_destination_reported_finished": true,
+    "docked": true,
+    "manual_return_sent": false
+  },
+  "home_assistant_trial": {
+    "dispatch_version": "0.26.0",
+    "destinations": ["dining_table", "sectional_sofa"],
+    "confirmed_from_map_card": true,
+    "first_destination_reported_skipped_in_official_app": true,
+    "continued_to_second_destination_in_same_mission": true,
+    "last_command_result": "confirmed",
+    "mission_finished": true,
+    "app_reported_area_m2": 4.6,
+    "docked": true
+  },
+  "last_destination_trial": {
+    "installed_version": "0.26.1",
+    "mode": "vacuum",
+    "sole_destination": "coffee_table",
+    "started_in_official_app": true,
+    "confirmed_from_map_card": true,
+    "card_showed_pending_and_confirmed_feedback": true,
+    "official_app_showed_skipped_and_returning": true,
+    "home_assistant_history_reported_skipped": true,
+    "last_command_result": "confirmed",
+    "docked_and_charging": true
+  },
+  "installed_home_assistant": {
+    "version": "0.26.1",
+    "core_configuration_check_passed": true,
+    "served_module_matched_candidate": true,
+    "registered_robots": 3,
+    "registered_docks": 3
+  }
+}

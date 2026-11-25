@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "current_floor_revision_confirmed": true,
+  "rooms_with_a_score": 1,
+  "reported_score": 0.0,
+  "reported_ranges": [0.7],
+  "reported_traffic": "normal",
+  "timestamps_present": {
+    "score_updated": true,
+    "last_processed_mission_start": true,
+    "last_cleaned_mission_start": true,
+    "last_unfinished_mission_start": true
+  },
+  "suggested_settings": {
+    "mode": "vacuum_mop",
+    "suction_level": 1,
+    "wetness_level": 1,
+    "two_pass": false,
+    "smart_scrub": false,
+    "carpet_boost": false
+  },
+  "robot_or_map_commands_sent": 0
+}

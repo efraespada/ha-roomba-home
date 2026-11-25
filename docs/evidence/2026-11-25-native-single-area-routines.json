@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "android_app_version": "3.4.1",
+  "advertised_cleaning_profiles_code": 2,
+  "active_revision_matched_for_app_trials": true,
+  "new_app_command": {
+    "kind": "start",
+    "initiator": "rmtApp",
+    "positive_timestamp": true,
+    "explicit_order": false,
+    "region_count": 1,
+    "region_kind": "room",
+    "mode": "vacuum_mop"
+  },
+  "saved_profiles": {
+    "light": {"suction": 1, "wetness": 1, "two_pass": false, "smart_scrub": false, "displayed_minutes": 58},
+    "normal": {"suction": 2, "wetness": 2, "two_pass": false, "smart_scrub": false, "displayed_minutes": 58},
+    "deep": {"suction": 4, "wetness": 3, "two_pass": true, "smart_scrub": false, "displayed_minutes": 115},
+    "smart": {"suction": 2, "wetness": 2, "two_pass": false, "smart_scrub": false, "displayed_minutes": 58}
+  },
+  "smart_reopened_as": "normal",
+  "duration_unit": "minute",
+  "reported_estimate_confidence": "GOOD_CONFIDENCE",
+  "original_ordered_normal_routines_projected": 2,
+  "physical_light_trial": {
+    "cleaning_phase_reported": true,
+    "exact_room_and_map_revision_confirmed_in_history": true,
+    "all_saved_preferences_confirmed_in_history": true,
+    "reported_duration_minutes": 2,
+    "outcome": "cancelled",
+    "returned_to_dock": true,
+    "drying_restored": true
+  },
+  "signed_routine_changes": {
+    "rename_preserved_estimate_and_settings": true,
+    "duplicate_preserved_settings": true,
+    "independent_edit_changed_only_copy_suction": true
+  },
+  "cleanup": {
+    "temporary_routines_remaining": 0,
+    "original_active_favorites_unchanged": 6,
+    "same_active_map_revision": true
+  }
+}

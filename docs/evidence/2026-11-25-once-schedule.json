@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "app": "Roomba Home Android 3.4.1",
+  "native_app": {
+    "single_execution_label_visible": true,
+    "selecting_no_repeat_days_created_frequency": "ONCE",
+    "start_shape": {"day": [3], "hour": 22, "min": 39},
+    "enabled_on_save": true,
+    "owner_in_schedule_options": true,
+    "nested_command_omitted_robot_id": true,
+    "test_schedule_removed": true
+  },
+  "integration_round_trip": {
+    "created_disabled": true,
+    "rescheduled_with_same_destination": true,
+    "converted_once_to_weekly_and_back": true,
+    "tested_tomorrow_selection": true,
+    "confirmed_enabled_and_disabled": true,
+    "test_schedule_removed": true
+  },
+  "integration_dispatch": {
+    "next_start_sensor_matched_planned_start": true,
+    "reported_initiator": "cloud",
+    "start_seconds_after_requested_time": 28,
+    "activity_observed": "cleaning",
+    "vacuum_trial_stopped_after_start_confirmation": true,
+    "confirmed_docked": true,
+    "active_error_after_return": 0,
+    "previous_drying_restored": true,
+    "provider_removed_consumed_one_time_schedule": true
+  },
+  "original_household_schedule_count": 5,
+  "original_schedule_group_contents_unchanged": true,
+  "test_schedules_remaining": 0
+}
