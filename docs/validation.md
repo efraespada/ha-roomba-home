@@ -1,5 +1,13 @@
 # Roomba Home validation
 
+## Version 0.63.0
+
+The release candidate passed 2,500 Python tests with 100% line and
+branch coverage and 57 card tests. Physical runs on a Max 700 Combo
+confirmed the whole-area start and the staged return in an isolated
+Home Assistant coordinator. Household installation and browser
+screenshots remain pending.
+
 ## Return during active cleaning
 
 A Max 700 Combo ignored a direct `dock` while actively vacuuming.

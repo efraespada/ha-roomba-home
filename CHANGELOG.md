@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.63.0
+
 - Pause an active Max 700 Combo cleaning before returning to the dock.
   Home Assistant confirms arrival.
 - Add a confirmed **Clean everywhere** action to start an untargeted
