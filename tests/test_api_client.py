@@ -16,7 +16,11 @@ from custom_components.roomba_home.core.cleaning import (
     CleaningMode,
     CleaningProfile,
 )
-from custom_components.roomba_home.core.client import check_status, signed_headers
+from custom_components.roomba_home.core.client import (
+    MapEditAcknowledgement,
+    check_status,
+    signed_headers,
+)
 from custom_components.roomba_home.core.errors import (
     ApiError,
     AuthenticationError,
@@ -445,6 +449,34 @@ async def test_room_edit_rejects_an_invalid_path_or_nonbinary_acknowledgement():
     with pytest.raises(ProtocolError, match="binary"):
         await api.edit_map("map-a", edit)
     assert len(http.calls) == 4
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        None,
+        {"status": 0},
+        {"p2map_metadata": None},
+        {"p2map_metadata": {"p2map_id": "different-map"}},
+        {"p2mapv_id": "../old"},
+    ],
+)
+async def test_room_edit_only_accepts_a_revision_acknowledgement_for_the_same_floor(change):
+    ack = {
+        "status": "success",
+        "p2map_metadata": {"p2map_id": "map-a"},
+        "p2mapv_id": "version.43",
+        "url": "https://example.invalid/bundle",
+    }
+    http = FakeHttp(login_responses() + [HttpResponse(200, ack | (change or {}))])
+    api = client(http)
+    edit = RoomEdit(("room-a",), name="Kitchen", room_type="kitchen")
+    if change is None:
+        assert await api.edit_map("map-a", edit) == MapEditAcknowledgement("version.43")
+    else:
+        with pytest.raises(ProtocolError, match="revision acknowledgement"):
+            await api.edit_map("map-a", edit)
+    assert len(http.calls) == 4 and http.calls[-1][0] == "POST"
 
 
 @pytest.mark.parametrize("ack", ["expected", "other robot", "different revision"])

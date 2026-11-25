@@ -30,7 +30,9 @@ FURNITURE_TYPES = {
     "pet_furniture/pet_feeder": (1056, "Pet feeder"),
     "pet_furniture/cat_tower": (1059, "Cat tower"),
 }
-_TOLERANCE = 0.0001
+_OUTLINE_TOLERANCE = 0.0001
+# Roomba can round the reported heading independently of the native vertices.
+_ANGLE_TOLERANCE = radians(0.02)
 
 
 def can_edit_furniture(plan: FloorPlan) -> bool:
@@ -58,31 +60,59 @@ class FurnitureEdit:
 
     def request_body(self) -> dict:
         items = (*self.retained, self.changed) if self.changed is not None else self.retained
-        entries = [
-            [
-                item.identifier,
-                FURNITURE_TYPES[item.kind][0],
-                int(item.source == "user"),
-                *(value for point in item.points for value in point),
-            ]
-            for item in items
+        return _furniture_request(items, self.removed)
+
+
+@dataclass(frozen=True, repr=False)
+class FurnitureRestore:
+    items: tuple[MapFurniture, ...]
+
+    def request_body(self) -> dict:
+        return _furniture_request(self.items)
+
+    def changes(self, current: FloorPlan) -> list[dict]:
+        existing = {item.identifier: item for item in current.furniture}
+        return [
+            {
+                "id": item.identifier,
+                "kind": item.kind,
+                "name": FURNITURE_TYPES[item.kind][1],
+                "source": item.source,
+                "missing": previous is None,
+            }
+            for item in self.items
+            if not matching_furniture_placement(item, previous := existing.get(item.identifier))
         ]
-        if self.removed is not None:
-            entries.append(
-                [
-                    "0",
-                    FURNITURE_TYPES[self.removed.kind][0],
-                    1,
-                    *(value for point in self.removed.points for value in point),
-                ]
-            )
-        return {
-            "edit_cmd": {
-                "command": "adjust_furniture",
-                "params": {"timestamp": int(time()), "furniture_list": entries, "package": [1, 1]},
-            },
-            "response_type": "binary",
-        }
+
+
+def _furniture_request(
+    items: tuple[MapFurniture, ...], removed: MapFurniture | None = None
+) -> dict:
+    entries = [
+        [
+            item.identifier,
+            FURNITURE_TYPES[item.kind][0],
+            int(item.source == "user"),
+            *(value for point in item.points for value in point),
+        ]
+        for item in items
+    ]
+    if removed is not None:
+        entries.append(
+            [
+                "0",
+                FURNITURE_TYPES[removed.kind][0],
+                1,
+                *(value for point in removed.points for value in point),
+            ]
+        )
+    return {
+        "edit_cmd": {
+            "command": "adjust_furniture",
+            "params": {"timestamp": int(time()), "furniture_list": entries, "package": [1, 1]},
+        },
+        "response_type": "binary",
+    }
 
 
 def _footprint(pose: list, plan: FloorPlan) -> Ring:
@@ -132,28 +162,69 @@ def prepare_furniture_edit(
     return FurnitureEdit(tuple(existing.values()), changed, None)
 
 
-def confirm_furniture_edit(
-    archive: bytes, floor: PersistentMap, before: FloorPlan, edit: FurnitureEdit
-) -> str:
+def prepare_furniture_restore(saved: FloorPlan, current: FloorPlan) -> FurnitureRestore:
+    """Recover saved placements without removing furniture added since capture."""
+    if not can_edit_furniture(saved) or not can_edit_furniture(current):
+        raise ValueError("Furniture recovery requires fully supported furniture layers.")
+    if not saved.border_digest or saved.border_digest != current.border_digest:
+        raise ValueError("The floor boundary has changed since this backup.")
+    existing = {item.identifier: item for item in current.furniture}
+    for item in saved.furniture:
+        previous = existing.get(item.identifier)
+        if matching_furniture_placement(item, previous):
+            continue
+        if previous is not None and previous.kind != item.kind:
+            raise ValueError("A saved furniture identifier is in use by a different object type.")
+        if not overlaps_visible_room(item.points, current):
+            raise ValueError("A saved object no longer overlaps a visible room on this floor.")
+        existing[item.identifier] = item
+    return FurnitureRestore(tuple(existing.values()))
+
+
+def _furniture_readback(
+    archive: bytes, floor: PersistentMap, before: FloorPlan
+) -> tuple[str, dict[str, MapFurniture]]:
     version, after = edited_floor_plan(archive, floor)
     if replace(after, furniture=before.furniture) != before or after.furniture is None:
         raise ProtocolError("Roomba returned unexpected changes outside the furniture layer.")
-    observed = {item.identifier: item for item in after.furniture}
-    if (changed := edit.changed) is not None:
-        actual = observed.pop(changed.identifier, None)
-        if (
-            actual is None
-            or (actual.source, actual.kind) != (changed.source, changed.kind)
-            or abs(remainder(actual.orientation - changed.orientation, tau)) > _TOLERANCE
-            or any(
-                dist(a, b) > _TOLERANCE for a, b in zip(changed.points, actual.points, strict=True)
-            )
-        ):
-            raise ProtocolError("Roomba did not return the expected furniture type and placement.")
+    return version, {item.identifier: item for item in after.furniture}
+
+
+def matching_furniture_placement(expected: MapFurniture, actual: MapFurniture | None) -> bool:
+    return (
+        actual is not None
+        and (actual.source, actual.kind) == (expected.source, expected.kind)
+        and abs(remainder(actual.orientation - expected.orientation, tau)) <= _ANGLE_TOLERANCE
+        and all(
+            dist(a, b) <= _OUTLINE_TOLERANCE
+            for a, b in zip(expected.points, actual.points, strict=True)
+        )
+    )
+
+
+def _matches_furniture_layer(items: tuple[MapFurniture, ...], observed: dict) -> bool:
     # Roomba derives cleaning areas from the objects around them after every save.
-    retained = {item.identifier: replace(item, cleaning_area=()) for item in edit.retained}
-    if {
-        identifier: replace(item, cleaning_area=()) for identifier, item in observed.items()
-    } != retained:
+    return observed.keys() == {item.identifier for item in items} and all(
+        matching_furniture_placement(item, observed[item.identifier]) for item in items
+    )
+
+
+def confirm_furniture_edit(
+    archive: bytes, floor: PersistentMap, before: FloorPlan, edit: FurnitureEdit
+) -> str:
+    version, observed = _furniture_readback(archive, floor, before)
+    if (changed := edit.changed) is not None:
+        if not matching_furniture_placement(changed, observed.pop(changed.identifier, None)):
+            raise ProtocolError("Roomba did not return the expected furniture type and placement.")
+    if not _matches_furniture_layer(edit.retained, observed):
         raise ProtocolError("Roomba did not preserve the rest of the furniture layer.")
+    return version
+
+
+def confirm_furniture_restore(
+    archive: bytes, floor: PersistentMap, before: FloorPlan, edit: FurnitureRestore
+) -> str:
+    version, observed = _furniture_readback(archive, floor, before)
+    if not _matches_furniture_layer(edit.items, observed):
+        raise ProtocolError("Roomba did not preserve the expected furniture layer.")
     return version

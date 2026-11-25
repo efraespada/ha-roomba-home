@@ -88,6 +88,15 @@ def async_setup_services(hass):
     service.async_register_platform_entity_service(
         hass,
         DOMAIN,
+        "clean_everywhere",
+        entity_domain=VACUUM_DOMAIN,
+        required_features=[VacuumEntityFeature.START],
+        schema={vol.Required("confirmed"): vol.All(bool, vol.In([True]))},
+        func="async_clean_everywhere",
+    )
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
         "reset_maintenance_counter",
         entity_domain=VACUUM_DOMAIN,
         schema={

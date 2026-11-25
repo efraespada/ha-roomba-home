@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+## 0.63.0
+
+- Pause an active Max 700 Combo cleaning before returning to the dock.
+  Home Assistant confirms arrival.
+- Add a confirmed **Clean everywhere** action to start an untargeted
+  cleaning mission using the next-cleaning preferences.
+- Copy a supported routine selection into a new disabled schedule, keeping
+  its destination order and individual settings.
+- Show the original destination sequence, requested per-area settings, and
+  final destination outcomes in recorded cleaning reports.
+- Show each live destination's requested cleaning settings and the robot's
+  reported pass count in the floor plan and destination sensor.
+- Show saved cleaning zones and restrictions from each mission's archived
+  floor revision. Toggle travel, cleaning paths, and coverage independently.
+- Create, move, and remove virtual walls from the floor plan card. Set their
+  two endpoints on the map or with the keyboard.
+- Recover a saved room name and type on the same active room after reviewing
+  the before and after values. The review identifies removed rooms and
+  changed room boundaries.
+- Confirm map edits that return a revision acknowledgement by reading the
+  corresponding active archive. Keep the edit to one provider write.
+- Recover moved or deleted keep-out zones, no-mop zones, and virtual walls
+  from a local floor backup after reviewing the changes. Keep restrictions
+  added after the backup.
+- Preserve distinct virtual wall endpoints when saving the restriction layer.
+- Recover saved furniture placements and sources from a floor backup. The
+  review shows affected routines and keeps furniture added after the backup.
+- Recover missing furniture destinations in surviving routines after the
+  backed-up objects return. Preserve the routine's order and area settings.
+- Accept the small heading rounding Roomba returns for unchanged furniture
+  outlines so a completed map edit is confirmed correctly.
+
 ## 0.62.0
 
 - Include compatible routine and schedule destinations in local map backups.

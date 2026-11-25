@@ -80,6 +80,16 @@ trajectory contains observed positions and retains sequence gaps.
 - MAP-11: Receive the authorized robot's live position updates continuously and deliver them to the displayed map. Show cleaned areas by the activity reported by Roomba.
 - MAP-12: Show and hide provider-reported temporary obstacles on the live floor plan for the current mission and floor revision.
 - MAP-13: Follow the confirmed mission floor when a robot has several saved maps. Allow the viewer to keep a chosen floor in view.
+- MAP-14: Show saved zones, restrictions, and room labels from the exact
+  archived revision. Offer separate controls for archived cleaning and
+  travel paths and coverage. Keep the final recorded position visible.
+- MAP-15: Show explicit requested settings and the reported pass count
+  for each destination in the correlated live plan.
+- MAP-16: Show the ordered or unordered destinations originally requested
+  in a directed cleaning report, including explicit settings and the final
+  outcome for each destination.
+- MAP-17: Offer a confirmed untargeted start with next-cleaning preferences
+  for an idle or docked robot, including before its first saved floor.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -168,6 +178,22 @@ recover additional footprints from an anchored raw snapshot. Clip the
 display to room outlines and clear it when the mission or revision changes.
 Keep the estimate distinct from archived native coverage polygons.
 
+In a historical report, read saved zones and restrictions from the mission
+archive. Retain each route segment and its ordering. Offer controls only
+for present route or coverage layers and preserve the toggles through a
+camera change. Keep the final recorded position and map restrictions
+visible when a route layer is hidden.
+
+Project a historical directed command through the same destination policy
+as a live command. Use final events to report the outcome of each requested
+destination. If an archived name is missing, consult the exact command
+revision only for the same floor. Keep the plan and measurements readable
+when a map archive is unavailable.
+
+The **Clean everywhere** action confirms the robot and uses the untargeted
+start command. The provider receives its next-cleaning profile. The action
+needs a fresh idle or docked state and rejects a paused or active mission.
+
 Draw temporary Roomba obstacles in an independent layer. Project the
 points only when recent direct positions substantiate the snapshot's
 coordinate frame. Accept a stable cluster of at least five recent anchors
@@ -181,7 +207,10 @@ Project the destinations in a correlated `start` command when it names a
 specific map revision and includes a valid destination list. Preserve the
 command's sequence and label it as ordered for a single destination or when
 Roomba sets integer `ordered=1`. Show known requested modes independently
-of physical route activity. Associate the current travel or cleaning
+of physical route activity. Project explicit validated command preferences
+after merging shared and regional values. Preserve booleans and zero pass
+counts. Show the most relevant current or finished event's pass count
+separately from the requested settings. Associate the current travel or cleaning
 stage with the matching destination and count only final status `0`.
 Represent skip, partial, and more-pass outcomes separately. Clear the
 card on a revision mismatch, a mission change, or timeline expiry.
@@ -319,6 +348,12 @@ features, physical results, and open scenarios.
     and the second active destination appear side by side. Check that the
     count increases only on a finished result and that stale, mismatched, and
     full-floor reports clear the itinerary.
+13. Read a recorded, directed run and compare the order, settings, and
+    reported outcomes against its original command and final room or zone
+    events. Verify the name fallback against the signed command revision.
+14. Review an untargeted start without a saved map. Verify that no floor
+    or regions are sent and that a paused run cannot be resumed by this
+    action.
 
 ## 17. Requirements traceability
 
@@ -337,6 +372,10 @@ features, physical results, and open scenarios.
 | MAP-11 | [Live delivery evidence](../docs/validation.md#continuous-position-and-cleaning-coverage) and [coverage replay](../docs/validation.md#live-coverage-reconstruction) | [MQTT tests](../tests/test_mqtt.py), [subscription tests](../tests/test_live_stream.py), [coverage tests](../tests/test_live_coverage.py), [authenticated endpoint tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and physical telemetry. Native live polygon publication and household card verification remain open. |
 | MAP-12 | [Physical obstacle comparison](../docs/validation.md#live-temporary-obstacles) | [Snapshot decoder tests](../tests/test_live_route.py), [coordinator tests](../tests/ha/test_live_map_entities.py), [authenticated subscription tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs). Household dashboard verification remains open. |
 | MAP-13 | [Confirmed floor associations from native missions](../docs/validation.md#multiple-saved-floors) | [Parser tests](../tests/test_live_maps.py), [coordinator tests](../tests/ha/test_live_map_entities.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [floor picker tests](../tests/frontend/map-card.test.cjs). An installed multi-floor cleaning trial remains open. |
+| MAP-14 | [Historical layer contract](../docs/api.md#archived-cleaning-reports) | [Archive tests](../tests/test_mission_map.py), [authenticated reports](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [historical layer validation](../docs/validation.md#historical-map-layers) |
+| MAP-15 | [Live destination preferences](../docs/api.md#live-mission-destinations) | [Profile projection tests](../tests/test_mission_plan.py), [authenticated plan tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [device evidence](../docs/validation.md#requested-settings-and-reported-passes) |
+| MAP-16 | [Archived report contract](../docs/api.md#archived-cleaning-reports) | [Destination tests](../tests/test_mission_plan.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed report verification](../docs/validation.md#historical-destination-plans) |
+| MAP-17 | [Clean everywhere action](../docs/usage.md#clean-everywhere) | [Home Assistant control tests](../tests/ha/test_cleaning_controls.py), [card tests](../tests/frontend/map-card.test.cjs), and [scope validation](../docs/validation.md#whole-area-and-directed-cleaning-scope) |
 
 ## 18. Implementation sequence
 

@@ -901,6 +901,16 @@
         }
       }
     },
+    "clean_everywhere": {
+      "name": "Clean everywhere",
+      "description": "Start a new cleaning mission for all reachable areas using the next-cleaning preferences.",
+      "fields": {
+        "confirmed": {
+          "name": "Ready to clean",
+          "description": "Confirm that the robot can clean all reachable areas."
+        }
+      }
+    },
     "reset_maintenance_counter": {
       "name": "Reset maintenance counter",
       "description": "Reset reported usage after replacing or cleaning a robot or dock part.",

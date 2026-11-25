@@ -246,6 +246,55 @@ test("a schedule can be created from the reviewed floor, enabled and removed", a
   assert.equal(card.routines.length, 0);
 });
 
+test("a routine selection opens a new schedule with its order and settings intact", async () => {
+  const card = draftEstimateCard();
+  const zone = "fixture-map:zid:100";
+  const room = "fixture-map:rid:room-a";
+  card.snapshot.can_manage_schedules = true;
+  card.geometry.regions = [{ id: room, name: "Hall", kind: "room" }, { id: zone, name: "Entry", kind: "zone" }];
+  card.routineAreas = new Map([[room, "Hall"], [zone, "Entry"]]);
+  const profiles = [{ id: zone, mode: "mop", wetness_level: 3, smart_scrub: true },
+    { id: room, mode: "vacuum", suction_level: 1, two_pass: false }];
+  const saved = { id: "routine-id", name: "Entry and hall", ordered: true, region_settings: profiles };
+  card.routines = [saved];
+  card.editRoutine(saved.id);
+  assert.equal(card.$("use-routine-in-schedule").hidden, false);
+  card.routineDraft.ordered = false;
+  assert.ok(!card.canUseRoutineInSchedule());
+  card.routineDraft.ordered = true;
+  card.routineDraft.regions[0].id = "fixture-map:furniture:table";
+  assert.ok(!card.canUseRoutineInSchedule());
+  card.routineDraft.regions[0].id = zone;
+  const calls = [];
+  card.callAction = async (action, data, entity) => {
+    calls.push([action, JSON.parse(JSON.stringify(data)), entity]);
+    return action === "list_cleaning_schedules" ? { schedules: [] }
+      : { id: "group:item", ...data, region_settings: data.regions, enabled: false };
+  };
+  card.snapshot.map.version = "stale";
+  await card.useRoutineInSchedule();
+  assert.equal(calls.length, 0);
+  card.snapshot.map.version = "v1";
+  await card.useRoutineInSchedule();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], "list_cleaning_schedules");
+  assert.equal(card.routineDraft.name, saved.name);
+  assert.equal(card.routineDraft.saved, undefined);
+  assert.equal(card.routineDraft.time, "");
+  assert.notEqual(card.routineDraft.regions[0], profiles[0]);
+  assert.equal(card.$("schedule-frequency").focused, true);
+  assert.equal(card.$("use-routine-in-schedule").hidden, true);
+  card.routineDraft.frequency = "once";
+  card.routineDraft.time = "15:30";
+  await card.saveSchedule();
+  assert.deepEqual(calls[1], ["create_cleaning_schedule", {
+    name: saved.name, frequency: "once", time: "15:30", regions: profiles,
+    floor: { map_id: "fixture-map", version: "v1", inventory_id: "inventory" },
+  }, card.config.entity]);
+  assert.equal(card.routineDraft.saved.enabled, false);
+  assert.equal(saved.region_settings[0].wetness_level, 3);
+});
+
 test("editing a one-time schedule keeps timing unless changed and rechecks the floor for preferences", async () => {
   const card = draftEstimateCard();
   card.scheduleEditor = true;
@@ -417,6 +466,132 @@ test("zone recovery previews active dependencies and binds confirmation to the r
   assert.equal(writes[0].type, "roomba_home/restore_map_backup_zones");
   assert.deepEqual(writes[1], { ...writes[0], review_id: reviewId, confirmed: true });
   assert.equal(card.$("map-backups-status").textContent, "Cleaning zones restored.");
+});
+
+test("restriction recovery previews moved zones and missing walls before saving", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  card.snapshot = { map: { id: "floor", version: "current" }, inventory_id: "inventory",
+    floor_settings: { id: "settings", name: "Ático", orientation: 0 } };
+  const dialog = card.$("map-backups-dialog");
+  dialog.showModal = function () { this.open = true; };
+  const saved = { id: "a".repeat(64), map_id: "floor", version: "older" };
+  const reviewId = "b".repeat(64);
+  let changes = [
+    { id: "100", kind: "keep_out", missing: false },
+    { id: "101", kind: "no_mop", missing: true },
+    { id: "102", kind: "wall", missing: true },
+  ];
+  const requests = [];
+  card._hass = { callWS: async (request) => {
+    if (request.type === "roomba_home/map_backups") return { snapshots: [saved], can_manage: true, retention: 5 };
+    if (request.type === "roomba_home/read_map_backup") return { backup: saved,
+      geometry: { regions: [region], virtual_walls: [[[2, 2], [3, 2]]] } };
+    requests.push(JSON.parse(JSON.stringify(request)));
+    if (request.confirmed) return { applied: true };
+    return { changes, review_id: reviewId, applied: false };
+  } };
+  card.drawMapBackup = () => {};
+  card.refresh = async () => {};
+  await card.openMapBackups();
+  assert.equal(card.$("review-map-backup-restrictions").hidden, false);
+  await card.reviewMapBackupRestore("restrictions");
+  const details = card.$("map-backup-restore-restrictions");
+  assert.equal(details.hidden, false);
+  assert.deepEqual(Array.from(details.children, ({ textContent }) => textContent), [
+    "Restore outline · Keep-out zone · 100", "Recreate · No-mop zone · 101", "Recreate · Virtual wall · 102",
+  ]);
+  await card.confirmMapBackupRestore();
+  assert.deepEqual(requests[1], { ...requests[0], confirmed: true, review_id: reviewId });
+  assert.equal(card.$("map-backups-status").textContent, "Map restrictions restored.");
+  changes = [];
+  await card.reviewMapBackupRestore("restrictions");
+  assert.equal(card.$("map-backup-restore").hidden, true);
+  assert.equal(card.$("map-backups-status").textContent, "The recorded restrictions already match.");
+});
+
+test("room detail recovery selects one room and reports changed boundaries", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  card.snapshot = { map: { id: "floor", version: "current" }, inventory_id: "inventory",
+    floor_settings: { id: "settings", name: "Ático", orientation: 0 } };
+  const dialog = card.$("map-backups-dialog");
+  dialog.showModal = function () { this.open = true; };
+  const saved = { id: "a".repeat(64), map_id: "floor", version: "older" };
+  const rooms = [
+    { id: "room-1", status: "ready", name: { from: "Oficina", to: "Estudio" },
+      room_type: { from: "kitchen", to: "other" }, review_id: "b".repeat(64) },
+    { id: "room-2", status: "ready", name: { from: "Sótano", to: "Recibídor" },
+      room_type: { from: "other", to: "hallway" }, review_id: "c".repeat(64) },
+    { id: "room-3", status: "changed_boundary", name: { from: "Dormitorio", to: "Dormitorio" } },
+  ];
+  const requests = [];
+  card._hass = { callWS: async (request) => {
+    if (request.type === "roomba_home/map_backups") return { snapshots: [saved], can_manage: true, retention: 5 };
+    if (request.type === "roomba_home/read_map_backup") return { backup: saved, geometry: {
+      regions: [region], editable_rooms: [{ id: "room-1" }],
+      room_naming: { types: { other: "Other", kitchen: "Kitchen", hallway: "Hallway" } },
+    } };
+    requests.push(JSON.parse(JSON.stringify(request)));
+    return request.confirmed ? { applied: true } : { rooms, applied: false };
+  } };
+  card.drawMapBackup = () => {};
+  card.refresh = async () => {};
+  const select = card.$("map-backup-restore-room-choice");
+  select.parentElement = {};
+  select.value = "0";
+  await card.openMapBackups();
+  assert.equal(card.$("review-map-backup-room-details").hidden, false);
+  await card.reviewMapBackupRestore("room_details");
+  assert.match(card.$("map-backup-restore-room-status").children[0].textContent, /Dormitorio.*boundary has changed/);
+  select.value = "1";
+  card.showMapBackupRoomDetails();
+  const rows = card.$("map-backup-restore-room-values").children;
+  assert.deepEqual(Array.from(rows, ({ children }) => children.map(({ textContent }) => textContent)), [
+    ["Room name", "Sótano → Recibídor"], ["Room type", "Other → Hallway"],
+  ]);
+  await card.confirmMapBackupRestore();
+  assert.deepEqual(requests[1], { ...requests[0], confirmed: true, room_id: "room-2", review_id: rooms[1].review_id });
+  assert.equal(card.$("map-backups-status").textContent, "Room details restored.");
+});
+
+test("furniture recovery previews placement, source, and affected routines", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  card.snapshot = { map: { id: "floor", version: "current" }, inventory_id: "inventory",
+    floor_settings: { id: "settings", name: "Ático", orientation: 0 } };
+  const dialog = card.$("map-backups-dialog");
+  dialog.showModal = function () { this.open = true; };
+  const saved = { id: "a".repeat(64), map_id: "floor", version: "older" };
+  const reviewId = "b".repeat(64);
+  const changes = [
+    { id: "1", kind: "chair/living", name: "Chair", source: "user", missing: false },
+    { id: "2", kind: "table/coffee", name: "Coffee table", source: "robot", missing: true },
+  ];
+  const requests = [];
+  card._hass = { callWS: async (request) => {
+    if (request.type === "roomba_home/map_backups") return { snapshots: [saved], can_manage: true, retention: 5 };
+    if (request.type === "roomba_home/read_map_backup") return { backup: saved,
+      geometry: { regions: [region], furniture: { items: [{ id: "1" }, { id: "2" }] } } };
+    requests.push(JSON.parse(JSON.stringify(request)));
+    if (request.confirmed) return { applied: true };
+    return { changes, review_id: reviewId, applied: false,
+      dependencies: [{ kind: "routine", name: "Morning", objects: ["2"] }], unchecked: ["routine"] };
+  } };
+  card.drawMapBackup = () => {};
+  card.refresh = async () => {};
+  await card.openMapBackups();
+  assert.equal(card.$("review-map-backup-furniture").hidden, false);
+  await card.reviewMapBackupRestore("furniture");
+  const items = card.$("map-backup-restore-furniture-list").children;
+  assert.deepEqual(Array.from(items, ({ children }) => children.map(({ textContent }) => textContent)), [
+    ["Restore Chair · 1", "Added by user"],
+    ["Recreate Coffee table · 2", "Detected by Roomba · Routine · Morning"],
+  ]);
+  assert.match(card.$("map-backup-restore-furniture-status").textContent, /could not be checked/);
+  await card.confirmMapBackupRestore();
+  assert.deepEqual(requests[1], { ...requests[0], confirmed: true, review_id: reviewId });
+  assert.equal(card.$("map-backups-status").textContent, "Furniture restored.");
 });
 
 test("program recovery previews settings and confirms only the selected program", async () => {
@@ -774,6 +949,54 @@ test("mission maps retain coverage and separate route segments in the rotated 3D
   assert.notDeepEqual(drawn[1][1], initial[1][1]);
 });
 
+test("historical layer controls keep archived restrictions, labels and the last position", () => {
+  const { card } = mockCard(0);
+  const geometry = historyGeometry();
+  geometry.rooms[0].name = "Área principal";
+  geometry.saved_zones = region.polygons;
+  geometry.keep_out = region.polygons;
+  geometry.no_mop = region.polygons;
+  geometry.virtual_walls = [[[2, 2], [3, 3]]];
+  geometry.coverage.push({ modes: ["traveling"], polygons: region.polygons });
+  geometry.trajectories.push({ modes: [], points: [[8, 2], [9, 2]] });
+  card.historyReport = { geometry };
+  card.historyView = { zoom: 1, pan: [0, 0], angle: 0, elevated: false };
+  const inputs = ["cleaning", "travel", "unclassified", "coverage"].map((layer) =>
+    Object.assign(card.$(`history-${layer}`), { checked: true, parentElement: {} }));
+  const paint = [];
+  const ctx = {
+    fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {},
+    fill() { paint.push(this.fillStyle); },
+    stroke() { paint.push(this.strokeStyle); },
+    arc() {},
+  };
+  card.$("history-map").getContext = () => ctx;
+  const labels = [];
+  card.drawLabel = (name) => labels.push(name);
+  const legend = () => card.$("history-map-legend").children.map(({ textContent }) => textContent);
+  card.drawHistoryMap();
+  assert.ok(inputs.every((input) => !input.parentElement.hidden));
+  assert.deepEqual(labels, ["Área principal"]);
+  assert.deepEqual(legend(), ["Mopping", "Travel", "Vacuum and mop", "Unclassified path",
+    "Cleaning zone", "Keep-out area or wall", "No-mop area", "Dock", "Obstacle", "End of recorded path"]);
+  assert.ok(paint.includes("#4ed9ad44"));
+  inputs[1].checked = false;
+  card.drawHistoryMap();
+  assert.ok(!legend().includes("Travel"));
+  assert.ok(legend().includes("Travel coverage"));
+  for (const input of inputs) input.checked = false;
+  paint.length = 0;
+  card.drawHistoryMap();
+  assert.deepEqual(legend(), ["Cleaning zone", "Keep-out area or wall", "No-mop area",
+    "Dock", "Obstacle", "End of recorded path"]);
+  for (const color of ["#9eafbf", "#b7c3cd", "#c39bff", "#4ed9ad44"]) assert.ok(!paint.includes(color));
+  for (const color of ["#5bd4b0", "#ff7893", "#e8ab6a", "#eaf3f9"]) assert.ok(paint.includes(color));
+  card.historyReport.geometry = { ...geometry, trajectories: [], coverage: [] };
+  card.drawHistoryMap();
+  assert.ok(inputs.every((input) => input.parentElement.hidden));
+  assert.ok(!legend().includes("End of recorded path"));
+});
+
 test("the history panel opens the latest report and shows measurements when geometry is missing", async () => {
   const { card } = mockCard(0);
   const mission = { id: "report-a", finished_at: "2026-11-25T10:00:00Z", map_count: 1, duration_minutes: 2,
@@ -781,11 +1004,18 @@ test("the history panel opens the latest report and shows measurements when geom
   card.config = { entity: "vacuum.example" };
   card.historySequence = 0;
   card.renderAreaResults = () => {};
+  const planView = card.$("history-plan");
+  planView.append(mockElement("summary"), mockElement("div"));
+  const plan = { ordered: true, total: 2, completed: 0, destinations: [
+    { kind: "furniture", mode: "vacuum", status: "skipped", reported_pass_count: 0,
+      requested_settings: { two_pass: false, suction_level: 2 } },
+    { kind: "saved_zone", mode: "mop", status: "unreported", requested_settings: { wetness_level: 3 } },
+  ] };
   card.$("mission-history-dialog").showModal = function () { this.open = true; };
   const calls = [];
   card._hass = { callWS: async (request) => {
     calls.push(request);
-    return request.report_id ? { mission, geometry: null, map_index: 0, timeline: [], modes: {}, rooms: [], zones: [] }
+    return request.report_id ? { mission, geometry: null, map_index: 0, timeline: [], modes: {}, rooms: [], zones: [], plan }
       : { missions: [mission] };
   } };
   await card.openMissionHistory();
@@ -795,6 +1025,19 @@ test("the history panel opens the latest report and shows measurements when geom
   assert.equal(card.$("history-map-view").hidden, true);
   assert.equal(card.$("history-totals").textContent, "1 report · 2 min · 0.5 m²");
   assert.ok(card.$("history-measurements").children.length);
+  assert.equal(planView.hidden, false);
+  assert.equal(planView.querySelector("summary").textContent, "Requested order · 0 of 2 completed");
+  assert.deepEqual(planView.querySelector("ol").children.map((item) =>
+    item.children[0].children.map((field) => field.textContent)), [
+    ["Furniture target", "Vacuum · Skipped · Reported passes 0", "Requested · Suction 2 · Two passes off"],
+    ["Saved zone", "Mop · No final result", "Requested · Mop wetness 3"],
+  ]);
+  card.renderMissionReport({ ...card.historyReport, plan: { ...plan, ordered: false } });
+  assert.equal(planView.querySelector("summary").textContent, "Requested destinations · 0 of 2 completed");
+  assert.ok(planView.querySelector("ul"));
+  card.renderMissionReport({ ...card.historyReport, plan: null });
+  assert.equal(planView.hidden, true);
+  assert.equal(planView.querySelector("ul"), undefined);
 });
 
 test("selecting a different mission discards an older archive response", async () => {
@@ -840,6 +1083,40 @@ test("mapping can be started without a saved floor after an explicit review", as
   await card.startMapping();
   assert.equal(calls.length, 1);
   assert.equal(card.$("review-mapping").hidden, true);
+});
+
+test("clean everywhere confirms the robot and sends a new untargeted mission", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  card.snapshot = { robot: "Example", map: null, can_clean_everywhere: true };
+  card.geometry = null;
+  card.draw = () => {};
+  card.updateSelection = () => {};
+  const calls = [];
+  card._hass = { callService: async (...args) => calls.push(args) };
+  const dialog = card.$("confirm-dialog");
+  dialog.showModal = function () { this.open = true; };
+  dialog.close = function () { this.open = false; };
+  await card.submit();
+  assert.equal(calls.length, 0);
+  card.reviewCleanEverywhere();
+  assert.equal(dialog.open, true);
+  assert.equal(card.$("confirm-text").textContent,
+    "Example will clean every reachable area using its next-cleaning preferences.");
+  card.snapshot.can_clean_everywhere = false;
+  await card.submit();
+  assert.equal(calls.length, 0);
+  card.snapshot.can_clean_everywhere = true;
+  card.config.entity = "vacuum.other";
+  await card.submit();
+  assert.equal(calls.length, 0);
+  card.config.entity = "vacuum.example";
+  await card.submit();
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [["roomba_home", "clean_everywhere",
+    { confirmed: true }, { entity_id: "vacuum.example" }]]);
+  assert.equal(dialog.open, false);
+  await card.submit();
+  assert.equal(calls.length, 1);
 });
 
 test("floor removal rechecks the reviewed revision and sends only one confirmed submission", async () => {
@@ -916,25 +1193,78 @@ test("a rotation preview leaves the saved angle and area selections intact", () 
   assert.ok(savedEnd[0] > savedStart[0]);
 });
 
+function prepareRestrictionPlacement(card, kind) {
+  card.restrictionFields = Array.from({ length: 4 }, () => ({
+    value: "",
+    get valueAsNumber() { return this.value === "" ? NaN : Number(this.value); },
+  }));
+  card.$("restriction-operation").value = "create";
+  card.$("restriction-kind").value = kind;
+  card.restrictionDraft = { operation: "create", kind, placing: 0 };
+  card.canvas = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 920, height: 520 }) };
+  card.setRestrictionBounds([]);
+}
+
 test("two clicks create a restriction in native coordinates on a rotated floor", () => {
   const { card } = mockCard(-Math.PI / 2);
-  const status = {};
   card.geometry.editable_restrictions = [];
-  card.restrictionDraft = { operation: "create", kind: "no_mop", placing: 0 };
-  card.canvas = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 920, height: 520 }) };
-  const getElement = card.$.bind(card);
-  card.$ = (id) => id === "restriction-edit-status" ? status : getElement(id);
-  card.setRestrictionBounds = (bounds) => { card.restrictionDraft.bounds = bounds; };
-  card.draw();
+  prepareRestrictionPlacement(card, "no_mop");
   const outline = card.targets[0].path.points;
   card.pick({ clientX: outline[0][0], clientY: outline[0][1] });
   assert.equal(card.restrictionDraft.placing, 1);
-  assert.equal(status.textContent, "Select the opposite corner.");
+  assert.equal(card.$("restriction-edit-status").textContent, "Select the opposite corner on the map.");
   card.pick({ clientX: outline[2][0], clientY: outline[2][1] });
   assert.equal(card.restrictionDraft.placing, null);
   for (const [index, expected] of [0, 0, 10, 4].entries()) {
     close(card.restrictionDraft.bounds[index], expected);
   }
+});
+
+test("wall placement keeps vertical and diagonal endpoints and accepts stroke selection", async () => {
+  const { card } = mockCard(-Math.PI / 2);
+  const marks = [];
+  card.drawPointMarker = (screenPoint) => marks.push(screenPoint);
+  const wall = { id: "wall-1", kind: "wall", points: [[8, 1], [4, 3]] };
+  const zone = { id: "zone-1", kind: "keep_out", points: [[1, 1], [2, 1], [2, 2], [1, 2]] };
+  card.geometry.editable_restrictions = [wall, zone];
+  card.geometry.virtual_walls = [wall.points];
+  prepareRestrictionPlacement(card, "wall");
+  assert.equal(card.$("place-restriction").textContent, "Place wall on map");
+  assert.equal(card.$("restriction-y2-label").textContent, "Second endpoint Y");
+  const [first, second] = [[6, 1], [6, 3]].map(card.screenPoint);
+  card.pick({ clientX: first[0], clientY: first[1] });
+  assert.equal(card.$("restriction-edit-status").textContent, "Select the second endpoint on the map.");
+  assert.equal(card.$("review-restriction-edit").disabled, true);
+  card.pick({ clientX: second[0], clientY: second[1] });
+  assert.equal(card.$("review-restriction-edit").disabled, false);
+  assert.ok(marks.length >= 3);
+  const calls = [];
+  card.config = { entity: "vacuum.example" };
+  card.floor = "example";
+  Object.assign(card.restrictionDraft, { id: card.floor, version: "abc", inventoryId: "inv" });
+  card._hass = { callWS: async (request) => calls.push(request) };
+  card.refresh = async () => {};
+  card.$("restriction-edit-dialog").close = () => {};
+  await card.saveRestrictionEdit();
+  assert.equal(calls[0].kind, "wall");
+  assert.equal(calls[0].operation, "create");
+  calls[0].bounds.forEach((value, i) => close(value, [6, 1, 6, 3][i]));
+
+  card.restrictionDraft = { operation: "update", kind: "keep_out", shape: zone };
+  card.$("restriction-operation").value = "update";
+  card.ctx.save = () => {};
+  card.ctx.restore = () => {};
+  card.ctx.isPointInPath = () => false;
+  card.ctx.isPointInStroke = (path) => path.points.length === 2;
+  card.draw();
+  card.pick({ clientX: first[0], clientY: first[1] });
+  assert.equal(card.restrictionDraft.shape.id, "wall-1");
+  assert.deepEqual(Array.from(card.restrictionFields, ({ value }) => value), [8, 1, 4, 3]);
+  assert.equal(card.$("review-restriction-edit").disabled, true);
+  card.setRestrictionBounds([8, 3, 6, 1]);
+  assert.equal(card.$("review-restriction-edit").disabled, false);
+  card.setRestrictionBounds([3, 1, 3, 1]);
+  assert.equal(card.$("review-restriction-edit").disabled, true);
 });
 
 test("room publication keeps an open confirmation valid when the available targets are unchanged", async () => {
@@ -1535,11 +1865,14 @@ test("live plans show real destination counts, preserve order and disappear when
   card.renderMissionPlan({
     ...plan, estimated_remaining_seconds: 401,
     destinations: plan.destinations.map((destination) => destination.kind === "room" ?
-      { ...destination, estimated_duration_seconds: 502 } : destination),
+      { ...destination, estimated_duration_seconds: 502, reported_pass_count: 0,
+        requested_settings: { suction_level: 3, two_pass: true, carpet_boost: false } } : destination),
   });
   assert.equal(summary.textContent, "Planned order · 1 of 3 completed · About 7 min left");
   assert.equal(results.children[0].children[1].children[0].children[1].textContent,
-    "Vacuum · On the way · 9 min planned");
+    "Vacuum · On the way · Reported passes 0 · 9 min planned");
+  assert.equal(results.children[0].children[1].children[0].children[2].textContent,
+    "Requested · Suction 3 · Two passes on · Carpet boost off");
   card.renderMissionPlan(null);
   assert.equal(view.hidden, true);
   assert.equal(results.children.length, 0);

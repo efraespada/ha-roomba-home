@@ -103,19 +103,29 @@ cleaning area list updates as soon as Roomba confirms the new map revision.
 [Saved-zone validation](validation.md#directed-vacuum-then-mop)
 [Cleaning-zone protocol](api.md#cleaning-zone-edits)
 
+### Edit map restrictions
+
 Choose **Edit restrictions** while the robot is idle or docked. A
 **Keep-out zone** excludes the marked area from vacuuming and mopping.
 A **No-mop zone** excludes it from mopping. Select **Place rectangle on map**
 and choose opposite corners, or enter them under **Rectangle coordinates**.
-At least part of the rectangle must overlap a mapped room. Choose
-**Review restriction**, then **Save map**.
+At least part of the rectangle must overlap a mapped room.
 
-Use **Move or resize a restriction** to draw replacement corners for the
-selected restriction. Use **Remove a restriction** to remove it after
-review. These operations preserve the other restrictions and existing
-virtual walls. If Roomba returns a restriction the editor cannot preserve,
-the controls are disabled and the stored shapes remain visible.
+To add a line across a doorway, choose **Add a restriction → Virtual wall**,
+select **Place wall on map**, and pick its first and second endpoints. You
+can also enter them under **Endpoint coordinates**. A wall can be horizontal,
+vertical, or diagonal. Part of the segment must pass inside a mapped room.
+Choose **Review restriction**, then **Save map**.
+
+Use **Move or resize a restriction** to draw replacement corners or
+endpoints for the selected restriction. You can select a wall directly by
+clicking its line on the map. Use **Remove a restriction** to remove it
+after review. Each operation preserves the other restrictions. If Roomba
+returns a restriction the editor cannot preserve, the controls are disabled
+and the stored shapes remain visible.
 [Restriction write protocol](api.md#restriction-edits)
+
+### Edit furniture
 
 Choose **Show furniture** to see the objects stored on a supported map.
 Use **Edit furniture** when the robot is idle or docked. Choose a type
@@ -172,11 +182,24 @@ timeline. The list includes recent cleaning records with missing maps, so
 the count can exceed the map-backed history displayed in Roomba Home.
 
 Use the map view to zoom and pan the original report. The legend identifies
-travel, vacuuming, mopping, and simultaneous cleaning. Turn on **3D view**
+travel, vacuuming, mopping, and simultaneous cleaning. Use **Travel path**,
+**Cleaning path**, and **Coverage** to show or hide the layers present in
+the report. If the report includes travel coverage, it stays visible until
+you turn off **Coverage**. The final recorded position stays visible. The
+card shows room names, saved cleaning zones, and restrictions from the archived revision
+when Roomba includes them. Turn on **3D view**
 when the archive provides walls or furniture, and use the rotate button to
 inspect it from another angle. The archive is scoped to the mission's
 original revision. A report can still show its measurements and timeline
 after its map becomes unavailable. [Report protocol](api.md#archived-cleaning-reports)
+
+For directed runs, **Requested order** shows the requested sequence,
+cleaning settings, and final outcome for each room, zone, or furniture
+target. When Roomba chose the order, the section is **Requested
+destinations**. A destination can have a different outcome from the overall
+mission. In one report, Roomba returned an overall success and recorded
+that the user ended the room before a pass was reported.
+[Validation](validation.md#historical-destination-plans)
 
 ## Map a floor
 
@@ -229,6 +252,9 @@ the other preferences for later. With no local override, optional values are
 omitted and the robot uses its settings. Reported values are separate sensors.
 In one physical trial a request for mop wetness 1 and enabled SmartScrub left
 global wetness at 2 and SmartScrub enabled. [Mopping evidence](evidence/2026-11-23-mop-preferences.json)
+In another trial, the robot reported two passes enabled after a directed
+run that requested it. Use the default switch to set that value explicitly
+when the robot is idle. [Two-pass trial](validation.md#requested-settings-and-reported-passes)
 
 For directed **Vacuum then mop**, choose the mode and confirm the selected
 areas on the floor plan, or call `vacuum.clean_area` with linked areas. Set
@@ -247,15 +273,43 @@ required capabilities cease to be reported.
 | Action | Behavior |
 |---|---|
 | `vacuum.start` | Starts with the next-cleaning profile. Resumes an existing paused mission. |
+| `roomba_home.clean_everywhere` | Starts a new untargeted cleaning with the next-cleaning profile after explicit confirmation. |
 | `vacuum.pause` | Pauses an active mission |
 | `vacuum.stop` | Cancels a mission |
-| `vacuum.return_to_base` | Requests return and checks arrival |
+| `vacuum.return_to_base` | Pauses active Max 700 Combo cleaning before sending the robot to the dock. Confirms arrival. |
 | `vacuum.set_fan_speed` | Saves the next-cleaning suction level |
 | `vacuum.locate` | Requests a sound when the robot supports it |
 | `vacuum.clean_area` | Cleans mapped regions linked to Home Assistant areas |
 
 Resuming preserves the current mission and mode. To change modes, cancel the
 current mission and start a new one with the desired profile.
+
+**Return to base** waits for the same cleaning mission to pause before
+asking the Max 700 Combo to dock. An already paused robot can return
+directly. If the robot starts returning while the pause is pending, Home
+Assistant observes the arrival. [Return validation](validation.md#return-during-active-cleaning)
+
+### Clean everywhere
+
+Choose **Clean everywhere** on the floor plan card and confirm the robot.
+Roomba cleans its reachable surroundings using the next-cleaning
+preferences. The action applies to the robot's physical location. The
+displayed floor and selected room list do not constrain it. It is available
+while the robot is idle or docked, including before it has a saved map.
+For a paused mission, use `vacuum.start` to resume it.
+
+```yaml
+action: roomba_home.clean_everywhere
+target:
+  entity_id: vacuum.example_robot
+data:
+  confirmed: true
+```
+
+**Clean all rooms** under **Recent and suggested routines** still loads a
+directed draft with the rooms on the displayed floor. Use that draft to
+exclude rooms or assign settings to individual destinations.
+[Scope validation](validation.md#whole-area-and-directed-cleaning-scope)
 
 ### Skip the current destination
 
@@ -337,7 +391,12 @@ time for a selected cleaning area, including a localized point.
 
 For a directed cleaning run, the floor plan card lists the destinations
 and shows how many have finished. **Planned order** appears when Roomba
-commits to an order. The **Completed destinations in the current mission**
+commits to an order. A row shows the requested preferences and the pass
+count reported by Roomba when those fields are available. **Two passes on**
+describes the request. **Reported passes** reflects the current or most
+recent destination event.
+
+The **Completed destinations in the current mission**
 sensor can trigger an automation as soon as the first destination finishes.
 Replace the example entity ID with the one shown for your robot.
 
@@ -455,6 +514,13 @@ Roomba is idle. For example, use a backup saved before a rename and a
 rotation to restore both settings in one operation. Home Assistant checks
 the active floor again before sending the change.
 
+Use **Restore room names and types** to review room details in the selected
+backup. Select the room and confirm its previous name and type. For example,
+restore a kitchen label and category after a temporary rename. The room must
+have the same identifier and footprint on the active map. The review
+explains when the saved room is missing or its boundary has changed.
+[Room recovery validation](validation.md#recovering-room-names-and-types)
+
 Choose **Restore cleaning zones** to review moved, renamed, or removed
 zones from the same floor. The preview shows the backed-up zones and the
 current routines and schedules that refer to the affected targets. The
@@ -464,13 +530,27 @@ the copy saved before the move. Deleting a zone can remove its references
 from routines and schedules, and those references can stay absent after
 recreating the zone.
 
+Choose **Restore restrictions** to review and recover keep-out zones,
+no-mop zones, and virtual walls from the selected backup. For example,
+recover a removed no-mop zone without deleting another zone added later.
+The preview identifies moved and missing restrictions. Confirmation applies
+the saved geometry to the active floor by identifier. Recovery requires
+the same floor boundary and supported restriction types in both versions.
+
+Choose **Restore furniture** to preview moved or missing objects and the
+saved routines that reference them. For example, restore the position and
+angle of a chair moved in the editor while keeping a table added after the
+backup. Recovery restores the saved object IDs, types, and sources on the
+same floor. The preview identifies objects Roomba detected and objects
+added by a user.
+
 For a backup captured with program destinations, choose **Recover program
-destinations** after recovering the zones. Select a routine or schedule,
+destinations** after recovering the matching zones or furniture. Select a routine or schedule,
 review the destination order and the settings for each area, and choose
 **Restore destinations**. For example, a schedule can recover the removed
 entryway at its original position with **Mop** and wetness level 2 while
 keeping a later start time and its current disabled state. The action
-requires the same zone name and outline, the same coordinate frame, and
+requires the saved zone name and outline or furniture placement, the same coordinate frame, and
 unchanged settings and order for the areas the program still contains.
 The review lists programs with missing zones, changed settings, or
 unsupported selections so you can inspect them before editing the program.
@@ -671,6 +751,13 @@ select **Weekly** with one or more days or **Once**, then choose the areas
 and their cleaning modes and preferences. The order buttons set the sequence
 for rooms and saved zones. Saving a new entry keeps it disabled until you
 choose **Enable schedule**. Select **Delete** and confirm to remove it.
+
+To schedule an existing ordered selection, open it under **Manage
+routines** and choose **Use in schedule**. The editor copies the name,
+rooms and saved zones, their order, and their individual preferences into
+a new draft. Set the time and recurrence, then choose **Save schedule**.
+The routine stays available and the new schedule starts disabled. This
+option appears for selections on the current floor with **Use listed order**.
 
 Editing only the name or cleaning settings keeps the existing start and
 enabled state. For a schedule on another saved floor, switch to that floor

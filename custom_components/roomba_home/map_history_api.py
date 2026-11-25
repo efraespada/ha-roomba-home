@@ -24,6 +24,12 @@ _FLOOR_REVIEW = {
     vol.Required("inventory_id"): _DIGEST,
     vol.Required("settings_id"): _DIGEST,
 }
+_GEOMETRY_RECOVERY = _FLOOR_REVIEW | {
+    vol.Required("entity_id"): cv.entity_id,
+    vol.Required("backup_id"): _DIGEST,
+    vol.Optional("confirmed", default=False): bool,
+    vol.Optional("review_id"): _DIGEST,
+}
 
 
 def async_register_map_history(hass):
@@ -35,7 +41,10 @@ def async_register_map_history(hass):
         modify_backup,
         restore_backup_settings,
         restore_backup_zones,
+        restore_backup_restrictions,
+        restore_backup_furniture,
         restore_backup_programs,
+        restore_backup_room_details,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -232,14 +241,7 @@ async def restore_backup_programs(hass, connection, message):
 
 
 @websocket_api.websocket_command(
-    {
-        vol.Required("type"): "roomba_home/restore_map_backup_zones",
-        vol.Required("entity_id"): cv.entity_id,
-        vol.Required("backup_id"): _DIGEST,
-        vol.Optional("confirmed", default=False): bool,
-        vol.Optional("review_id"): _DIGEST,
-    }
-    | _FLOOR_REVIEW
+    {vol.Required("type"): "roomba_home/restore_map_backup_zones"} | _GEOMETRY_RECOVERY
 )
 @websocket_api.async_response
 async def restore_backup_zones(hass, connection, message):
@@ -258,6 +260,89 @@ async def restore_backup_zones(hass, connection, message):
             message["inventory_id"],
             message["settings_id"],
             confirmed=message["confirmed"],
+            review_id=message.get("review_id"),
+        )
+
+    await _handle(hass, connection, message, POLICY_CONTROL, restore)
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "roomba_home/restore_map_backup_restrictions"} | _GEOMETRY_RECOVERY
+)
+@websocket_api.async_response
+async def restore_backup_restrictions(hass, connection, message):
+    async def restore(_history, robot_id):
+        account = _active_account(
+            hass,
+            message["entity_id"],
+            robot_id,
+            "Load this Roomba and its current floor to restore restrictions.",
+        )
+        return await account.async_restore_map_restrictions(
+            robot_id,
+            message["backup_id"],
+            message["map_id"],
+            message["version"],
+            message["inventory_id"],
+            message["settings_id"],
+            confirmed=message["confirmed"],
+            review_id=message.get("review_id"),
+        )
+
+    await _handle(hass, connection, message, POLICY_CONTROL, restore)
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "roomba_home/restore_map_backup_furniture"} | _GEOMETRY_RECOVERY
+)
+@websocket_api.async_response
+async def restore_backup_furniture(hass, connection, message):
+    async def restore(_history, robot_id):
+        account = _active_account(
+            hass,
+            message["entity_id"],
+            robot_id,
+            "Load this Roomba and its current floor to restore furniture.",
+        )
+        return await account.async_restore_map_furniture(
+            robot_id,
+            message["backup_id"],
+            message["map_id"],
+            message["version"],
+            message["inventory_id"],
+            message["settings_id"],
+            confirmed=message["confirmed"],
+            review_id=message.get("review_id"),
+        )
+
+    await _handle(hass, connection, message, POLICY_CONTROL, restore)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "roomba_home/restore_map_backup_room_details",
+        vol.Optional("room_id"): IDENTIFIER,
+    }
+    | _GEOMETRY_RECOVERY
+)
+@websocket_api.async_response
+async def restore_backup_room_details(hass, connection, message):
+    async def restore(_history, robot_id):
+        account = _active_account(
+            hass,
+            message["entity_id"],
+            robot_id,
+            "Load this Roomba and its current floor to restore room names and types.",
+        )
+        return await account.async_restore_map_room_details(
+            robot_id,
+            message["backup_id"],
+            message["map_id"],
+            message["version"],
+            message["inventory_id"],
+            message["settings_id"],
+            confirmed=message["confirmed"],
+            room_id=message.get("room_id"),
             review_id=message.get("review_id"),
         )
 

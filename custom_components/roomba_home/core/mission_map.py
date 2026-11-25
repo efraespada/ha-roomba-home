@@ -1,5 +1,8 @@
 """Read-only geometry from the exact map archive referenced by a cleaning report."""
 
+from dataclasses import replace
+
+from .furniture_targets import furniture_regions
 from .maps import PersistentMap
 from .point_maps import (
     _coordinates,
@@ -44,13 +47,18 @@ def read_mission_map(data: bytes, map_id: str, version_id: str) -> tuple[Persist
     docs = _map_documents(data, map_id, version_id, MISSION_LAYERS)
     floor = PersistentMap(map_id, version_id, None, ())
     plan = _floor_plan_documents(docs, floor)
-    return with_archive_destinations(floor, plan), {
+    floor = with_archive_destinations(floor, plan)
+    return replace(floor, regions=(*floor.regions, *furniture_regions(plan))), {
         "rooms": [{"name": room.name, "polygons": room.polygons} for room in plan.rooms],
         "borders": _display_features(docs, "borders", _polygons),
         "walls": [{"kind": kind, "points": points} for kind, points in plan.walls],
         "furniture": [{"kind": item.kind, "points": item.points} for item in plan.furniture or ()],
         "carpets": plan.carpets,
         "docks": plan.docks,
+        "saved_zones": _display_features(docs, "cleanZones", _polygons),
+        "keep_out": plan.keep_out,
+        "no_mop": plan.no_mop,
+        "virtual_walls": plan.virtual_walls,
         "hazards": _display_features(docs, "hazard", _dock_points),
         "temporary_zones": _display_features(docs, "adHocCleanZones", _polygons),
         "coverage": _display_features(docs, "coverage", _coverage),

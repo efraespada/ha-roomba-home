@@ -161,3 +161,68 @@ def test_correlated_room_uses_the_command_revision_only_on_the_same_map():
     mixed = present_mission_plan(target, (robot_revision,), (foreign,), None, (FLOOR,))
     assert mixed["completed"] == 1
     assert mixed["destinations"][0]["name"] == "Cocina"
+
+
+def test_destination_distinguishes_requested_preferences_from_reported_pass_counts():
+    params = {
+        "operatingMode": 6,
+        "suctionLevel": 1,
+        "padWetness": {"padPlate": 2},
+        "twoPass": True,
+        "swScrub": 0,
+        "carpetBoost": False,
+    }
+    command = COMMAND | {"regions": [ROOM | {"params": params}, ZONE]}
+    plan = mission_plan(command)
+    first_pass = AreaResult((*SCOPE, "room-a"), NOW, 1, 4, 10, 1)
+    live = replace(first_pass, status=None, pass_count=0)
+    expected = {
+        "kind": "room",
+        "name": "Cocina",
+        "mode": "vacuum_mop",
+        "requested_settings": {
+            "suction_level": 1,
+            "wetness_level": 2,
+            "two_pass": True,
+            "smart_scrub": False,
+            "carpet_boost": False,
+        },
+    }
+    more_passes = present_mission_plan(plan, (first_pass,), (), None, (FLOOR,))
+    assert more_passes["destinations"][0] == expected | {
+        "status": "finished_with_more_passes",
+        "reported_pass_count": 1,
+    }
+    assert more_passes["completed"] == 0
+    running = present_mission_plan(plan, (first_pass,), (live,), None, (FLOOR,))
+    assert running["destinations"][0] == expected | {
+        "status": "in_progress",
+        "reported_pass_count": 0,
+    }
+    assert "requested_settings" not in running["destinations"][1]
+    assert "reported_pass_count" not in running["destinations"][1]
+
+
+def test_null_native_preference_groups_keep_the_other_group():
+    local = ROOM | {"params": {"operatingMode": 2, "suctionLevel": 2, "twoPass": False}}
+    native = mission_plan(COMMAND | {"params": None, "regions": [local]})
+    row = present_mission_plan(native, (), (), None, (FLOOR,))["destinations"][0]
+    assert row["requested_settings"] == {"suction_level": 2, "two_pass": False}
+
+    shared = mission_plan(
+        COMMAND | {"params": local["params"], "regions": [ROOM | {"params": None}]}
+    )
+    assert shared == native
+
+
+def test_archived_temporary_destination_matches_only_its_own_floor():
+    plan = mission_plan(COMMAND | {"regions": [TEMPORARY]})
+    result = AreaResult(
+        (SCOPE[0], "device-revision", "polygon-b"), NOW, 0, 4, 4, 1, "temporary_zone"
+    )
+    foreign = replace(result, identity=("other-map", "device-revision", "polygon-b"), status=7)
+    archive = present_mission_plan(plan, (result, foreign), (), None, (), archived=True)
+    assert archive["completed"] == 1
+    assert archive["destinations"] == [
+        {"kind": "temporary_zone", "name": None, "status": "finished", "reported_pass_count": 1}
+    ]

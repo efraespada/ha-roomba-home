@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "catalog": {
+    "tested_types": 18,
+    "type_source_heading_and_corners_confirmed": true,
+    "unlearned_identifier_ignored_with_robot_source": true,
+    "original_furniture_preserved": true
+  },
+  "recovery": {
+    "moved_user_object": true,
+    "removed_detected_object": true,
+    "linked_routines_in_review": 1,
+    "automatic_pre_restore_backup": true,
+    "confirmed_native_geometry_writes": 1,
+    "placements_identifiers_and_sources_restored": true,
+    "retained_newer_furniture": true,
+    "approximate_heading_rounding_degrees": 0.011,
+    "corner_delta_in_rounding_probe": 0
+  },
+  "routine": {
+    "destinations_before_deletion": 3,
+    "destinations_after_deletion": 2,
+    "recovery_waited_for_matching_furniture": true,
+    "separate_recovery_confirmation": true,
+    "original_routine_id_and_destinations_restored": true,
+    "order_profiles_and_native_polygons_match": true
+  },
+  "cleanup": {
+    "original_map_restored": true,
+    "original_routines_restored": true,
+    "movement_commands_sent": 0
+  }
+}

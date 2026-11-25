@@ -31,7 +31,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
 ## Features
 
 - **Robot and dock controls.** Start, pause, resume, cancel, or return to the
-  dock. Select vacuuming, mopping, simultaneous cleaning, or sequential
+  dock. Returning from active cleaning pauses the Max 700 Combo first.
+  Select vacuuming, mopping, simultaneous cleaning, or sequential
   vacuuming and mopping where available. Supported models expose suction,
   mop wetness, SmartScrub, passes, carpet boost, and manual dock actions.
   Skip the current destination when Roomba reports a supported mission.
@@ -40,10 +41,11 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   frequency, automatic solution dispensing, and drying duration.
   [Robot settings](docs/usage.md#robot-settings) · [Dock settings](docs/usage.md#dock-settings)
 - **Room and zone cleaning.** Select regions and review the robot and
-  destinations before sending a command. The map supports zoom and shows
+  destinations before sending a command. **Clean everywhere** starts a new
+  run across the robot's reachable area after confirmation. Zoom in to see
   keep-out areas, no-mop areas, virtual walls, detected carpet, dock locations,
-  and the observed route. Supported maps also have a rotatable 3D view. The integration
-  also exposes actions for selecting regions, estimating planned duration,
+  and the observed route. Supported maps also have a rotatable 3D view.
+  The integration exposes actions for selecting regions, estimating planned duration,
   and vacuuming a verified point within a room. Supported robots can vacuum
   and then mop a selected destination in the same mission.
 - **Saved floors.** Start a mapping-only run and see when it is active or
@@ -66,7 +68,11 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   with separate filters for both activities.
   **Temporary obstacles** marks detections reported during the current run.
   Browse recorded cleaning reports with the mission's own coverage, route,
-  timeline, and 3D floor plan. [Cleaning history](docs/usage.md#cleaning-history)
+  timeline, and 3D floor plan. Hide travel, cleaning paths, or coverage
+  independently and see zones and restrictions saved in the archived map.
+  Directed reports include the requested order, preferences, and reported
+  outcome for each destination.
+  [Cleaning history](docs/usage.md#cleaning-history)
 - **Room cleaning scores.** View Roomba's reported score, mission timestamps,
   and suggested settings for each matched room on the active floor.
   [Room cleaning scores](docs/usage.md#room-cleaning-scores)
@@ -113,7 +119,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.62.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.63.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Enable Advanced Mode in your user
    profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
 3. Add a manual card with your robot's vacuum entity.
@@ -144,8 +150,11 @@ reload the dashboard. Use one card per robot.
   Browse saved revisions offline, pin important versions, export a backup,
   or enable automatic snapshots before map edits and removal. Review and
   restore the recorded name, orientation, and cleaning zones on the current
-  floor. Recover backed-up zone destinations in compatible routines and
-  schedules, including their cleaning order and per-area settings.
+  floor. Recover room names and types for rooms with matching boundaries.
+  Recover keep-out and no-mop zones, virtual walls, and furniture
+  placements from a backup. Recover missing furniture and zone destinations
+  in compatible routines or schedules, including their cleaning order and
+  per-area settings.
   [Map backups](docs/usage.md#local-map-backups)
 - **Edit rooms** divides a room, merges two adjacent rooms, and edits room
   names and types on a supported Max 700 floor plan. Choose **Divide a
@@ -158,9 +167,12 @@ reload the dashboard. Use one card per robot.
   or enter their coordinates. On supported Max 700 maps, the saved rectangle
   becomes selectable once Roomba confirms the active map revision.
   [Saved-zone editor validation](docs/validation.md#immediate-saved-zone-selection-in-0250)
-- **Edit restrictions** creates, moves, resizes, or removes keep-out and
-  no-mop zones. To protect a rug during mopping, choose **No-mop zone**,
-  draw a rectangle across the rug, then review and save it.
+- **Edit restrictions** creates, moves, resizes, or removes keep-out zones,
+  no-mop zones, and virtual walls. Choose **No-mop zone** and draw a
+  rectangle to protect a rug. For a barrier across a doorway, choose
+  **Virtual wall → Place wall on map**, pick its two endpoints, then review
+  and save. You can also enter the coordinates with the keyboard.
+  [Restriction editor](docs/usage.md#edit-map-restrictions)
 - **Show furniture** displays saved and detected objects. In **Edit
   furniture**, choose **Chair**, place its center, enter its width and
   depth, and check the rotation preview before saving.
@@ -168,6 +180,8 @@ reload the dashboard. Use one card per robot.
   before opening it to prefill a new routine. Add furniture, rooms, or zones,
   set their individual cleaning preferences, and arrange them in order.
   Choose **Run saved routine** to review and start a supported routine.
+  Choose **Use in schedule** to copy an ordered room or saved-zone
+  selection into a new schedule. [Schedules](docs/usage.md#cleaning-schedules)
 - **Review map dependencies** shows known saved routines and schedules for
   the selected areas. It flags entries with unresolved destinations.
 - **Last mission by area** shows reported outcomes, area values, and pass
@@ -176,7 +190,8 @@ reload the dashboard. Use one card per robot.
   [Physical run and installed card validation](docs/validation.md#ordered-furniture-completion-and-area-results-in-0230)
 - **Planned order** shows how many destinations Roomba has finished and
   which destination it is approaching or cleaning during a directed run.
-  An unordered run shows **Selected destinations**.
+  It displays each destination's requested settings and reported pass count
+  when Roomba supplies them. An unordered run shows **Selected destinations**.
   The card and **Estimated cleaning time remaining** sensor show an
   approximation when Roomba provides a matching estimate for each remaining
   destination.

@@ -3,7 +3,7 @@
 - Status: Implemented
 - Date: 2026-11-24
 - Catalog capability ID: saved-cleaning-routines
-- Last verified: 2026-11-25
+- Last verified: 2026-11-26
 - Owners: ha-roomba-home maintainer
 - Scope: List, create, update, remove, and run supported Roomba Home routines for one associated vacuum.
 - Related issues/PRs: Interactive map and app feature coverage.
@@ -80,6 +80,8 @@ calendar trigger and may carry an independent copy of a routine.
 - ROUTINE-13: Recover regional settings and the order preference from verified
   native multi-area favorites. Allow listed or automatic order for rooms and
   saved zones, including after editing or duplicating a favorite.
+- ROUTINE-14: Copy an ordered selection of rooms and saved zones into a
+  schedule draft, preserving the sequence and each destination's settings.
 - Saving, updating, and removing a routine leave the robot's movement state alone.
 - The supported edition 1 favorites each address one robot. Multi-robot
   favorite commands require separate protocol evidence.
@@ -97,6 +99,12 @@ Text equivalent: Select a vacuum, list its routines or choose regions, submit
 the change, and inspect the result read back from Roomba.
 
 ## 6. Functional behavior and state model
+
+**Use in schedule** copies a compatible selection on the reviewed floor
+into a new draft with no start time. The card loads the schedule list and
+keeps the routine record intact. Saving validates the current map first.
+The normal schedule action creates a disabled entry. Only listed order is
+available for copied schedules.
 
 List typed one-robot start routines and omit deleted, hidden, or unsupported
 records. Default routines are read-only. Creation validates a printable name
@@ -255,6 +263,9 @@ saved routines and scheduled cleaning independently identifiable.
     Choose a point through the suggestion, and load the current rooms through
     the clean-all suggestion. Recheck a changed draft before starting and
     verify that the start leaves the favorite inventory intact.
+12. Copy a compatible routine selection into a schedule. Verify the order,
+    profiles, and unchanged source routine. Set the timing, save, and confirm
+    the schedule is disabled.
 
 ## 17. Requirements traceability
 
@@ -272,6 +283,7 @@ saved routines and scheduled cleaning independently identifiable.
 | ROUTINE-11 | [Native quick routine projection](../custom_components/roomba_home/core/quick_routines.py) | [Projection tests](../tests/test_quick_routines.py), [action tests](../tests/ha/test_roomba_map_api.py), and [Android trial](../docs/validation.md#recent-and-suggested-routines) |
 | ROUTINE-12 | [Signed room recommendations](../docs/validation.md#smart-routine-recommendations) | [Projection tests](../tests/test_routine_presets.py), [authenticated score tests](../tests/ha/test_roomba_map_api.py), and [draft tests](../tests/frontend/map-card.test.cjs) |
 | ROUTINE-13 | [Native favorite formats](../docs/api.md#saved-cleaning-routines) | [Parser tests](../tests/test_api_client.py), [Home Assistant actions](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed favorite trial](../docs/validation.md#native-multi-area-favorites) |
+| ROUTINE-14 | [Schedule editor](../docs/usage.md#cleaning-schedules) | [Card tests](../tests/frontend/map-card.test.cjs) and [signed copy trial](../docs/validation.md#copying-a-routine-into-a-schedule) |
 
 ## 18. Implementation sequence
 

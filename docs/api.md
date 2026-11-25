@@ -166,7 +166,7 @@ control permission for the selected robot.
 Home Assistant writes private, atomic storage and checks the saved result
 before confirming a capture. The stored data contains the native binary
 archive, selected floor metadata, and editable selections of programs that
-target a recorded native cleaning zone. Account sessions and signed download
+target a recorded native cleaning zone or supported furniture object. Account sessions and signed download
 URLs stay outside that storage. [Backup validation](validation.md#local-map-backups)
 
 `roomba_home/restore_map_backup_settings` accepts `backup_id` and the active
@@ -178,6 +178,16 @@ single `POST /v1/p2maps/{id}/settings`. A signed inventory read confirms the
 new settings and the same active geometry revision and destination inventory.
 This command requires control permission for both review and confirmation.
 [Restoration validation](validation.md#restoring-backed-up-floor-settings)
+
+`roomba_home/restore_map_backup_room_details` accepts the same backup and
+active floor review fields. It returns a `rooms` list with the previous and
+proposed `name` and `room_type`, an `id`, and a `status` for each affected
+room. A room with `status: ready` has a matching identifier and footprint
+and a `review_id`. Confirm with `confirmed: true`, `room_id`, and that
+`review_id`. Home Assistant rechecks the floor after any automatic backup,
+sends one `set_room_metadata` request, and verifies the room and unchanged
+geometry. Missing rooms, changed boundaries, and unsupported saved details
+are reported during review. [Room recovery validation](validation.md#recovering-room-names-and-types)
 
 `roomba_home/restore_map_backup_zones` accepts the same backup and active
 floor review fields. It checks the saved boundary against the active
@@ -192,13 +202,39 @@ outlines. The confirmation verifies the returned geometry and active
 revision. The restore uses the existing backup retention and permission
 policies. [Zone recovery validation](validation.md#recovering-cleaning-zones)
 
+`roomba_home/restore_map_backup_restrictions` accepts the same backup and
+active floor review fields. It returns a `changes` list with each restored
+restriction's `id`, `kind`, and whether it is `missing`, plus a `review_id`.
+Confirmation requires `confirmed: true` and the matching `review_id`.
+Home Assistant verifies that both policy layers can round-trip, that the
+floor boundary matches, and that the restored shapes still overlap a
+visible room. A different restriction type using a saved identifier stops
+the write. A single `set_virtual_wall` request reapplies the saved shapes
+and retains newer entries by identifier. The returned archive and active
+revision confirm the complete policy layer.
+[Restriction recovery validation](validation.md#recovering-map-restrictions)
+
+`roomba_home/restore_map_backup_furniture` accepts the same backup and
+active floor review fields. The preview returns `changes` with the saved
+object `id`, `kind`, display `name`, `source`, and whether it is `missing`.
+It also returns `dependencies` with linked saved routines and their
+`objects`, any `unchecked` program sources, and a `review_id`. Confirm with
+`confirmed: true` and that `review_id`. The review covers the active
+revision and object placements. The provider's upload timestamp is generated
+when saving. Recovery requires a matching floor boundary, a round-trippable
+catalog in both versions, and compatible IDs. One `adjust_furniture` request
+keeps later objects and verifies the full layer's IDs, types, sources,
+angles, and native outlines in the new active revision. Roomba can recalculate
+derived cleaning areas around the restored objects.
+[Furniture recovery validation](validation.md#recovering-furniture-placements)
+
 `roomba_home/restore_map_backup_programs` accepts the same backup and active
 floor review fields and requires control permission. Preview returns
 `programs` with a `status` for each saved program and the `unchecked` source
 types from capture. An eligible program has `status: ready`, `destinations`
 with their saved order and preferences, and an individual `review_id`.
 Confirm with `confirmed: true`, `kind`, `program_id`, and that `review_id`.
-The active and saved zone outlines must match. The program must still exist,
+The active and saved zone outlines or furniture placements must match. The program must still exist,
 with the same settings and relative order for its surviving destinations.
 Revalidate the map and freshly read the program before sending a single
 selection update to Roomba. The program keeps its current name and, for
@@ -320,8 +356,10 @@ The response archive must identify the same map and revision. Its
 `trajectories` layer contains indexed line segments and `coverage` contains
 polygons. Both carry `operatingModes`, including observed travel, vacuum,
 mop, and combinations. The report can also contain rooms, furniture,
-carpet, an ad hoc zone, a dock, and obstacle points. Trajectory segments
-keep their own boundaries even when their indexes are consecutive.
+carpet, an ad hoc zone, a dock, and obstacle points. The optional map
+layers `saved_zones`, `keep_out`, `no_mop`, and `virtual_walls` carry the
+geometry from that same archived revision. Trajectory segments keep
+their own boundaries even when their indexes are consecutive.
 
 Home Assistant's authenticated `roomba_home/mission_history` request
 accepts `entity_id`. Supplying a report's `report_id` and optional numeric
@@ -331,6 +369,20 @@ reported durations. An unavailable archive leaves the recorded numerical
 results accessible. Account credentials, raw IDs, commands, and URLs stay
 out of the dashboard response. Access requires permission to read the
 vacuum entity and the integration's map option. [ClearView map history](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
+
+For a directed start, `plan` preserves the validated destination sequence,
+whether Roomba committed to that order, explicit regional preferences, and
+the final per-destination outcomes. A destination with no matched final
+event has status `unreported`. The report's overall outcome is independent
+of the destination outcomes. A room or temporary target can report the
+robot's internal revision on the same floor during that mission.
+
+Names come from the selected signed mission archive. If it is readable and
+missing a destination's name, one optional read of the original requested
+revision on that floor can recover the name. The optional revision never
+changes the geometry drawn for the report. Both the plan and metrics remain
+readable when the archive is missing. The response omits native area and
+map identifiers.
 
 ### Floor plan display layers
 
@@ -402,7 +454,12 @@ version and regions verified at today's reading.
 
 The cycle ended at the dock with no misstatement. The normalised sequence is at [public evidence without identities](evidence/2026-11-23-control.json). The start and final status were also contrasted with an emulator's app.
 
-`MqttCommandSender` returns a transport receipt that `physical_result` It's `unconfirmed`: A PUBACK does not show performance. Coordinator HA adds status check. Canceling and returning to the dock are separate operations. The initial cycle did not validate a sum, fringes and zones or all the contexts of each order. Consultation [the command SDD](../specs/004-command-validation.md).
+`MqttCommandSender` returns a transport receipt with
+`physical_result=unconfirmed`. The Home Assistant coordinator checks the
+reported state. On the Max 700 Combo, a return from active cleaning sends
+`pause` and waits for the same mission to pause before publishing `dock`.
+It confirms arrival at `charge / none`. Each command is published once.
+[Command SDD](../specs/004-command-validation.md)
 
 ### Extension of 0.3.0
 
@@ -734,6 +791,13 @@ check. Roomba accepted `diningRoom` and `livingRoom` as type values.
 In a separate write, `dining_room` returned a room classified as
 `livingRoom`.
 
+Map edits can also return a JSON acknowledgement with `p2mapv_id` and the
+associated `p2map_metadata.p2map_id`. The integration waits for that revision
+in the signed active map list and reads its archive on the standard
+geometry route. Acknowledgement, the active revision, and verified archive
+content are checked before the edit is reported as successful.
+[Revision acknowledgement validation](validation.md#recovering-room-names-and-types)
+
 ### Floor name and orientation
 
 The Android app saves a floor name or orientation using
@@ -807,12 +871,19 @@ returned archive. The integration accepts the same outline within
 0.0001 native map units and verifies other parsed map geometry, the active
 revision, the restriction IDs, and their types.
 
-Roomba also represents an existing linear virtual wall as a `KeepOutZone`
-line. The Android SDK encodes it as kind `2` with endpoint pairs repeated
-in reverse order. The editor preserves these lines during a replacement
-write. A policy layer with an unknown shape or additional properties is
+Roomba represents a linear virtual wall as a `KeepOutZone` line. A signed
+Max 700 trial verified kind `2` with native vertices `[A, A, B, B]`, where
+`A` and `B` are the two coordinate pairs. The provider retains the first
+and last vertices as endpoints. The `roomba_home/edit_restrictions`
+WebSocket accepts `kind: "wall"` on creation. Its `bounds` array is the
+ordered `[x1, y1, x2, y2]` of the new endpoints for either creation or
+update. The segment must have distinct endpoints and pass inside a visible
+room. Move and delete operations address the existing `zone_id`, and a
+move retains the same type and ID. Each write preserves the other policy
+shapes. A policy layer with an unknown shape or additional properties is
 read-only because a replacement write could discard information.
 [Restriction validation](validation.md#restriction-editor-validation-in-0190)
+[Virtual wall validation](validation.md#editing-virtual-walls)
 
 ### Furniture edits
 
@@ -841,8 +912,10 @@ The Home Assistant card sends the selected object and placement intent.
 The integration reloads the active revision, builds the entire
 replacement, and checks the returned object identifier, type, source,
 rotation, and corners. Untouched objects must retain their original
-IDs, types, sources, orientations, and outlines. Roomba can recalculate
-their derived cleaning outlines when nearby furniture changes. A map
+IDs, types, sources, orientations, and outlines. The provider can round the
+reported orientation independently of the vertices. The read-back accepts
+differences up to 0.02 degrees and 0.0001 native units at the corners.
+Roomba can recalculate their derived cleaning outlines when nearby furniture changes. A map
 containing an unrecognized object type disables writes.
 
 [Furniture edit evidence](evidence/2026-11-25-map-furniture.json)
@@ -981,6 +1054,13 @@ counts as finished. A destination being revisited stays in progress
 until the latest pass finishes. Names are resolved from the associated
 revision and the public plan omits provider identifiers.
 
+`requested_settings` contains recognized `suction_level`, `wetness_level`,
+`two_pass`, `smart_scrub`, and `carpet_boost` values from the matched
+command. A regional value takes precedence over a shared value. A null
+parameter group contributes no preferences. Omitted preferences remain
+omitted in the public plan. `reported_pass_count` preserves a current or
+finished `passCount` event, including zero.
+
 A physical room-only vacuuming run reported `cleanMissionStatus.sqft`
 increasing from 0 to 21 during cleaning. Replays of the two-furniture
 timeline advanced from one confirmed destination to two. The observed
@@ -1089,6 +1169,14 @@ floor review. It resolves areas using the active archive and sends the
 usual reviewed cleaning command. The provider favorite inventory is
 independent of this start.
 [Quick routine validation](validation.md#recent-and-suggested-routines)
+
+`roomba_home.clean_everywhere` uses the native untargeted `start` command
+with the current next-cleaning profile. It sends no map identifier,
+revision, or destination list. The service requires `confirmed: true` and
+reads the robot's state before sending. A paused, active, or unavailable
+robot cannot start a new mission through this action. The floor-plan
+WebSocket supplies `can_clean_everywhere` for the card affordance.
+[Scope validation](validation.md#whole-area-and-directed-cleaning-scope)
 
 ## Primary sources
 

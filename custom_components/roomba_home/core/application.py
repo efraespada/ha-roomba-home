@@ -60,6 +60,7 @@ class ControlState:
     skip_observation: SkipObservation | None = None
     mapping_supported: bool = False
     mapping: bool = False
+    pause_before_return: bool = False
 
 
 def _skip_error(state: ControlState) -> str | None:
@@ -311,6 +312,30 @@ class ControlPort(Protocol):
     def clock(self) -> float: ...
 
 
+async def _pause_for_return(
+    port: ControlPort, before: ControlState, plan: ControlPlan
+) -> ControlState:
+    if before.mission_identity is None:
+        raise ControlError("command_unconfirmed")
+    pause = ControlPlan(Command.PAUSE)
+    await port.send(pause.command, None)
+    deadline = port.clock() + 40
+    while port.active and port.clock() < deadline:
+        await port.wait(5)
+        state = await port.refresh()
+        if state.connected is not True:
+            break
+        if plan.confirms(state) or state.activity == "returning":
+            return state
+        if state.mission_identity != before.mission_identity:
+            break
+        if pause.confirms(state) and state.docking is True:
+            return state
+        if state.activity != "cleaning":
+            break
+    raise ControlError("command_unconfirmed")
+
+
 async def execute_control(
     port: ControlPort,
     command: Command,
@@ -320,7 +345,7 @@ async def execute_control(
     area_profiles: tuple[CleaningProfile, ...] = (),
     reviewed_skip: SkipReview | None = None,
 ) -> None:
-    """Read, validate, send once, then confirm; transport ACK is insufficient."""
+    """Validate each command step and confirm the result with robot state."""
     if not port.active:
         raise ControlError("not_configured")
     try:
@@ -348,7 +373,24 @@ async def execute_control(
     try:
         if not port.active:
             raise ControlError("command_unconfirmed")
-        await port.send(plan.command, plan.profile)
+        if (
+            plan.command is Command.DOCK
+            and before.pause_before_return
+            and before.activity == "cleaning"
+            and before.mission_active is True
+            and not before.preparing_mop
+            and not before.mapping
+        ):
+            state = await _pause_for_return(port, before, plan)
+            if not port.active:
+                raise ControlError("command_unconfirmed")
+            if plan.confirms(state):
+                port.report("confirmed")
+                return
+            if state.activity == "paused":
+                await port.send(plan.command, plan.profile)
+        else:
+            await port.send(plan.command, plan.profile)
         if plan.command is Command.LOCATE:
             port.report("submitted")
             return

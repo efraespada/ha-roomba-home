@@ -1,12 +1,12 @@
-"""Project the destinations and outcomes declared by a live mission timeline."""
+"""Project the destinations and outcomes declared by a mission command."""
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from .cleaning import CleaningMode, CleaningProfile
 from .cleaning_protocol import parse_regional_profile, requested_region_mode
 from .furniture_targets import furniture_links
-from .history import ROOM_STATUSES, AreaResult, command_region_kind
 from .maps import PersistentMap, RegionKind, map_identifier
+from .mission_areas import ROOM_STATUSES, AreaResult, command_region_kind
 from .telemetry import at
 
 DESTINATION_KINDS = {
@@ -46,7 +46,9 @@ def mission_plan(command: object) -> MissionPlan | None:
         return None
     destinations = []
     links = furniture_links(command.get("id_multipolys"))
-    common = command.get("params", {})
+    common = command.get("params")
+    if common is None:
+        common = {}
     for region in regions:
         if (
             not isinstance(region, dict)
@@ -62,7 +64,9 @@ def mission_plan(command: object) -> MissionPlan | None:
             )
         else:
             area_kind = DESTINATION_KINDS[RegionKind(kind)]
-        local = region.get("params", {})
+        local = region.get("params")
+        if local is None:
+            local = {}
         params = common | local if isinstance(common, dict) and isinstance(local, dict) else {}
         mode = requested_region_mode(params.get("operatingMode")) or requested_region_mode(
             at(region, "params.operatingMode")
@@ -83,31 +87,44 @@ def present_mission_plan(
     active: tuple[AreaResult, ...],
     travelling: AreaResult | None,
     maps: tuple[PersistentMap, ...],
+    *,
+    archived: bool = False,
 ) -> dict:
+    """Historical callers supply only map revisions linked to the archived mission."""
     names = {
         (DESTINATION_KINDS[region.kind], (*plan.scope, region.region_id)): region.name
         for floor in maps
-        if (floor.map_id, floor.version_id) == plan.scope
+        if floor.map_id == plan.scope[0] and (archived or floor.version_id == plan.scope[1])
         for region in floor.regions
+        if region.name is not None
     }
     results = {_destination_key(plan, area): area for area in final}
-    current = {_destination_key(plan, area) for area in active}
+    current = {_destination_key(plan, area): area for area in active}
     en_route = _destination_key(plan, travelling) if travelling is not None else None
+    missing = "unreported" if archived else "pending"
     destinations = []
     for destination in plan.destinations:
         key = destination.kind, destination.identity
+        result = current.get(key, results.get(key))
         if key in current:
             status = "in_progress"
         elif key == en_route:
             status = "traveling"
         else:
-            result = results.get(key)
-            status = (
-                ROOM_STATUSES.get(result.status, "unknown") if result is not None else "pending"
-            )
+            status = ROOM_STATUSES.get(result.status, "unknown") if result is not None else missing
         row = {"kind": destination.kind, "name": names.get(key), "status": status}
         if destination.mode is not None:
             row["mode"] = destination.mode.value
+        if destination.profile is not None:
+            settings = {
+                name: value
+                for name, value in asdict(destination.profile).items()
+                if name != "mode" and value is not None
+            }
+            if settings:
+                row["requested_settings"] = settings
+        if result is not None and result.pass_count is not None:
+            row["reported_pass_count"] = result.pass_count
         destinations.append(row)
     return {
         "ordered": plan.ordered,
@@ -119,8 +136,7 @@ def present_mission_plan(
 
 def _destination_key(plan: MissionPlan, area: AreaResult) -> tuple[str, tuple[str, str, str]]:
     map_id, revision, region = area.identity
-    # A matched timeline uses the robot's internal revision for room events.
-    # A declared room ID on the same map belongs to the command's user revision.
-    if area.kind == "room" and map_id == plan.scope[0]:
+    # A matched timeline can use the robot's internal revision for these events.
+    if area.kind in {"room", "temporary_zone"} and map_id == plan.scope[0]:
         revision = plan.scope[1]
     return area.kind, (map_id, revision, region)

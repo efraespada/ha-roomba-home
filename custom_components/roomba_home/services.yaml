@@ -34,6 +34,16 @@ start_mapping:
       required: true
       selector:
         boolean:
+clean_everywhere:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    confirmed:
+      required: true
+      selector:
+        boolean:
 reset_maintenance_counter:
   target:
     entity:
