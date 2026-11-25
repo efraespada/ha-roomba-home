@@ -1,5 +1,23 @@
 # Roomba Home validation
 
+## Historical map layers
+
+The integration opened 21 signed reports for the Max 700 Combo using each
+mission's own floor revision. Three included a saved cleaning zone. The
+21 reports had no policy shapes. A separate signed read of an earlier map
+edit revision from the same robot returned a keep-out area, a no-mop area,
+and a virtual wall. The historical projection matched all three against
+the private local snapshot. All calls were reads.
+
+An isolated Chrome run used a real archived report with a saved zone and
+verified the cleaning path, travel path, and coverage controls at 358
+and 900 pixels. Hiding a path kept the final recorded position and zone
+visible. The 3D view and camera controls kept the filters. The authenticated
+Home Assistant regression test checks that a zone and wall come from the
+report revision. The full suite passed 2,463 Python tests with 100% line
+and branch coverage and 55 card tests.
+[Anonymized layer evidence](evidence/2026-11-25-historical-map-layers.json)
+
 ## Editing virtual walls
 
 On a docked Max 700 Combo, the coordinator created a horizontal wall,

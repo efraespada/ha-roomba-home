@@ -30,6 +30,7 @@ const SETTINGS = {
 };
 const PRESET_LABELS = { light: "Light", normal: "Normal", deep: "Deep", smart: "Smart recommendations" };
 const RESTRICTION_TYPES = { keep_out: "Keep-out zone", no_mop: "No-mop zone", wall: "Virtual wall" };
+const HISTORY_PATH_LAYERS = ["cleaning", "travel", "unclassified"];
 const PROGRAM_RECOVERY_STATUS = {
   missing_program: "Program deleted",
   unsupported_selection: "Current selection cannot be edited",
@@ -355,6 +356,12 @@ template.innerHTML = `
             <button id="history-reset">Reset map view</button>
             <button id="history-3d" aria-pressed="false" hidden>3D view</button>
             <button id="history-orbit" aria-label="Rotate recorded map" hidden>⟳</button>
+          </div>
+          <div class="legend muted" role="group" aria-label="Recorded map layers">
+            <label hidden><input id="history-cleaning" type="checkbox" checked> Cleaning path</label>
+            <label hidden><input id="history-travel" type="checkbox" checked> Travel path</label>
+            <label hidden><input id="history-unclassified" type="checkbox" checked> Unclassified path</label>
+            <label hidden><input id="history-coverage" type="checkbox" checked> Coverage</label>
           </div>
           <p class="legend muted" id="history-map-legend"></p>
         </section>
@@ -692,7 +699,7 @@ function renderMapLegend(element, entries) {
   }));
 }
 
-function drawMissionMap(canvas, geometry, view) {
+function drawMissionMap(canvas, geometry, view, layers = geometry) {
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#101e2a";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -717,7 +724,7 @@ function drawMissionMap(canvas, geometry, view) {
   area(geometry.saved_zones ?? [], "#22504560", "#5bd4b0");
   area(geometry.keep_out ?? [], "#862f555c", "#ff7893");
   area(geometry.no_mop ?? [], "#62452456", "#e8ab6a");
-  for (const item of geometry.coverage) {
+  for (const item of layers.coverage) {
     const color = ROUTE_COLORS[historyMode(item.modes)] ?? "#74889b";
     area(item.polygons, `${color}44`);
   }
@@ -732,7 +739,7 @@ function drawMissionMap(canvas, geometry, view) {
     for (const point of wall.slice(1)) ctx.lineTo(...project(point));
     ctx.stroke();
   }
-  for (const item of geometry.trajectories) {
+  for (const item of layers.trajectories) {
     ctx.strokeStyle = ROUTE_COLORS[historyMode(item.modes)] ?? "#b7c3cd";
     ctx.beginPath();
     ctx.moveTo(...project(item.points[0]));
@@ -839,6 +846,9 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("history-zoom-in").onclick = () => this.changeHistoryView(1.25);
     this.$("history-zoom-out").onclick = () => this.changeHistoryView(0.8);
     this.$("history-reset").onclick = () => this.resetHistoryView();
+    for (const layer of [...HISTORY_PATH_LAYERS, "coverage"]) {
+      this.$(`history-${layer}`).onchange = () => this.drawHistoryMap();
+    }
     this.$("history-3d").onclick = () => {
       this.historyView.elevated = !this.historyView.elevated;
       this.historyView.angle = this.historyView.elevated ? Math.PI / 4 : 0;
@@ -2077,13 +2087,35 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("history-3d").hidden = !geometry.walls.length && !geometry.furniture.length;
     this.$("history-3d").setAttribute("aria-pressed", view.elevated);
     this.$("history-orbit").hidden = !view.elevated;
-    const modes = new Set([...geometry.coverage, ...geometry.trajectories].map((layer) => historyMode(layer.modes)).filter(Boolean));
-    const legend = [...modes].map((mode) => [ROUTE_LABELS[mode], ROUTE_COLORS[mode]]);
+    const shown = (layer, available) => {
+      const checkbox = this.$(`history-${layer}`);
+      checkbox.parentElement.hidden = !available;
+      return checkbox.checked;
+    };
+    const pathLayers = geometry.trajectories.map(({ modes }) => {
+      const mode = historyMode(modes);
+      return mode === "traveling" ? "travel" : mode ? "cleaning" : "unclassified";
+    });
+    const enabledPaths = HISTORY_PATH_LAYERS.filter((layer) => shown(layer, pathLayers.includes(layer)));
+    const trajectories = geometry.trajectories.filter((_, index) => enabledPaths.includes(pathLayers[index]));
+    const coverage = shown("coverage", geometry.coverage.length) ? geometry.coverage : [];
+    const modes = new Set([...coverage, ...trajectories].map((layer) => historyMode(layer.modes)).filter(Boolean));
+    const travelPath = enabledPaths.includes("travel");
+    const legend = [...modes].map((mode) => [
+      mode === "traveling" && !travelPath ? "Travel coverage" : ROUTE_LABELS[mode], ROUTE_COLORS[mode],
+    ]);
+    if (trajectories.some(({ modes }) => !historyMode(modes))) legend.push(["Unclassified path", "#b7c3cd"]);
+    if (geometry.saved_zones?.length) legend.push(["Cleaning zone", "#5bd4b0"]);
+    if (geometry.keep_out?.length || geometry.virtual_walls?.length) legend.push(["Keep-out area or wall", "#ff7893"]);
+    if (geometry.no_mop?.length) legend.push(["No-mop area", "#e8ab6a"]);
     if (geometry.docks.length) legend.push(["Dock", "#f0c674"]);
     if (geometry.hazards.length) legend.push(["Obstacle", "#ff8080"]);
     if (geometry.trajectories.length) legend.push(["End of recorded path", "#eaf3f9"]);
     renderMapLegend(this.$("history-map-legend"), legend);
-    drawMissionMap(this.$("history-map"), geometry, view);
+    const canvas = this.$("history-map");
+    const ctx = canvas.getContext("2d");
+    drawMissionMap(canvas, geometry, { ...view, label: (...args) => this.drawLabel.call({ ctx }, ...args) },
+      { coverage, trajectories });
   }
 
   resetHistoryView() {

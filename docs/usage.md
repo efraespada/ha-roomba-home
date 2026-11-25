@@ -182,7 +182,12 @@ timeline. The list includes recent cleaning records with missing maps, so
 the count can exceed the map-backed history displayed in Roomba Home.
 
 Use the map view to zoom and pan the original report. The legend identifies
-travel, vacuuming, mopping, and simultaneous cleaning. Turn on **3D view**
+travel, vacuuming, mopping, and simultaneous cleaning. Use **Travel path**,
+**Cleaning path**, and **Coverage** to show or hide the layers present in
+the report. If the report includes travel coverage, it stays visible until
+you turn off **Coverage**. The final recorded position stays visible. The
+card shows room names, saved cleaning zones, and restrictions from the archived revision
+when Roomba includes them. Turn on **3D view**
 when the archive provides walls or furniture, and use the rotate button to
 inspect it from another angle. The archive is scoped to the mission's
 original revision. A report can still show its measurements and timeline

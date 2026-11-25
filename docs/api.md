@@ -356,8 +356,10 @@ The response archive must identify the same map and revision. Its
 `trajectories` layer contains indexed line segments and `coverage` contains
 polygons. Both carry `operatingModes`, including observed travel, vacuum,
 mop, and combinations. The report can also contain rooms, furniture,
-carpet, an ad hoc zone, a dock, and obstacle points. Trajectory segments
-keep their own boundaries even when their indexes are consecutive.
+carpet, an ad hoc zone, a dock, and obstacle points. The optional map
+layers `saved_zones`, `keep_out`, `no_mop`, and `virtual_walls` carry the
+geometry from that same archived revision. Trajectory segments keep
+their own boundaries even when their indexes are consecutive.
 
 Home Assistant's authenticated `roomba_home/mission_history` request
 accepts `entity_id`. Supplying a report's `report_id` and optional numeric

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Show saved cleaning zones and restrictions from each mission's archived
+  floor revision. Toggle travel, cleaning paths, and coverage independently.
 - Create, move, and remove virtual walls from the floor plan card. Set their
   two endpoints on the map or with the keyboard.
 - Recover a saved room name and type on the same active room after reviewing

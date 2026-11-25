@@ -900,6 +900,54 @@ test("mission maps retain coverage and separate route segments in the rotated 3D
   assert.notDeepEqual(drawn[1][1], initial[1][1]);
 });
 
+test("historical layer controls keep archived restrictions, labels and the last position", () => {
+  const { card } = mockCard(0);
+  const geometry = historyGeometry();
+  geometry.rooms[0].name = "Área principal";
+  geometry.saved_zones = region.polygons;
+  geometry.keep_out = region.polygons;
+  geometry.no_mop = region.polygons;
+  geometry.virtual_walls = [[[2, 2], [3, 3]]];
+  geometry.coverage.push({ modes: ["traveling"], polygons: region.polygons });
+  geometry.trajectories.push({ modes: [], points: [[8, 2], [9, 2]] });
+  card.historyReport = { geometry };
+  card.historyView = { zoom: 1, pan: [0, 0], angle: 0, elevated: false };
+  const inputs = ["cleaning", "travel", "unclassified", "coverage"].map((layer) =>
+    Object.assign(card.$(`history-${layer}`), { checked: true, parentElement: {} }));
+  const paint = [];
+  const ctx = {
+    fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {},
+    fill() { paint.push(this.fillStyle); },
+    stroke() { paint.push(this.strokeStyle); },
+    arc() {},
+  };
+  card.$("history-map").getContext = () => ctx;
+  const labels = [];
+  card.drawLabel = (name) => labels.push(name);
+  const legend = () => card.$("history-map-legend").children.map(({ textContent }) => textContent);
+  card.drawHistoryMap();
+  assert.ok(inputs.every((input) => !input.parentElement.hidden));
+  assert.deepEqual(labels, ["Área principal"]);
+  assert.deepEqual(legend(), ["Mopping", "Travel", "Vacuum and mop", "Unclassified path",
+    "Cleaning zone", "Keep-out area or wall", "No-mop area", "Dock", "Obstacle", "End of recorded path"]);
+  assert.ok(paint.includes("#4ed9ad44"));
+  inputs[1].checked = false;
+  card.drawHistoryMap();
+  assert.ok(!legend().includes("Travel"));
+  assert.ok(legend().includes("Travel coverage"));
+  for (const input of inputs) input.checked = false;
+  paint.length = 0;
+  card.drawHistoryMap();
+  assert.deepEqual(legend(), ["Cleaning zone", "Keep-out area or wall", "No-mop area",
+    "Dock", "Obstacle", "End of recorded path"]);
+  for (const color of ["#9eafbf", "#b7c3cd", "#c39bff", "#4ed9ad44"]) assert.ok(!paint.includes(color));
+  for (const color of ["#5bd4b0", "#ff7893", "#e8ab6a", "#eaf3f9"]) assert.ok(paint.includes(color));
+  card.historyReport.geometry = { ...geometry, trajectories: [], coverage: [] };
+  card.drawHistoryMap();
+  assert.ok(inputs.every((input) => input.parentElement.hidden));
+  assert.ok(!legend().includes("End of recorded path"));
+});
+
 test("the history panel opens the latest report and shows measurements when geometry is missing", async () => {
   const { card } = mockCard(0);
   const mission = { id: "report-a", finished_at: "2026-11-25T10:00:00Z", map_count: 1, duration_minutes: 2,

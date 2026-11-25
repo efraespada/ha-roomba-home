@@ -167,12 +167,22 @@ def history_reports(configured):
 
 
 async def test_history_reads_the_exact_archive_using_read_permission(
-    configured, history_reports, make_point_bundle, hass_ws_client, hass_admin_user
+    configured, history_reports, picea_archive, hass_ws_client, hass_admin_user
 ):
-    def archived(documents):
-        documents["metadata.json"].update(version="mission-revision")
-
-    configured.client.map_geometry.return_value = make_point_bundle(mutate=archived)
+    zone = [[1, 1], [2, 1], [2, 2], [1, 2], [1, 1]]
+    wall = [[3, 3], [4, 3]]
+    configured.client.map_geometry.return_value = picea_archive(
+        version="mission-revision",
+        zones=[("125", "Archived zone", zone)],
+        restrictions=[
+            {
+                "id": "127",
+                "type": "Feature",
+                "geometry": {"type": "LineString", "coordinates": wall},
+                "properties": {"type": "KeepOutZone"},
+            }
+        ],
+    )
     socket = await hass_ws_client()
     with patch.object(
         type(hass_admin_user.permissions),
@@ -186,6 +196,8 @@ async def test_history_reads_the_exact_archive_using_read_permission(
         await socket.send_json(HISTORY | {"id": 2, "report_id": records[0]["id"]})
         report = (await socket.receive_json())["result"]
         assert report["geometry"]["rooms"]
+        assert report["geometry"]["saved_zones"] == [[zone]]
+        assert report["geometry"]["virtual_walls"] == [wall]
         assert report["mission"] == records[0]
         configured.client.map_geometry.assert_awaited_once_with(MAP.map_id, "mission-revision")
         assert configured.maps_for_robot("fixture-0") == (MAP,)

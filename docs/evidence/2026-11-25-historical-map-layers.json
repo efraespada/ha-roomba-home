@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "signed_mission_history": {
+    "reports_read": 21,
+    "reports_with_saved_zone": 3,
+    "reports_with_policy_shapes": 0,
+    "reports_read_from_a_revision_different_from_the_active_map": 21
+  },
+  "signed_map_edit_revision": {
+    "keep_out_geometry_matched_the_local_snapshot": true,
+    "no_mop_geometry_matched_the_local_snapshot": true,
+    "virtual_wall_geometry_matched_the_local_snapshot": true
+  },
+  "isolated_chrome": {
+    "viewport_widths_px": [358, 900],
+    "signed_mission_archive_used": true,
+    "path_and_coverage_filters_verified": true,
+    "saved_zone_and_final_position_remained_visible": true,
+    "3d_view_and_rotation_preserved_layer_preferences": true
+  },
+  "movement_commands_sent": 0,
+  "map_writes_sent": 0
+}

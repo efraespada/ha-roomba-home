@@ -80,6 +80,9 @@ trajectory contains observed positions and retains sequence gaps.
 - MAP-11: Receive the authorized robot's live position updates continuously and deliver them to the displayed map. Show cleaned areas by the activity reported by Roomba.
 - MAP-12: Show and hide provider-reported temporary obstacles on the live floor plan for the current mission and floor revision.
 - MAP-13: Follow the confirmed mission floor when a robot has several saved maps. Allow the viewer to keep a chosen floor in view.
+- MAP-14: Show saved zones, restrictions, and room labels from the exact
+  archived revision. Offer separate controls for archived cleaning and
+  travel paths and coverage. Keep the final recorded position visible.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -167,6 +170,12 @@ coverage after older route points scroll out of the visible trail and
 recover additional footprints from an anchored raw snapshot. Clip the
 display to room outlines and clear it when the mission or revision changes.
 Keep the estimate distinct from archived native coverage polygons.
+
+In a historical report, read saved zones and restrictions from the mission
+archive. Retain each route segment and its ordering. Offer controls only
+for present route or coverage layers and preserve the toggles through a
+camera change. Keep the final recorded position and map restrictions
+visible when a route layer is hidden.
 
 Draw temporary Roomba obstacles in an independent layer. Project the
 points only when recent direct positions substantiate the snapshot's
@@ -337,6 +346,7 @@ features, physical results, and open scenarios.
 | MAP-11 | [Live delivery evidence](../docs/validation.md#continuous-position-and-cleaning-coverage) and [coverage replay](../docs/validation.md#live-coverage-reconstruction) | [MQTT tests](../tests/test_mqtt.py), [subscription tests](../tests/test_live_stream.py), [coverage tests](../tests/test_live_coverage.py), [authenticated endpoint tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and physical telemetry. Native live polygon publication and household card verification remain open. |
 | MAP-12 | [Physical obstacle comparison](../docs/validation.md#live-temporary-obstacles) | [Snapshot decoder tests](../tests/test_live_route.py), [coordinator tests](../tests/ha/test_live_map_entities.py), [authenticated subscription tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs). Household dashboard verification remains open. |
 | MAP-13 | [Confirmed floor associations from native missions](../docs/validation.md#multiple-saved-floors) | [Parser tests](../tests/test_live_maps.py), [coordinator tests](../tests/ha/test_live_map_entities.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [floor picker tests](../tests/frontend/map-card.test.cjs). An installed multi-floor cleaning trial remains open. |
+| MAP-14 | [Historical layer contract](../docs/api.md#archived-cleaning-reports) | [Archive tests](../tests/test_mission_map.py), [authenticated reports](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [historical layer validation](../docs/validation.md#historical-map-layers) |
 
 ## 18. Implementation sequence
 

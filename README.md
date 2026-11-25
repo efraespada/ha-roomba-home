@@ -66,7 +66,9 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   with separate filters for both activities.
   **Temporary obstacles** marks detections reported during the current run.
   Browse recorded cleaning reports with the mission's own coverage, route,
-  timeline, and 3D floor plan. [Cleaning history](docs/usage.md#cleaning-history)
+  timeline, and 3D floor plan. Hide travel, cleaning paths, or coverage
+  independently and see zones and restrictions saved in the archived map.
+  [Cleaning history](docs/usage.md#cleaning-history)
 - **Room cleaning scores.** View Roomba's reported score, mission timestamps,
   and suggested settings for each matched room on the active floor.
   [Room cleaning scores](docs/usage.md#room-cleaning-scores)
