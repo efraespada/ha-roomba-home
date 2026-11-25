@@ -461,6 +461,45 @@ test("restriction recovery previews moved zones and missing walls before saving"
   assert.equal(card.$("map-backups-status").textContent, "The recorded restrictions already match.");
 });
 
+test("furniture recovery previews placement, source, and affected routines", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  card.snapshot = { map: { id: "floor", version: "current" }, inventory_id: "inventory",
+    floor_settings: { id: "settings", name: "Ático", orientation: 0 } };
+  const dialog = card.$("map-backups-dialog");
+  dialog.showModal = function () { this.open = true; };
+  const saved = { id: "a".repeat(64), map_id: "floor", version: "older" };
+  const reviewId = "b".repeat(64);
+  const changes = [
+    { id: "1", kind: "chair/living", name: "Chair", source: "user", missing: false },
+    { id: "2", kind: "table/coffee", name: "Coffee table", source: "robot", missing: true },
+  ];
+  const requests = [];
+  card._hass = { callWS: async (request) => {
+    if (request.type === "roomba_home/map_backups") return { snapshots: [saved], can_manage: true, retention: 5 };
+    if (request.type === "roomba_home/read_map_backup") return { backup: saved,
+      geometry: { regions: [region], furniture: { items: [{ id: "1" }, { id: "2" }] } } };
+    requests.push(JSON.parse(JSON.stringify(request)));
+    if (request.confirmed) return { applied: true };
+    return { changes, review_id: reviewId, applied: false,
+      dependencies: [{ kind: "routine", name: "Morning", objects: ["2"] }], unchecked: ["routine"] };
+  } };
+  card.drawMapBackup = () => {};
+  card.refresh = async () => {};
+  await card.openMapBackups();
+  assert.equal(card.$("review-map-backup-furniture").hidden, false);
+  await card.reviewMapBackupRestore("furniture");
+  const items = card.$("map-backup-restore-furniture-list").children;
+  assert.deepEqual(Array.from(items, ({ children }) => children.map(({ textContent }) => textContent)), [
+    ["Restore Chair · 1", "Added by user"],
+    ["Recreate Coffee table · 2", "Detected by Roomba · Routine · Morning"],
+  ]);
+  assert.match(card.$("map-backup-restore-furniture-status").textContent, /could not be checked/);
+  await card.confirmMapBackupRestore();
+  assert.deepEqual(requests[1], { ...requests[0], confirmed: true, review_id: reviewId });
+  assert.equal(card.$("map-backups-status").textContent, "Furniture restored.");
+});
+
 test("program recovery previews settings and confirms only the selected program", async () => {
   const { card } = mockCard(0);
   card.config = { entity: "vacuum.example" };

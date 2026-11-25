@@ -6,6 +6,12 @@
   from a local floor backup after reviewing the changes. Keep restrictions
   added after the backup.
 - Preserve distinct virtual wall endpoints when saving the restriction layer.
+- Recover saved furniture placements and sources from a floor backup. The
+  review shows affected routines and keeps furniture added after the backup.
+- Recover missing furniture destinations in surviving routines after the
+  backed-up objects return. Preserve the routine's order and area settings.
+- Accept the small heading rounding Roomba returns for unchanged furniture
+  outlines so a completed map edit is confirmed correctly.
 
 ## 0.62.0
 

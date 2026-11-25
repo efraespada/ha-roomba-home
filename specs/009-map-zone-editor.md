@@ -106,7 +106,7 @@ and revision. A saved zone is a provider-confirmed region with its own ID.
   associated backup using the original zone identifiers. Review the names,
   outlines, and known active routine and schedule dependencies before one
   verified zone update.
-- EDIT-13: Capture program selections linked to supported cleaning zones
+- EDIT-13: Capture program selections linked to supported cleaning zones or furniture
   and recover missing targets in a surviving program on the same floor.
   Review the ordered profiles, verify the restored zone geometry and current
   selection, and preserve the current program name, timing, and enabled state.
@@ -114,6 +114,9 @@ and revision. A saved zone is a provider-confirmed region with its own ID.
   virtual walls from a backup with the same floor boundary. Preview changed
   identifiers and preserve unrelated active restrictions. Verify the full
   replacement layer and distinct endpoints for each linear wall.
+- EDIT-15: Recover moved and missing furniture placements from a backup of
+  the same floor. Review the object types, sources, and linked routines.
+  Preserve furniture added later and verify the complete active layer.
 - Bulk edits and cross-floor copies require a verified operations contract.
 - Roomba remains the owner of robot and map data. Editing a map never starts a cleaning mission.
 
@@ -248,6 +251,16 @@ line endpoints under their original IDs, retaining current restrictions
 added later. A conflicting type or a shape outside visible rooms prevents
 the update. Verify the replacement layer and active revision after one
 reviewed write.
+
+Furniture recovery verifies the floor boundary and the editable catalog on
+both revisions. Compare the archived and active object by identifier,
+type, source, outline, and angle. Block an incompatible object type or an
+archived footprint that no longer overlaps a visible room. Require a matching
+review before the replacement write. Verify the exact object inventory,
+source classification, and placements, accounting for small provider heading
+rounding and allowing Roomba to recalculate derived cleaning areas. A
+separate program confirmation can recover a pruned furniture target once
+its original placement matches the active map.
 [Local map history acceptance and trial evidence](../docs/roadmap.md#local-map-history-and-recovery)
 
 ## 11. Security, permissions, and privacy
@@ -333,6 +346,7 @@ screenshots.
 | EDIT-12 | [Cleaning zone recovery](../docs/api.md#local-map-backup-commands) | [Geometry and verification tests](../tests/test_zone_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-cleaning-zones) |
 | EDIT-13 | [Program destination recovery](../docs/api.md#local-map-backup-commands) | [Selection policy tests](../tests/test_map_programs.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-program-destinations) |
 | EDIT-14 | [Restriction recovery](../docs/api.md#local-map-backup-commands) | [Policy tests](../tests/test_restriction_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-map-restrictions) |
+| EDIT-15 | [Furniture recovery](../docs/api.md#local-map-backup-commands) | [Furniture tests](../tests/test_furniture_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-furniture-placements) |
 
 ## 18. Implementation sequence
 

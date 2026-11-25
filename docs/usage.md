@@ -471,13 +471,20 @@ The preview identifies moved and missing restrictions. Confirmation applies
 the saved geometry to the active floor by identifier. Recovery requires
 the same floor boundary and supported restriction types in both versions.
 
+Choose **Restore furniture** to preview moved or missing objects and the
+saved routines that reference them. For example, restore the position and
+angle of a chair moved in the editor while keeping a table added after the
+backup. Recovery restores the saved object IDs, types, and sources on the
+same floor. The preview identifies objects Roomba detected and objects
+added by a user.
+
 For a backup captured with program destinations, choose **Recover program
-destinations** after recovering the zones. Select a routine or schedule,
+destinations** after recovering the matching zones or furniture. Select a routine or schedule,
 review the destination order and the settings for each area, and choose
 **Restore destinations**. For example, a schedule can recover the removed
 entryway at its original position with **Mop** and wetness level 2 while
 keeping a later start time and its current disabled state. The action
-requires the same zone name and outline, the same coordinate frame, and
+requires the saved zone name and outline or furniture placement, the same coordinate frame, and
 unchanged settings and order for the areas the program still contains.
 The review lists programs with missing zones, changed settings, or
 unsupported selections so you can inspect them before editing the program.

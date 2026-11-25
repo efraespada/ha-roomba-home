@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager, suppress
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from hashlib import sha256
@@ -61,7 +61,12 @@ from .core.errors import (
     ScheduleUpdateUnconfirmed,
 )
 from .core.floor_settings import prepare_floor_settings, prepare_floor_settings_restore
-from .core.furniture_edits import confirm_furniture_edit, prepare_furniture_edit
+from .core.furniture_edits import (
+    confirm_furniture_edit,
+    confirm_furniture_restore,
+    prepare_furniture_edit,
+    prepare_furniture_restore,
+)
 from .core.furniture_targets import furniture_regions
 from .core.history import (
     ended_mission_start,
@@ -78,10 +83,11 @@ from .core.live_route import (
     reconcile_live_snapshot,
 )
 from .core.map_programs import (
-    capture_zone_programs,
-    matching_zone_destinations,
+    capture_map_programs,
+    matching_backup_destinations,
     program_selection,
-    review_zone_program,
+    review_map_program,
+    saved_furniture_destinations,
     saved_zone_destinations,
 )
 from .core.map_snapshots import capture_snapshot, read_snapshot, with_backup_programs
@@ -503,11 +509,11 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         )
         try:
             record, plan = await self._executor(capture_snapshot, floor, archive, datetime.now(UTC))
-            if zones := saved_zone_destinations(floor.map_id, plan):
-                sources, unchecked = await self._read_backup_programs(
-                    robot_id, {"routine", "schedule"}
-                )
-                programs = capture_zone_programs(zones, sources, unchecked)
+            zones = saved_zone_destinations(floor.map_id, plan)
+            if areas := zones | saved_furniture_destinations(floor.map_id, plan):
+                kinds = {"routine", "schedule"} if zones else {"routine"}
+                sources, unchecked = await self._read_backup_programs(robot_id, kinds)
+                programs = capture_map_programs(areas, sources, unchecked)
                 record = await self._executor(with_backup_programs, record, archive, programs)
             return await history.async_capture(robot_id, record)
         except ProtocolError as error:
@@ -692,7 +698,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             confirm_zone_restore,
             confirmed,
             review_id,
-            self._zone_restore_dependencies,
+            RegionKind.ZONE,
         )
 
     async def async_restore_map_restrictions(
@@ -720,6 +726,32 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             review_id,
         )
 
+    async def async_restore_map_furniture(
+        self,
+        robot_id,
+        backup_id,
+        map_id,
+        version,
+        inventory_id,
+        settings_id,
+        *,
+        confirmed=False,
+        review_id=None,
+    ):
+        return await self._restore_map_geometry(
+            robot_id,
+            backup_id,
+            map_id,
+            version,
+            inventory_id,
+            settings_id,
+            prepare_furniture_restore,
+            confirm_furniture_restore,
+            confirmed,
+            review_id,
+            RegionKind.FURNITURE,
+        )
+
     async def _restore_map_geometry(
         self,
         robot_id,
@@ -732,7 +764,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         confirm,
         confirmed,
         review_id,
-        dependencies=None,
+        dependency_kind=None,
     ):
         async with self._io_lock:
             history = map_history(self.hass, self.config_entry.entry_id)
@@ -750,15 +782,17 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 raise HomeAssistantError(str(error)) from None
             changes = edit.changes(plan)
             preview = {"changes": changes}
-            if dependencies is not None:
-                linked, unchecked = await dependencies(robot_id, map_id, changes)
+            if dependency_kind is not None:
+                linked, unchecked = await self._map_restore_dependencies(
+                    robot_id, map_id, dependency_kind, changes
+                )
                 preview.update(dependencies=linked, unchecked=unchecked)
             digest = sha256(
                 json.dumps(
                     {
                         "preview": preview,
                         "backup": backup_id,
-                        "edit": edit.request_body(),
+                        "edit": asdict(edit),
                         "floor": (map_id, version, inventory_id, settings_id),
                     },
                     sort_keys=True,
@@ -777,32 +811,25 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             await self._write_map_edit(robot_id, active, plan, edit, confirm)
             return {**preview, "review_id": digest, "applied": True}
 
-    async def _zone_restore_dependencies(self, robot_id, map_id, changes):
-        dependencies, unchecked = [], []
+    async def _map_restore_dependencies(self, robot_id, map_id, region_kind, changes):
         if not changes:
-            return dependencies, unchecked
-        targets = {f"{map_id}:zid:{zone['id']}": zone["id"] for zone in changes}
-        for kind, read in (
-            ("routine", self.client.list_cleaning_routines),
-            ("schedule", self.client.list_cleaning_schedules),
-        ):
-            try:
-                programs = await read(robot_id)
-            except AuthenticationError:
-                raise
-            except RoombaError, OSError:
-                unchecked.append(kind)
-                continue
+            return [], []
+        targets = {f"{map_id}:{region_kind}:{row['id']}": row["id"] for row in changes}
+        kinds = {"routine", "schedule"} if region_kind is RegionKind.ZONE else {"routine"}
+        key = "zones" if region_kind is RegionKind.ZONE else "objects"
+        sources, unchecked = await self._read_backup_programs(robot_id, kinds)
+        dependencies = []
+        for kind, programs in sources.items():
             if any(not row.get("regions") for row in programs):
                 unchecked.append(kind)
             for row in programs:
-                zones = sorted(
+                linked = sorted(
                     targets[region] for region in (row.get("regions") or ()) if region in targets
                 )
-                if zones:
-                    dependencies.append({"kind": kind, "name": row.get("name"), "zones": zones})
-        dependencies.sort(key=lambda item: (item["kind"], item["name"] or "", item["zones"]))
-        return dependencies, unchecked
+                if linked:
+                    dependencies.append({"kind": kind, "name": row.get("name"), key: linked})
+        dependencies.sort(key=lambda item: (item["kind"], item["name"] or "", item[key]))
+        return dependencies, sorted(unchecked)
 
     async def _read_backup_programs(self, robot_id, kinds):
         sources, unchecked = {}, []
@@ -855,9 +882,13 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 robot_id, {item["kind"] for item in backup["items"]}
             )
             plan = await self._floor_plan(robot_id, floor)
-            current_zones = saved_zone_destinations(floor.map_id, plan)
-            saved_zones = saved_zone_destinations(saved.map_id, archived)
-            matching = matching_zone_destinations(archived, plan, saved_zones, current_zones)
+            current_areas = saved_zone_destinations(
+                floor.map_id, plan
+            ) | saved_furniture_destinations(floor.map_id, plan)
+            saved_areas = saved_zone_destinations(
+                saved.map_id, archived
+            ) | saved_furniture_destinations(saved.map_id, archived)
+            matching = matching_backup_destinations(archived, plan, saved_areas, current_areas)
             destinations = with_archive_destinations(floor, plan)
             capabilities = self.data[robot_id].capabilities.cleaning
             reviews, ready = [], {}
@@ -878,8 +909,8 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                                 *furniture_regions(plan),
                             ),
                         )
-                    status, target, areas = review_zone_program(
-                        item, current, saved_zones, matching, supported, capabilities
+                    status, target, areas = review_map_program(
+                        item, current, saved_areas, matching, supported, capabilities
                     )
                 review = {
                     "kind": source,

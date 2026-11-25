@@ -10,8 +10,10 @@ from custom_components.roomba_home.core.errors import ProtocolError
 from custom_components.roomba_home.core.furniture_edits import (
     can_edit_furniture,
     confirm_furniture_edit,
+    confirm_furniture_restore,
     furniture_pose,
     prepare_furniture_edit,
+    prepare_furniture_restore,
 )
 from custom_components.roomba_home.core.maps import PersistentMap
 from custom_components.roomba_home.core.point_maps import read_floor_plan
@@ -148,6 +150,88 @@ def test_allows_roomba_to_recompute_a_retained_objects_cleaning_area(
     created = furniture_feature("2", "chair/living", "user", PLACED)
     data = picea_archive(version=NEXT_MAP.version_id, furniture=[with_derived_area, created])
     assert confirm_furniture_edit(data, MAP, plan, create) == NEXT_MAP.version_id
+
+
+def test_readback_accepts_provider_heading_rounding_with_the_same_corners(
+    picea_archive, furniture_feature
+):
+    original = furniture_feature("1", "sofa", "robot", BASE_RING)
+    plan = read_floor_plan(picea_archive(furniture=[original]), MAP)
+    create = prepare_furniture_edit(plan, "create", None, "chair/living", POSE)
+    rounded = furniture_feature("1", "sofa", "robot", BASE_RING, 0.000194)
+    created = furniture_feature("2", "chair/living", "user", PLACED)
+    data = picea_archive(version=NEXT_MAP.version_id, furniture=[rounded, created])
+    assert confirm_furniture_edit(data, MAP, plan, create) == NEXT_MAP.version_id
+    unexpected = furniture_feature("1", "sofa", "robot", BASE_RING, 0.001)
+    data = picea_archive(version=NEXT_MAP.version_id, furniture=[unexpected, created])
+    with pytest.raises(ProtocolError, match="rest of the furniture"):
+        confirm_furniture_edit(data, MAP, plan, create)
+
+
+def test_restore_recovers_two_objects_and_preserves_later_furniture(
+    picea_archive, furniture_feature
+):
+    chair = furniture_feature("1", "chair/living", "user", BASE_RING)
+    moved = furniture_feature("1", "chair/living", "user", PLACED)
+    table = furniture_feature("2", "table/coffee", "robot", PLACED)
+    recent = furniture_feature("3", "cabinet", "user", BASE_RING)
+    archived = read_floor_plan(picea_archive(furniture=[chair, table]), MAP)
+    active = read_floor_plan(picea_archive(furniture=[moved, recent]), MAP)
+    recovery = prepare_furniture_restore(archived, active)
+    assert recovery.changes(active) == [
+        {"id": "1", "kind": "chair/living", "name": "Chair", "source": "user", "missing": False},
+        {
+            "id": "2",
+            "kind": "table/coffee",
+            "name": "Coffee table",
+            "source": "robot",
+            "missing": True,
+        },
+    ]
+    rows = recovery.request_body()["edit_cmd"]["params"]["furniture_list"]
+    assert [row[:3] for row in rows] == [["1", 1528, 1], ["3", 1515, 1], ["2", 1518, 0]]
+    archive = picea_archive(version=NEXT_MAP.version_id, furniture=[table, chair, recent])
+    assert confirm_furniture_restore(archive, MAP, active, recovery) == NEXT_MAP.version_id
+    after = read_floor_plan(archive, NEXT_MAP)
+    assert prepare_furniture_restore(archived, after).changes(after) == []
+    for changed in ([chair, table], [chair, recent, moved | {"id": "2"}]):
+        broken = picea_archive(version=NEXT_MAP.version_id, furniture=changed)
+        with pytest.raises(ProtocolError, match="expected furniture layer"):
+            confirm_furniture_restore(broken, MAP, active, recovery)
+
+
+@pytest.mark.parametrize(
+    ("variant", "error"),
+    [
+        ("old format", "fully supported"),
+        ("active format", "fully supported"),
+        ("old border absent", "boundary has changed"),
+        ("different border", "boundary has changed"),
+        ("identifier conflict", "different object type"),
+        ("hidden room", "no longer overlaps"),
+    ],
+)
+def test_restore_rejects_incompatible_furniture_layers(
+    picea_archive, furniture_feature, variant, error
+):
+    chair = furniture_feature("1", "chair/living", "user", BASE_RING)
+    archived = read_floor_plan(picea_archive(furniture=[chair]), MAP)
+    active = read_floor_plan(picea_archive(furniture=[]), MAP)
+    if variant == "old format":
+        archived = replace(archived, furniture=None)
+    elif variant == "active format":
+        active = replace(active, furniture=None)
+    elif variant == "old border absent":
+        archived = replace(archived, border_digest=None)
+    elif variant == "different border":
+        active = replace(active, border_digest="different")
+    elif variant == "identifier conflict":
+        cabinet = furniture_feature("1", "cabinet", "robot", BASE_RING)
+        active = read_floor_plan(picea_archive(furniture=[cabinet]), MAP)
+    else:
+        active = replace(active, rooms=())
+    with pytest.raises(ValueError, match=error):
+        prepare_furniture_restore(archived, active)
 
 
 @pytest.mark.parametrize(

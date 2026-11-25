@@ -1,5 +1,34 @@
 # Roomba Home validation
 
+## Recovering furniture placements
+
+A signed Max 700 Combo trial saved all 18 supported furniture types and
+read back their type, source, orientation, and ordered corners. Cleanup
+preserved the existing furniture and restored the original floor. A
+separate trial showed that Roomba ignores an unlearned identifier sent as
+robot-detected furniture.
+
+The recovery trial moved a user-added object, removed a detected object,
+and added newer furniture. Roomba removed the detected object's destination
+from a three-area routine. The first recovery returned the expected sources
+and vertices with a heading difference of approximately 0.011 degrees for
+two objects. The integration now accounts for this rounding when it verifies
+the saved furniture layer.
+
+The end-to-end trial reviewed the changes and the linked routine, saved an
+automatic pre-restore backup, and restored both placements in one native
+write. The detected object returned with its original `robot` source and
+the newer object stayed on the map. Program review waited for the matching
+placement, then restored the missing destination with a separate
+confirmation. Roomba returned the same routine ID, three destinations in
+order, original per-area vacuum and mop preferences, and matching furniture
+polygons. Cleanup restored the original map and routines with zero movement
+commands. [Sanitized evidence](evidence/2026-11-25-map-furniture-recovery.json)
+
+The changes passed 2,434 Python tests with 100% line and branch coverage,
+52 card tests, Home Assistant's integration validator, and isolated Chrome
+checks on a synthetic floor at widths of 358 and 900 pixels.
+
 ## Recovering map restrictions
 
 A signed Max 700 Combo trial saved a keep-out zone, a no-mop zone, and a

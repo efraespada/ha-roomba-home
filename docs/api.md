@@ -166,7 +166,7 @@ control permission for the selected robot.
 Home Assistant writes private, atomic storage and checks the saved result
 before confirming a capture. The stored data contains the native binary
 archive, selected floor metadata, and editable selections of programs that
-target a recorded native cleaning zone. Account sessions and signed download
+target a recorded native cleaning zone or supported furniture object. Account sessions and signed download
 URLs stay outside that storage. [Backup validation](validation.md#local-map-backups)
 
 `roomba_home/restore_map_backup_settings` accepts `backup_id` and the active
@@ -204,13 +204,27 @@ and retains newer entries by identifier. The returned archive and active
 revision confirm the complete policy layer.
 [Restriction recovery validation](validation.md#recovering-map-restrictions)
 
+`roomba_home/restore_map_backup_furniture` accepts the same backup and
+active floor review fields. The preview returns `changes` with the saved
+object `id`, `kind`, display `name`, `source`, and whether it is `missing`.
+It also returns `dependencies` with linked saved routines and their
+`objects`, any `unchecked` program sources, and a `review_id`. Confirm with
+`confirmed: true` and that `review_id`. The review covers the active
+revision and object placements. The provider's upload timestamp is generated
+when saving. Recovery requires a matching floor boundary, a round-trippable
+catalog in both versions, and compatible IDs. One `adjust_furniture` request
+keeps later objects and verifies the full layer's IDs, types, sources,
+angles, and native outlines in the new active revision. Roomba can recalculate
+derived cleaning areas around the restored objects.
+[Furniture recovery validation](validation.md#recovering-furniture-placements)
+
 `roomba_home/restore_map_backup_programs` accepts the same backup and active
 floor review fields and requires control permission. Preview returns
 `programs` with a `status` for each saved program and the `unchecked` source
 types from capture. An eligible program has `status: ready`, `destinations`
 with their saved order and preferences, and an individual `review_id`.
 Confirm with `confirmed: true`, `kind`, `program_id`, and that `review_id`.
-The active and saved zone outlines must match. The program must still exist,
+The active and saved zone outlines or furniture placements must match. The program must still exist,
 with the same settings and relative order for its surviving destinations.
 Revalidate the map and freshly read the program before sending a single
 selection update to Roomba. The program keeps its current name and, for
@@ -854,8 +868,10 @@ The Home Assistant card sends the selected object and placement intent.
 The integration reloads the active revision, builds the entire
 replacement, and checks the returned object identifier, type, source,
 rotation, and corners. Untouched objects must retain their original
-IDs, types, sources, orientations, and outlines. Roomba can recalculate
-their derived cleaning outlines when nearby furniture changes. A map
+IDs, types, sources, orientations, and outlines. The provider can round the
+reported orientation independently of the vertices. The read-back accepts
+differences up to 0.02 degrees and 0.0001 native units at the corners.
+Roomba can recalculate their derived cleaning outlines when nearby furniture changes. A map
 containing an unrecognized object type disables writes.
 
 [Furniture edit evidence](evidence/2026-11-25-map-furniture.json)

@@ -42,6 +42,7 @@ def async_register_map_history(hass):
         restore_backup_settings,
         restore_backup_zones,
         restore_backup_restrictions,
+        restore_backup_furniture,
         restore_backup_programs,
     ):
         websocket_api.async_register_command(hass, command)
@@ -277,6 +278,32 @@ async def restore_backup_restrictions(hass, connection, message):
             "Load this Roomba and its current floor to restore restrictions.",
         )
         return await account.async_restore_map_restrictions(
+            robot_id,
+            message["backup_id"],
+            message["map_id"],
+            message["version"],
+            message["inventory_id"],
+            message["settings_id"],
+            confirmed=message["confirmed"],
+            review_id=message.get("review_id"),
+        )
+
+    await _handle(hass, connection, message, POLICY_CONTROL, restore)
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "roomba_home/restore_map_backup_furniture"} | _GEOMETRY_RECOVERY
+)
+@websocket_api.async_response
+async def restore_backup_furniture(hass, connection, message):
+    async def restore(_history, robot_id):
+        account = _active_account(
+            hass,
+            message["entity_id"],
+            robot_id,
+            "Load this Roomba and its current floor to restore furniture.",
+        )
+        return await account.async_restore_map_furniture(
             robot_id,
             message["backup_id"],
             message["map_id"],

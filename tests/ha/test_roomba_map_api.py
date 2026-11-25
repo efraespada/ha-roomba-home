@@ -2739,3 +2739,127 @@ async def test_backup_restrictions_requires_control_and_matching_review(
     _, edit = configured.client.edit_map.await_args.args
     assert [item.identifier for item in edit.restrictions] == ["100", "102", "101"]
     assert len((await history.async_list("fixture-0"))["snapshots"]) == 2
+
+
+async def test_backup_furniture_reviews_known_routines_and_confirms_after_time_passes(
+    hass, entry, configured, hass_ws_client, picea_archive, furniture_feature
+):
+    position = ((1, 1), (3, 1), (3, 2), (1, 2))
+    shifted = ((7, 1), (9, 1), (9, 2), (7, 2))
+    chair = furniture_feature("1", "chair/living", "user", position)
+    moved = furniture_feature("1", "chair/living", "user", shifted)
+    detected = furniture_feature("2", "table/coffee", "robot", shifted)
+    new = furniture_feature("3", "cabinet", "user", position)
+    saved = replace(MAP, version_id="original")
+    record, _ = capture_snapshot(
+        saved, picea_archive(version="original", furniture=[chair, detected]), datetime.now(UTC)
+    )
+    history = map_history(hass, entry.entry_id)
+    await history.async_capture("fixture-0", record)
+    configured.client.map_geometry.return_value = picea_archive(furniture=[moved, new])
+    configured.client.edit_map = AsyncMock(
+        return_value=picea_archive(version="version.43", furniture=[chair, new, detected])
+    )
+    configured.client.list_cleaning_routines = AsyncMock(
+        return_value=[
+            {
+                "name": "Morning",
+                "regions": ["map-a:rid:room-a", "map-a:furniture:2", "map-a:furniture:1"],
+            },
+            {"name": "Other", "regions": ["map-a:furniture:3"]},
+            {"name": "Unrecognized", "regions": None},
+        ]
+    )
+    configured.client.list_cleaning_schedules = AsyncMock()
+    request = CAPTURE_BACKUP | {
+        "type": "roomba_home/restore_map_backup_furniture",
+        "backup_id": record["id"],
+    }
+    socket = await hass_ws_client()
+    clock = "custom_components.roomba_home.core.furniture_edits.time"
+    with patch(clock, return_value=1720000000):
+        await socket.send_json(request | {"id": 1})
+        review = (await socket.receive_json())["result"]
+    assert len(review["review_id"]) == 64 and review["applied"] is False
+    assert [change["missing"] for change in review["changes"]] == [False, True]
+    assert review["dependencies"] == [{"kind": "routine", "name": "Morning", "objects": ["1", "2"]}]
+    assert review["unchecked"] == ["routine"]
+    configured.client.list_cleaning_schedules.assert_not_awaited()
+    configured.client.edit_map.assert_not_awaited()
+    confirmed = request | {"confirmed": True, "review_id": review["review_id"]}
+    original_routine = configured.client.list_cleaning_routines.return_value[0]
+    configured.client.list_cleaning_routines.return_value[0] = original_routine | {
+        "name": "Changed"
+    }
+    await socket.send_json(confirmed | {"id": 2})
+    assert (await socket.receive_json())["error"]["code"] == "map_changed"
+    configured.client.edit_map.assert_not_awaited()
+    configured.client.list_cleaning_routines.return_value[0] = original_routine
+    configured.client.maps.side_effect = [(MAP,), (MAP,), (replace(MAP, version_id="version.43"),)]
+    with patch(clock, return_value=1720000600):
+        await socket.send_json(confirmed | {"id": 3})
+        assert (await socket.receive_json())["result"] == review | {"applied": True}
+    configured.client.edit_map.assert_awaited_once()
+
+
+async def test_backup_relinks_a_missing_furniture_target_with_its_original_settings(
+    configured, hass_ws_client, picea_archive, furniture_feature
+):
+    rectangle = ((2, 1), (3, 1), (3, 2), (2, 2))
+    chair = furniture_feature("1", "chair/living", "robot", rectangle)
+    profiles = [
+        {"id": "map-a:rid:room-a", "mode": "vacuum", "suction_level": 1},
+        {"id": "map-a:furniture:1", "mode": "mop", "wetness_level": 2},
+    ]
+    program = {
+        "id": "a" * 32,
+        "name": "Routine",
+        "regions": [row["id"] for row in profiles],
+        "region_settings": profiles,
+        "editable": True,
+    }
+    configured.client.map_geometry.return_value = picea_archive(furniture=[chair])
+    configured.client.list_cleaning_routines = AsyncMock(return_value=[program])
+    configured.client.list_cleaning_schedules = AsyncMock()
+    configured.client.update_cleaning_routine = AsyncMock()
+    socket = await hass_ws_client()
+    await socket.send_json(CAPTURE_BACKUP | {"id": 1})
+    backup = (await socket.receive_json())["result"]
+    assert backup["program_count"] == 1
+    configured.client.list_cleaning_schedules.assert_not_awaited()
+    configured.client.list_cleaning_routines.return_value = [
+        program | {"regions": [profiles[0]["id"]], "region_settings": profiles[:1]}
+    ]
+    configured.client.map_geometry.return_value = picea_archive(furniture=[])
+    request = CAPTURE_BACKUP | {
+        "type": "roomba_home/restore_map_backup_programs",
+        "backup_id": backup["id"],
+    }
+    await socket.send_json(request | {"id": 2})
+    [review] = (await socket.receive_json())["result"]["programs"]
+    assert review["status"] == "restore_areas_first"
+    assert "review_id" not in review
+    configured.client.map_geometry.return_value = picea_archive(furniture=[chair])
+    configured._floor_plans.clear()
+    await socket.send_json(request | {"id": 3})
+    [review] = (await socket.receive_json())["result"]["programs"]
+    assert review["status"] == "ready"
+    assert review["destinations"] == [
+        profiles[0] | {"name": "Office", "restore": False},
+        profiles[1] | {"name": "Chair", "restore": True},
+    ]
+    await socket.send_json(
+        request
+        | {
+            "id": 4,
+            "confirmed": True,
+            "kind": "routine",
+            "program_id": program["id"],
+            "review_id": review["review_id"],
+        }
+    )
+    assert (await socket.receive_json())["result"] == {"applied": True}
+    configured.client.update_cleaning_routine.assert_awaited_once()
+    _, _, _, target = configured.client.update_cleaning_routine.await_args.args
+    assert target.regions[-1].kind is RegionKind.FURNITURE
+    assert target.profiles[-1] == CleaningProfile(CleaningMode.MOP, wetness_level=2)

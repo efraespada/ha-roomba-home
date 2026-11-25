@@ -27,7 +27,10 @@ for ClearView. [Trial evidence](evidence/2026-11-25-map-backup-feasibility.json)
    recovers changed or removed cleaning zone outlines under their original
    identifiers. Restriction recovery restores keep-out and no-mop zones
    and linear virtual walls under the original identifiers while retaining
-   newer restrictions. Room layout and furniture recovery require separate
+   newer restrictions. Furniture recovery restores compatible object IDs,
+   source flags, and placements while retaining newer objects. Routine
+   recovery can reattach furniture destinations pruned after deletion and
+   preserve their per-area profiles. Room layout recovery requires separate
    verification.
    Check the live revision before each write and verify the result from Roomba.
    Version 0.62.0 captures compatible routine and schedule destinations and
@@ -36,7 +39,8 @@ for ClearView. [Trial evidence](evidence/2026-11-25-map-backup-feasibility.json)
    program and preserves its current name, schedule timing, and enabled state.
    [Zone recovery validation](validation.md#recovering-cleaning-zones) ·
    [Program recovery validation](validation.md#recovering-program-destinations) ·
-   [Restriction recovery validation](validation.md#recovering-map-restrictions)
+   [Restriction recovery validation](validation.md#recovering-map-restrictions) ·
+   [Furniture recovery validation](validation.md#recovering-furniture-placements)
 3. **Investigate full restoration.** Verify a provider operation for
    importing or reactivating an entire floor after its remote revision is
    gone. Use a disposable floor to prove that the restored map reappears
