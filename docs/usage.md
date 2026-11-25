@@ -244,6 +244,9 @@ the other preferences for later. With no local override, optional values are
 omitted and the robot uses its settings. Reported values are separate sensors.
 In one physical trial a request for mop wetness 1 and enabled SmartScrub left
 global wetness at 2 and SmartScrub enabled. [Mopping evidence](evidence/2026-11-23-mop-preferences.json)
+In another trial, the robot reported two passes enabled after a directed
+run that requested it. Use the default switch to set that value explicitly
+when the robot is idle. [Two-pass trial](validation.md#requested-settings-and-reported-passes)
 
 For directed **Vacuum then mop**, choose the mode and confirm the selected
 areas on the floor plan, or call `vacuum.clean_area` with linked areas. Set
@@ -352,7 +355,12 @@ time for a selected cleaning area, including a localized point.
 
 For a directed cleaning run, the floor plan card lists the destinations
 and shows how many have finished. **Planned order** appears when Roomba
-commits to an order. The **Completed destinations in the current mission**
+commits to an order. A row shows the requested preferences and the pass
+count reported by Roomba when those fields are available. **Two passes on**
+describes the request. **Reported passes** reflects the current or most
+recent destination event.
+
+The **Completed destinations in the current mission**
 sensor can trigger an automation as soon as the first destination finishes.
 Replace the example entity ID with the one shown for your robot.
 

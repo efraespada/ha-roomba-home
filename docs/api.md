@@ -1035,6 +1035,13 @@ counts as finished. A destination being revisited stays in progress
 until the latest pass finishes. Names are resolved from the associated
 revision and the public plan omits provider identifiers.
 
+`requested_settings` contains recognized `suction_level`, `wetness_level`,
+`two_pass`, `smart_scrub`, and `carpet_boost` values from the matched
+command. A regional value takes precedence over a shared value. A null
+parameter group contributes no preferences. Omitted preferences remain
+omitted in the public plan. `reported_pass_count` preserves a current or
+finished `passCount` event, including zero.
+
 A physical room-only vacuuming run reported `cleanMissionStatus.sqft`
 increasing from 0 to 21 during cleaning. Replays of the two-furniture
 timeline advanced from one confirmed destination to two. The observed

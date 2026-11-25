@@ -83,6 +83,8 @@ trajectory contains observed positions and retains sequence gaps.
 - MAP-14: Show saved zones, restrictions, and room labels from the exact
   archived revision. Offer separate controls for archived cleaning and
   travel paths and coverage. Keep the final recorded position visible.
+- MAP-15: Show explicit requested settings and the reported pass count
+  for each destination in the correlated live plan.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -190,7 +192,10 @@ Project the destinations in a correlated `start` command when it names a
 specific map revision and includes a valid destination list. Preserve the
 command's sequence and label it as ordered for a single destination or when
 Roomba sets integer `ordered=1`. Show known requested modes independently
-of physical route activity. Associate the current travel or cleaning
+of physical route activity. Project explicit validated command preferences
+after merging shared and regional values. Preserve booleans and zero pass
+counts. Show the most relevant current or finished event's pass count
+separately from the requested settings. Associate the current travel or cleaning
 stage with the matching destination and count only final status `0`.
 Represent skip, partial, and more-pass outcomes separately. Clear the
 card on a revision mismatch, a mission change, or timeline expiry.
@@ -347,6 +352,7 @@ features, physical results, and open scenarios.
 | MAP-12 | [Physical obstacle comparison](../docs/validation.md#live-temporary-obstacles) | [Snapshot decoder tests](../tests/test_live_route.py), [coordinator tests](../tests/ha/test_live_map_entities.py), [authenticated subscription tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs). Household dashboard verification remains open. |
 | MAP-13 | [Confirmed floor associations from native missions](../docs/validation.md#multiple-saved-floors) | [Parser tests](../tests/test_live_maps.py), [coordinator tests](../tests/ha/test_live_map_entities.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [floor picker tests](../tests/frontend/map-card.test.cjs). An installed multi-floor cleaning trial remains open. |
 | MAP-14 | [Historical layer contract](../docs/api.md#archived-cleaning-reports) | [Archive tests](../tests/test_mission_map.py), [authenticated reports](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [historical layer validation](../docs/validation.md#historical-map-layers) |
+| MAP-15 | [Live destination preferences](../docs/api.md#live-mission-destinations) | [Profile projection tests](../tests/test_mission_plan.py), [authenticated plan tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [device evidence](../docs/validation.md#requested-settings-and-reported-passes) |
 
 ## 18. Implementation sequence
 

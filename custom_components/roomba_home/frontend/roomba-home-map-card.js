@@ -2297,9 +2297,22 @@ class RoombaHomeMapCard extends HTMLElement {
       status.className = "muted";
       const duration = destination.estimated_duration_seconds;
       const planned = duration != null ? `${Math.ceil(duration / 60)} min planned` : null;
-      status.textContent = [MODES[destination.mode], statuses[destination.status], planned]
+      const count = destination.reported_pass_count;
+      const passes = count != null ? `Reported passes ${count}` : null;
+      status.textContent = [MODES[destination.mode], statuses[destination.status], passes, planned]
         .filter(Boolean).join(" · ");
       row.append(name, status);
+      if (destination.requested_settings) {
+        const preferences = document.createElement("div");
+        preferences.className = "muted";
+        const settings = destination.requested_settings;
+        const terms = Object.entries(SETTINGS).flatMap(([key, label]) => {
+          const value = settings[key];
+          return value == null ? [] : [`${label} ${typeof value === "boolean" ? (value ? "on" : "off") : value}`];
+        });
+        preferences.textContent = ["Requested", ...terms].join(" · ");
+        row.append(preferences);
+      }
       item.append(row);
       list.append(item);
     }

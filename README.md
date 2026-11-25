@@ -184,7 +184,8 @@ reload the dashboard. Use one card per robot.
   [Physical run and installed card validation](docs/validation.md#ordered-furniture-completion-and-area-results-in-0230)
 - **Planned order** shows how many destinations Roomba has finished and
   which destination it is approaching or cleaning during a directed run.
-  An unordered run shows **Selected destinations**.
+  It displays each destination's requested settings and reported pass count
+  when Roomba supplies them. An unordered run shows **Selected destinations**.
   The card and **Estimated cleaning time remaining** sensor show an
   approximation when Roomba provides a matching estimate for each remaining
   destination.

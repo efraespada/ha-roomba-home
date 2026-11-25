@@ -1,6 +1,6 @@
 """Project the destinations and outcomes declared by a live mission timeline."""
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from .cleaning import CleaningMode, CleaningProfile
 from .cleaning_protocol import parse_regional_profile, requested_region_mode
@@ -46,7 +46,9 @@ def mission_plan(command: object) -> MissionPlan | None:
         return None
     destinations = []
     links = furniture_links(command.get("id_multipolys"))
-    common = command.get("params", {})
+    common = command.get("params")
+    if common is None:
+        common = {}
     for region in regions:
         if (
             not isinstance(region, dict)
@@ -62,7 +64,9 @@ def mission_plan(command: object) -> MissionPlan | None:
             )
         else:
             area_kind = DESTINATION_KINDS[RegionKind(kind)]
-        local = region.get("params", {})
+        local = region.get("params")
+        if local is None:
+            local = {}
         params = common | local if isinstance(common, dict) and isinstance(local, dict) else {}
         mode = requested_region_mode(params.get("operatingMode")) or requested_region_mode(
             at(region, "params.operatingMode")
@@ -91,23 +95,33 @@ def present_mission_plan(
         for region in floor.regions
     }
     results = {_destination_key(plan, area): area for area in final}
-    current = {_destination_key(plan, area) for area in active}
+    current = {_destination_key(plan, area): area for area in active}
     en_route = _destination_key(plan, travelling) if travelling is not None else None
     destinations = []
     for destination in plan.destinations:
         key = destination.kind, destination.identity
+        result = current.get(key, results.get(key))
         if key in current:
             status = "in_progress"
         elif key == en_route:
             status = "traveling"
         else:
-            result = results.get(key)
             status = (
                 ROOM_STATUSES.get(result.status, "unknown") if result is not None else "pending"
             )
         row = {"kind": destination.kind, "name": names.get(key), "status": status}
         if destination.mode is not None:
             row["mode"] = destination.mode.value
+        if destination.profile is not None:
+            settings = {
+                name: value
+                for name, value in asdict(destination.profile).items()
+                if name != "mode" and value is not None
+            }
+            if settings:
+                row["requested_settings"] = settings
+        if result is not None and result.pass_count is not None:
+            row["reported_pass_count"] = result.pass_count
         destinations.append(row)
     return {
         "ordered": plan.ordered,

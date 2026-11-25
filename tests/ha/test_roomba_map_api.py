@@ -824,6 +824,7 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
                     "p2mapvId": "robot-revision",
                     "rid": "room-a",
                     "area": 6,
+                    "passCount": 0,
                 },
             }
         ],
@@ -856,6 +857,8 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     assert reply["estimated_duration_seconds"] == 502
     assert reply["destinations"][0]["estimated_duration_seconds"] == 502
     assert reply["destinations"][0]["status"] == "in_progress"
+    assert reply["destinations"][0]["requested_settings"] == {"suction_level": 3, "two_pass": False}
+    assert reply["destinations"][0]["reported_pass_count"] == 0
 
     advanced = await configured._timeline_metrics(state, None, now + timedelta(seconds=39))
     assert advanced["live_estimated_remaining"] == 440

@@ -1762,11 +1762,14 @@ test("live plans show real destination counts, preserve order and disappear when
   card.renderMissionPlan({
     ...plan, estimated_remaining_seconds: 401,
     destinations: plan.destinations.map((destination) => destination.kind === "room" ?
-      { ...destination, estimated_duration_seconds: 502 } : destination),
+      { ...destination, estimated_duration_seconds: 502, reported_pass_count: 0,
+        requested_settings: { suction_level: 3, two_pass: true, carpet_boost: false } } : destination),
   });
   assert.equal(summary.textContent, "Planned order · 1 of 3 completed · About 7 min left");
   assert.equal(results.children[0].children[1].children[0].children[1].textContent,
-    "Vacuum · On the way · 9 min planned");
+    "Vacuum · On the way · Reported passes 0 · 9 min planned");
+  assert.equal(results.children[0].children[1].children[0].children[2].textContent,
+    "Requested · Suction 3 · Two passes on · Carpet boost off");
   card.renderMissionPlan(null);
   assert.equal(view.hidden, true);
   assert.equal(results.children.length, 0);

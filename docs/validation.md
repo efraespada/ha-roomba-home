@@ -1,5 +1,29 @@
 # Roomba Home validation
 
+## Requested settings and reported passes
+
+A reviewed Home Assistant draft directed the docked Max 700 Combo to vacuum
+one room with suction level 1 and two passes enabled. The matching Roomba
+timeline echoed both settings and reported zero passes during the active
+room stage. Its signed history later returned `done: ok` and a room event
+with status `5` (`user_ended`) and `passCount: 0` after a return-to-base
+request. This run verifies the request and reporting path. A natural second
+pass remains unverified.
+
+The robot returned to its dock with error code 0. The active floor revision,
+rooms, zones, restrictions, routines, and schedules matched the initial
+reads. The run changed the robot's reported two-pass setting from off to
+on. A targeted setting write restored off and an independent read confirmed
+it while the robot stayed docked.
+
+Isolated Chrome rendered the live row from a real timeline at 358 and 900
+pixels. The card displayed suction and two passes under **Requested** and
+zero under **Reported passes**. The authenticated WebSocket and automated
+checks verify those fields, preservation of false and zero, and handling of
+null parameter groups. The suite passed 2,465 Python tests with 100% line
+and branch coverage and 55 card tests.
+[Anonymized trial evidence](evidence/2026-11-25-requested-and-reported-passes.json)
+
 ## Historical map layers
 
 The integration opened 21 signed reports for the Max 700 Combo using each

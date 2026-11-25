@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Show each live destination's requested cleaning settings and the robot's
+  reported pass count in the floor plan and destination sensor.
 - Show saved cleaning zones and restrictions from each mission's archived
   floor revision. Toggle travel, cleaning paths, and coverage independently.
 - Create, move, and remove virtual walls from the floor plan card. Set their

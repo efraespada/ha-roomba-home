@@ -34,7 +34,7 @@ Roomba Home. Other models require their own captures and tests.
 | Suction | `suctionLvl` 4 and `rw-settings.suctionLevel` | Number controls for the next mission and the default | Independent reads confirmed the default change from 3 to 2 and back to 3 in isolated HA. |
 | Mop wetness | `ppWetLvl` 3 | Number controls for the next mission and the default | The default changed from 3 to 1 and back to 3. A mission requesting 1 reported a global value of 2. |
 | SmartScrub | `scrub` 3 | Switches for the next mission and the default | Direct enable and disable were confirmed. One mopping run retained the active setting after returning. |
-| Two passes | `multiPass` 1 and `rw-settings.twoPass` | Switches for the next mission and the default | Default change and restoration confirmed. The actual second pass is still unverified. |
+| Two passes | `multiPass` 1, `rw-settings.twoPass`, and the destination's timeline `passCount` | Switches for the next mission and the default, plus requested settings and observed counts per live destination | A directed command echoed `twoPass: true`. The room was ended before Roomba reported a pass. The reported setting was restored after the run. [Trial](validation.md#requested-settings-and-reported-passes) |
 | Carpet boost | `carpetBoost` 3 and `rw-settings.carpetBoost` | Switches for the next mission and the default | Default change and restoration confirmed. The response on carpet is still unverified. |
 | Resume | SDK enum `resume` | Standard vacuum action preserves the mission | Targeted vacuuming and mopping with HA 0.3.0 |
 | Locate | SDK enum `find` and robot audio setting | `vacuum.locate` with submitted result | The shadows do not confirm sound. |
