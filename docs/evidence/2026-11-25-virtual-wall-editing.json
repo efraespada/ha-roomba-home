@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "signed_trial": {
+    "horizontal_wall_created": true,
+    "vertical_wall_saved_under_same_id": true,
+    "diagonal_wall_saved_under_same_id": true,
+    "wall_removed": true,
+    "original_room_geometry_preserved": true,
+    "other_restrictions_preserved": true,
+    "confirmed_native_wall_writes": 4,
+    "automatic_backups_before_wall_writes": 4,
+    "pre_trial_map_restored": true,
+    "robot_movement_commands_sent": 0
+  },
+  "isolated_chrome": {
+    "viewport_widths_px": [358, 900],
+    "endpoint_fields_confirmation_and_save_request_verified": true
+  }
+}

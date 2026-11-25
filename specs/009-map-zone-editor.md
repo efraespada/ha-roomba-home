@@ -121,6 +121,9 @@ and revision. A saved zone is a provider-confirmed region with its own ID.
   active identifiers and footprints. Report missing rooms and changed
   footprints before saving. Verify the selected metadata on the new active
   revision.
+- EDIT-17: Create, move, resize, and remove a virtual wall. Accept two
+  distinct ordered endpoints when part of the segment lies inside a visible
+  room. Keep the edited wall's identifier and the other policy shapes.
 - Bulk edits and cross-floor copies require a verified operations contract.
 - Roomba remains the owner of robot and map data. Editing a map never starts a cleaning mission.
 
@@ -188,7 +191,7 @@ coordinates before publishing them.
 [Installed floor settings validation](../docs/validation.md#floor-settings-validation-in-0180)
 Show **Saved** once the expected geometry and active revision are confirmed.
 For a restriction edit, derive the complete replacement from the active
-policy layer. Preserve the other entries and existing virtual walls.
+policy layer. Preserve every entry other than the selected restriction.
 Disable editing if the layer contains an entry that cannot round-trip.
 Confirm the IDs, types, and outlines from the returned archive and its
 active revision.
@@ -207,7 +210,9 @@ a named floor with up to 16 characters, or
 preview rotation in 90° increments. Confirm just the selected operation.
 In **Edit restrictions**, choose the operation and either a new type or
 an existing restriction. Show the proposed outline and confirm the floor
-and restriction type before saving.
+and restriction type before saving. For a virtual wall, show a segment with
+two endpoint markers, offer endpoint coordinates, and allow selection by
+clicking the displayed line.
 In **Edit furniture**, choose the object or furniture type. Use a map click
 or coordinates for the center and edit width, depth, and rotation. Show
 the existing outlines and directed edge of the proposed placement.
@@ -359,6 +364,7 @@ screenshots.
 | EDIT-14 | [Restriction recovery](../docs/api.md#local-map-backup-commands) | [Policy tests](../tests/test_restriction_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-map-restrictions) |
 | EDIT-15 | [Furniture recovery](../docs/api.md#local-map-backup-commands) | [Furniture tests](../tests/test_furniture_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-furniture-placements) |
 | EDIT-16 | [Room detail recovery](../docs/api.md#local-map-backup-commands) | [Room tests](../tests/test_room_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-room-names-and-types) |
+| EDIT-17 | [Restriction edits](../docs/api.md#restriction-edits) | [Geometry tests](../tests/test_restriction_edits.py), [authenticated lifecycle](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed wall trial](../docs/validation.md#editing-virtual-walls) |
 
 ## 18. Implementation sequence
 

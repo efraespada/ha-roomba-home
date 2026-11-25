@@ -853,10 +853,16 @@ revision, the restriction IDs, and their types.
 Roomba represents a linear virtual wall as a `KeepOutZone` line. A signed
 Max 700 trial verified kind `2` with native vertices `[A, A, B, B]`, where
 `A` and `B` are the two coordinate pairs. The provider retains the first
-and last vertices as endpoints. The editor preserves these lines during a
-replacement write. A policy layer with an unknown shape or additional properties is
+and last vertices as endpoints. The `roomba_home/edit_restrictions`
+WebSocket accepts `kind: "wall"` on creation. Its `bounds` array is the
+ordered `[x1, y1, x2, y2]` of the new endpoints for either creation or
+update. The segment must have distinct endpoints and pass inside a visible
+room. Move and delete operations address the existing `zone_id`, and a
+move retains the same type and ID. Each write preserves the other policy
+shapes. A policy layer with an unknown shape or additional properties is
 read-only because a replacement write could discard information.
 [Restriction validation](validation.md#restriction-editor-validation-in-0190)
+[Virtual wall validation](validation.md#editing-virtual-walls)
 
 ### Furniture edits
 

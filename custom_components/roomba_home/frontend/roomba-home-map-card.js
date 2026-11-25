@@ -29,7 +29,7 @@ const SETTINGS = {
   carpet_boost: "Carpet boost",
 };
 const PRESET_LABELS = { light: "Light", normal: "Normal", deep: "Deep", smart: "Smart recommendations" };
-const RESTRICTION_TYPES = { keep_out: "Keep-out zone", no_mop: "No-mop zone" };
+const RESTRICTION_TYPES = { keep_out: "Keep-out zone", no_mop: "No-mop zone", wall: "Virtual wall" };
 const PROGRAM_RECOVERY_STATUS = {
   missing_program: "Program deleted",
   unsupported_selection: "Current selection cannot be edited",
@@ -239,17 +239,18 @@ template.innerHTML = `
           <select id="restriction-kind">
             <option value="keep_out">Keep-out zone</option>
             <option value="no_mop">No-mop zone</option>
+            <option value="wall">Virtual wall</option>
           </select>
         </label>
         <label id="restriction-select-label">Restriction <select id="restriction-target"></select></label>
         <div id="restriction-shape">
           <button id="place-restriction">Place rectangle on map</button>
-          <details><summary>Rectangle coordinates</summary>
+          <details><summary id="restriction-coordinate-title">Rectangle coordinates</summary>
             <div class="divider-coordinates">
-              <label>First corner X <input id="restriction-x1" type="number" step="any"></label>
-              <label>First corner Y <input id="restriction-y1" type="number" step="any"></label>
-              <label>Opposite corner X <input id="restriction-x2" type="number" step="any"></label>
-              <label>Opposite corner Y <input id="restriction-y2" type="number" step="any"></label>
+              <label><span id="restriction-x1-label">First corner X</span> <input id="restriction-x1" type="number" step="any"></label>
+              <label><span id="restriction-y1-label">First corner Y</span> <input id="restriction-y1" type="number" step="any"></label>
+              <label><span id="restriction-x2-label">Opposite corner X</span> <input id="restriction-x2" type="number" step="any"></label>
+              <label><span id="restriction-y2-label">Opposite corner Y</span> <input id="restriction-y2" type="number" step="any"></label>
             </div>
           </details>
         </div>
@@ -558,6 +559,13 @@ function pathFor(rings, xy) {
     for (const point of points) path.lineTo(...xy(point));
     path.closePath();
   }
+  return path;
+}
+
+function openPath([start, ...points], xy) {
+  const path = new Path2D();
+  path.moveTo(...xy(start));
+  for (const point of points) path.lineTo(...xy(point));
   return path;
 }
 
@@ -951,7 +959,10 @@ class RoombaHomeMapCard extends HTMLElement {
     };
     this.$("restriction-operation").onchange = () => this.renderRestrictionEditor();
     this.$("restriction-target").onchange = () => this.renderRestrictionEditor();
-    this.$("restriction-kind").onchange = () => { this.updateRestrictionEdit(); this.draw(); };
+    this.$("restriction-kind").onchange = () => {
+      this.updateRestrictionEdit();
+      this.draw();
+    };
     this.restrictionFields = ["x1", "y1", "x2", "y2"].map((id) => this.$(`restriction-${id}`));
     for (const input of this.restrictionFields) {
       input.oninput = () => {
@@ -964,7 +975,6 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("place-restriction").onclick = () => {
       this.restrictionDraft.placing = 0;
       this.setRestrictionBounds([]);
-      this.$("restriction-edit-status").textContent = "Select the first corner on the map.";
       this.canvas.focus();
     };
     this.$("review-restriction-edit").onclick = () => this.reviewRestrictionEdit();
@@ -1754,7 +1764,7 @@ class RoombaHomeMapCard extends HTMLElement {
     if (kind === "restrictions") {
       restrictions.replaceChildren(...changes.map(({ id, kind, missing }) => {
         const item = document.createElement("li");
-        const label = kind === "wall" ? "Virtual wall" : RESTRICTION_TYPES[kind];
+        const label = RESTRICTION_TYPES[kind];
         item.textContent = `${missing ? "Recreate" : "Restore outline"} · ${label} · ${id}`;
         return item;
       }));
@@ -2781,7 +2791,8 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("restriction-shape").hidden = operation === "delete" || (!create && !shape);
     this.$("restriction-edit-status").textContent = !create && !shape ? "No restrictions saved." : "";
     this.restrictionDraft.placing = null;
-    this.setRestrictionBounds(shape ? mapBounds(shape.points) : [], false);
+    const bounds = shape?.kind === "wall" ? shape.points.flat() : shape ? mapBounds(shape.points) : [];
+    this.setRestrictionBounds(bounds, false);
   }
 
   setRestrictionBounds(bounds, changed = true) {
@@ -2798,9 +2809,22 @@ class RoombaHomeMapCard extends HTMLElement {
     draft.shape = create ? null : this.geometry.editable_restrictions.find((shape) =>
       shape.id === this.$("restriction-target").value);
     draft.kind = create ? this.$("restriction-kind").value : draft.shape?.kind;
+    const wall = draft.kind === "wall";
+    this.$("place-restriction").textContent = wall ? "Place wall on map" : "Place rectangle on map";
+    this.$("restriction-coordinate-title").textContent = wall ? "Endpoint coordinates" : "Rectangle coordinates";
+    for (const axis of ["x", "y"]) {
+      this.$(`restriction-${axis}1-label`).textContent = `First ${wall ? "endpoint" : "corner"} ${axis.toUpperCase()}`;
+      this.$(`restriction-${axis}2-label`).textContent = `${wall ? "Second endpoint" : "Opposite corner"} ${axis.toUpperCase()}`;
+    }
+    if (draft.placing != null) {
+      const first = wall ? "first endpoint" : "first corner";
+      const second = wall ? "second endpoint" : "opposite corner";
+      this.$("restriction-edit-status").textContent = `Select the ${draft.placing === 0 ? first : second} on the map.`;
+    }
     draft.bounds = draft.changedBounds ? this.restrictionFields.map((input) => input.valueAsNumber) : null;
+    const [x1, y1, x2, y2] = draft.bounds ?? [];
     const boundsValid = draft.bounds?.every(Number.isFinite) &&
-      draft.bounds[0] !== draft.bounds[2] && draft.bounds[1] !== draft.bounds[3];
+      (wall ? x1 !== x2 || y1 !== y2 : x1 !== x2 && y1 !== y2);
     this.$("review-restriction-edit").disabled = this.restrictionSaving ||
       (!create && !draft.shape) || (draft.operation !== "delete" && !boundsValid);
   }
@@ -3767,12 +3791,16 @@ class RoombaHomeMapCard extends HTMLElement {
       const slot = draft.placing;
       if (slot != null && this.mapPoint) {
         const point = this.mapPoint(x, y);
-        this.setRestrictionBounds(slot === 0 ? point : [...draft.bounds.slice(0, 2), ...point]);
         draft.placing = slot === 0 ? 1 : null;
-        this.$("restriction-edit-status").textContent = slot === 0 ? "Select the opposite corner." : "";
+        if (slot !== 0) this.$("restriction-edit-status").textContent = "";
+        this.setRestrictionBounds(slot === 0 ? point : [...draft.bounds.slice(0, 2), ...point]);
       } else if (draft.operation !== "create") {
-        const hit = this.restrictionTargets.findLast(({ path }) =>
-          this.ctx.isPointInPath(path, x, y, "evenodd"));
+        this.ctx.save();
+        this.ctx.lineWidth = 12 * WIDTH / bounds.width;
+        const hit = this.restrictionTargets.findLast(({ path, kind }) => kind === "wall"
+          ? this.ctx.isPointInStroke(path, x, y)
+          : this.ctx.isPointInPath(path, x, y, "evenodd"));
+        this.ctx.restore();
         if (hit && hit.id !== draft.shape?.id) this.renderRestrictionEditor(hit.id);
       }
       return;
@@ -3923,10 +3951,8 @@ class RoombaHomeMapCard extends HTMLElement {
     ctx.strokeStyle = THEMES.exclusion[1];
     ctx.lineWidth = 3;
     ctx.setLineDash([6, 4]);
-    for (const [start, ...points] of walls) {
-      const path = new Path2D();
-      path.moveTo(...xy(start));
-      for (const point of points) path.lineTo(...xy(point));
+    for (const points of walls) {
+      const path = openPath(points, xy);
       ctx.stroke(path);
       this.walls.push(path);
     }
@@ -3950,8 +3976,8 @@ class RoombaHomeMapCard extends HTMLElement {
     }
     if (this.zoneDraft) this.drawZoneDraft(xy);
     if (this.restrictionDraft) {
-      this.restrictionTargets = this.geometry.editable_restrictions.map(({ id, points }) =>
-        ({ id, path: pathFor([[...points, points[0]]], xy) }));
+      this.restrictionTargets = this.geometry.editable_restrictions.map(({ id, kind, points }) =>
+        ({ id, kind, path: kind === "wall" ? openPath(points, xy) : pathFor([[...points, points[0]]], xy) }));
       this.drawRestrictionDraft(xy);
     }
   }
@@ -4003,6 +4029,21 @@ class RoombaHomeMapCard extends HTMLElement {
 
   drawRestrictionDraft(xy) {
     const draft = this.restrictionDraft;
+    if (draft.kind === "wall") {
+      const [x1, y1, x2, y2] = draft.bounds ?? draft.shape?.points.flat() ?? [];
+      if (![x1, y1].every(Number.isFinite)) return;
+      this.drawPointMarker(xy([x1, y1]), "#f6ac9d");
+      if ([x2, y2].every(Number.isFinite)) {
+        const ctx = this.ctx;
+        ctx.strokeStyle = "#f6ac9d";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 4]);
+        ctx.stroke(openPath([[x1, y1], [x2, y2]], xy));
+        ctx.setLineDash([]);
+        this.drawPointMarker(xy([x2, y2]), "#f6ac9d");
+      }
+      return;
+    }
     const ring = draft.bounds?.every(Number.isFinite) ? rectangleRing(draft.bounds)
       : draft.shape ? [...draft.shape.points, draft.shape.points[0]] : null;
     if (!ring) return;

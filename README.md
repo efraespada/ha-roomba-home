@@ -161,9 +161,12 @@ reload the dashboard. Use one card per robot.
   or enter their coordinates. On supported Max 700 maps, the saved rectangle
   becomes selectable once Roomba confirms the active map revision.
   [Saved-zone editor validation](docs/validation.md#immediate-saved-zone-selection-in-0250)
-- **Edit restrictions** creates, moves, resizes, or removes keep-out and
-  no-mop zones. To protect a rug during mopping, choose **No-mop zone**,
-  draw a rectangle across the rug, then review and save it.
+- **Edit restrictions** creates, moves, resizes, or removes keep-out zones,
+  no-mop zones, and virtual walls. Choose **No-mop zone** and draw a
+  rectangle to protect a rug. For a barrier across a doorway, choose
+  **Virtual wall → Place wall on map**, pick its two endpoints, then review
+  and save. You can also enter the coordinates with the keyboard.
+  [Restriction editor](docs/usage.md#edit-map-restrictions)
 - **Show furniture** displays saved and detected objects. In **Edit
   furniture**, choose **Chair**, place its center, enter its width and
   depth, and check the rotation preview before saving.

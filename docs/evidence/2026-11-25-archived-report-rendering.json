@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "signed_reads": {
+    "reports_checked": 3,
+    "reports_matched_to_exact_archived_revision": 3,
+    "reports_with_walls_furniture_route_and_coverage": 3,
+    "robot_movement_commands_sent": 0
+  },
+  "isolated_chrome": {
+    "viewport_widths_px": [358, 900],
+    "rendered_a_signed_archived_report": true,
+    "overhead_3d_and_rotated_views_verified": true
+  }
+}

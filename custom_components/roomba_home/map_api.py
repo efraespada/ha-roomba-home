@@ -146,7 +146,6 @@ def map_geometry(floor, plan):
         geometry["editable_restrictions"] = [
             {"id": shape.identifier, "kind": shape.kind, "points": shape.points}
             for shape in plan.policy_shapes
-            if shape.kind in EDITABLE_RESTRICTIONS
         ]
     return geometry
 

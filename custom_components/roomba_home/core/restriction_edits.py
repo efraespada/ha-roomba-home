@@ -1,14 +1,25 @@
 """Save one restriction while preserving the full Roomba policy layer."""
 
 from dataclasses import dataclass, replace
+from itertools import pairwise
 from math import hypot
 
 from .errors import ProtocolError
 from .map_edits import edited_floor_plan, overlaps_visible_room, rectangle_on_floor
 from .maps import PersistentMap
-from .point_maps import FloorPlan, MapRestriction, RestrictionKind, Ring
+from .point_maps import (
+    Coordinate,
+    FloorPlan,
+    MapRestriction,
+    Polygon,
+    RestrictionKind,
+    Ring,
+    _coordinate,
+    _inside,
+    line_crossings,
+)
 
-EDITABLE_RESTRICTIONS = (RestrictionKind.KEEP_OUT, RestrictionKind.NO_MOP)
+EDITABLE_RESTRICTIONS = (RestrictionKind.KEEP_OUT, RestrictionKind.NO_MOP, RestrictionKind.WALL)
 _WIRE_CODES = {
     RestrictionKind.KEEP_OUT: 1,
     RestrictionKind.NO_MOP: 6,
@@ -65,22 +76,59 @@ def prepare_restriction_edit(
     selected = restrictions.get(identifier)
     if operation == "create":
         if identifier is not None or kind not in EDITABLE_RESTRICTIONS or bounds is None:
-            raise ValueError("Choose a restriction type and draw a rectangle.")
+            raise ValueError("Choose a restriction type and place it on the map.")
         identifier = next(
             str(i) for i in range(100, 101 + len(restrictions)) if str(i) not in restrictions
         )
+        shape = RestrictionKind(kind)
         restrictions[identifier] = MapRestriction(
-            identifier, RestrictionKind(kind), rectangle_on_floor(bounds, plan)
+            identifier, shape, _restriction_points(shape, bounds, plan)
         )
-    elif selected is None or selected.kind not in EDITABLE_RESTRICTIONS or kind is not None:
+    elif selected is None or kind is not None:
         raise ValueError("Select an editable restriction on this floor.")
     elif operation == "update" and bounds is not None:
-        restrictions[identifier] = replace(selected, points=rectangle_on_floor(bounds, plan))
+        restrictions[identifier] = replace(
+            selected, points=_restriction_points(selected.kind, bounds, plan)
+        )
     elif operation == "delete" and bounds is None:
         del restrictions[identifier]
     else:
-        raise ValueError("Draw a rectangle to move or resize the selected restriction.")
+        raise ValueError(
+            "Draw the new outline or endpoints to move or resize the selected restriction."
+        )
     return _restriction_edit(restrictions)
+
+
+def _restriction_points(kind: RestrictionKind, bounds: list, plan: FloorPlan) -> Ring:
+    if kind is not RestrictionKind.WALL:
+        return rectangle_on_floor(bounds, plan)
+    if len(bounds) != 4 or not all(map(_coordinate, bounds)):
+        raise ValueError("Choose two finite wall endpoints.")
+    start, end = tuple(bounds[:2]), tuple(bounds[2:])
+    if start == end:
+        raise ValueError("Place two distinct endpoints for the virtual wall.")
+    if not any(
+        _wall_crosses_room(start, end, polygon)
+        for room in plan.rooms
+        if room.visible
+        for polygon in room.polygons
+    ):
+        raise ValueError("Place part of the virtual wall inside a visible room.")
+    return start, end
+
+
+def _wall_crosses_room(start: Coordinate, end: Coordinate, polygon: Polygon) -> bool:
+    # Test the open intervals between boundary crossings and both endpoints.
+    crossings = {0, 1} | {
+        cut for ring in polygon for cut in line_crossings(start, end, ring) if 0 < cut < 1
+    }
+    for left, right in pairwise(sorted(crossings)):
+        mid = (left + right) / 2
+        if _inside(
+            (start[0] + (end[0] - start[0]) * mid, start[1] + (end[1] - start[1]) * mid), polygon
+        ):
+            return True
+    return False
 
 
 def prepare_restriction_restore(saved: FloorPlan, current: FloorPlan) -> RestrictionEdit:

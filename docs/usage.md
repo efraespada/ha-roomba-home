@@ -103,19 +103,29 @@ cleaning area list updates as soon as Roomba confirms the new map revision.
 [Saved-zone validation](validation.md#directed-vacuum-then-mop)
 [Cleaning-zone protocol](api.md#cleaning-zone-edits)
 
+### Edit map restrictions
+
 Choose **Edit restrictions** while the robot is idle or docked. A
 **Keep-out zone** excludes the marked area from vacuuming and mopping.
 A **No-mop zone** excludes it from mopping. Select **Place rectangle on map**
 and choose opposite corners, or enter them under **Rectangle coordinates**.
-At least part of the rectangle must overlap a mapped room. Choose
-**Review restriction**, then **Save map**.
+At least part of the rectangle must overlap a mapped room.
 
-Use **Move or resize a restriction** to draw replacement corners for the
-selected restriction. Use **Remove a restriction** to remove it after
-review. These operations preserve the other restrictions and existing
-virtual walls. If Roomba returns a restriction the editor cannot preserve,
-the controls are disabled and the stored shapes remain visible.
+To add a line across a doorway, choose **Add a restriction → Virtual wall**,
+select **Place wall on map**, and pick its first and second endpoints. You
+can also enter them under **Endpoint coordinates**. A wall can be horizontal,
+vertical, or diagonal. Part of the segment must pass inside a mapped room.
+Choose **Review restriction**, then **Save map**.
+
+Use **Move or resize a restriction** to draw replacement corners or
+endpoints for the selected restriction. You can select a wall directly by
+clicking its line on the map. Use **Remove a restriction** to remove it
+after review. Each operation preserves the other restrictions. If Roomba
+returns a restriction the editor cannot preserve, the controls are disabled
+and the stored shapes remain visible.
 [Restriction write protocol](api.md#restriction-edits)
+
+### Edit furniture
 
 Choose **Show furniture** to see the objects stored on a supported map.
 Use **Edit furniture** when the robot is idle or docked. Choose a type

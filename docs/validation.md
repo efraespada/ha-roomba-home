@@ -1,5 +1,24 @@
 # Roomba Home validation
 
+## Editing virtual walls
+
+On a docked Max 700 Combo, the coordinator created a horizontal wall,
+changed it to a vertical wall, changed it to a diagonal wall, and removed
+it. Each step took one signed map write. Both moves kept the same identifier.
+The returned archives confirmed the endpoints and preserved a companion
+no-mop zone, the room geometry, and other map layers. With automatic
+backups enabled, Home Assistant saved one snapshot before each write.
+After the companion zone was removed, the parsed active map matched its
+state at the start of this trial. The trial sent zero movement commands.
+
+The authenticated WebSocket tests cover creating, reading, changing, and
+removing a line through Home Assistant. Isolated Chrome verified the
+keyboard endpoint fields, floor-specific confirmation, and resulting
+request at 358 and 900 pixels. The suite passed 2,463 Python tests with
+100% line and branch coverage, 54 card tests, and Home Assistant's
+integration validator.
+[Anonymized wall evidence](evidence/2026-11-25-virtual-wall-editing.json)
+
 ## Recovering room names and types
 
 A signed Max 700 Combo trial divided and recombined an open room. The active
@@ -480,12 +499,17 @@ coverage, and the associated mission records supplied 9, 8, and 9 timeline
 events. The comparison used only reads of existing records.
 
 Home Assistant tests cover entity read permission, report ownership,
-expired archives, and unknown report selections. An isolated Chrome
-run verified opening the 3D report view with synthetic data. The suite
+expired archives, and unknown report selections. An isolated Chrome run
+verified opening the 3D report view with synthetic data. A follow-up
+signed read checked three reports, each tied to its own archived
+revision with walls, furniture, route, and coverage. Isolated Chrome used
+one of those real archives to verify the report dialog, overhead and 3D
+rendering, and camera rotation at 358 and 900 pixels. The original suite
 passed 2,012 Python tests with 100% statement and branch coverage, 21 card
 tests, and official hassfest validation. Household installation and cropped
 captures in the user's Chrome session remain pending.
 [Anonymized report evidence](evidence/2026-11-25-archived-cleaning-reports.json)
+[Follow-up report evidence](evidence/2026-11-25-archived-report-rendering.json)
 
 ## Robot software status
 

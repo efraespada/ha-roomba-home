@@ -189,10 +189,10 @@ def test_maps_with_non_round_trippable_restrictions_remain_read_only(
     ("operation", "identifier", "kind", "bounds", "error"),
     [
         ("create", "100", "keep_out", BOUNDS, "Choose a restriction type"),
-        ("create", None, "wall", BOUNDS, "Choose a restriction type"),
+        ("create", None, "unknown", BOUNDS, "Choose a restriction type"),
         ("create", None, "keep_out", None, "Choose a restriction type"),
         ("update", "missing", None, BOUNDS, "Select an editable"),
-        ("update", "200", None, BOUNDS, "Select an editable"),
+        ("update", "200", None, [20, 20, 21, 21], "inside a visible room"),
         ("update", "100", "keep_out", BOUNDS, "Select an editable"),
         ("update", "100", None, None, "move or resize"),
         ("delete", "100", None, BOUNDS, "move or resize"),
@@ -214,6 +214,41 @@ def test_restriction_edits_require_a_valid_operation_and_target(
     )
     with pytest.raises(ValueError, match=error):
         prepare_restriction_edit(plan, operation, identifier, kind, bounds)
+
+
+@pytest.mark.parametrize(
+    "bounds", [[2, 1, 4, 1], [3, 3, 3, 1], [4, 3, 2, 1], [-1, 1, 11, 1], [0.5, 7.5, 2.5, 7.5]]
+)
+def test_wall_edits_preserve_native_endpoint_pairs(picea_archive, policy_feature, bounds):
+    restriction = policy_feature("100", "NoMopZone", [RECTANGLE])
+    plan = read_floor_plan(picea_archive(restrictions=[restriction]), MAP)
+    edit = prepare_restriction_edit(plan, "create", None, "wall", bounds)
+    sent = edit.request_body()["edit_cmd"]["params"]["virwall"]
+    assert sent[0] == 2
+    assert sent[2] == ["101", 2, *bounds[:2], *bounds[:2], *bounds[2:], *bounds[2:]]
+    wall = policy_feature(
+        "101", "KeepOutZone", [bounds[:2], bounds[2:]], geometry_type="LineString"
+    )
+    after = picea_archive(version="version.43", restrictions=[restriction, wall])
+    assert confirm_restriction_edit(after, MAP, plan, edit) == "version.43"
+    active = read_floor_plan(after, replace(MAP, version_id="version.43"))
+    moved = prepare_restriction_edit(active, "update", "101", None, [3, 1, 3, 2])
+    assert moved.restrictions[-1].identifier == "101"
+    assert moved.restrictions[-1].points == ((3, 1), (3, 2))
+    removed = prepare_restriction_edit(active, "delete", "101", None, None)
+    assert removed.restrictions == plan.policy_shapes
+
+
+@pytest.mark.parametrize(
+    "bounds", [[1, 2, 3], [False, 1, 2, 3], [2, 1, 2, 1], [2, 0, 5, 0], [1.2, 7.5, 1.7, 7.5]]
+)
+def test_wall_placement_requires_a_distinct_line_inside_a_visible_room(picea_archive, bounds):
+    plan = read_floor_plan(picea_archive(restrictions=[]), MAP)
+    with pytest.raises(ValueError):
+        prepare_restriction_edit(plan, "create", None, "wall", bounds)
+    room = replace(plan.rooms[0], visible=False)
+    with pytest.raises(ValueError, match="inside a visible room"):
+        prepare_restriction_edit(replace(plan, rooms=(room,)), "create", None, "wall", [2, 1, 3, 2])
 
 
 @pytest.mark.parametrize(

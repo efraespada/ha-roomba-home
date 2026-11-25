@@ -1042,25 +1042,78 @@ test("a rotation preview leaves the saved angle and area selections intact", () 
   assert.ok(savedEnd[0] > savedStart[0]);
 });
 
+function prepareRestrictionPlacement(card, kind) {
+  card.restrictionFields = Array.from({ length: 4 }, () => ({
+    value: "",
+    get valueAsNumber() { return this.value === "" ? NaN : Number(this.value); },
+  }));
+  card.$("restriction-operation").value = "create";
+  card.$("restriction-kind").value = kind;
+  card.restrictionDraft = { operation: "create", kind, placing: 0 };
+  card.canvas = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 920, height: 520 }) };
+  card.setRestrictionBounds([]);
+}
+
 test("two clicks create a restriction in native coordinates on a rotated floor", () => {
   const { card } = mockCard(-Math.PI / 2);
-  const status = {};
   card.geometry.editable_restrictions = [];
-  card.restrictionDraft = { operation: "create", kind: "no_mop", placing: 0 };
-  card.canvas = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 920, height: 520 }) };
-  const getElement = card.$.bind(card);
-  card.$ = (id) => id === "restriction-edit-status" ? status : getElement(id);
-  card.setRestrictionBounds = (bounds) => { card.restrictionDraft.bounds = bounds; };
-  card.draw();
+  prepareRestrictionPlacement(card, "no_mop");
   const outline = card.targets[0].path.points;
   card.pick({ clientX: outline[0][0], clientY: outline[0][1] });
   assert.equal(card.restrictionDraft.placing, 1);
-  assert.equal(status.textContent, "Select the opposite corner.");
+  assert.equal(card.$("restriction-edit-status").textContent, "Select the opposite corner on the map.");
   card.pick({ clientX: outline[2][0], clientY: outline[2][1] });
   assert.equal(card.restrictionDraft.placing, null);
   for (const [index, expected] of [0, 0, 10, 4].entries()) {
     close(card.restrictionDraft.bounds[index], expected);
   }
+});
+
+test("wall placement keeps vertical and diagonal endpoints and accepts stroke selection", async () => {
+  const { card } = mockCard(-Math.PI / 2);
+  const marks = [];
+  card.drawPointMarker = (screenPoint) => marks.push(screenPoint);
+  const wall = { id: "wall-1", kind: "wall", points: [[8, 1], [4, 3]] };
+  const zone = { id: "zone-1", kind: "keep_out", points: [[1, 1], [2, 1], [2, 2], [1, 2]] };
+  card.geometry.editable_restrictions = [wall, zone];
+  card.geometry.virtual_walls = [wall.points];
+  prepareRestrictionPlacement(card, "wall");
+  assert.equal(card.$("place-restriction").textContent, "Place wall on map");
+  assert.equal(card.$("restriction-y2-label").textContent, "Second endpoint Y");
+  const [first, second] = [[6, 1], [6, 3]].map(card.screenPoint);
+  card.pick({ clientX: first[0], clientY: first[1] });
+  assert.equal(card.$("restriction-edit-status").textContent, "Select the second endpoint on the map.");
+  assert.equal(card.$("review-restriction-edit").disabled, true);
+  card.pick({ clientX: second[0], clientY: second[1] });
+  assert.equal(card.$("review-restriction-edit").disabled, false);
+  assert.ok(marks.length >= 3);
+  const calls = [];
+  card.config = { entity: "vacuum.example" };
+  card.floor = "example";
+  Object.assign(card.restrictionDraft, { id: card.floor, version: "abc", inventoryId: "inv" });
+  card._hass = { callWS: async (request) => calls.push(request) };
+  card.refresh = async () => {};
+  card.$("restriction-edit-dialog").close = () => {};
+  await card.saveRestrictionEdit();
+  assert.equal(calls[0].kind, "wall");
+  assert.equal(calls[0].operation, "create");
+  calls[0].bounds.forEach((value, i) => close(value, [6, 1, 6, 3][i]));
+
+  card.restrictionDraft = { operation: "update", kind: "keep_out", shape: zone };
+  card.$("restriction-operation").value = "update";
+  card.ctx.save = () => {};
+  card.ctx.restore = () => {};
+  card.ctx.isPointInPath = () => false;
+  card.ctx.isPointInStroke = (path) => path.points.length === 2;
+  card.draw();
+  card.pick({ clientX: first[0], clientY: first[1] });
+  assert.equal(card.restrictionDraft.shape.id, "wall-1");
+  assert.deepEqual(Array.from(card.restrictionFields, ({ value }) => value), [8, 1, 4, 3]);
+  assert.equal(card.$("review-restriction-edit").disabled, true);
+  card.setRestrictionBounds([8, 3, 6, 1]);
+  assert.equal(card.$("review-restriction-edit").disabled, false);
+  card.setRestrictionBounds([3, 1, 3, 1]);
+  assert.equal(card.$("review-restriction-edit").disabled, true);
 });
 
 test("room publication keeps an open confirmation valid when the available targets are unchanged", async () => {

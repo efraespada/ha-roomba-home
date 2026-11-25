@@ -2988,3 +2988,86 @@ async def test_room_details_review_lists_boundary_changes_without_a_write(
     assert room["status"] == "changed_boundary" and "review_id" not in room
     assert result["applied"] is False
     configured.client.edit_map.assert_not_awaited()
+
+
+async def test_virtual_wall_editor_creates_moves_and_removes_a_line(
+    hass_ws_client, configured, picea_archive, policy_feature
+):
+    added = replace(MAP, version_id="version.43")
+    moved = replace(MAP, version_id="version.44")
+    cleared = replace(MAP, version_id="version.45")
+    keep = policy_feature("100", "KeepOutZone", [[[4, 6], [4, 7], [3, 7], [3, 6], [4, 6]]])
+    first = [[2, 1], [4, 1]]
+    second = [[3, 3], [3, 1]]
+
+    def wall(points):
+        return policy_feature("101", "KeepOutZone", points, geometry_type="LineString")
+
+    archives = {
+        scope.version_id: picea_archive(version=scope.version_id, restrictions=restrictions)
+        for scope, restrictions in (
+            (MAP, [keep]),
+            (added, [keep, wall(first)]),
+            (moved, [keep, wall(second)]),
+            (cleared, [keep]),
+        )
+    }
+    configured.client.map_geometry.side_effect = lambda _, version: archives[version]
+    configured.client.edit_map = AsyncMock(
+        side_effect=[archives[scope.version_id] for scope in (added, moved, cleared)]
+    )
+    configured.client.maps.side_effect = [
+        (MAP,),
+        (added,),
+        (added,),
+        (moved,),
+        (moved,),
+        (cleared,),
+    ]
+    socket = await hass_ws_client()
+    request = {
+        "type": "roomba_home/edit_restrictions",
+        "entity_id": ENTITY,
+        "map_id": MAP.map_id,
+        "version": MAP.version_id,
+        "inventory_id": MAP.inventory_id,
+    }
+    await socket.send_json(
+        request | {"id": 1, "operation": "create", "kind": "wall", "bounds": [2, 1, 4, 1]}
+    )
+    assert (await socket.receive_json())["result"]["version"] == added.version_id
+    await socket.send_json(
+        request
+        | {
+            "id": 2,
+            "operation": "update",
+            "zone_id": "101",
+            "bounds": [3, 3, 3, 1],
+            "version": added.version_id,
+        }
+    )
+    assert (await socket.receive_json())["result"]["version"] == moved.version_id
+    await socket.send_json({"id": 3, "type": "roomba_home/floor_plan", "entity_id": ENTITY})
+    geometry = (await socket.receive_json())["result"]["geometry"]
+    assert geometry["virtual_walls"] == [second]
+    assert geometry["editable_restrictions"][-1] == {"id": "101", "kind": "wall", "points": second}
+    await socket.send_json(
+        request
+        | {
+            "id": 4,
+            "operation": "delete",
+            "zone_id": "101",
+            "version": moved.version_id,
+        }
+    )
+    assert (await socket.receive_json())["result"]["version"] == cleared.version_id
+    await socket.send_json({"id": 5, "type": "roomba_home/floor_plan", "entity_id": ENTITY})
+    geometry = (await socket.receive_json())["result"]["geometry"]
+    assert geometry["virtual_walls"] == []
+    assert [shape["id"] for shape in geometry["editable_restrictions"]] == ["100"]
+    writes = [
+        call.args[1].request_body()["edit_cmd"]["params"]["virwall"]
+        for call in configured.client.edit_map.await_args_list
+    ]
+    assert [row[0] for row in writes] == [2, 2, 1]
+    assert writes[1][2] == ["101", 2, 3, 3, 3, 3, 3, 1, 3, 1]
