@@ -179,6 +179,16 @@ new settings and the same active geometry revision and destination inventory.
 This command requires control permission for both review and confirmation.
 [Restoration validation](validation.md#restoring-backed-up-floor-settings)
 
+`roomba_home/restore_map_backup_room_details` accepts the same backup and
+active floor review fields. It returns a `rooms` list with the previous and
+proposed `name` and `room_type`, an `id`, and a `status` for each affected
+room. A room with `status: ready` has a matching identifier and footprint
+and a `review_id`. Confirm with `confirmed: true`, `room_id`, and that
+`review_id`. Home Assistant rechecks the floor after any automatic backup,
+sends one `set_room_metadata` request, and verifies the room and unchanged
+geometry. Missing rooms, changed boundaries, and unsupported saved details
+are reported during review. [Room recovery validation](validation.md#recovering-room-names-and-types)
+
 `roomba_home/restore_map_backup_zones` accepts the same backup and active
 floor review fields. It checks the saved boundary against the active
 coordinate frame and validates archived zone outlines against the current
@@ -759,6 +769,13 @@ All eight room types offered by the card passed the Max 700 read-back
 check. Roomba accepted `diningRoom` and `livingRoom` as type values.
 In a separate write, `dining_room` returned a room classified as
 `livingRoom`.
+
+Map edits can also return a JSON acknowledgement with `p2mapv_id` and the
+associated `p2map_metadata.p2map_id`. The integration waits for that revision
+in the signed active map list and reads its archive on the standard
+geometry route. Acknowledgement, the active revision, and verified archive
+content are checked before the edit is reported as successful.
+[Revision acknowledgement validation](validation.md#recovering-room-names-and-types)
 
 ### Floor name and orientation
 

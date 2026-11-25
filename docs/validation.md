@@ -1,5 +1,32 @@
 # Roomba Home validation
 
+## Recovering room names and types
+
+A signed Max 700 Combo trial divided and recombined an open room. The active
+map returned to one room with the original identifier, name, and type. The
+floor border, furniture, restrictions, and all other parsed layers matched
+the pre-edit archive. Roomba recalculated the room outline. Its maximum
+deviation from the original was 0.05 native map units, and the room area
+changed by approximately 0.0077%. The original archive was retained for
+comparison. A later signed read returned the exact pre-edit archive, and
+the active map still showed the room-outline difference. The trial issued
+zero movement commands.
+
+A follow-up trial recorded the active map, set a temporary accented room
+name and type, and received a JSON revision acknowledgement. Home Assistant
+read the published revision and its signed archive before reporting the
+successful edit. The recovery review identified the changed boundary in the
+pre-split backup. A second backup with the matching footprint recovered the
+original room name and type in one write and reported no remaining metadata
+changes on a repeated review. The room footprint, other map layers, and
+original routines matched their state at the start of the metadata trial.
+[Anonymized evidence](evidence/2026-11-25-room-details-recovery.json)
+
+The changes passed 2,452 Python tests with 100% line and branch coverage,
+53 card tests, and Home Assistant's integration validator. Isolated Chrome
+verified the review and confirmation at 358 and 900 pixels using a
+synthetic floor.
+
 ## Recovering furniture placements
 
 A signed Max 700 Combo trial saved all 18 supported furniture types and

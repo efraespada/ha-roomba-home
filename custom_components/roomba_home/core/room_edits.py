@@ -1,11 +1,12 @@
 """Validate room edits against the active floor plan and verify the map response."""
 
 from dataclasses import dataclass, replace
+from itertools import pairwise
 
 from .errors import ProtocolError
 from .map_edits import edited_floor_plan
 from .maps import PersistentMap, map_identifier
-from .point_maps import Coordinate, FloorPlan, _coordinate, _inside, line_crossings
+from .point_maps import Coordinate, FloorPlan, FloorRoom, _coordinate, _inside, line_crossings
 
 MAX_ROOM_NAME_LENGTH = 31
 ROOM_TYPES = {
@@ -105,6 +106,53 @@ def prepare_room_edit(
     if not _inside(middle, polygon):
         raise ValueError("Draw the divider through the interior of the room.")
     return RoomEdit(tuple(room_ids), (start, end))
+
+
+def _footprint(room: FloorRoom) -> frozenset:
+    def edges(ring):
+        return frozenset(frozenset(edge) for edge in pairwise(ring))
+
+    return frozenset(
+        (edges(outer), frozenset(edges(hole) for hole in holes)) for outer, *holes in room.polygons
+    )
+
+
+def review_room_details(saved: FloorPlan, current: FloorPlan) -> list[tuple[dict, RoomEdit | None]]:
+    """Only restore labels and types for rooms with the same identity and footprint."""
+    if saved.source_format != "picea" or current.source_format != "picea":
+        raise ValueError("Room detail recovery is unavailable for this map format.")
+    if not saved.border_digest or saved.border_digest != current.border_digest:
+        raise ValueError("The floor boundary has changed since this backup.")
+    active = {room.region_id: room for room in current.rooms if room.visible}
+    changes = []
+    for original in saved.rooms:
+        if not original.visible:
+            continue
+        previous = active.get(original.region_id)
+        row = {
+            "id": original.region_id,
+            "name": {"from": previous.name if previous else None, "to": original.name},
+            "room_type": {
+                "from": previous.room_type if previous else None,
+                "to": original.room_type,
+            },
+        }
+        if previous is None:
+            changes.append((row | {"status": "missing_room"}, None))
+        elif _footprint(previous) != _footprint(original):
+            changes.append((row | {"status": "changed_boundary"}, None))
+        elif (previous.name, previous.room_type) != (original.name, original.room_type):
+            try:
+                if original.room_type is None:
+                    raise ValueError
+                edit = prepare_room_edit(
+                    current, "rename", [original.region_id], None, original.name, original.room_type
+                )
+            except ValueError:
+                changes.append((row | {"status": "unsupported_details"}, None))
+            else:
+                changes.append((row | {"status": "ready"}, edit))
+    return changes
 
 
 def edited_revision(archive: bytes, floor: PersistentMap, before: FloorPlan, edit: RoomEdit) -> str:

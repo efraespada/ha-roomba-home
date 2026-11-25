@@ -144,7 +144,8 @@ reload the dashboard. Use one card per robot.
   Browse saved revisions offline, pin important versions, export a backup,
   or enable automatic snapshots before map edits and removal. Review and
   restore the recorded name, orientation, and cleaning zones on the current
-  floor. Recover keep-out and no-mop zones, virtual walls, and furniture
+  floor. Recover room names and types for rooms with matching boundaries.
+  Recover keep-out and no-mop zones, virtual walls, and furniture
   placements from a backup. Recover missing furniture and zone destinations
   in compatible routines or schedules, including their cleaning order and
   per-area settings.

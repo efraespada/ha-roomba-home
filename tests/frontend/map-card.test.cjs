@@ -461,6 +461,51 @@ test("restriction recovery previews moved zones and missing walls before saving"
   assert.equal(card.$("map-backups-status").textContent, "The recorded restrictions already match.");
 });
 
+test("room detail recovery selects one room and reports changed boundaries", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  card.snapshot = { map: { id: "floor", version: "current" }, inventory_id: "inventory",
+    floor_settings: { id: "settings", name: "Ático", orientation: 0 } };
+  const dialog = card.$("map-backups-dialog");
+  dialog.showModal = function () { this.open = true; };
+  const saved = { id: "a".repeat(64), map_id: "floor", version: "older" };
+  const rooms = [
+    { id: "room-1", status: "ready", name: { from: "Oficina", to: "Estudio" },
+      room_type: { from: "kitchen", to: "other" }, review_id: "b".repeat(64) },
+    { id: "room-2", status: "ready", name: { from: "Sótano", to: "Recibídor" },
+      room_type: { from: "other", to: "hallway" }, review_id: "c".repeat(64) },
+    { id: "room-3", status: "changed_boundary", name: { from: "Dormitorio", to: "Dormitorio" } },
+  ];
+  const requests = [];
+  card._hass = { callWS: async (request) => {
+    if (request.type === "roomba_home/map_backups") return { snapshots: [saved], can_manage: true, retention: 5 };
+    if (request.type === "roomba_home/read_map_backup") return { backup: saved, geometry: {
+      regions: [region], editable_rooms: [{ id: "room-1" }],
+      room_naming: { types: { other: "Other", kitchen: "Kitchen", hallway: "Hallway" } },
+    } };
+    requests.push(JSON.parse(JSON.stringify(request)));
+    return request.confirmed ? { applied: true } : { rooms, applied: false };
+  } };
+  card.drawMapBackup = () => {};
+  card.refresh = async () => {};
+  const select = card.$("map-backup-restore-room-choice");
+  select.parentElement = {};
+  select.value = "0";
+  await card.openMapBackups();
+  assert.equal(card.$("review-map-backup-room-details").hidden, false);
+  await card.reviewMapBackupRestore("room_details");
+  assert.match(card.$("map-backup-restore-room-status").children[0].textContent, /Dormitorio.*boundary has changed/);
+  select.value = "1";
+  card.showMapBackupRoomDetails();
+  const rows = card.$("map-backup-restore-room-values").children;
+  assert.deepEqual(Array.from(rows, ({ children }) => children.map(({ textContent }) => textContent)), [
+    ["Room name", "Sótano → Recibídor"], ["Room type", "Other → Hallway"],
+  ]);
+  await card.confirmMapBackupRestore();
+  assert.deepEqual(requests[1], { ...requests[0], confirmed: true, room_id: "room-2", review_id: rooms[1].review_id });
+  assert.equal(card.$("map-backups-status").textContent, "Room details restored.");
+});
+
 test("furniture recovery previews placement, source, and affected routines", async () => {
   const { card } = mockCard(0);
   card.config = { entity: "vacuum.example" };

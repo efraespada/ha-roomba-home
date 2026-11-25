@@ -455,6 +455,13 @@ Roomba is idle. For example, use a backup saved before a rename and a
 rotation to restore both settings in one operation. Home Assistant checks
 the active floor again before sending the change.
 
+Use **Restore room names and types** to review room details in the selected
+backup. Select the room and confirm its previous name and type. For example,
+restore a kitchen label and category after a temporary rename. The room must
+have the same identifier and footprint on the active map. The review
+explains when the saved room is missing or its boundary has changed.
+[Room recovery validation](validation.md#recovering-room-names-and-types)
+
 Choose **Restore cleaning zones** to review moved, renamed, or removed
 zones from the same floor. The preview shows the backed-up zones and the
 current routines and schedules that refer to the affected targets. The

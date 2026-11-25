@@ -4,6 +4,7 @@ import asyncio
 import json
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 from urllib.parse import urlencode
@@ -67,6 +68,11 @@ FIRMWARE_CATALOG_URL = "https://content-prod.iot.irobotapi.com/v2/firmware"
 
 class MapEdit(Protocol):
     def request_body(self) -> dict: ...
+
+
+@dataclass(frozen=True, repr=False)
+class MapEditAcknowledgement:
+    version: str
 
 
 def check_status(response: HttpResponse) -> None:
@@ -365,7 +371,7 @@ class RoombaClient:
         )
         return read_quick_routines(data, robot_id, floor, capabilities)
 
-    async def edit_map(self, map_id: str, edit: MapEdit) -> bytes:
+    async def edit_map(self, map_id: str, edit: MapEdit) -> bytes | MapEditAcknowledgement:
         if not map_identifier(map_id):
             raise ProtocolError("A valid map identifier is required.")
         response = await self.request(
@@ -374,9 +380,17 @@ class RoombaClient:
             data=edit.request_body(),
             accept=GZIP_JSON_ACCEPT,
         )
-        if not isinstance(response, bytes) or not response:
-            raise ProtocolError("Expected a binary edited map bundle.")
-        return response
+        if isinstance(response, bytes) and response:
+            return response
+        if (
+            isinstance(response, dict)
+            and isinstance(response.get("status"), str)
+            and isinstance(metadata := response.get("p2map_metadata"), dict)
+            and metadata.get("p2map_id") == map_id
+            and map_identifier(version := response.get("p2mapv_id"))
+        ):
+            return MapEditAcknowledgement(version)
+        raise ProtocolError("Expected a binary edited map bundle or its revision acknowledgement.")
 
     async def update_floor_settings(
         self, robot_id: str, floor: PersistentMap, edit: FloorSettingsEdit

@@ -7,7 +7,11 @@ import pytest
 from custom_components.roomba_home.core.errors import ProtocolError
 from custom_components.roomba_home.core.maps import CleaningRegion, PersistentMap, RegionKind
 from custom_components.roomba_home.core.point_maps import read_floor_plan, with_archive_destinations
-from custom_components.roomba_home.core.room_edits import edited_revision, prepare_room_edit
+from custom_components.roomba_home.core.room_edits import (
+    edited_revision,
+    prepare_room_edit,
+    review_room_details,
+)
 
 FLOOR = PersistentMap(
     "map-a",
@@ -18,6 +22,63 @@ FLOOR = PersistentMap(
         CleaningRegion("zone-a", RegionKind.ZONE, "Desk"),
     ),
 )
+
+
+def test_room_detail_recovery_compares_footprints_and_keeps_later_rooms(picea_archive):
+    plan = read_floor_plan(picea_archive(), FLOOR)
+    present = replace(plan.rooms[0], name="Oficina", room_type="other")
+    original_rings = tuple(
+        tuple(tuple(reversed(ring)) for ring in polygon) for polygon in present.polygons
+    )
+    archived = replace(present, name="Cocína", room_type="kitchen", polygons=original_rings)
+    later = replace(present, region_id="newer", name="Studio", room_type="bedroom")
+    hidden = replace(present, region_id="hidden", visible=False)
+    removed = replace(archived, region_id="missing")
+    changed = replace(archived, region_id="reshaped", polygons=())
+    reshaped = replace(present, region_id="reshaped")
+    same = replace(present, region_id="unchanged")
+    [change, gone, moved] = review_room_details(
+        replace(plan, rooms=(archived, removed, changed, same, hidden)),
+        replace(plan, rooms=(present, later, reshaped, same)),
+    )
+    row, edit = change
+    assert row == {
+        "id": present.region_id,
+        "status": "ready",
+        "name": {"from": "Oficina", "to": "Cocína"},
+        "room_type": {"from": "other", "to": "kitchen"},
+    }
+    assert edit.name == "Cocína" and edit.room_type == "kitchen"
+    assert gone[0]["status"] == "missing_room" and gone[1] is None
+    assert moved[0]["status"] == "changed_boundary" and moved[1] is None
+
+
+@pytest.mark.parametrize("name,category", [(None, "other"), ("Kitchen", None), ("Lounge", "new")])
+def test_room_recovery_previews_unrepresentable_labels(picea_archive, name, category):
+    plan = read_floor_plan(picea_archive(), FLOOR)
+    present = replace(plan.rooms[0], name="Office", room_type="other")
+    archived = replace(present, name=name, room_type=category)
+    [(row, edit)] = review_room_details(
+        replace(plan, rooms=(archived,)), replace(plan, rooms=(present,))
+    )
+    assert row["status"] == "unsupported_details" and edit is None
+
+
+@pytest.mark.parametrize(
+    "saved,current,message",
+    [
+        ({"source_format": "unsupported"}, {}, "unavailable"),
+        ({}, {"source_format": "unsupported"}, "unavailable"),
+        ({"border_digest": None}, {}, "boundary has changed"),
+        ({}, {"border_digest": "different"}, "boundary has changed"),
+    ],
+)
+def test_room_recovery_requires_the_same_native_coordinate_frame(
+    picea_archive, saved, current, message
+):
+    plan = read_floor_plan(picea_archive(), FLOOR)
+    with pytest.raises(ValueError, match=message):
+        review_room_details(replace(plan, **saved), replace(plan, **current))
 
 
 def test_split_requires_exactly_two_boundary_crossings(picea_archive):

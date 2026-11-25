@@ -46,7 +46,7 @@ from .core.application import (
 from .core.capabilities import supports_point_clean
 from .core.cleaning import CleaningCapabilities, CleaningMode, CleaningProfile
 from .core.cleaning_protocol import reported_cleaning_mode
-from .core.client import RoombaClient, check_status
+from .core.client import MapEditAcknowledgement, RoombaClient, check_status
 from .core.commands import Command, MqttCommandSender
 from .core.dock import DockSnapshot
 from .core.errors import (
@@ -109,7 +109,7 @@ from .core.restriction_edits import (
     prepare_restriction_edit,
     prepare_restriction_restore,
 )
-from .core.room_edits import edited_revision, prepare_room_edit
+from .core.room_edits import edited_revision, prepare_room_edit, review_room_details
 from .core.routine_presets import smart_routine_presets
 from .core.schedules import next_schedule_start, once_weekday
 from .core.settings_protocol import DEVICE_CONFIGURATION_SETTINGS, RobotSetting
@@ -701,6 +701,59 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             RegionKind.ZONE,
         )
 
+    async def async_restore_map_room_details(
+        self,
+        robot_id,
+        backup_id,
+        map_id,
+        version,
+        inventory_id,
+        settings_id,
+        *,
+        confirmed=False,
+        room_id=None,
+        review_id=None,
+    ):
+        async with self._io_lock:
+            history = map_history(self.hass, self.config_entry.entry_id)
+            record = await history.async_read(robot_id, backup_id)
+            saved, archived = await self._executor(read_snapshot, record)
+            if saved.map_id != map_id:
+                raise HomeAssistantError("Select the active floor for this backup.")
+            scope = (map_id, version, inventory_id, settings_id)
+            floor = await self._reviewed_settings_floor(robot_id, *scope)
+            plan = await self._floor_plan(robot_id, floor)
+            try:
+                entries = await self._executor(review_room_details, archived, plan)
+            except ValueError as error:
+                raise HomeAssistantError(str(error)) from None
+            ready = {}
+            for row, edit in entries:
+                if edit is not None:
+                    authorized = sha256(
+                        json.dumps(
+                            {
+                                "backup": backup_id,
+                                "floor": scope,
+                                "room": row,
+                            },
+                            sort_keys=True,
+                        ).encode()
+                    ).hexdigest()
+                    row["review_id"] = authorized
+                    ready[row["id"]] = (authorized, edit)
+            if not confirmed:
+                return {"rooms": [row for row, _ in entries], "applied": False}
+            selected = ready.get(room_id)
+            if selected is None or selected[0] != review_id:
+                raise action_error(
+                    "map_changed", "The room recovery review changed. Open it again."
+                )
+            await self._back_up_before_edit(robot_id, floor)
+            active = await self._reviewed_settings_floor(robot_id, *scope)
+            await self._write_map_edit(robot_id, active, plan, selected[1], edited_revision)
+            return {"applied": True}
+
     async def async_restore_map_restrictions(
         self,
         robot_id,
@@ -1041,14 +1094,25 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
     async def _write_map_edit(self, robot_id, floor, plan, edit, confirm):
         self._maps_due = min(self._maps_due, self._clock())
         try:
-            archive = await self._read_map_action(self.client.edit_map, floor.map_id, edit)
-            edited = await self._executor(confirm, archive, floor, plan, edit)
+            response = await self._read_map_action(self.client.edit_map, floor.map_id, edit)
+            needs_archive = isinstance(response, MapEditAcknowledgement)
+            edited = (
+                response.version
+                if needs_archive
+                else await self._executor(confirm, response, floor, plan, edit)
+            )
             for delay in (0, 0.5, 1.5):
                 if delay:
                     await asyncio.sleep(delay)
                 floors = await self._read_map_action(self._read_maps, robot_id)
                 active = next((item for item in floors if item.map_id == floor.map_id), None)
                 if active and active.version_id == edited:
+                    if needs_archive:
+                        archive = await self._read_map_action(
+                            self.client.map_geometry, active.map_id, edited
+                        )
+                        if await self._executor(confirm, archive, floor, plan, edit) != edited:
+                            break
                     self.async_update_listeners()
                     return active
                 if active is None or active.version_id != floor.version_id:

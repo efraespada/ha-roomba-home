@@ -117,6 +117,10 @@ and revision. A saved zone is a provider-confirmed region with its own ID.
 - EDIT-15: Recover moved and missing furniture placements from a backup of
   the same floor. Review the object types, sources, and linked routines.
   Preserve furniture added later and verify the complete active layer.
+- EDIT-16: Recover one room's name and type after confirming its saved and
+  active identifiers and footprints. Report missing rooms and changed
+  footprints before saving. Verify the selected metadata on the new active
+  revision.
 - Bulk edits and cross-floor copies require a verified operations contract.
 - Roomba remains the owner of robot and map data. Editing a map never starts a cleaning mission.
 
@@ -261,6 +265,13 @@ source classification, and placements, accounting for small provider heading
 rounding and allowing Roomba to recalculate derived cleaning areas. A
 separate program confirmation can recover a pruned furniture target once
 its original placement matches the active map.
+
+Room detail recovery checks the same floor boundary and matching room
+footprints. It confirms one selected room at a time. A room division or merge
+can recalculate the outline, which limits exact topology recovery through
+these operations. When Roomba replies with a new revision identifier, wait
+for it in active inventory and verify its signed archive. The map operation
+issues one write.
 [Local map history acceptance and trial evidence](../docs/roadmap.md#local-map-history-and-recovery)
 
 ## 11. Security, permissions, and privacy
@@ -347,6 +358,7 @@ screenshots.
 | EDIT-13 | [Program destination recovery](../docs/api.md#local-map-backup-commands) | [Selection policy tests](../tests/test_map_programs.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-program-destinations) |
 | EDIT-14 | [Restriction recovery](../docs/api.md#local-map-backup-commands) | [Policy tests](../tests/test_restriction_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-map-restrictions) |
 | EDIT-15 | [Furniture recovery](../docs/api.md#local-map-backup-commands) | [Furniture tests](../tests/test_furniture_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-furniture-placements) |
+| EDIT-16 | [Room detail recovery](../docs/api.md#local-map-backup-commands) | [Room tests](../tests/test_room_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-room-names-and-types) |
 
 ## 18. Implementation sequence
 

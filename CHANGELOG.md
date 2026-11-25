@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Recover a saved room name and type on the same active room after reviewing
+  the before and after values. The review identifies removed rooms and
+  changed room boundaries.
+- Confirm map edits that return a revision acknowledgement by reading the
+  corresponding active archive. Keep the edit to one provider write.
 - Recover moved or deleted keep-out zones, no-mop zones, and virtual walls
   from a local floor backup after reviewing the changes. Keep restrictions
   added after the backup.

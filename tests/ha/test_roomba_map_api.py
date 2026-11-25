@@ -21,6 +21,7 @@ from custom_components.roomba_home.core.cleaning import (
     CleaningMode,
     CleaningProfile,
 )
+from custom_components.roomba_home.core.client import MapEditAcknowledgement
 from custom_components.roomba_home.core.commands import command_body
 from custom_components.roomba_home.core.errors import (
     ApiError,
@@ -2863,3 +2864,127 @@ async def test_backup_relinks_a_missing_furniture_target_with_its_original_setti
     _, _, _, target = configured.client.update_cleaning_routine.await_args.args
     assert target.regions[-1].kind is RegionKind.FURNITURE
     assert target.profiles[-1] == CleaningProfile(CleaningMode.MOP, wetness_level=2)
+
+
+@pytest.fixture
+async def room_recovery(hass, entry, configured, hass_ws_client, picea_archive):
+    def details(name, kind):
+        def modify(files):
+            files["rooms.geojson"]["features"][0]["properties"].update(
+                name=name, type={"value": kind}
+            )
+
+        return modify
+
+    archived = replace(MAP, version_id="archive.31")
+    original = details("Cocína", "kitchen")
+    current = details("Oficina", "other")
+    backup, _ = capture_snapshot(
+        archived, picea_archive(version=archived.version_id, mutate=original), datetime.now(UTC)
+    )
+    history = map_history(hass, entry.entry_id)
+    await history.async_capture("fixture-0", backup)
+    await history.async_configure("fixture-0", 5, True)
+
+    def bundle(_map_id, version):
+        return picea_archive(
+            version=version, mutate=current if version == MAP.version_id else original
+        )
+
+    configured.client.map_geometry = AsyncMock(side_effect=bundle)
+    configured.client.edit_map = AsyncMock(return_value=MapEditAcknowledgement("version.43"))
+    socket = await hass_ws_client()
+    request = CAPTURE_BACKUP | {
+        "type": "roomba_home/restore_map_backup_room_details",
+        "backup_id": backup["id"],
+    }
+    return history, socket, request, original
+
+
+@pytest.mark.parametrize("corrupted_response", [False, True])
+async def test_room_details_recovery_verifies_a_revision_acknowledgement(
+    configured, hass_admin_user, room_recovery, picea_archive, corrupted_response
+):
+    history, socket, request, original = room_recovery
+    await socket.send_json(request | {"id": 1})
+    result = await socket.receive_json()
+    assert result["success"], result
+    [row] = result["result"]["rooms"]
+    assert row["status"] == "ready"
+    assert row["name"] == {"from": "Oficina", "to": "Cocína"}
+    assert row["room_type"] == {"from": "other", "to": "kitchen"}
+    configured.client.edit_map.assert_not_awaited()
+    confirm = request | {"confirmed": True, "room_id": "room-a", "review_id": row["review_id"]}
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda _, permission: permission == POLICY_READ,
+    ):
+        await socket.send_json(confirm | {"id": 2})
+        assert (await socket.receive_json())["error"]["code"] == "unauthorized"
+    await socket.send_json(confirm | {"id": 3, "room_id": "unrelated"})
+    assert (await socket.receive_json())["error"]["code"] == "map_changed"
+    configured.client.edit_map.assert_not_awaited()
+    configured.client.maps.side_effect = [(MAP,), (MAP,), (replace(MAP, version_id="version.43"),)]
+    if corrupted_response:
+        read = configured.client.map_geometry.side_effect
+        configured.client.map_geometry.side_effect = lambda map_id, version: (
+            picea_archive(version="version.44", mutate=original)
+            if version == "version.43"
+            else read(map_id, version)
+        )
+    await socket.send_json(confirm | {"id": 4})
+    confirmed = await socket.receive_json()
+    if corrupted_response:
+        assert confirmed["error"]["code"] == "map_backup_failed"
+        assert "could not be confirmed" in confirmed["error"]["message"]
+    else:
+        assert confirmed["result"] == {"applied": True}
+    configured.client.edit_map.assert_awaited_once()
+    configured.client.map_geometry.assert_awaited_with(MAP.map_id, "version.43")
+    _, edit = configured.client.edit_map.await_args.args
+    assert edit.room_ids == ("room-a",)
+    assert edit.name == "Cocína" and edit.room_type == "kitchen"
+    assert len((await history.async_list("fixture-0"))["snapshots"]) == 2
+
+
+@pytest.mark.parametrize("variant", ["wrong_floor", "old_format"])
+async def test_room_details_refuses_incompatible_backups(
+    hass, entry, configured, hass_ws_client, picea_archive, variant
+):
+    history = map_history(hass, entry.entry_id)
+    saved = replace(MAP, map_id="wrong-floor") if variant == "wrong_floor" else MAP
+    raw = (
+        picea_archive(map_id=saved.map_id)
+        if variant == "wrong_floor"
+        else configured.client.map_geometry.return_value
+    )
+    record, _ = capture_snapshot(saved, raw, datetime.now(UTC))
+    await history.async_capture("fixture-0", record)
+    configured.client.map_geometry.return_value = picea_archive()
+    socket = await hass_ws_client()
+    await socket.send_json(
+        CAPTURE_BACKUP
+        | {
+            "id": 1,
+            "type": "roomba_home/restore_map_backup_room_details",
+            "backup_id": record["id"],
+        }
+    )
+    failure = (await socket.receive_json())["error"]
+    assert (
+        "Select the active floor" if variant == "wrong_floor" else "unavailable for this map format"
+    ) in failure["message"]
+
+
+async def test_room_details_review_lists_boundary_changes_without_a_write(
+    configured, room_recovery, picea_archive
+):
+    _, socket, request, _ = room_recovery
+    configured.client.map_geometry = AsyncMock(return_value=picea_archive(split=True))
+    await socket.send_json(request | {"id": 1})
+    result = (await socket.receive_json())["result"]
+    [room] = result["rooms"]
+    assert room["status"] == "changed_boundary" and "review_id" not in room
+    assert result["applied"] is False
+    configured.client.edit_map.assert_not_awaited()
