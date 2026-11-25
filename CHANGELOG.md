@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Copy a supported routine selection into a new disabled schedule, keeping
+  its destination order and individual settings.
 - Show the original destination sequence, requested per-area settings, and
   final destination outcomes in recorded cleaning reports.
 - Show each live destination's requested cleaning settings and the robot's

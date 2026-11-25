@@ -502,6 +502,7 @@ template.innerHTML = `
         <p id="routine-status" class="muted" role="status"></p>
         <div class="actions">
           <button id="copy-routine" type="button">Duplicate</button>
+          <button id="use-routine-in-schedule" type="button" hidden>Use in schedule</button>
           <button id="remove-routine" type="button">Delete</button>
           <button id="run-routine" type="button">Run saved routine</button>
           <button id="toggle-schedule" type="button" hidden>Enable</button>
@@ -1042,6 +1043,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.renderRoutine();
     };
     this.$("copy-routine").onclick = () => this.copyRoutine();
+    this.$("use-routine-in-schedule").onclick = () => this.useRoutineInSchedule();
     this.$("load-quick-routines").onclick = () => this.loadQuickRoutines();
     this.$("estimate-routine").onclick = () => this.estimateRoutine();
     this.$("remove-routine").onclick = () => this.removeRoutine();
@@ -3127,8 +3129,9 @@ class RoombaHomeMapCard extends HTMLElement {
     status.hidden = !messages.length;
   }
 
-  async openRoutines(scheduleEditor = false) {
-    if (!this.snapshot || !this.geometry || this.routineBusy || this.routineDialog.open) return;
+  async openRoutines(scheduleEditor = false, initialDraft) {
+    if (!this.snapshot || !this.geometry || this.routineBusy ||
+        this.routineDialog.open && !initialDraft) return;
     const entity = this.config.entity;
     this.routineMap = {
       ...this.snapshot.map,
@@ -3142,10 +3145,10 @@ class RoombaHomeMapCard extends HTMLElement {
     this.routines = [];
     this.quickRoutines = null;
     this.routineBusy = true;
-    this.editRoutine("");
+    this.editRoutine("", initialDraft);
     const kind = scheduleEditor ? "schedules" : "routines";
     this.$("routine-status").textContent = `Loading ${kind}…`;
-    this.routineDialog.showModal();
+    if (!this.routineDialog.open) this.routineDialog.showModal();
     try {
       const result = await this.callAction(`list_cleaning_${kind}`, {}, entity);
       if (this.config.entity === entity) this.routines = result[kind];
@@ -3158,16 +3161,16 @@ class RoombaHomeMapCard extends HTMLElement {
     }
   }
 
-  editRoutine(id) {
+  editRoutine(id, initialDraft) {
     const saved = this.routines.find((routine) => routine.id === id);
     const settings = saved?.region_settings;
     const canReplace = settings?.every(({ id }) => this.routineAreas.has(id));
     const selected = this.scheduleEditor ? [...this.selected].filter((id) => this.routineAreas.has(id)) : this.selected;
     this.routineDraft = {
       saved,
-      name: saved?.name ?? "",
+      name: saved?.name ?? initialDraft?.name ?? "",
       regions: saved ? (canReplace ? settings.map((region) => ({ ...region })) : null)
-        : [...selected].map((id) => ({ id })),
+        : initialDraft?.regions ?? [...selected].map((id) => ({ id })),
       ordered: saved?.ordered !== false,
     };
     if (this.scheduleEditor) Object.assign(this.routineDraft, {
@@ -3222,6 +3225,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("add-routine-region-label").hidden = regions === null || locked || regions.length >= 32;
     add.disabled = !remaining.length;
     this.$("copy-routine").disabled = busy || !saved || !regions?.length;
+    this.$("use-routine-in-schedule").hidden = !this.canUseRoutineInSchedule();
     const deleteButton = this.$("remove-routine");
     deleteButton.textContent = "Delete";
     deleteButton.disabled = locked || !saved;
@@ -3590,6 +3594,21 @@ class RoombaHomeMapCard extends HTMLElement {
     draft.saved = undefined;
     this.renderRoutine();
     this.$("routine-name").focus();
+  }
+
+  canUseRoutineInSchedule() {
+    const draft = this.routineDraft;
+    return !this.scheduleEditor && !this.routineBusy && this.snapshot?.can_manage_schedules &&
+      this.routineFloorIsCurrent() && draft?.ordered !== false && draft?.regions?.length &&
+      draft.regions.every(({ id }) => this.geometry?.regions.some((area) =>
+        area.id === id && (area.kind === "room" || area.kind === "zone")));
+  }
+
+  async useRoutineInSchedule() {
+    if (!this.routineDialog.open || !this.canUseRoutineInSchedule()) return;
+    const { name, regions } = this.routineDraft;
+    await this.openRoutines(true, { name, regions: regions.map((region) => ({ ...region })) });
+    if (this.routineDialog.open && this.scheduleEditor) this.$("schedule-frequency").focus();
   }
 
   routineFloorIsCurrent() {

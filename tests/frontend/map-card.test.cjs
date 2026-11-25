@@ -246,6 +246,55 @@ test("a schedule can be created from the reviewed floor, enabled and removed", a
   assert.equal(card.routines.length, 0);
 });
 
+test("a routine selection opens a new schedule with its order and settings intact", async () => {
+  const card = draftEstimateCard();
+  const zone = "fixture-map:zid:100";
+  const room = "fixture-map:rid:room-a";
+  card.snapshot.can_manage_schedules = true;
+  card.geometry.regions = [{ id: room, name: "Hall", kind: "room" }, { id: zone, name: "Entry", kind: "zone" }];
+  card.routineAreas = new Map([[room, "Hall"], [zone, "Entry"]]);
+  const profiles = [{ id: zone, mode: "mop", wetness_level: 3, smart_scrub: true },
+    { id: room, mode: "vacuum", suction_level: 1, two_pass: false }];
+  const saved = { id: "routine-id", name: "Entry and hall", ordered: true, region_settings: profiles };
+  card.routines = [saved];
+  card.editRoutine(saved.id);
+  assert.equal(card.$("use-routine-in-schedule").hidden, false);
+  card.routineDraft.ordered = false;
+  assert.ok(!card.canUseRoutineInSchedule());
+  card.routineDraft.ordered = true;
+  card.routineDraft.regions[0].id = "fixture-map:furniture:table";
+  assert.ok(!card.canUseRoutineInSchedule());
+  card.routineDraft.regions[0].id = zone;
+  const calls = [];
+  card.callAction = async (action, data, entity) => {
+    calls.push([action, JSON.parse(JSON.stringify(data)), entity]);
+    return action === "list_cleaning_schedules" ? { schedules: [] }
+      : { id: "group:item", ...data, region_settings: data.regions, enabled: false };
+  };
+  card.snapshot.map.version = "stale";
+  await card.useRoutineInSchedule();
+  assert.equal(calls.length, 0);
+  card.snapshot.map.version = "v1";
+  await card.useRoutineInSchedule();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], "list_cleaning_schedules");
+  assert.equal(card.routineDraft.name, saved.name);
+  assert.equal(card.routineDraft.saved, undefined);
+  assert.equal(card.routineDraft.time, "");
+  assert.notEqual(card.routineDraft.regions[0], profiles[0]);
+  assert.equal(card.$("schedule-frequency").focused, true);
+  assert.equal(card.$("use-routine-in-schedule").hidden, true);
+  card.routineDraft.frequency = "once";
+  card.routineDraft.time = "15:30";
+  await card.saveSchedule();
+  assert.deepEqual(calls[1], ["create_cleaning_schedule", {
+    name: saved.name, frequency: "once", time: "15:30", regions: profiles,
+    floor: { map_id: "fixture-map", version: "v1", inventory_id: "inventory" },
+  }, card.config.entity]);
+  assert.equal(card.routineDraft.saved.enabled, false);
+  assert.equal(saved.region_settings[0].wetness_level, 3);
+});
+
 test("editing a one-time schedule keeps timing unless changed and rechecks the floor for preferences", async () => {
   const card = draftEstimateCard();
   card.scheduleEditor = true;

@@ -178,6 +178,8 @@ reload the dashboard. Use one card per robot.
   before opening it to prefill a new routine. Add furniture, rooms, or zones,
   set their individual cleaning preferences, and arrange them in order.
   Choose **Run saved routine** to review and start a supported routine.
+  Choose **Use in schedule** to copy an ordered room or saved-zone
+  selection into a new schedule. [Schedules](docs/usage.md#cleaning-schedules)
 - **Review map dependencies** shows known saved routines and schedules for
   the selected areas. It flags entries with unresolved destinations.
 - **Last mission by area** shows reported outcomes, area values, and pass

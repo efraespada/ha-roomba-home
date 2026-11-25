@@ -1,5 +1,24 @@
 # Roomba Home validation
 
+## Copying a routine into a schedule
+
+An isolated Home Assistant coordinator read a signed one-room routine
+from a Max 700 Combo and copied its explicit suction and two-pass settings
+into a disabled weekly schedule. A new provider read confirmed the same
+destination and profile, the requested days, and the disabled state. The
+routine was unchanged after copying. Both test entries were removed, and
+the original routines, schedules, and saved floor matched the initial
+reads. The trial sent zero movement commands.
+
+The card regression test copies a saved cleaning zone followed by a room
+with different modes and settings. It verifies the exact order and profile
+of the creation request, rejects stale floors, and excludes furniture and
+automatic-order selections. Isolated Chrome verified the button and save
+flow with the signed one-room routine at 358 and 900 pixels. The suite
+passed 2,473 Python tests with 100% line and branch coverage, 56 card
+tests, and Home Assistant's integration validator.
+[Anonymized schedule copy evidence](evidence/2026-11-26-routine-schedule-copy.json)
+
 ## Historical destination plans
 
 The coordinator read two signed Max 700 Combo reports. The first recorded

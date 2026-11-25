@@ -724,6 +724,13 @@ and their cleaning modes and preferences. The order buttons set the sequence
 for rooms and saved zones. Saving a new entry keeps it disabled until you
 choose **Enable schedule**. Select **Delete** and confirm to remove it.
 
+To schedule an existing ordered selection, open it under **Manage
+routines** and choose **Use in schedule**. The editor copies the name,
+rooms and saved zones, their order, and their individual preferences into
+a new draft. Set the time and recurrence, then choose **Save schedule**.
+The routine stays available and the new schedule starts disabled. This
+option appears for selections on the current floor with **Use listed order**.
+
 Editing only the name or cleaning settings keeps the existing start and
 enabled state. For a schedule on another saved floor, switch to that floor
 before editing its areas. If the card cannot resolve the current destinations
