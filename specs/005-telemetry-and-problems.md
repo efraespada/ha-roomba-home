@@ -47,6 +47,9 @@ doesn't prove physical presence or freshness of the robot.
 
 - TEL-01: Keep one device per robot and stable entity identities.
 - TEL-02: Expose mission, progress, dock, settings, firmware, statistics, and consumables with verified units.
+  With saved floor plans enabled, expose the last fresh route activity as an
+  enum sensor on the robot. Source the value from the direct position batch
+  and clear it when that batch expires or the mission ends.
 - TEL-03: Distinguish missing, zero, false, unsupported, and failed reads.
 - TEL-04: Emit a distinct detection, change, or resolution for each problem source.
 - TEL-05: Poll fast state separately from slow data. Optional failures leave the vacuum usable.

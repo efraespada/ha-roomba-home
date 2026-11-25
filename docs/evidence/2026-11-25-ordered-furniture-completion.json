@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "command": {
+    "ordered": true,
+    "destinations": ["dining_table", "sofa"],
+    "suction_levels": [2, 1]
+  },
+  "live_timeline": {
+    "correlated_by_request_and_mission_number": true,
+    "finished_destination": "dining_table",
+    "active_destination": "sofa",
+    "map_ids_match_command": true,
+    "event_revision_differs_from_requested_user_revision": true
+  },
+  "history": {
+    "outcome": "ok",
+    "area_sqft": 65,
+    "same_order_and_profiles": true,
+    "results_in_provider_units": [
+      { "destination": "dining_table", "status": 0, "area": 50, "total_area": 36, "pass_count": 0 },
+      { "destination": "sofa", "status": 0, "area": 76, "total_area": 28, "pass_count": 0 }
+    ]
+  },
+  "final_state": {
+    "docked": true,
+    "mission_error": 0,
+    "manual_return_sent": false,
+    "map_edit_requests": 0,
+    "automatically_changed_layers": ["dockPoses", "floorTypes", "furniture", "rooms"],
+    "room_identifier_name_and_outline_preserved": true,
+    "borders_zones_and_restrictions_preserved": true,
+    "requested_revision_retrieved_after_mission": true,
+    "saved_furniture_destinations_missing_from_active_map": 0
+  },
+  "installed_home_assistant": {
+    "version": "0.23.0",
+    "core_configuration_check_passed": true,
+    "served_module_matched_candidate": true,
+    "card_showed_both_names_and_outcomes_from_the_historical_revision": true
+  }
+}

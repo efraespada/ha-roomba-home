@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "app": "Roomba Home Android 3.4.1",
+  "observed_weekly_schedules": 4,
+  "weekly_schedules_with_verified_regional_profiles": 4,
+  "test_robot_native_weekly_schedules_resolved_on_current_floor": 2,
+  "trials": [
+    {
+      "initial_format": "weekly ordered regional command",
+      "changed_room_from_vacuum_to_mop": true,
+      "kept_start_frequency_and_disabled_state": true,
+      "removed_trial_schedule": true
+    },
+    {
+      "initial_format": "one-time native timed command",
+      "recovered_inactive_mop_preferences": true,
+      "changed_room_from_vacuum_to_mop": true,
+      "kept_start_frequency_and_disabled_state": true,
+      "removed_trial_schedule": true
+    }
+  ],
+  "original_schedules_and_floor_matched_preflight": true,
+  "robot_movement_commands_sent": 0
+}

@@ -1,6 +1,11 @@
 """Project capabilities from their native sources without guessing unknown values."""
 
-from .capabilities import DeviceCapabilities, DigitalSpotCapability, DockCapabilities
+from .capabilities import (
+    DeviceCapabilities,
+    DigitalSpotCapability,
+    DockCapabilities,
+    SkipCapability,
+)
 from .cleaning_protocol import cleaning_capabilities
 from .telemetry import at, connection_status, integer, reported
 
@@ -8,6 +13,12 @@ DIGITAL_SPOT_CAPABILITIES = {
     0: DigitalSpotCapability.UNSUPPORTED,
     1: DigitalSpotCapability.SUPPORTED,
     2: DigitalSpotCapability.HEATED_WATER,
+}
+SKIP_CAPABILITIES = {
+    0: SkipCapability.UNSUPPORTED,
+    1: SkipCapability.DIRECTED_ONLY,
+    2: SkipCapability.DIRECTED_AND_WHOLE_MAP,
+    3: SkipCapability.CURRENT_AREA,
 }
 
 
@@ -69,6 +80,8 @@ def project_capabilities(details: dict, shadows: dict) -> DeviceCapabilities:
         water_tank=True if type(current.get("tankPresent")) is bool else None,
         diagnostics=True if current else None,
         digital_spot=DIGITAL_SPOT_CAPABILITIES.get(integer(robot.get("dSpot"), 2)),
+        skip=SKIP_CAPABILITIES.get(integer(robot.get("mc"), 3)),
+        routine_presets=integer(digital.get("cleaningProfiles"), 2) in (1, 2),
         locate=True
         if integer(at(reported(shadows.get("rw-settings")), "audio.volume")) is not None
         else None,

@@ -1,9 +1,12 @@
+import json
 from dataclasses import replace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from homeassistant.loader import async_get_integration
 
 from custom_components.roomba_home.binary_sensor import RoombaConnected
+from custom_components.roomba_home.const import DOMAIN
 from custom_components.roomba_home.coordinator import RoombaCoordinator
 from custom_components.roomba_home.core.commands import Command
 from custom_components.roomba_home.diagnostics import async_get_config_entry_diagnostics
@@ -77,8 +80,10 @@ async def test_vacuum_actions_use_the_shared_coordinator(coordinator, method, co
 
 async def test_diagnostics_omit_credentials_names_ids_and_profiles(hass, entry, coordinator):
     result = await async_get_config_entry_diagnostics(hass, entry)
-    import json
-
+    assert (
+        result["integration_version"]
+        == (await async_get_integration(hass, DOMAIN)).manifest["version"]
+    )
     text = json.dumps(result)
     assert result["robot_count"] == 3
     for value in ("fixture-password", "fixture-login", "fixture-0", "Robot 0", "ANDROID-PRIME-"):

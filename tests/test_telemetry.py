@@ -23,6 +23,17 @@ from custom_components.roomba_home.core.telemetry import (
         ("flag", 1, True),
         ("flag", True, None),
         ("flag", 2, None),
+        (
+            "iso_timestamp",
+            "2026-11-25 11:22:33+0230",
+            datetime(2026, 11, 25, 8, 52, 33, tzinfo=UTC),
+        ),
+        ("iso_timestamp", "2026-11-25T11:22:33Z", datetime(2026, 11, 25, 11, 22, 33, tzinfo=UTC)),
+        ("iso_timestamp", "2026-11-25T11:22:33", None),
+        ("iso_timestamp", "2026-02-29T11:22:33+00:00", None),
+        ("iso_timestamp", "9999-12-31 23:59:59-0100", None),
+        ("iso_timestamp", "x" * 33, None),
+        ("iso_timestamp", 10, None),
         ("int", 0, 0),
         ("int", True, None),
         ("int", -1, None),
@@ -63,10 +74,31 @@ from custom_components.roomba_home.core.telemetry import (
         ("language", "es-ES", "es-ES"),
         ("language", "en", "en"),
         ("language", "fixture private name", None),
+        ("robot_name", "Ático 🤖", "Ático 🤖"),
+        ("robot_name", "A" * 63, "A" * 63),
+        ("robot_name", "A" * 64, None),
+        ("robot_name", " ", None),
+        ("robot_name", "A\u0000B", None),
+        ("robot_name", [], None),
     ],
 )
 def test_type_and_unit_contract(kind, value, expected):
     assert convert(kind, value) == expected
+
+
+def test_voice_options_keep_only_unique_language_tags_from_installed_packs():
+    settings = {
+        "name": "Fixture robot",
+        "langs2": {
+            "sLang": "es-ES",
+            "dLangs": {"langs": ["es-ES", "en-GB", "en-GB", []]},
+            "uLangs": {"langs": ["en-GB", True, "cs-CZ"], "packId": "private-metadata"},
+        },
+    }
+    assert project_telemetry({"rw-settings": {"state": {"reported": settings}}}) == {
+        "voice_language": "es-ES",
+        "installed_voice_languages": ("es-ES", "en-GB", "cs-CZ"),
+    }
 
 
 def test_timestamp_is_aware_and_no_wall_clock_progress_is_fabricated():

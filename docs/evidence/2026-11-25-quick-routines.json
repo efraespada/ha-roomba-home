@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "android_app_version": "3.4.1",
+  "floor_options": {
+    "signed_read_limit": 5,
+    "recent_routines": 3,
+    "recent_routines_loaded_as_drafts": 3,
+    "suggestions": ["clean_all", "spot_clean"],
+    "recent_furniture_target_matched_android": true,
+    "maximum_furniture_outline_difference_metres": 0.00005
+  },
+  "independent_robot_trial": {
+    "matching_recent_room_found": true,
+    "selected_rooms": 1,
+    "vacuum_only_start_confirmed": true,
+    "history_reviewed_revision_matched": true,
+    "history_requested_room_matched": true,
+    "history_requested_settings_matched": true,
+    "history_reported_run_minutes": 1,
+    "history_outcome": "cancelled",
+    "docked_without_error": true,
+    "floor_archive_unchanged": true,
+    "active_account_favorites_unchanged": 6,
+    "robot_schedules_unchanged": true
+  }
+}

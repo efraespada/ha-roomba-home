@@ -12,6 +12,7 @@ ESTIMATE_MODES = {
     512: CleaningMode.VACUUM_THEN_MOP,
 }
 PROFILE_KEYS = {"operatingMode", "suctionLevel", "swScrub", "twoPass"}
+ESTIMATE_FIELDS = ("suction_level", "smart_scrub", "two_pass")
 
 
 def _estimate(entry, capabilities: CleaningCapabilities) -> dict | None:
@@ -92,4 +93,39 @@ def parse_time_estimates(
             }
             for region in target.regions
         ]
+    }
+
+
+def routine_time_estimate(target: AreaTarget, matrix: dict, defaults: dict) -> dict:
+    """Combine unambiguous provider values for an ordered draft; keep gaps explicit."""
+    rows_by_area = {area["id"]: area["estimates"] for area in matrix["regions"]}
+    areas = []
+    for region, profile in zip(target.regions, target.profiles, strict=True):
+        identifier = region.segment_id(target.map_id)
+        requested = {}
+        for field in ESTIMATE_FIELDS:
+            value = getattr(profile, field)
+            requested[field] = defaults.get(field) if value is None else value
+        matching_seconds = {
+            row["duration_seconds"]
+            for row in rows_by_area.get(identifier, ())
+            if row["mode"] == profile.mode
+            and all(
+                row[field] == requested[field]
+                for field in ESTIMATE_FIELDS
+                if field in row and requested[field] is not None
+            )
+        }
+        seconds = next(iter(matching_seconds)) if len(matching_seconds) == 1 else None
+        areas.append(
+            {"id": identifier, "duration_seconds": seconds, "ambiguous": len(matching_seconds) > 1}
+        )
+    available = [area["duration_seconds"] for area in areas if area["duration_seconds"] is not None]
+    complete = len(available) == len(areas)
+    return {
+        "map_id": target.map_id,
+        "version": target.version_id,
+        "duration_seconds": sum(available) if complete else None,
+        "partial_duration_seconds": sum(available) if available and not complete else None,
+        "areas": areas,
     }

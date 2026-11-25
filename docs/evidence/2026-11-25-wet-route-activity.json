@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "app": "Roomba Home Android 3.4.1",
+  "missions": [
+    {
+      "mode": "vacuum_mop",
+      "position_batches": 136,
+      "distinct_position_codes": {"0": 92, "6": 198},
+      "unambiguous_nearest_archive_matches": {
+        "0": {"traveling": 70, "mopping_and_vacuuming": 1},
+        "6": {"traveling": 1, "mopping_and_vacuuming": 182}
+      },
+      "history_outcome": "completed",
+      "history_minutes": 11,
+      "history_area_m2": 3.25
+    },
+    {
+      "mode": "mop",
+      "position_batches": 152,
+      "distinct_position_codes": {"0": 121, "4": 169},
+      "unambiguous_nearest_archive_matches": {
+        "0": {"traveling": 113},
+        "4": {"traveling": 1, "mopping": 154}
+      },
+      "history_outcome": "completed",
+      "history_minutes": 12,
+      "history_area_m2": 3.07
+    }
+  ],
+  "live_mop_timeline": {
+    "matched_active_mission_and_request": true,
+    "active_event_type": "zone",
+    "stage_start_offset_seconds": 232,
+    "mission_elapsed_at_observation_seconds": 339,
+    "remaining_time_reported": false
+  },
+  "final": {
+    "docked": true,
+    "error_code": 0,
+    "previous_drying_state_restored_automatically": true,
+    "same_saved_floor": true,
+    "same_room_geometry_zones_and_restrictions": true,
+    "provider_map_revision_advanced": true,
+    "furniture_entries_before": 10,
+    "furniture_entries_after": 10,
+    "equal_furniture_entries": 6,
+    "map_edit_requests": 0
+  }
+}

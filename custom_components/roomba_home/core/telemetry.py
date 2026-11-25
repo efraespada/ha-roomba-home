@@ -4,8 +4,10 @@ import math
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from unicodedata import category
 
 MISSING = object()
+MAX_ROBOT_NAME_LENGTH = 63
 FAST_SHADOWS = ("ro-currentstate", "rw-constatus")
 DETAIL_SHADOWS = ("rw-settings", "rw-software", "ro-stats", "rw-schedule")
 PARTS = {
@@ -18,6 +20,7 @@ PARTS = {
     "212": "mop_washing_system",
 }
 DOCK_PARTS = frozenset({"147", "202"})
+RESETTABLE_PARTS = {name: part_id for part_id, name in PARTS.items() if part_id != "147"}
 COUNT_UNITS = {
     "minutes": "min",
     "missions": None,
@@ -113,6 +116,7 @@ METRICS = (
     Metric("runtime_minutes", "ro-currentstate", "runtimeStats.min", unit="min", diagnostic=True),
     Metric("connection_code", "rw-constatus", "connectedv2", diagnostic=True),
     Metric("software_version", "rw-software", "softwareVer", "version", diagnostic=True),
+    Metric("software_updated_at", "rw-software", "lastSwUpdate", "iso_timestamp", diagnostic=True),
     Metric("controller_firmware", "rw-software", "subModSwVer.con", "version", diagnostic=True),
     Metric("mcu_firmware", "rw-software", "subModSwVer.mcu", "version", diagnostic=True),
     Metric("navigation_firmware", "rw-software", "subModSwVer.nav", "version", diagnostic=True),
@@ -266,6 +270,15 @@ def convert(kind, value):
             if isinstance(value, str) and re.fullmatch(r"[a-z]{2}(?:[-_][A-Za-z]{2})?", value)
             else None
         )
+    if kind == "robot_name":
+        return (
+            value
+            if isinstance(value, str)
+            and value.strip()
+            and len(value) <= MAX_ROBOT_NAME_LENGTH
+            and all(category(character) not in {"Cc", "Cs"} for character in value)
+            else None
+        )
     if kind == "timezone":
         return (
             value
@@ -278,6 +291,14 @@ def convert(kind, value):
         return round(value * 0.09290304, 2) if number(value) is not None else None
     if kind == "timestamp":
         return datetime.fromtimestamp(value, UTC) if integer(value, 32_503_680_000) else None
+    if kind == "iso_timestamp":
+        if not isinstance(value, str) or len(value) > 32:
+            return None
+        try:
+            timestamp = datetime.fromisoformat(value)
+            return timestamp.astimezone(UTC) if timestamp.tzinfo is not None else None
+        except ValueError, OverflowError:
+            return None
     return integer(value)
 
 
@@ -287,6 +308,14 @@ def project_telemetry(shadows):
         raw = at(reported(shadows.get(metric.shadow)), metric.path)
         if raw is not MISSING:
             result[metric.key] = convert(metric.kind, raw)
+    settings = reported(shadows.get("rw-settings"))
+    languages = []
+    for path in ("langs2.dLangs.langs", "langs2.uLangs.langs"):
+        packs = at(settings, path)
+        if isinstance(packs, list):
+            languages.extend(code for value in packs if (code := convert("language", value)))
+    if languages:
+        result["installed_voice_languages"] = tuple(dict.fromkeys(languages))
     connection = shadows.get("rw-constatus")
     if field := _connection_field(reported(connection)):
         updated = convert("timestamp", at(connection, f"metadata.reported.{field}.timestamp"))

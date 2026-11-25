@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "app_trial": {
+    "reported_robot_name_changed_and_restored": true,
+    "unsaved_ascii_name_field_limit": 63,
+    "changed_to_an_installed_voice_and_restored": true,
+    "voice_screen_lists_downloads_separately": true,
+    "reboot_confirmation_visible": true
+  },
+  "integration_transport_trial": {
+    "robot_name": {
+      "reported_path": "rw-settings.state.reported.name",
+      "desired_path": "rw-settings.state.desired.name",
+      "accented_name_confirmed": true,
+      "original_name_restored": true
+    },
+    "voice_language": {
+      "reported_path": "rw-settings.state.reported.langs2.sLang",
+      "desired_path": "rw-settings.state.desired.langs2.sLang",
+      "installed_voice_count": 13,
+      "installed_inventory_unchanged": true,
+      "new_selection_confirmed": true,
+      "original_selection_restored": true
+    },
+    "robot_remained_docked_without_a_cleaning_mission": true
+  }
+}

@@ -9,9 +9,11 @@ from custom_components.roomba_home.core.errors import ProtocolError
 from custom_components.roomba_home.core.maps import AreaTarget, CleaningRegion, RegionKind
 from custom_components.roomba_home.core.schedules import (
     associated_households,
+    cleaning_schedule_start,
     editable_schedules,
-    new_weekly_schedule,
-    next_weekly_start,
+    new_cleaning_schedule,
+    next_schedule_start,
+    once_weekday,
     schedule_metrics,
     schedule_removed,
     weekly_start,
@@ -32,7 +34,7 @@ def test_weekly_routine_saves_ordered_profiles_without_starting_the_schedule():
         CleaningProfile(CleaningMode.VACUUM_THEN_MOP, two_pass=False),
     )
     target = AreaTarget("map", "version", rooms, profiles)
-    opts = new_weekly_schedule("first", " Test routine ", weekly_start([5, 1], "10:40"), target)
+    opts = new_cleaning_schedule("first", " Test routine ", weekly_start([5, 1], "10:40"), target)
     assert opts == {
         "robot_id": "first",
         "name": "Test routine",
@@ -99,7 +101,7 @@ def test_weekly_routine_saves_ordered_profiles_without_starting_the_schedule():
 )
 def test_weekly_routine_rejects_invalid_names_and_incomplete_targets(name, target):
     with pytest.raises(ValueError):
-        new_weekly_schedule("first", name, {}, target)
+        new_cleaning_schedule("first", name, {}, target)
 
 
 @pytest.mark.parametrize(
@@ -245,6 +247,34 @@ def test_weekly_start_serializes_chronological_iso_days_and_minutes():
     assert weekly_start([7, 2], "23:59:00") == {"day": [2, 7], "hour": 23, "min": 59}
 
 
+@pytest.mark.parametrize(("clock", "expected_day"), [("22:39", 3), ("08:30", 4), ("15:42", 4)])
+def test_one_time_clock_uses_today_or_tomorrow(clock, expected_day):
+    now = datetime(2026, 11, 25, 14, 42, tzinfo=UTC)
+    assert once_weekday(clock, ZoneInfo("Europe/Madrid"), now) == expected_day
+
+
+def test_one_time_clock_rejects_an_ambiguous_local_time():
+    now = datetime(2026, 10, 24, 22, tzinfo=UTC)
+    with pytest.raises(ValueError, match="clock change"):
+        once_weekday("02:30", ZoneInfo("Europe/Madrid"), now)
+
+
+@pytest.mark.parametrize(("frequency", "days"), [("daily", [3]), ("once", [3, 4])])
+def test_schedule_frequency_matches_one_time_day_count(frequency, days):
+    with pytest.raises(ValueError, match="supported frequency"):
+        cleaning_schedule_start(days, "08:30", frequency)
+
+
+def test_native_one_time_command_can_rely_on_the_options_robot():
+    draft = edit_entry(frequency="ONCE", start={"day": [3], "hour": 22, "min": 39})
+    command = draft["options"]["commands"][0]["command"]
+    command.pop("robot_id")
+    [schedule] = editable_schedules(edit_document([draft]), "first").values()
+    assert schedule.start == {"frequency": "once", "weekday": 3, "time": "22:39"}
+    command["robot_id"] = "other"
+    assert editable_schedules(edit_document([draft]), "first") == {}
+
+
 def test_schedule_summaries_skip_old_or_deleted_rows_and_hide_names_and_identifiers():
     original = entry()
     disabled = {**entry(enabled=False), "schedule_id": "fixture.disabled"}
@@ -311,18 +341,58 @@ def schedule_for(*starts):
     )["first"]
 
 
+@pytest.mark.parametrize(
+    ("day", "hour", "created_at", "now", "expected"),
+    [
+        (3, 23, "2026-11-25T14:42:00+00:00", (25, 15), (25, 22)),
+        (4, 8, "2026-11-25T14:42:00+00:00", (25, 22), (26, 7)),
+        (3, 23, "2026-11-25T14:42:00+00:00", (26, 0), None),
+        (3, 23, None, (25, 15), None),
+        (7, 23, "2026-11-25T14:42:00+00:00", (25, 15), None),
+        (3, 8, "2026-11-25T14:42:00+00:00", (25, 15), None),
+    ],
+)
+def test_one_time_next_start_uses_one_provider_date(day, hour, created_at, now, expected):
+    summary = schedule_for(
+        {
+            "frequency": "ONCE",
+            "start": {"day": [day], "hour": hour, "min": 0},
+            "created_time": created_at,
+        }
+    )
+    actual = next_schedule_start(
+        summary, ZoneInfo("Europe/Madrid"), datetime(2026, 11, *now, tzinfo=UTC)
+    )
+    assert actual == (datetime(2026, 11, *expected, tzinfo=UTC) if expected else None)
+
+
+def test_one_time_schedule_competes_with_weekly_start():
+    summary = schedule_for(
+        {"frequency": "WEEKLY", "start": {"day": [3], "hour": 22, "min": 30}},
+        {
+            "frequency": "ONCE",
+            "start": {"day": [3], "hour": 23, "min": 0},
+            "created_time": "2026-11-25T14:42:00+00:00",
+        },
+    )
+    now = datetime(2026, 11, 25, 16, tzinfo=UTC)
+    assert next_schedule_start(summary, ZoneInfo("Europe/Madrid"), now) == datetime(
+        2026, 11, 25, 21, 30, tzinfo=UTC
+    )
+
+
 def test_next_weekly_time_uses_robot_zone_ignores_disabled_and_wraps_the_week():
     summary = schedule_for(
         {"start": {"day": [1], "hour": 8, "min": 15}},
         {"start": {"day": [1], "hour": 8, "min": 5}, "enabled": False},
     )
     zone = ZoneInfo("Europe/Paris")
-    assert next_weekly_start(summary, zone, datetime(2026, 11, 23, 7, tzinfo=UTC)) == datetime(
+    assert next_schedule_start(summary, zone, datetime(2026, 11, 23, 7, tzinfo=UTC)) == datetime(
         2026, 11, 23, 7, 15, tzinfo=UTC
     )
-    assert next_weekly_start(summary, zone, datetime(2026, 11, 23, 7, 15, tzinfo=UTC)) == datetime(
-        2026, 11, 30, 7, 15, tzinfo=UTC
-    )
+    assert next_schedule_start(
+        summary, zone, datetime(2026, 11, 23, 7, 15, tzinfo=UTC)
+    ) == datetime(2026, 11, 30, 7, 15, tzinfo=UTC)
 
 
 @pytest.mark.parametrize(
@@ -330,14 +400,16 @@ def test_next_weekly_time_uses_robot_zone_ignores_disabled_and_wraps_the_week():
 )
 def test_incomplete_enabled_schedules_leave_the_next_start_unknown(unresolved):
     assert (
-        next_weekly_start(schedule_for({}, unresolved), UTC, datetime(2026, 11, 23, tzinfo=UTC))
+        next_schedule_start(schedule_for({}, unresolved), UTC, datetime(2026, 11, 23, tzinfo=UTC))
         is None
     )
 
 
 def test_no_enabled_schedule_has_no_next_start():
     assert (
-        next_weekly_start(schedule_for({"enabled": False}), UTC, datetime(2026, 11, 23, tzinfo=UTC))
+        next_schedule_start(
+            schedule_for({"enabled": False}), UTC, datetime(2026, 11, 23, tzinfo=UTC)
+        )
         is None
     )
 
@@ -349,10 +421,10 @@ def test_next_start_is_unknown_if_the_earliest_time_is_affected_by_a_clock_chang
         {"start": {"day": [7], "hour": 6, "min": 0}},
     )
     zone = ZoneInfo("Europe/Paris")
-    assert next_weekly_start(summary, zone, datetime(2026, month, day, 0, 0, tzinfo=UTC)) is None
+    assert next_schedule_start(summary, zone, datetime(2026, month, day, 0, 0, tzinfo=UTC)) is None
     # The offset change cannot affect the next occurrence after the entire interval has passed.
     assert (
-        next_weekly_start(summary, zone, datetime(2026, month, day, 2, 0, tzinfo=UTC)) is not None
+        next_schedule_start(summary, zone, datetime(2026, month, day, 2, 0, tzinfo=UTC)) is not None
     )
 
 
@@ -362,6 +434,6 @@ def test_unambiguous_earlier_event_can_still_be_reported_before_clock_change():
         {"start": {"day": [7], "hour": 1, "min": 0}},
     )
     zone = ZoneInfo("Europe/Paris")
-    assert next_weekly_start(summary, zone, datetime(2026, 3, 28, 23, tzinfo=UTC)) == datetime(
+    assert next_schedule_start(summary, zone, datetime(2026, 3, 28, 23, tzinfo=UTC)) == datetime(
         2026, 3, 29, 0, tzinfo=UTC
     )

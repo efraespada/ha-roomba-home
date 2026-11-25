@@ -1,0 +1,16 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "map_backed_reports_in_official_app": 18,
+  "signed_cleaning_records": 20,
+  "signed_records_with_an_archive_reference": 18,
+  "archives": [
+    {"reported_minutes": 14, "coverage_features": 3, "route_segments": 15, "timeline_events": 9},
+    {"reported_minutes": 11, "coverage_features": 2, "route_segments": 5, "timeline_events": 8},
+    {"reported_minutes": 9, "coverage_features": 2, "route_segments": 9, "timeline_events": 9}
+  ],
+  "all_three_archives_matched_their_mission_revision": true,
+  "all_three_mission_revisions_differed_from_the_current_floor": true,
+  "combined_vacuum_mop_trajectory_observed": true,
+  "device_writes": 0
+}

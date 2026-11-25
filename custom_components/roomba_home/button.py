@@ -1,10 +1,11 @@
-"""Local preference reset and capability-gated dock actions."""
+"""Robot maintenance and capability-gated dock actions."""
 
-from homeassistant.components.button import ButtonEntity
+from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.const import EntityCategory
 
 from .coordinator import dock_snapshot
 from .core.actions import Command
+from .core.capabilities import SkipCapability
 from .core.dock import OPERATIONS
 from .entity import RoombaEntity, discover_entities
 
@@ -19,14 +20,33 @@ DOCK_BUTTONS = {
 
 async def async_setup_entry(hass, entry, async_add_entities):
     def candidates(state):
+        yield "reboot_robot", RoombaRebootRobot
         if state.capabilities.cleaning.modes:
             yield "reset_cleaning_profile", RoombaResetProfile
+        if state.capabilities.skip not in (None, SkipCapability.UNSUPPORTED):
+            yield "skip_current_area", RoombaSkipArea
         dock = dock_snapshot(state)
         for key, command in DOCK_BUTTONS.items():
             if dock.supports(OPERATIONS[command]):
                 yield key, RoombaDockButton
 
     discover_entities(entry, async_add_entities, candidates)
+
+
+class RoombaSkipArea(RoombaEntity, ButtonEntity):
+    _attr_translation_key = "skip_current_area"
+    _attr_icon = "mdi:skip-next"
+
+    @property
+    def available(self):
+        return super().available and self.account.skip_review_for_robot(self.robot_id) is not None
+
+    async def async_press(self):
+        await self.account.async_command(
+            self.robot_id,
+            Command.SKIP,
+            reviewed_skip=self.account.skip_review_for_robot(self.robot_id),
+        )
 
 
 class RoombaResetProfile(RoombaEntity, ButtonEntity):
@@ -43,6 +63,15 @@ class RoombaResetProfile(RoombaEntity, ButtonEntity):
 
     async def async_press(self):
         await self.account.async_reset_profile(self.robot_id)
+
+
+class RoombaRebootRobot(RoombaEntity, ButtonEntity):
+    _attr_translation_key = "reboot_robot"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_device_class = ButtonDeviceClass.RESTART
+
+    async def async_press(self):
+        await self.account.async_command(self.robot_id, Command.REBOOT)
 
 
 class RoombaDockButton(RoombaEntity, ButtonEntity):

@@ -1,14 +1,14 @@
-# Fully integrated capacity-guided
+# Capability-guided robot and dock controls
 
 - Status: Draft
 - Date: 2026-11-23
 - Catalog capability ID: device-capabilities
-- Last verified: 2026-11-23
+- Last verified: 2026-11-25
 - Owners: ha-roomba-home maintainer
 - Scope: A central discovery, robot co-ordination and advanced base with clear regions.
 - Related issues/PRs: Extension requested by the incumbent and local development.
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
-- Open decisions blocking readiness: Physical valuation of complete sequential, zones and regional adjustment effect.
+- Open decisions blocking readiness: Automatic recharge and resume, the effect of every regional setting, and the device setup and removal contracts.
 
 ## 1. Executive summary
 
@@ -34,6 +34,22 @@ The account contains three X185240 and an association R981040. Eight modern shad
 and catalogue have been read. The authorized robot has an active map with 6 rooms and a
 fleeting region. The SDK distinguishes command codes, regions and basic capabilities. To get
 to know an enum doesn't prove availability in all models.
+
+The Android device review confirmed the following Max 700 Combo surfaces.
+The comparison uses actual values only where a signed Roomba API read
+established their meaning.
+
+| Android surface | Integration status |
+|---|---|
+| Robot name, model, software version, last software update | Device and firmware entities present |
+| Robot serial in the About screen | Verified asset lookup and Home Assistant device metadata |
+| Automatic pad washing, emptying frequency, voice language and volume, child and pet lock, locate, and reboot | Implemented device or dock controls |
+| Component use and remaining life, including maintenance resets | Implemented; three displayed hour values matched the API's remaining minutes |
+| Change Wi-Fi | App entry point observed; setup protocol and recovery require verification |
+| Factory reset and remove robot | App entry point observed; account removal, device reset, and recovery require verification |
+| User guide, robot help, and purchase links | App entry points observed; destination links require separate verification |
+
+[Android device settings comparison](../docs/validation.md#android-device-settings-comparison)
 
 ## 3. Actors, surfaces, and terminology
 
@@ -62,8 +78,19 @@ becoming an indiscriminately false or zero.
   necessary to complete them.
 - CAP-07: achieve 100% cover of judgments and branches with valid domestic HA for authorized
   goal.
-- CAP-08 (pending): Validate a complete mission targeting a saved cleaning zone.
+- CAP-08: Validate a complete mission targeting a saved cleaning zone.
 - CAP-09: Expose the floor plan, robot position, heading, path, and verified live progress from Roomba.
+- CAP-10: Expose voice volume and child and pet lock as verified robot configuration controls.
+- CAP-11: Configure water temperature, wash frequency, automatic solution dispensing, and drying duration on compatible docks.
+- CAP-12: Rename the robot and select a reported installed voice through native Home Assistant configuration entities.
+- CAP-13: Expose a normal reboot with connection-cycle confirmation and list the model's downloadable voices.
+- CAP-14: Install and select a catalog voice with a correlated software status and voice inventory.
+- CAP-15: Reset a supported robot or dock counter after completed maintenance.
+- CAP-16: Expose installed software and its reported installation time, and check Roomba's public firmware catalog for that model and version.
+- CAP-17: Expose the provider-reported serial on the associated Home Assistant device.
+- CAP-18: Manage weekly and one-time schedules from the floor plan. Show
+  the recognized destination order and per-area settings and let the owner
+  change either independently of timing and activation.
 
 No endpoints, maps and empty states are invented with HA entities or capabilities. No
 physical errors are induced and no maps, accounts or data beyond the test have been
@@ -89,9 +116,41 @@ The vacuum preserves standard HA states. The start, pause and stop functions are
 advertised where verifiable support exists. Batteries, diagnostics and details are specific
 entities. The actions already covered by vacuum do not double as buttons.
 
-Rooms and zones preserve their local IDs or names. They are not published in evidence nor diagnoses) The cleanup MUST uses the select robot's map and version to reject other, unknown or expired IDs. The weekly start can be published after an actual reading of a single robot's home and schedule. The same path allows to change the activation. The writing MUST to preserve command and fields beyond change, with later reading MUST confirm them. The release MUST validate the regions in today's version and keep schedule off. Withdrawal MUST check group and robot's name, but verify their absence after a single write. The test record keeps separate evidence of creation and withdrawal from deactivated schedules. [Schedule contract](../docs/api.md)
+Use the selected robot's map and revision to validate each scheduled
+destination. Read the current household and a single editable group
+before changing a start or enabled state. Support the provider's weekly
+and one-time frequencies. A one-time start uses the next occurrence of
+the selected local clock time. New entries start disabled. Timing and
+activation writes MUST preserve the command, area order, and cleaning
+preferences and confirm them through a fresh read. Per-area edits MUST
+validate the reviewed current revision and destination IDs, keep the enabled
+state, and keep the exact occurrence when the owner leaves the timing alone.
+Recognize the timed one-time app format and keep validated inactive mop
+preferences available when changing the mode in the editor. Removal MUST verify
+the robot and schedule group and confirm absence after one write.
+Keep private room, schedule, and robot identifiers out of the published
+evidence and diagnostics. [Schedule contract](../docs/api.md#cloud-schedule-frequency-and-ownership)
 
-Action `roomba_home.clean_point` MUST demand electronic tiup support, vacuuming and an active map room. MUST Validate the version and transform two fractions of a room rectangle into an inner point to his perimeter or outside exclusion zones. MUST publish `point_clean` once with the map and its version. A new remote live viewing mission allows you to mark the order as sent, and a history indicates if that command was `point_clean`. The geometry remains only during the resolution of destination. [Retirement contract and evidence](../docs/api.md#spot-cleaning-and-map-coordinates)
+Action `roomba_home.clean_point` requires digital spot support and an active
+room on the selected map. It converts two room-relative fractions to a
+native coordinate strictly inside the room and map borders and outside
+keep-out areas. A wet mode also requires usable no-mop geometry and a
+center outside those zones. Virtual walls prevent validation when the
+reachable side is unknown. The action sends `point_clean` once with the map,
+its version, and the supported mode selected for this point. Omitting the
+mode keeps the vacuum behavior of existing automations. Point mode follows
+the same four capability-gated choices as the official app. A dock fault
+detected after sending a wet point command reports the dock-readiness error
+and ends confirmation without retrying.
+Roomba's live state can establish submission and mission history can later
+confirm the exact command. [Point cleaning contract and evidence](../docs/api.md#spot-cleaning-and-map-coordinates)
+
+The dashboard exposes point selection to operators with entity control
+permission. Pointer and keyboard inputs mark the same room-relative target
+in the overhead and 3D views. The card requires confirmation of the mode
+and location before dispatch.
+The card supplies the reviewed map ID, revision, and destination inventory
+to the action. The backend rejects stale reviews before publishing.
 
 ## 7. User-facing configuration
 
@@ -105,12 +164,71 @@ and publishes a valid value. The script should use the same robot block as his m
 orders and be confirmed with `rw-settings.state.reported`. It's limited to a field of the
 robot at rest. The next cleanup preferences are saved in HA's configuration.
 
+Voice volume accepts integers from 0 to 100. Child and pet lock accepts a
+boolean and controls the robot's physical buttons. Discover both controls from
+their valid `rw-settings.state.reported` values. Keep the control's entity ID
+when a reading disappears and mark it unavailable until the field returns.
+Reuse the per-robot settings operation so changes are serialized with commands,
+limited to one field, and confirmed through a fresh reported value. Preserve
+existing read-only sensors and next-cleaning preferences.
+
+The robot name follows the typed `rw-settings.name` value when available.
+Keep the Home Assistant device identifier, entity IDs, and user-assigned
+device alias when the name changes. Keep the name out of generic telemetry
+and diagnostic exports. Voice selection requires a current, valid code and
+a choice from the robot's installed language inventory. Route both writes
+through the existing serialized, confirmed settings operation.
+
+The public voice catalog action subtracts the installed language codes
+reported by the selected robot from the codes offered for its model.
+Return the selected code separately and surface unavailable inventories
+as errors. Request the catalog without account credentials or robot IDs.
+
+Installation uses the model catalog's voice metapackage and a fresh
+language deployment identifier. Require a connected, docked robot with
+reported language slots and no pending deployment. Serialize the write
+with other operations for that robot. Confirm the matching deployment
+with the installed inventory and selected voice, or report the correlated
+firmware error or bounded timeout.
+
+Use a native configuration button for reboot. Publish once for the
+associated connected robot, then confirm only after Roomba reports that
+its connection went offline and returned. Unknown readings do not count
+as disconnection. Keep the per-robot operation lock until confirmation
+or the bounded timeout.
+
+Mop wash temperature, wash frequency, and automatic solution dispensing
+require a recognized dock with wash capability. Drying duration requires
+a recognized dock with dry capability. Create controls only for values
+verified for the Max 700. Route them through the same confirmed settings
+operation and keep them on the linked dock device. Changing wash frequency
+writes `pwReturn` alone and keeps the raw area and time interval readings.
+[Native tokens and meanings](../docs/api.md#max-700-automatic-mop-wash-settings)
+
+Allow a manual wash while a Max 700 Combo dock is actively drying. Apply
+the standard wash readiness and fault checks. Confirm the wash from its
+own component transition. Preserve other commands' busy-state checks.
+
+Require explicit confirmation of completed maintenance for a counter reset.
+Use an enabled counter from a fresh read of the target robot. Publish a
+single signed reset for that part and update the sensor after a matching
+acknowledgement and a fresh zero usage value.
+
+Read the last software installation time from `rw-software` and preserve
+its timezone when projecting the sensor. Query the firmware catalog only
+with the model and reported installed versions. An empty provider list
+allows an up-to-date response. Other versions are candidates, and a failed
+query leaves the status unavailable. Keep firmware rollout under Roomba's
+control.
+
 ## 8. Clean Architecture design
 
-Domination: pura skills, preferences and regions. Application: clear, control mission and
-operate base by semantic ports. Connectors: HTTP signed, MQTT and HA storage. Composition:
-shared account and device coordinator. Platforms: declarative descriptions and translations
-without interpreting raw documents on their own.
+The domain models capabilities, cleaning profiles, destinations, and dock
+readiness. Application use cases take typed robot observations and confirm
+the requested transitions. The integration adapters handle signed HTTP,
+MQTT, and Home Assistant storage. The coordinator composes these layers
+and shares the cloud session across the selected robots. The entity
+platforms expose the projected data and translated controls.
 
 ```mermaid
 flowchart LR
@@ -121,11 +239,11 @@ flowchart LR
     P --> U
 ```
 
-In text: Each device has its own projection and availability, shares information with the
-account or uses policies independently of his framework. The restrictions of imports MUST
-are verified with evidence. The shared API has session, boundaries and exclusion of
-connections with them client_id. Serializing validation but sending or confirmation by
-robot. Robots can expect both confirmations and re-use a status reading currently under way.
+Each device has its own state projection and availability. The core
+policies run independently of Home Assistant. The shared transport
+serializes operations on its MQTT client identity, while a per-robot lock
+keeps command validation, dispatch, and confirmation in order for that
+robot.
 
 ## 9. UI/UX and content contract
 
@@ -180,9 +298,11 @@ with the mission code at zero. To preserve and compare the set of conditions for
 cycle separately. If the robot reports load phase during a cleaning cycle, show that his or
 her mission remains active at the dock and maintain its update cadency. History statistics
 preserve activity fields, pauses and recharges separately as well with mode measures when
-they appear in the response. The next weekly schedule is computed in the IANA area reported
-by his robot and requires complete information about their active schedules. If the next
-hour is ambiguous or nonexistent by a change of time, its value remains unknown. The history
+they appear in the response. Compute the next weekly or one-time start using
+the robot's reported IANA time zone and complete enabled-schedule data.
+A one-time prediction requires a provider creation timestamp and a known
+date. Keep the next start unknown if the earliest local time is ambiguous.
+The history
 and cloud schedules display robot availability when the capacity is confirmed. A valid empty
 result retains a zero count. A failed reading leaves an unknown count and preserves the main
 status of his robot. The consumer responses require the supplier's list. The estimate action
@@ -205,7 +325,7 @@ check and re-start. Keep previous rollback and local icons revised.
 | Unit capabilities and categories | 20 | Expand, partial with vacuum or sink |
 | Based and verified actions | 15 | Presence, compatibility and exclusion |
 | Regions, maps and schemes | 15 | Other users, version and multiple rooms |
-| Vacuuming per point | 12 | Capacities, map boundaries and exclusion zones with HA confirmation or activation |
+| Cleaning a map point | 12 | Robot modes, mop readiness, map boundaries, restrictions, and confirmation |
 | Coordination and recovery | 15 | Isolated sources, backoff and boundaries. |
 | Compatibility and presentation HA | 10 | Ids, Services and Platforms |
 | Total | 87 | Additional to the profile suite |
@@ -233,12 +353,36 @@ with API operations.
 8. A uncertain writing does not double to try and achieve the expected status.
 9. Rearms and updates preserve identities or preferences.
 10. HA domestic sample icon, controls and final states tested target.
-11. A mission that selects a saved zone clear surface in this area and the track record
-    confirms its destination or final result.
+11. Select a saved zone, verify reported cleaned area, and confirm the
+    exact zone and outcome in mission history.
 12. The floor plan uses the robot's current map version. A fresh mission position
     identifies the current room only when it lies strictly within one labeled
     room. The path preserves sequence gaps. Coverage, completion percentage,
     and time remaining require independent mission evidence.
+13. Change voice volume and child and pet lock while the authorized robot is
+    docked. Confirm each value from Roomba, preserve the next-cleaning profile,
+    and restore both original values.
+14. On the authorized dock, exercise each verified temperature, frequency,
+    solution dispensing state, and drying duration. Confirm each choice and
+    restore the original settings with the robot still docked. A dock with
+    partial capabilities offers only the supported controls.
+15. Mark a point in an active room on the rotated map and review it before
+    dispatch. Confirm a point entered with the keyboard projects to the same
+    place. Reject invalid geometry and a stale map or inventory review.
+    Reject wet modes inside a no-mop zone and modes disabled by the robot.
+    [Card tests](../tests/frontend/map-card.test.cjs) · [Action tests](../tests/ha/test_areas.py)
+16. Change and restore the name and voice of the authorized docked robot.
+    Preserve device identity and the HA alias. Verify that the voice selector
+    refuses a code absent from the latest installed inventory.
+17. Reboot the authorized robot once and observe disconnection and
+    reconnection. Check its map and settings and observe any interrupted
+    dock activity. List voices and verify the reported installed codes are
+    excluded from the list of downloads.
+18. Install a catalog voice while the authorized robot is docked. Confirm
+    software progress, the matching deployment, and the newly installed
+    and selected code. Verify replacement of the previous download and
+    preservation of factory voices. Exercise a mismatched deployment,
+    reported firmware error, and timeout with fixtures.
 
 ## 17. Requirements traceability
 
@@ -250,19 +394,28 @@ with API operations.
 | CAP-05 | Reconciliation and recovery | Control clocks, malfunctions and subsequent reading |
 | CAP-06 | Registration and documentation | Before and after IDs with boundaries |
 | CAP-07 | Suite and Deployment | Coverage 100%, checks and domestic evidence |
-| CAP-08 | Saved-zone cleaning | Pending a physical run with a listed `zid`, confirmed route, history result, and return |
-| CAP-09 | Native map image, current room, and live position timestamp | Two position captures and synthetic HA tests for imagery, gaps, and expiry. Coverage, ETA, and percentage remain pending. |
+| CAP-08 | Saved-zone cleaning | Physical run with the exact `zid`, history result, and return. [Validation](../docs/validation.md#immediate-saved-zone-selection-in-0250) |
+| CAP-09 | Native map image, room, live movement, obstacles, coverage, and estimated time | [Mission and floor card specification](008-mission-detail-and-map-card.md) and [physical validation](../docs/validation.md#continuous-position-and-cleaning-coverage) |
+| CAP-10 | Voice volume number and child and pet lock switch | [Native shadow payload](../docs/api.md#voice-volume-and-child-and-pet-lock), [Home Assistant service tests](../tests/ha/test_cleaning_controls.py), and [robot validation](../docs/validation.md#robot-configuration-controls) |
+| CAP-11 | Dock configuration selectors and switch | [Native values](../docs/evidence/2026-11-25-dock-preferences.json), [Home Assistant service tests](../tests/ha/test_cleaning_controls.py), and [dock validation](../docs/validation.md#automatic-mop-wash-settings) |
+| CAP-12 | Robot name text entity and installed voice selector | [Reported values and restoration](../docs/evidence/2026-11-25-robot-identity.json) and [Home Assistant service tests](../tests/ha/test_cleaning_controls.py) |
+| CAP-13 | Reboot button and voice catalog action | [Physical validation](../docs/evidence/2026-11-25-reboot-and-voice-catalog.json), [control tests](../tests/test_application.py), and [Home Assistant actions](../tests/ha/test_cleaning_controls.py) |
+| CAP-14 | Install voice action and software status | [Installation evidence](../docs/evidence/2026-11-25-voice-installation.json), [protocol tests](../tests/test_voice_catalog.py), and [coordinator tests](../tests/ha/test_coordinator.py) |
+| CAP-15 | Confirmed reset of one maintenance counter | [Maintenance validation](../docs/validation.md#maintenance-counter-reset), [signed request tests](../tests/test_api_client.py), and [Home Assistant action tests](../tests/ha/test_cleaning_controls.py) |
+| CAP-16 | Firmware timestamp sensor and catalog status action | [Device validation](../docs/validation.md#robot-software-status), [catalog tests](../tests/test_api_client.py), and [Home Assistant action tests](../tests/ha/test_cleaning_controls.py) |
+| CAP-17 | Robot device registry serial number | [Android and API comparison](../docs/validation.md#robot-serial-number), [signed lookup tests](../tests/test_api_client.py), and [registry refresh tests](../tests/ha/test_telemetry_entities.py) |
+| CAP-18 | Schedule editor and typed Home Assistant actions | [Schedule API](../docs/api.md#cloud-schedule-frequency-and-ownership), [action tests](../tests/ha/test_schedules.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed trial](../docs/validation.md#schedule-editor-and-per-area-settings) |
 
 CAP-09 includes floor plans, room labels, position, heading, trajectory,
 coverage, and estimates supported by Roomba. Enable the map option to expose
 one Home Assistant image per active, visible saved map. The live feed starts
 with the provider's signed announcement and uses only the exact topic checked
-against the robot's discovered deployment. Position sampling shares the
-account's MQTT connection for a short window during active polling. The
-provider does not supply a map version on each frame. Live positions are
-projected only when the robot has one available saved map. Positions are
-associated with the current mission by its start timestamp and retained only
-for that mission and map version.
+against the robot's discovered deployment. An independently authenticated
+subscription delivers position updates between the account's state polls. The
+provider associates floor identity with the correlated mission timeline.
+On devices with multiple saved floors, live positions are projected onto
+the mission's verified floor and retained for its bound revision.
+[Multiple saved floor validation](../docs/validation.md#multiple-saved-floors)
 
 The current room requires exactly one containing room polygon and a label.
 Boundaries, holes, overlaps, and expired positions produce an unknown room.
@@ -279,10 +432,12 @@ Two live vacuum runs produced `pos_update.cur_path` and `update_expire_ts`.
 All 222 distinct observed coordinates matched a unique room polygon in the
 active saved geometry. The app showed the active room and about seven minutes.
 The matching room-and-profile estimate was 397 seconds. The live timeline
-returned start and relocation events for the same mission. Its coverage,
-remaining time, and completion percentage still need independent verification.
-The compressed raw map format also remains unverified.
-[Live progress evidence](../docs/evidence/2026-11-24-live-progress.json)
+returned start and relocation events for the same mission. The integration
+estimates remaining time and coverage from provider measurements.
+A verified compressed snapshot format supplies earlier positions and temporary
+obstacles. A mission-wide percentage still requires a provider denominator.
+[Live progress evidence](../docs/evidence/2026-11-24-live-progress.json) ·
+[Coverage and obstacle validation](../docs/validation.md#live-coverage-reconstruction)
 
 The targeted vacuuming, pause and resumption were observed in the authorized robot with type rid. The probes with 512 about a region remained at the dock. The complete with 512 phase of vacuuming and the test was cancelled before stage II. Following maintenance, the domestic server was updated to 0.3.0. The icon was checked, and the vacuuming tiered, mopping with resumption and manual emptying without error. A second test confirmed the start, pause and cancellation while applying for two rooms with a same map on another robot. The room and applied power require more detailed telemetry. [Domestic Validation](../docs/validation.md#upgrade-and-timed-cleaning-with-030)
 

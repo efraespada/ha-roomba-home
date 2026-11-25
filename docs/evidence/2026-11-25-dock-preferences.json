@@ -1,0 +1,47 @@
+{
+  "date": "2026-11-25",
+  "model": "X185240",
+  "source": "Official Android controls and independent rw-settings reported reads",
+  "integration_version": "0.29.0",
+  "settings": {
+    "pwHeat": {
+      "choices": {"room_temperature": 0, "hot": 1, "very_hot": 2},
+      "initial": 1,
+      "restored": 1
+    },
+    "pwReturn": {
+      "choices": {"standard": 100, "medium": 101, "high": 102},
+      "initial": 100,
+      "restored": 100,
+      "related_fields_unchanged": ["pwAreaInterval", "pwTimeInterval"]
+    },
+    "detergent": {
+      "choices": {"off": 0, "automatic": 1},
+      "initial": 1,
+      "restored": 1
+    },
+    "padDryDur": {
+      "choices_in_hours": [3, 4, 5],
+      "initial": 4,
+      "restored": 4
+    }
+  },
+  "isolated_home_assistant": {
+    "configuration_check_passed": true,
+    "installation_archive_loaded": true,
+    "all_controls_linked_to_the_dock": true,
+    "select.select_option": {
+      "pwHeat": [0, 1, 2],
+      "pwReturn": [100, 101, 102],
+      "padDryDur": [3, 4, 5]
+    },
+    "switch.turn_off": {"detergent": 0},
+    "switch.turn_on": {"detergent": 1},
+    "independent_reported_reads": true,
+    "related_intervals_unchanged": true,
+    "original_settings_restored": true
+  },
+  "final_state": "docked",
+  "missions_started": 0,
+  "map_edits": 0
+}

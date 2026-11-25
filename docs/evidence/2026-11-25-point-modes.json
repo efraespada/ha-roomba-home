@@ -1,0 +1,58 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "source": "Official Android app and independent Roomba mission timeline and history",
+  "point_mop_trial": {
+    "command": "point_clean",
+    "params": { "operatingMode": 4 },
+    "geometry_fields": ["center"],
+    "used_current_map_and_revision": true,
+    "same_map_associated_after_completion": true,
+    "roomba_published_new_revision_after_completion": true,
+    "observed_phases": ["padWash", "run", "hmPostMsn", "padWash", "charge"],
+    "observed_running_modes": [4],
+    "history_outcome": "ok",
+    "history_area_sqft": 36,
+    "returned_and_charging": true
+  },
+  "simultaneous_trial": {
+    "selection": "Aspirar+fregar",
+    "command": "point_clean",
+    "params": { "operatingMode": 6 },
+    "geometry_fields": ["center"],
+    "used_current_map_and_revision": true,
+    "observed_running_modes": [6],
+    "history_outcome": "ok",
+    "history_area_sqft": 37,
+    "returned_and_charging": true
+  },
+  "sequential_trial": {
+    "selection": "Aspirar y fregar",
+    "command": "point_clean",
+    "params": { "operatingMode": 512 },
+    "geometry_fields": ["center"],
+    "used_current_map_and_revision": true,
+    "observed_running_modes": [2, 4],
+    "same_mission_for_both_phases": true,
+    "history_outcome": "ok",
+    "history_area_sqft": 76,
+    "returned_and_charging": true
+  },
+  "initial_simultaneous_attempt": {
+    "selection": "Aspirar+fregar",
+    "activity": "docked",
+    "app_dock_fault": 654,
+    "app_dock_fault_meaning": "Dirty-water tank full",
+    "new_mission_observed": false
+  },
+  "final_map_verification": {
+    "original_map_still_associated": true,
+    "rooms_borders_walls_and_carpets_unchanged": true,
+    "saved_zone_outlines_and_restrictions_unchanged": true,
+    "user_furniture_changed": false,
+    "robot_detected_furniture_count_unchanged": true,
+    "robot_detected_furniture_geometry_updated": true,
+    "reported_dock_point_updated": true,
+    "robot_charging_with_no_active_mission": true
+  }
+}

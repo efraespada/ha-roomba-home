@@ -1,15 +1,19 @@
-"""Boolean preferences for the next cleaning; no live mission mutation."""
+"""Boolean cleaning preferences and confirmed persistent robot settings."""
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import EntityCategory
 
-from .core.cleaning_protocol import CleaningSetting
+from .core.settings_protocol import RobotSetting
 from .entity import RoombaEntity, discover_entities
 
 OPTIONS = {
-    "smart_scrub": CleaningSetting.SMART_SCRUB,
-    "two_pass": CleaningSetting.TWO_PASS,
-    "carpet_boost": CleaningSetting.CARPET_BOOST,
+    "smart_scrub": RobotSetting.SMART_SCRUB,
+    "two_pass": RobotSetting.TWO_PASS,
+    "carpet_boost": RobotSetting.CARPET_BOOST,
+}
+DEVICE_SWITCHES = {
+    "child_pet_lock": (RobotSetting.CHILD_PET_LOCK, False, "mdi:lock-outline"),
+    "automatic_mop_detergent": (RobotSetting.AUTOMATIC_DETERGENT, True, "mdi:water-plus-outline"),
 }
 
 
@@ -20,6 +24,9 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 yield field, RoombaCleaningOption
             if setting.observed(state.telemetry, state.capabilities.cleaning) is not None:
                 yield f"default_{field}", RoombaDefaultCleaningOption
+        for key, (setting, _, _) in DEVICE_SWITCHES.items():
+            if setting.observed_on(state.telemetry, state.capabilities) is not None:
+                yield key, RoombaDeviceSwitch
 
     discover_entities(entry, async_add_entities, candidates)
 
@@ -83,4 +90,33 @@ class RoombaDefaultCleaningOption(RoombaCleaningOption):
         )
 
     async def _async_apply_option(self, enabled):
-        await self.account.async_set_cleaning_setting(self.robot_id, self.setting, enabled)
+        await self.account.async_set_robot_setting(self.robot_id, self.setting, enabled)
+
+
+class RoombaDeviceSwitch(RoombaEntity, SwitchEntity):
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator, robot_id, key):
+        self.setting, dock, icon = DEVICE_SWITCHES[key]
+        super().__init__(coordinator, robot_id, key, dock=dock)
+        self._attr_translation_key = key
+        self._attr_icon = icon
+
+    @property
+    def available(self):
+        return super().available and self.is_on is not None
+
+    @property
+    def is_on(self):
+        state = self.robot
+        return (
+            self.setting.observed_on(state.telemetry, state.capabilities)
+            if state is not None
+            else None
+        )
+
+    async def async_turn_on(self, **kwargs):
+        await self.account.async_set_robot_setting(self.robot_id, self.setting, True)
+
+    async def async_turn_off(self, **kwargs):
+        await self.account.async_set_robot_setting(self.robot_id, self.setting, False)

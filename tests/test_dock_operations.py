@@ -70,6 +70,16 @@ def test_ongoing_wash_is_already_confirmed_without_a_second_start():
     assert prepare_control(Command.WASH_MOP, running, PROFILE).already_confirmed
 
 
+def test_manual_wash_has_priority_over_drying_with_other_dock_operations_still_blocked():
+    drying = replace(DOCKED, dock=replace(DOCK, pad_dry=702))
+    plan = prepare_control(Command.WASH_MOP, drying, PROFILE)
+    assert not plan.already_confirmed
+    assert plan.confirms(replace(drying, dock=replace(drying.dock, pad_wash=602, pad_dry=701)))
+    for command in (Command.EMPTY_BIN, Command.REFILL):
+        with pytest.raises(ControlError, match="dock_not_ready"):
+            prepare_control(command, drying, PROFILE)
+
+
 def test_empty_bin_requires_the_dustbin_to_be_installed():
     with pytest.raises(ControlError, match="bin_missing"):
         prepare_control(Command.EMPTY_BIN, replace(DOCKED, bin_present=False), PROFILE)

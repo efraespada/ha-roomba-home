@@ -6,12 +6,13 @@ from datetime import datetime
 from typing import Protocol
 
 from .actions import Command
-from .capabilities import DigitalSpotCapability, supports_point_clean
+from .capabilities import DigitalSpotCapability, SkipCapability, supports_point_clean
 from .cleaning import CleaningCapabilities, CleaningMode, CleaningProfile
 from .dock import OPERATIONS, DockSnapshot
 from .errors import AuthenticationError
 
 PREPARATION_CONFIRMATION_SECONDS = 300
+COMMAND_CONFIRMATION_SECONDS = {Command.DOCK: 120, Command.REBOOT: 180}
 
 
 class ControlError(Exception):
@@ -20,6 +21,23 @@ class ControlError(Exception):
     def __init__(self, key: str):
         self.key = key
         super().__init__(key)
+
+
+type SkipReview = tuple[tuple[int, datetime], str, tuple[str, str, str]]
+
+
+@dataclass(frozen=True)
+class SkipAreaEvent:
+    kind: str
+    identity: tuple[str, str, str]
+    timestamp: int
+
+
+@dataclass(frozen=True)
+class SkipObservation:
+    destination: SkipAreaEvent | None
+    skipped: frozenset[SkipAreaEvent]
+    directed: bool
 
 
 @dataclass(frozen=True)
@@ -38,6 +56,49 @@ class ControlState:
     mission_identity: tuple[int, datetime] | None = None
     digital_spot: DigitalSpotCapability | None = None
     mission_initiator: str | None = None
+    skip_capability: SkipCapability | None = None
+    skip_observation: SkipObservation | None = None
+    mapping_supported: bool = False
+    mapping: bool = False
+
+
+def _skip_error(state: ControlState) -> str | None:
+    if state.skip_capability in (None, SkipCapability.UNSUPPORTED):
+        return "unsupported_skip"
+    if (
+        state.activity != "cleaning"
+        or state.mission_active is not True
+        or state.preparing_mop
+        or state.mission_identity is None
+        or state.skip_observation is None
+        or state.skip_observation.destination is None
+        or (
+            state.skip_capability is SkipCapability.DIRECTED_ONLY
+            and not state.skip_observation.directed
+        )
+    ):
+        return "skip_requires_destination"
+    return None
+
+
+def skip_review(state: ControlState) -> SkipReview | None:
+    if state.connected is not True or _skip_error(state):
+        return None
+    destination = state.skip_observation.destination
+    return state.mission_identity, destination.kind, destination.identity
+
+
+def _confirmed_skip(before: ControlState, state: ControlState) -> bool:
+    if state.mission_identity != before.mission_identity or state.skip_observation is None:
+        return False
+    previous = before.skip_observation
+    target = previous.destination
+    return any(
+        area.kind == target.kind
+        and area.identity == target.identity
+        and area.timestamp >= target.timestamp
+        for area in state.skip_observation.skipped - previous.skipped
+    )
 
 
 @dataclass(frozen=True)
@@ -48,9 +109,10 @@ class ControlPlan:
     already_confirmed: bool = False
     previous_component_state: int | None = None
     expected_modes: frozenset[CleaningMode] = frozenset()
+    mapping: bool = False
 
     def _matches_cleaning(self, state: ControlState) -> bool:
-        if state.activity != "cleaning" or state.mission_active is not True:
+        if state.activity != "cleaning" or state.mission_active is not True or state.mapping:
             return False
         if self.expected_modes:
             return state.mode in self.expected_modes
@@ -65,19 +127,36 @@ class ControlPlan:
             and self._matches_cleaning(state)
         )
 
+    def observes_area_sequence(self, before: ControlState, state: ControlState) -> bool:
+        return (
+            state.mission_identity is not None
+            and state.mission_identity != before.mission_identity
+            and state.mission_initiator == "rmtApp"
+            and state.activity == "cleaning"
+            and state.mission_active is True
+            and not state.preparing_mop
+            and state.mode in self.expected_modes | {CleaningMode.VACUUM, CleaningMode.MOP}
+        )
+
     def confirms(self, state: ControlState) -> bool:
         if state.connected is not True:
             return False
         if operation := OPERATIONS.get(self.command):
             current = state.dock.status(operation)
             return current != self.previous_component_state and current in operation.result_states
+        if self.command is Command.START_MAPPING or self.mapping:
+            return state.mapping and state.activity == "cleaning" and state.mission_active is True
         if self.command in {Command.VACUUM, Command.RESUME}:
             return not state.preparing_mop and self._matches_cleaning(state)
         if self.command is Command.PAUSE:
             return state.activity == "paused" and state.mission_active is True
         if self.command is Command.CANCEL:
             return state.activity in {"idle", "docked"} and state.mission_active is False
-        return state.activity == "docked" and state.mission_active is False
+        return (
+            self.command is Command.DOCK
+            and state.activity == "docked"
+            and state.mission_active is False
+        )
 
 
 @dataclass(frozen=True)
@@ -129,6 +208,18 @@ def prepare_control(
         if not state.locate:
             raise ControlError("unsupported_command")
         return ControlPlan(command)
+    if command is Command.SKIP:
+        if error := _skip_error(state):
+            raise ControlError(error)
+        return ControlPlan(command)
+    if command is Command.START_MAPPING:
+        if not state.mapping_supported:
+            raise ControlError("mapping_unsupported")
+        if state.activity != "docked" or state.mission_active is not False:
+            raise ControlError("mapping_requires_dock")
+        if state.ready is False:
+            raise ControlError("robot_not_ready")
+        return ControlPlan(command)
     if (
         command in {Command.VACUUM, Command.POINT_CLEAN, Command.RESUME}
         and state.activity == "error"
@@ -155,6 +246,8 @@ def prepare_control(
     if command in {Command.VACUUM, Command.POINT_CLEAN}:
         if not new_mission and state.activity == "paused" and state.mission_active is True:
             return prepare_control(Command.RESUME, state, profile)
+        if state.mapping:
+            raise ControlError("mapping_in_progress")
         if not new_mission and state.activity == "cleaning" and state.mission_active is True:
             # A next-mission preference never replaces an active mission.
             if state.preparing_mop:
@@ -164,8 +257,6 @@ def prepare_control(
             raise ControlError("unsupported_start")
         profiles = area_profiles or (profile,)
         modes = frozenset(value.mode for value in profiles)
-        if new_mission and CleaningMode.VACUUM_THEN_MOP in modes:
-            raise ControlError("unsupported_area_mode")
         try:
             for selection in profiles:
                 selection.validate(state.capabilities)
@@ -177,10 +268,14 @@ def prepare_control(
             _check_mop_readiness(state.dock)
         if state.ready is False:
             raise ControlError("robot_not_ready")
+        if command is Command.POINT_CLEAN and profile.mode is CleaningMode.VACUUM_THEN_MOP:
+            modes |= {CleaningMode.VACUUM, CleaningMode.MOP}
         return ControlPlan(command, profile, profile.mode, expected_modes=modes)
     if command is Command.RESUME:
         if state.activity != "paused" or state.mission_active is not True:
             raise ControlError("resume_requires_pause")
+        if state.mapping:
+            return ControlPlan(command, mapping=True)
         if state.mode is not None:
             if state.bin_present is False and state.mode.vacuums:
                 raise ControlError("bin_missing")
@@ -223,6 +318,7 @@ async def execute_control(
     *,
     new_mission: bool = False,
     area_profiles: tuple[CleaningProfile, ...] = (),
+    reviewed_skip: SkipReview | None = None,
 ) -> None:
     """Read, validate, send once, then confirm; transport ACK is insufficient."""
     if not port.active:
@@ -236,6 +332,12 @@ async def execute_control(
     plan = prepare_control(
         command, before, profile, new_mission=new_mission, area_profiles=area_profiles
     )
+    if (
+        command is Command.SKIP
+        and reviewed_skip is not None
+        and skip_review(before) != reviewed_skip
+    ):
+        raise ControlError("skip_destination_changed")
     if plan.already_confirmed:
         if plan.command is Command.VACUUM and before.preparing_mop:
             port.defer_preparation(plan, before)
@@ -250,14 +352,30 @@ async def execute_control(
         if plan.command is Command.LOCATE:
             port.report("submitted")
             return
-        deadline = port.clock() + (120 if plan.command is Command.DOCK else 40)
+        deadline = port.clock() + COMMAND_CONFIRMATION_SECONDS.get(plan.command, 40)
+        disconnected = False
         while port.active and port.clock() < deadline:
             await port.wait(5)
             state = await port.refresh()
+            if plan.command is Command.REBOOT:
+                if state.connected is True and disconnected:
+                    port.report("confirmed")
+                    return
+                disconnected |= state.connected is False
+                continue
             if state.connected is not True:
                 break
+            if plan.command is Command.SKIP:
+                if _confirmed_skip(before, state):
+                    port.report("confirmed")
+                    return
+                continue
+            if plan.command is Command.START_MAPPING and state.mission_initiator != "rmtApp":
+                continue
             if plan.command is Command.POINT_CLEAN:
-                # Live state describes a regular vacuum mission. Its exact target
+                if profile.mode.mops and state.dock.wet_cleaning_blocked:
+                    raise ControlError("dock_not_ready")
+                # Live state describes a regular cleaning mission. Its exact target
                 # is only visible in mission history when the run ends.
                 if (
                     plan._matches_cleaning(state)
@@ -265,6 +383,15 @@ async def execute_control(
                     and state.mission_identity is not None
                     and state.mission_identity != before.mission_identity
                 ):
+                    port.report("submitted")
+                    return
+                continue
+            if (
+                new_mission
+                and plan.command is Command.VACUUM
+                and CleaningMode.VACUUM_THEN_MOP in plan.expected_modes
+            ):
+                if plan.observes_area_sequence(before, state):
                     port.report("submitted")
                     return
                 continue
@@ -287,7 +414,7 @@ async def execute_control(
                 port.report("submitted")
                 return
         raise ControlError("command_unconfirmed")
-    except AuthenticationError, asyncio.CancelledError:
+    except AuthenticationError, asyncio.CancelledError, ControlError:
         port.report("unconfirmed")
         raise
     except Exception:

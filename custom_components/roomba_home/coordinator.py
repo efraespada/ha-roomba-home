@@ -1,15 +1,21 @@
 """Account coordinator: serialized MQTT work, polling and command confirmation."""
 
 import asyncio
+import json
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from functools import partial
+from hashlib import sha256
+from itertools import batched
 from time import monotonic
 
+from aiohttp import ClientError
 from homeassistant.const import CONF_COUNTRY, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.helpers import device_registry
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -25,6 +31,7 @@ from .const import (
     MAPS_SECONDS,
     PARTS_SECONDS,
     POLL_SECONDS,
+    SERIAL_REFRESH_SECONDS,
     SUPPORTED_SKU,
     selected_robots,
 )
@@ -34,15 +41,17 @@ from .core.application import (
     ControlState,
     PreparationConfirmation,
     execute_control,
+    skip_review,
 )
 from .core.capabilities import supports_point_clean
 from .core.cleaning import CleaningCapabilities, CleaningMode, CleaningProfile
-from .core.cleaning_protocol import CleaningSetting, reported_cleaning_mode
+from .core.cleaning_protocol import reported_cleaning_mode
 from .core.client import RoombaClient, check_status
 from .core.commands import Command, MqttCommandSender
 from .core.dock import DockSnapshot
 from .core.errors import (
     AuthenticationError,
+    ProgramSelectionChanged,
     ProtocolError,
     RateLimited,
     RoombaError,
@@ -51,28 +60,78 @@ from .core.errors import (
     ScheduleNotEditable,
     ScheduleUpdateUnconfirmed,
 )
-from .core.history import ended_mission_start, history_includes_mission, present_rooms
-from .core.live_maps import MissionPath
-from .core.maps import AreaTarget, RegionKind, resolve_segments
+from .core.floor_settings import prepare_floor_settings, prepare_floor_settings_restore
+from .core.furniture_edits import confirm_furniture_edit, prepare_furniture_edit
+from .core.furniture_targets import furniture_regions
+from .core.history import (
+    ended_mission_start,
+    history_includes_mission,
+    present_rooms,
+    present_zones,
+)
+from .core.live_coverage import MAX_SAMPLES, LiveCoverage
+from .core.live_maps import POSITION_ACTIVITIES, MissionPath, resolve_live_floor
+from .core.live_route import (
+    RAW_ROUTE_MAX_AGE,
+    RawRouteReference,
+    decode_raw_snapshot,
+    reconcile_live_snapshot,
+)
+from .core.map_programs import (
+    capture_zone_programs,
+    matching_zone_destinations,
+    program_selection,
+    review_zone_program,
+    saved_zone_destinations,
+)
+from .core.map_snapshots import capture_snapshot, read_snapshot, with_backup_programs
+from .core.maps import SAVED_ZONE_IDS, AreaTarget, CleaningRegion, RegionKind, resolve_segments
+from .core.mission_map import read_mission_map
+from .core.mission_plan import present_mission_plan
+from .core.mission_time import estimate_durations, estimate_target, remaining_duration
 from .core.models import AppProfile, LoginDetails
 from .core.mqtt import MqttProfile, MqttShadowReader, live_map_topic
-from .core.point_maps import PointTarget, read_floor_plan, resolve_room_point
+from .core.point_maps import (
+    PointTarget,
+    read_floor_plan,
+    resolve_room_point,
+    with_archive_destinations,
+)
 from .core.preferences import profile_preferences, restore_profile
-from .core.schedules import next_weekly_start
+from .core.restriction_edits import confirm_restriction_edit, prepare_restriction_edit
+from .core.room_edits import edited_revision, prepare_room_edit
+from .core.routine_presets import smart_routine_presets
+from .core.schedules import next_schedule_start, once_weekday
+from .core.settings_protocol import DEVICE_CONFIGURATION_SETTINGS, RobotSetting
 from .core.state import RobotState, project_state
 from .core.telemetry import (
     CLEANING_CYCLES,
     DETAIL_SHADOWS,
     FAST_SHADOWS,
+    RESETTABLE_PARTS,
+    convert,
     project_parts,
     project_telemetry,
+    reported,
 )
+from .core.time_estimates import routine_time_estimate
 from .core.transport import AiohttpTransport
+from .core.voice_catalog import VOICE_INSTALL_TIMEOUT, voice_deployment_id, voice_installation
+from .core.zone_edits import (
+    confirm_zone_edit,
+    confirm_zone_restore,
+    prepare_zone_edit,
+    prepare_zone_restore,
+)
+from .live_stream import LiveMapStream, MapWatch, live_map_client
+from .map_history import map_history
 from .robot_updates import RobotUpdates
 
 _LOGGER = logging.getLogger(__name__)
 TIMELINE_INTERVAL = 45
 TIMELINE_MAX_AGE = 100
+LIVE_ESTIMATE_RETRY_SECONDS = 60
+ROUTE_RETRY_SECONDS = 30
 
 
 @dataclass(frozen=True)
@@ -105,8 +164,20 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         self.show_maps = entry.options.get(CONF_SHOW_MAPS) is True
         self._floor_plans = {}
         self._live_paths = {}
+        self._live_floor_pins = {}
+        self._live_coverage = {}
+        self._live_obstacles = {}
+        self._stream_route_references = {}
+        self._live_stream = LiveMapStream(
+            live_map_client(self.client),
+            lambda coro: entry.async_create_background_task(hass, coro, "Roomba live positions"),
+            hass.async_add_executor_job,
+            self._receive_live_map_sample,
+        )
+        self._live_route_attempts = {}
         self._live_announcements = {}
         self._live_timelines = {}
+        self._live_estimates = {}
         self._timeline_due = {}
         self._cancel_live_expiration = None
         self._io_lock = asyncio.Lock()
@@ -120,6 +191,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         self._clock = monotonic
         self._details_due = 0
         self._parts_due = 0
+        self._serials_due = 0
         self._maps_due = 0
         self._maps_retry_until = 0
         self._estimates_retry_until = 0
@@ -132,6 +204,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         self._read_retry_until = 0
         self._details = {}
         self._parts = {}
+        self._serials = {}
         self._part_catalog = {}
         self._maps = {}
         self._maps_available = {}
@@ -154,6 +227,9 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         if robot_id not in self._robot_updates:
             self._robot_updates[robot_id] = RobotUpdates(self, robot_id)
         return self._robot_updates[robot_id]
+
+    def robot_serial_number(self, robot_id):
+        return self._serials.get(robot_id)
 
     def profile(self, robot_id):
         if robot_id in self.profiles:
@@ -202,7 +278,14 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         self.async_update_listeners()
 
     def _read(
-        self, session, shadows=FAST_SHADOWS, live=None, positions=None, pending=None, timelines=None
+        self,
+        session,
+        shadows=FAST_SHADOWS,
+        live=None,
+        positions=None,
+        pending=None,
+        timelines=None,
+        raw_routes=None,
     ):
         documents = {}
         received = False
@@ -230,6 +313,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                         allow_partial=True,
                         live_topics=live_topics,
                         positions=positions,
+                        raw_routes=raw_routes,
                         **timeline,
                     )
                 else:
@@ -276,10 +360,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 if robot_id not in self.selected or details.get("sku") != SUPPORTED_SKU:
                     continue
                 try:
-                    parts = await self.client.request("GET", f"/v1/robots/{robot_id}/parts")
-                    if not isinstance(parts, dict) or not isinstance(parts.get("parts"), list):
-                        raise ProtocolError("Expected the robot consumables list")
-                    self._parts[robot_id] = parts
+                    self._parts[robot_id] = await self.client.robot_parts(robot_id)
                 except AuthenticationError:
                     raise
                 except RateLimited as error:
@@ -288,6 +369,26 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                     break
                 except Exception as error:
                     _LOGGER.debug("Part refresh failed: %s", type(error).__name__)
+        if now >= self._serials_due:
+            await self._refresh_robot_serials(session, now)
+
+    async def _refresh_robot_serials(self, session, now):
+        self._serials_due = now + SERIAL_REFRESH_SECONDS
+        for robot_id, details in session.raw["robots"].items():
+            if robot_id not in self.selected or details.get("sku") != SUPPORTED_SKU:
+                continue
+            try:
+                async with asyncio.timeout(4):
+                    serial = await self.client.robot_serial_number(robot_id)
+            except RateLimited as error:
+                self._serials_due = now + error.retry_after
+                break
+            except Exception as error:
+                self._serials_due = min(self._serials_due, now + PARTS_SECONDS)
+                _LOGGER.debug("Robot serial refresh failed: %s", type(error).__name__)
+                continue
+            self._serials[robot_id] = serial
+            self._sync_robot_device(robot_id, serial_number=serial)
 
     async def _executor(self, function, *args):
         future = self.hass.async_add_executor_job(function, *args)
@@ -299,9 +400,24 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             raise
 
     async def _refresh_maps(self, robots, now):
-        if now < self._maps_due:
+        previous = self.data or {}
+        mapping_ended = any(
+            state.cycle == "none"
+            and (old := previous.get(robot_id)) is not None
+            and old.mapping is True
+            for robot_id, state in robots.items()
+        )
+        mission_ended = self.show_maps and any(
+            state.capabilities.persistent_maps is True
+            and ended_mission_start(previous.get(robot_id), state) is not None
+            for robot_id, state in robots.items()
+        )
+        if now < self._maps_retry_until or (
+            now < self._maps_due and not (mission_ended or mapping_ended)
+        ):
             return
-        self._maps_due = now + MAPS_SECONDS
+        # A floor can be published shortly after the mapping cycle returns to the dock.
+        self._maps_due = now + (30 if mapping_ended else MAPS_SECONDS)
         self._maps_available = {
             state.robot_id: False
             for state in robots.values()
@@ -326,14 +442,14 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         maps = await self.client.maps(robot_id)
         self._maps[robot_id] = maps
         self._maps_available[robot_id] = True
-        valid = set(maps)
-        for owner_id, floor in tuple(self._floor_plans):
-            if owner_id == robot_id and floor not in valid:
-                del self._floor_plans[owner_id, floor]
+        valid = {floor.geometry_key for floor in maps}
+        for owner_id, geometry_key in tuple(self._floor_plans):
+            if owner_id == robot_id and geometry_key not in valid:
+                del self._floor_plans[owner_id, geometry_key]
         return maps
 
     async def _floor_plan(self, robot_id, floor):
-        key = (robot_id, floor)
+        key = (robot_id, floor.geometry_key)
         if key not in self._floor_plans:
             bundle = await self._read_map_action(
                 self.client.map_geometry, floor.map_id, floor.version_id
@@ -354,8 +470,547 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             except RoombaError, HomeAssistantError:
                 return None
 
+    async def async_capture_map_backup(self, robot_id, map_id, version, inventory_id, settings_id):
+        async with self._io_lock:
+            state = (self.data or {}).get(robot_id)
+            if (
+                self._closed
+                or robot_id not in self.selected
+                or not self.show_maps
+                or state is None
+                or state.capabilities.persistent_maps is not True
+            ):
+                raise action_error("map_unavailable", "Floor maps are unavailable")
+            floors = await self._read_map_action(self._read_maps, robot_id)
+            floor = next((item for item in floors if item.map_id == map_id), None)
+            if (
+                floor is None
+                or floor.version_id != version
+                or floor.inventory_id != inventory_id
+                or floor.settings_id != settings_id
+            ):
+                raise action_error("map_changed", "The map changed. Review the current floor.")
+            history = map_history(self.hass, self.config_entry.entry_id)
+            return await self._save_map_backup(history, robot_id, floor)
+
+    async def _save_map_backup(self, history, robot_id, floor):
+        archive = await self._read_map_action(
+            self.client.map_geometry, floor.map_id, floor.version_id
+        )
+        try:
+            record, plan = await self._executor(capture_snapshot, floor, archive, datetime.now(UTC))
+            if zones := saved_zone_destinations(floor.map_id, plan):
+                sources, unchecked = await self._read_backup_programs(
+                    robot_id, {"routine", "schedule"}
+                )
+                programs = capture_zone_programs(zones, sources, unchecked)
+                record = await self._executor(with_backup_programs, record, archive, programs)
+            return await history.async_capture(robot_id, record)
+        except ProtocolError as error:
+            raise HomeAssistantError(str(error)) from None
+
+    async def _back_up_before_edit(self, robot_id, floor):
+        history = map_history(self.hass, self.config_entry.entry_id)
+        try:
+            if await history.async_automatic(robot_id):
+                await self._save_map_backup(history, robot_id, floor)
+        except AuthenticationError:
+            raise
+        except ProtocolError, HomeAssistantError, OSError:
+            raise HomeAssistantError(
+                "The automatic map backup failed. Check Map backups before retrying."
+            ) from None
+
+    async def async_edit_rooms(
+        self,
+        robot_id,
+        map_id,
+        version,
+        _inventory_id,
+        operation,
+        room_ids,
+        points,
+        name=None,
+        room_type=None,
+    ):
+        active, _ = await self._edit_map(
+            robot_id,
+            map_id,
+            version,
+            # Room edits use the active archive even if Roomba's room inventory is still syncing.
+            None,
+            lambda _floor, plan: prepare_room_edit(
+                plan, operation, room_ids, points, name, room_type
+            ),
+            edited_revision,
+        )
+        return {"version": active.version_id}
+
+    async def async_edit_zones(
+        self, robot_id, map_id, version, inventory_id, operation, zone_id, name, bounds
+    ):
+        active, edit = await self._edit_map(
+            robot_id,
+            map_id,
+            version,
+            inventory_id,
+            lambda floor, plan: prepare_zone_edit(floor, plan, operation, zone_id, name, bounds),
+            confirm_zone_edit,
+        )
+        return {
+            "version": active.version_id,
+            "destination_available": edit.name is not None
+            if edit.zone_id in SAVED_ZONE_IDS
+            else any(
+                region.kind is RegionKind.ZONE and region.region_id == edit.zone_id
+                for region in active.regions
+            ),
+        }
+
+    async def async_edit_restrictions(
+        self, robot_id, map_id, version, inventory_id, operation, zone_id, kind, bounds
+    ):
+        active, _ = await self._edit_map(
+            robot_id,
+            map_id,
+            version,
+            inventory_id,
+            lambda _floor, plan: prepare_restriction_edit(plan, operation, zone_id, kind, bounds),
+            confirm_restriction_edit,
+        )
+        return {"version": active.version_id}
+
+    async def async_edit_furniture(
+        self, robot_id, map_id, version, inventory_id, operation, identifier, kind, pose
+    ):
+        active, _ = await self._edit_map(
+            robot_id,
+            map_id,
+            version,
+            inventory_id,
+            lambda _floor, plan: prepare_furniture_edit(plan, operation, identifier, kind, pose),
+            confirm_furniture_edit,
+        )
+        return {"version": active.version_id}
+
+    async def _editable_floor(self, robot_id, map_id, version, inventory_id):
+        state = (self.data or {}).get(robot_id)
+        if (
+            self._closed
+            or robot_id not in self.selected
+            or not self.show_maps
+            or not self.last_update_success
+            or state is None
+            or state.capabilities.persistent_maps is not True
+        ):
+            raise HomeAssistantError("Map editing is unavailable.")
+        if (
+            state.connected is not True
+            or state.cycle != "none"
+            or state.activity not in {"idle", "docked"}
+        ):
+            raise HomeAssistantError("Finish the active mission before editing the map.")
+        floors = await self._read_map_action(self._read_maps, robot_id)
+        floor = next((item for item in floors if item.map_id == map_id), None)
+        if (
+            floor is None
+            or floor.version_id != version
+            or (inventory_id is not None and floor.inventory_id != inventory_id)
+        ):
+            raise action_error("map_changed", "The map changed. Review your selection.")
+        return floor
+
+    async def async_edit_floor_settings(
+        self, robot_id, map_id, version, inventory_id, operation, settings_id, name, quarter_turns
+    ):
+        async with self._io_lock:
+            floor = await self._reviewed_settings_floor(
+                robot_id, map_id, version, inventory_id, settings_id
+            )
+            try:
+                edit = prepare_floor_settings(floor, operation, name, quarter_turns)
+            except ValueError as error:
+                raise HomeAssistantError(str(error)) from None
+            if edit.matches(floor, floor):
+                return
+            await self._back_up_before_edit(robot_id, floor)
+            await self._write_floor_settings(robot_id, floor, edit)
+
+    async def async_restore_map_settings(
+        self, robot_id, backup_id, map_id, version, inventory_id, settings_id, *, confirmed=False
+    ):
+        async with self._io_lock:
+            history = map_history(self.hass, self.config_entry.entry_id)
+            record = await history.async_read(robot_id, backup_id)
+            saved, plan = await self._executor(read_snapshot, record)
+            if plan.source_format != "picea":
+                raise HomeAssistantError("Floor settings are unavailable for this backup format.")
+            floor = await self._reviewed_settings_floor(
+                robot_id, map_id, version, inventory_id, settings_id
+            )
+            try:
+                edit = prepare_floor_settings_restore(floor, saved)
+            except ValueError as error:
+                raise HomeAssistantError(str(error)) from None
+            changes = {
+                key: {"from": getattr(floor, key), "to": value}
+                for key in ("name", "orientation")
+                if (value := getattr(edit, key)) is not None
+            }
+            if confirmed and changes:
+                await self._back_up_before_edit(robot_id, floor)
+                active = await self._reviewed_settings_floor(
+                    robot_id, map_id, version, inventory_id, settings_id
+                )
+                await self._write_floor_settings(robot_id, active, edit)
+            return {"changes": changes, "applied": confirmed and bool(changes)}
+
+    async def async_restore_map_zones(
+        self,
+        robot_id,
+        backup_id,
+        map_id,
+        version,
+        inventory_id,
+        settings_id,
+        *,
+        confirmed=False,
+        review_id=None,
+    ):
+        async with self._io_lock:
+            history = map_history(self.hass, self.config_entry.entry_id)
+            record = await history.async_read(robot_id, backup_id)
+            saved, archived = await self._executor(read_snapshot, record)
+            if saved.map_id != map_id:
+                raise HomeAssistantError("Select the active floor for this backup.")
+            floor = await self._reviewed_settings_floor(
+                robot_id, map_id, version, inventory_id, settings_id
+            )
+            plan = await self._floor_plan(robot_id, floor)
+            try:
+                edit = prepare_zone_restore(archived, plan)
+            except ValueError as error:
+                raise HomeAssistantError(str(error)) from None
+            changes = edit.changes(plan)
+            dependencies, unchecked = await self._zone_restore_dependencies(
+                robot_id, map_id, changes
+            )
+            preview = {"changes": changes, "dependencies": dependencies, "unchecked": unchecked}
+            digest = sha256(
+                json.dumps(
+                    {"preview": preview, "backup": backup_id, "edit": edit.request_body()},
+                    sort_keys=True,
+                ).encode()
+            ).hexdigest()
+            if not confirmed or not changes:
+                return {**preview, "review_id": digest, "applied": False}
+            if review_id != digest:
+                raise action_error(
+                    "map_changed", "The zone recovery review changed. Review it again."
+                )
+            await self._back_up_before_edit(robot_id, floor)
+            active = await self._reviewed_settings_floor(
+                robot_id, map_id, version, inventory_id, settings_id
+            )
+            await self._write_map_edit(robot_id, active, plan, edit, confirm_zone_restore)
+            return {**preview, "review_id": digest, "applied": True}
+
+    async def _zone_restore_dependencies(self, robot_id, map_id, changes):
+        dependencies, unchecked = [], []
+        if not changes:
+            return dependencies, unchecked
+        targets = {f"{map_id}:zid:{zone['id']}": zone["id"] for zone in changes}
+        for kind, read in (
+            ("routine", self.client.list_cleaning_routines),
+            ("schedule", self.client.list_cleaning_schedules),
+        ):
+            try:
+                programs = await read(robot_id)
+            except AuthenticationError:
+                raise
+            except RoombaError, OSError:
+                unchecked.append(kind)
+                continue
+            if any(not row.get("regions") for row in programs):
+                unchecked.append(kind)
+            for row in programs:
+                zones = sorted(
+                    targets[region] for region in (row.get("regions") or ()) if region in targets
+                )
+                if zones:
+                    dependencies.append({"kind": kind, "name": row.get("name"), "zones": zones})
+        dependencies.sort(key=lambda item: (item["kind"], item["name"] or "", item["zones"]))
+        return dependencies, unchecked
+
+    async def _read_backup_programs(self, robot_id, kinds):
+        sources, unchecked = {}, []
+        for kind, read, retry_field in (
+            ("routine", self.client.list_cleaning_routines, "_routines_retry_until"),
+            ("schedule", self.client.list_cleaning_schedules, "_schedules_retry_until"),
+        ):
+            if kind not in kinds:
+                continue
+            if self._clock() < getattr(self, retry_field):
+                unchecked.append(kind)
+                continue
+            try:
+                async with asyncio.timeout(5):
+                    sources[kind] = await read(robot_id)
+            except AuthenticationError:
+                raise
+            except RateLimited as error:
+                setattr(self, retry_field, self._clock() + error.retry_after)
+                unchecked.append(kind)
+            except RoombaError, ClientError, OSError:
+                unchecked.append(kind)
+        return sources, unchecked
+
+    async def async_restore_map_programs(
+        self,
+        robot_id,
+        backup_id,
+        map_id,
+        version,
+        inventory_id,
+        settings_id,
+        *,
+        confirmed=False,
+        kind=None,
+        program_id=None,
+        review_id=None,
+    ):
+        async with self._io_lock:
+            history = map_history(self.hass, self.config_entry.entry_id)
+            record = await history.async_read(robot_id, backup_id)
+            saved, archived = await self._executor(read_snapshot, record)
+            if saved.map_id != map_id:
+                raise HomeAssistantError("Select the active floor for this backup.")
+            floor = await self._reviewed_settings_floor(
+                robot_id, map_id, version, inventory_id, settings_id
+            )
+            backup = record.get("programs", {"items": [], "unchecked": []})
+            sources, unchecked = await self._read_backup_programs(
+                robot_id, {item["kind"] for item in backup["items"]}
+            )
+            plan = await self._floor_plan(robot_id, floor)
+            current_zones = saved_zone_destinations(floor.map_id, plan)
+            saved_zones = saved_zone_destinations(saved.map_id, archived)
+            matching = matching_zone_destinations(archived, plan, saved_zones, current_zones)
+            destinations = with_archive_destinations(floor, plan)
+            capabilities = self.data[robot_id].capabilities.cleaning
+            reviews, ready = [], {}
+            for item in backup["items"]:
+                source, identity = item["kind"], item["id"]
+                current = next(
+                    (row for row in sources.get(source, ()) if row["id"] == identity), None
+                )
+                if source in unchecked:
+                    status, target, areas = "source_unavailable", None, []
+                else:
+                    supported = destinations
+                    if source == "routine":
+                        supported = replace(
+                            destinations,
+                            regions=(
+                                *destinations.regions,
+                                *furniture_regions(plan),
+                            ),
+                        )
+                    status, target, areas = review_zone_program(
+                        item, current, saved_zones, matching, supported, capabilities
+                    )
+                review = {
+                    "kind": source,
+                    "id": identity,
+                    "name": current["name"] if current is not None else item["name"],
+                    "ordered": item["ordered"],
+                    "status": status,
+                    "destinations": areas,
+                }
+                if target is not None:
+                    digest = sha256(
+                        json.dumps(
+                            {
+                                "backup": backup_id,
+                                "floor": (map_id, version, inventory_id, settings_id),
+                                "program": review,
+                            },
+                            sort_keys=True,
+                        ).encode()
+                    ).hexdigest()
+                    review["review_id"] = digest
+                    ready[source, identity] = (digest, target, program_selection(current))
+                reviews.append(review)
+            if not confirmed:
+                return {"programs": reviews, "unchecked": backup["unchecked"], "applied": False}
+            selected = ready.get((kind, program_id))
+            if selected is None or selected[0] != review_id:
+                raise action_error("map_changed", "The program recovery changed. Review it again.")
+            await self._reviewed_settings_floor(
+                robot_id, map_id, version, inventory_id, settings_id
+            )
+            return await self._restore_backup_program(robot_id, kind, program_id, *selected[1:])
+
+    async def _restore_backup_program(self, robot_id, kind, program_id, target, expected):
+        try:
+            if kind == "routine":
+                await self.client.update_cleaning_routine(
+                    robot_id, program_id, None, target, expected_selection=expected
+                )
+            else:
+                self._schedules_due = min(self._schedules_due, self._clock())
+                await self.client.update_cleaning_schedule(
+                    robot_id, program_id, target=target, expected_selection=expected
+                )
+        except AuthenticationError:
+            raise
+        except ProgramSelectionChanged:
+            raise action_error("map_changed", "The program changed. Review it again.") from None
+        except RateLimited as error:
+            if kind == "routine":
+                self._routines_retry_until = self._clock() + error.retry_after
+            else:
+                self._schedules_retry_until = self._clock() + error.retry_after
+            raise HomeAssistantError("Roomba rate limited this update. Try again later.") from None
+        except RoombaError, ClientError, OSError:
+            raise HomeAssistantError(
+                "The program update could not be confirmed. Open it again to check."
+            ) from None
+        return {"applied": True}
+
+    async def _reviewed_settings_floor(self, robot_id, map_id, version, inventory_id, settings_id):
+        floor = await self._editable_floor(robot_id, map_id, version, inventory_id)
+        if floor.settings_id != settings_id:
+            raise action_error("map_changed", "The floor settings changed. Open the editor again.")
+        plan = await self._floor_plan(robot_id, floor)
+        if plan.source_format != "picea":
+            raise HomeAssistantError("Floor settings are unavailable for this map format.")
+        return floor
+
+    async def _write_floor_settings(self, robot_id, floor, edit):
+        self._maps_due = min(self._maps_due, self._clock())
+        # Only the map-list reads may be retried if the write result is lost.
+        with suppress(HomeAssistantError):
+            await self._read_map_action(self.client.update_floor_settings, robot_id, floor, edit)
+        try:
+            for delay in (0, 0.5, 1.5):
+                if delay:
+                    await asyncio.sleep(delay)
+                floors = await self._read_map_action(self._read_maps, robot_id)
+                active = next((item for item in floors if item.map_id == floor.map_id), None)
+                if active is None or active.geometry_key != floor.geometry_key:
+                    break
+                if edit.matches(floor, active):
+                    self.async_update_listeners()
+                    return
+        except HomeAssistantError:
+            pass
+        raise HomeAssistantError(
+            "Save could not be confirmed. Refresh the map before trying again."
+        )
+
+    async def async_remove_floor(self, robot_id, map_id, version, inventory_id, settings_id):
+        async with self._robot_operation(robot_id), self._io_lock:
+            floor = await self._editable_floor(robot_id, map_id, version, inventory_id)
+            if floor.settings_id != settings_id:
+                raise action_error(
+                    "map_changed", "The floor settings changed. Review the map again."
+                )
+            await self._back_up_before_edit(robot_id, floor)
+            self._maps_due = min(self._maps_due, self._clock())
+            # A timed-out write may still have reached Roomba. Check the list without retrying it.
+            with suppress(HomeAssistantError):
+                await self._read_map_action(self.client.remove_floor, map_id)
+            try:
+                for delay in (0, 1, 2):
+                    await self._sleep(delay)
+                    floors = await self._read_map_action(self._read_maps, robot_id)
+                    if all(item.map_id != map_id for item in floors):
+                        self.data[robot_id] = self._add_map_capabilities(self.data[robot_id])
+                        self.async_update_listeners()
+                        return
+            except HomeAssistantError:
+                pass
+            raise HomeAssistantError("Removal could not be confirmed. Refresh the floor list.")
+
+    async def _edit_map(self, robot_id, map_id, version, inventory_id, prepare, confirm):
+        async with self._io_lock:
+            floor = await self._editable_floor(robot_id, map_id, version, inventory_id)
+            plan = await self._floor_plan(robot_id, floor)
+            try:
+                edit = prepare(floor, plan)
+            except ValueError as error:
+                raise HomeAssistantError(str(error)) from None
+            await self._back_up_before_edit(robot_id, floor)
+            active = await self._write_map_edit(robot_id, floor, plan, edit, confirm)
+            return active, edit
+
+    async def _write_map_edit(self, robot_id, floor, plan, edit, confirm):
+        self._maps_due = min(self._maps_due, self._clock())
+        try:
+            archive = await self._read_map_action(self.client.edit_map, floor.map_id, edit)
+            edited = await self._executor(confirm, archive, floor, plan, edit)
+            for delay in (0, 0.5, 1.5):
+                if delay:
+                    await asyncio.sleep(delay)
+                floors = await self._read_map_action(self._read_maps, robot_id)
+                active = next((item for item in floors if item.map_id == floor.map_id), None)
+                if active and active.version_id == edited:
+                    self.async_update_listeners()
+                    return active
+                if active is None or active.version_id != floor.version_id:
+                    break
+        except HomeAssistantError, ProtocolError:
+            pass
+        raise HomeAssistantError(
+            "Save could not be confirmed. Refresh the map before trying again."
+        )
+
     def live_path(self, robot_id):
         return self._live_paths.get(robot_id)
+
+    def live_coverage_rows(self, robot_id, path):
+        scope, coverage = self._live_coverage.get(robot_id, (None, None))
+        if path is not None and scope == (path.started, path.map_version):
+            return coverage.rows()
+        return {}
+
+    def live_obstacles(self, robot_id, path, now):
+        scope, timestamp, points = self._live_obstacles.get(robot_id, (None, 0, ()))
+        if (
+            path is not None
+            and scope == (path.started, path.map_version)
+            and now.timestamp() < timestamp + RAW_ROUTE_MAX_AGE
+        ):
+            return points
+        return ()
+
+    def _record_live_coverage(self, robot_id, path, points):
+        requested = path.started, path.map_version
+        scope, coverage = self._live_coverage.get(robot_id, (None, None))
+        if requested != scope:
+            coverage = LiveCoverage()
+            self._live_coverage[robot_id] = requested, coverage
+        coverage.observe(points)
+
+    def live_point(self, robot_id, now):
+        state = (self.data or {}).get(robot_id)
+        if state is None:
+            return None
+        report = self._current_timeline(state, now)
+        if report is None or report.point is None:
+            return None
+        return report.point, report.observed_at.timestamp() + TIMELINE_MAX_AGE
+
+    def live_plan(self, state, floor, now):
+        report = self._current_timeline(state, now)
+        if (
+            report is None
+            or report.plan is None
+            or report.plan.scope != (floor.map_id, floor.version_id)
+        ):
+            return None
+        return state.telemetry.get("live_timeline_plan")
 
     @staticmethod
     def _live_mission(state):
@@ -374,11 +1029,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         topics = {}
         for key, state in (self.data or {}).items():
             started = self._live_mission(state)
-            if (
-                not started
-                or key not in session.raw["robots"]
-                or len(self.maps_for_robot(key)) != 1
-            ):
+            if not started or key not in session.raw["robots"] or not self.maps_for_robot(key):
                 self._live_announcements.pop(key, None)
                 continue
             topic = live_map_topic(session, key)
@@ -414,78 +1065,314 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 self._timeline_due[key] = (started, now + TIMELINE_INTERVAL)
         return requests
 
-    def _timeline_metrics(self, state, report, now):
+    async def _timeline_metrics(self, state, report, now):
         key = state.robot_id
         started = self._live_mission(state)
         number = state.telemetry.get("mission_number")
         if not started:
             self._live_timelines.pop(key, None)
+            self._live_estimates.pop(key, None)
             self._timeline_due.pop(key, None)
             return {}
         if report is not None and report.mission_number == number:
             self._live_timelines[key] = (started, report)
-        previous, recent = self._live_timelines.get(key, (None, None))
-        if (
-            previous != started
-            or recent.mission_number != number
-            or (now - recent.observed_at).total_seconds() > TIMELINE_MAX_AGE
-        ):
-            self._live_timelines.pop(key, None)
+        recent = self._current_timeline(state, now)
+        if recent is None:
             return {}
         maps = self.maps_for_robot(key)
-        return {
+        destinations = recent.plan.destinations if recent.plan else ()
+        zone_maps = await self._zone_label_maps(
+            key, (*recent.zones, *recent.active_zones, *destinations)
+        )
+        stage_started = recent.stage_started_at
+        if stage_started is not None and not started <= stage_started <= now:
+            stage_started = None
+        metrics = {
             "live_timeline_updated": recent.observed_at,
             "live_timeline_stage": recent.stage,
+            "live_timeline_stage_started": (
+                stage_started.isoformat() if stage_started is not None else None
+            ),
             "live_timeline_rooms": present_rooms(recent.rooms, maps),
             "live_timeline_active_rooms": present_rooms(recent.active_rooms, maps),
+            "live_timeline_zones": present_zones(recent.zones, zone_maps),
+            "live_timeline_active_zones": present_zones(recent.active_zones, zone_maps),
         }
+        if recent.plan is not None:
+            active = {"room": recent.active_rooms, "zone": recent.active_zones}
+            plan = present_mission_plan(
+                recent.plan,
+                (*recent.rooms, *recent.zones),
+                active.get(recent.stage, ()),
+                recent.travelling_to,
+                zone_maps,
+            )
+            metrics.update(
+                live_timeline_plan=plan,
+                live_destinations_completed=plan["completed"],
+            )
+            if (
+                durations := await self._live_room_estimates(state, started, recent, maps)
+            ) is not None:
+                for destination, seconds in zip(plan["destinations"], durations, strict=True):
+                    if seconds is not None:
+                        destination["estimated_duration_seconds"] = seconds
+                if all(seconds is not None for seconds in durations):
+                    plan["estimated_duration_seconds"] = sum(durations)
+                remaining = remaining_duration(
+                    tuple(item["status"] for item in plan["destinations"]),
+                    durations,
+                    recent.stage if state.phase == "run" else None,
+                    stage_started,
+                    now,
+                )
+                plan["estimated_remaining_seconds"] = remaining
+                metrics["live_estimated_remaining"] = remaining
+        return metrics
 
-    async def _update_live_paths(self, robots, positions, now):
+    async def _live_room_estimates(self, state, started, report, maps):
+        robot_id = state.robot_id
+        plan = report.plan
+        floor = next((item for item in maps if (item.map_id, item.version_id) == plan.scope), None)
+        if floor is None or (target := estimate_target(plan, floor)) is None:
+            return None
+        scope = started, report.mission_number, plan
+        clock = self._clock()
+        previous, retry_at, cached = self._live_estimates.get(robot_id, (None, 0, None))
+        if scope == previous and (cached is not None or clock < retry_at):
+            return cached
+        if clock < self._estimates_retry_until:
+            return None
+        self._live_estimates[robot_id] = scope, clock + LIVE_ESTIMATE_RETRY_SECONDS, None
+        try:
+            async with asyncio.timeout(5):
+                matrix = await self.client.cleaning_time_estimates(
+                    robot_id, target, state.capabilities.cleaning
+                )
+                current = await self.client.maps(robot_id)
+        except RateLimited as error:
+            self._estimates_retry_until = max(
+                self._estimates_retry_until, clock + error.retry_after
+            )
+            return None
+        except Exception as error:
+            _LOGGER.debug("Live room estimate unavailable: %s", type(error).__name__)
+            return None
+        if not any((item.map_id, item.version_id) == plan.scope for item in current):
+            return None
+        reading = routine_time_estimate(target, matrix, self._estimate_defaults(state))
+        cached = estimate_durations(plan, reading)
+        self._live_estimates[robot_id] = scope, 0, cached
+        return cached
+
+    def _current_timeline(self, state, now=None):
+        """Read the same mission's timeline, optionally requiring fresh telemetry."""
+        started, report = self._live_timelines.get(state.robot_id, (None, None))
+        if (
+            report is not None
+            and started == self._live_mission(state)
+            and report.mission_number == state.telemetry.get("mission_number")
+            and (now is None or (now - report.observed_at).total_seconds() <= TIMELINE_MAX_AGE)
+        ):
+            return report
+        return None
+
+    def _skip_review(self, robot_id):
+        state = (self.data or {}).get(robot_id)
+        if state is None or not self.last_update_success:
+            return None
+        timeline = self._current_timeline(state, datetime.now(UTC))
+        return skip_review(control_snapshot(state, timeline))
+
+    def skip_review_for_robot(self, robot_id):
+        return _skip_review_id(self._skip_review(robot_id))
+
+    def _zone_labels_from_archive(self, robot_id, floor):
+        plan = self._floor_plans.get((robot_id, floor.geometry_key))
+        if plan is None:
+            return floor
+        regions = {(region.kind, region.region_id): region for region in floor.regions}
+        for zone in plan.zone_outlines:
+            if zone.region_id and zone.name:
+                regions[RegionKind.ZONE, zone.region_id] = CleaningRegion(
+                    zone.region_id, RegionKind.ZONE, zone.name
+                )
+        return replace(floor, regions=(*regions.values(), *furniture_regions(plan)))
+
+    async def _zone_label_maps(self, robot_id, zones):
+        maps = self.maps_for_robot(robot_id) if self.show_maps else ()
+        revisions = {
+            zone.identity[:2] for zone in zones if zone.kind in {"furniture", "saved_zone"}
+        }
+        associated = {floor.map_id: floor for floor in maps}
+        labeled = list(maps)
+        for map_id, version in revisions:
+            if (floor := associated.get(map_id)) is None:
+                continue
+            if floor.version_id != version:
+                # Historical labels come from that archive, even if the target was removed.
+                floor = replace(floor, version_id=version, regions=())
+                labeled.append(floor)
+            with suppress(HomeAssistantError, RoombaError):
+                await self._floor_plan(robot_id, floor)
+        return tuple(self._zone_labels_from_archive(robot_id, floor) for floor in labeled)
+
+    async def _recover_live_route(self, key, path, reference, now):
+        if reference is None:
+            return path
+        if (
+            not max(path.started.timestamp(), now.timestamp() - RAW_ROUTE_MAX_AGE)
+            <= reference.timestamp
+            <= now.timestamp()
+        ):
+            return path
+        scope = path.started, path.map_version
+        layer_scope, timestamp, _ = self._live_obstacles.get(key, (None, 0, ()))
+        if scope == layer_scope and reference.timestamp <= timestamp:
+            return path
+        previous_scope, retry_at = self._live_route_attempts.get(key, (None, 0))
+        elapsed = self._clock()
+        if scope == previous_scope and elapsed < retry_at:
+            return path
+        self._live_route_attempts[key] = scope, elapsed + ROUTE_RETRY_SECONDS
+        try:
+            async with asyncio.timeout(4):
+                archive = await self.client.raw_live_route(reference)
+            snapshot = await self._executor(decode_raw_snapshot, archive, MAX_SAMPLES)
+        except RoombaError, OSError, TimeoutError:
+            return path
+        path, supplement, obstacles = await self._executor(reconcile_live_snapshot, path, snapshot)
+        if obstacles is not None:
+            self._live_obstacles[key] = scope, reference.timestamp, obstacles
+        for points in batched(supplement, 64, strict=False):
+            self._record_live_coverage(key, path, points)
+            await asyncio.sleep(0)
+        return path
+
+    async def _update_live_paths(self, robots, positions, now, raw_routes=None):
+        raw_routes = raw_routes or {}
         for key, state in robots.items():
             started = self._live_mission(state)
-            maps = self._maps.get(key, ())
-            if not started or not self._maps_available.get(key) or len(maps) != 1:
+            if started is None:
+                self._live_floor_pins.pop(key, None)
+            floor = self.live_floor(state)
+            if floor is None:
                 self._live_paths.pop(key, None)
+                self._live_coverage.pop(key, None)
+                self._live_obstacles.pop(key, None)
+                self._live_route_attempts.pop(key, None)
+                self._stream_route_references.pop(key, None)
                 continue
-            floor = maps[0]
             version = (floor.map_id, floor.version_id)
+            report = self._current_timeline(state)
+            if report is not None and (report.requested_floor or report.localized_maps):
+                self._live_floor_pins[key] = (started, report.mission_number), version
             path = self._live_paths.get(key)
             if path and (path.started != started or path.map_version != version):
                 del self._live_paths[key]
                 path = None
             batches = positions.get(key, ())
             for batch in batches:
-                if not started.timestamp() <= batch.timestamp <= now.timestamp() < batch.expires:
+                if not batch.belongs_to(started, now):
                     continue
                 path = (path or MissionPath(version, started, batch, ())).append(batch)
             if path is None:
                 continue
             try:
-                geometry = await self._floor_plan(key, floor)
+                await self._floor_plan(key, floor)
             except RoombaError, HomeAssistantError:
                 self._live_paths.pop(key, None)
                 continue
+            watch, streamed_reference = self._stream_route_references.get(key, (None, None))
+            reference = raw_routes.get(key)
+            if watch == MapWatch(key, started, version) and (
+                reference is None or reference.timestamp < streamed_reference.timestamp
+            ):
+                reference = streamed_reference
+            path = await self._recover_live_route(key, path, reference, now)
+            live = self._live_paths.get(key)
+            if live is not None and (live.started, live.map_version) == (started, version):
+                path = path.merge(live)
             self._live_paths[key] = path
-            if now.timestamp() < path.latest.expires:
-                point = path.latest.positions[-1]
-                room = geometry.room_at((point.x, point.y))
-                telemetry = {
-                    **state.telemetry,
-                    "current_room": room,
-                    "position_updated": datetime.fromtimestamp(path.latest.timestamp, UTC),
-                }
-                robots[key] = replace(state, telemetry=telemetry)
+            self._record_live_coverage(key, path, path.points)
+            if self.show_maps and now.timestamp() < path.latest.expires:
+                robots[key] = self._with_live_position(state, floor, path.latest)
         self._schedule_live_expiration(now)
+
+    def _with_live_position(self, state, floor, batch):
+        point = batch.positions[-1]
+        geometry = self._floor_plans.get((state.robot_id, floor.geometry_key))
+        return replace(
+            state,
+            telemetry={
+                **state.telemetry,
+                "current_room": geometry.room_at((point.x, point.y)) if geometry else None,
+                "live_route_activity": POSITION_ACTIVITIES.get(point.modes),
+                "position_updated": datetime.fromtimestamp(batch.timestamp, UTC),
+            },
+        )
+
+    def live_floor(self, state):
+        robot_id = state.robot_id
+        started = self._live_mission(state)
+        if started is None or not self._maps_available.get(robot_id):
+            return None
+        generation, pinned = self._live_floor_pins.get(robot_id, (None, None))
+        if generation != (started, state.telemetry.get("mission_number")):
+            pinned = None
+        return resolve_live_floor(
+            self._maps.get(robot_id, ()), self._current_timeline(state), pinned
+        )
+
+    def _map_watch(self, state):
+        if not self.show_maps or (floor := self.live_floor(state)) is None:
+            return None
+        return MapWatch(state.robot_id, self._live_mission(state), (floor.map_id, floor.version_id))
+
+    @callback
+    def _receive_live_map_sample(self, watch, sample):
+        robot_id = watch.robot_id
+        state = (self.data or {}).get(robot_id)
+        if self._closed or state is None or self._map_watch(state) != watch:
+            return
+        if isinstance(sample, RawRouteReference):
+            scope, previous = self._stream_route_references.get(robot_id, (None, None))
+            if scope != watch or previous.timestamp < sample.timestamp:
+                self._stream_route_references[robot_id] = watch, sample
+            return
+        now = datetime.now(UTC)
+        if not sample.belongs_to(watch.started, now):
+            return
+        previous = self._live_paths.get(robot_id)
+        if previous is None or (previous.started, previous.map_version) != (
+            watch.started,
+            watch.map_version,
+        ):
+            previous = MissionPath(watch.map_version, watch.started, sample, ())
+        path = previous.append(sample)
+        if path == previous:
+            return
+        self._live_paths[robot_id] = path
+        self._record_live_coverage(robot_id, path, enumerate(sample.positions, start=sample.index))
+        self.data[robot_id] = self._with_live_position(state, self.live_floor(state), path.latest)
+        self._schedule_live_expiration(now)
+        self.async_update_listeners()
 
     def _schedule_live_expiration(self, now):
         if self._cancel_live_expiration is not None:
             self._cancel_live_expiration()
             self._cancel_live_expiration = None
+        observed = now.timestamp()
         active = [
             path.latest.expires
             for path in self._live_paths.values()
-            if path.latest.expires > now.timestamp()
+            if path.latest.expires > observed
         ]
+        active.extend(
+            timestamp + RAW_ROUTE_MAX_AGE
+            for _, timestamp, points in self._live_obstacles.values()
+            if points and timestamp + RAW_ROUTE_MAX_AGE > observed
+        )
         if active:
             self._cancel_live_expiration = async_track_point_in_utc_time(
                 self.hass, self._expire_live_positions, datetime.fromtimestamp(min(active), UTC)
@@ -498,6 +1385,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             if path.latest.expires <= now.timestamp() and (state := self.data.get(key)):
                 values = dict(state.telemetry)
                 values.pop("current_room", None)
+                values.pop("live_route_activity", None)
                 values.pop("position_updated", None)
                 self.data[key] = replace(state, telemetry=values)
         self._schedule_live_expiration(now)
@@ -627,16 +1515,27 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 ) from None
             self._read_failures = 0
             self._read_retry_until = 0
+            for robot_id, state in result.items():
+                if state.reported_name is not None:
+                    self._sync_robot_device(robot_id, name=state.reported_name)
+            self._live_stream.update(
+                {
+                    robot_id: watch
+                    for robot_id, state in result.items()
+                    if (watch := self._map_watch(state)) is not None
+                }
+            )
             return result
 
     async def _read_account_state(self):
         session = await self.client.ensure_session()
         positions = {}
         timelines = {}
+        raw_routes = {}
         if self.show_maps and (topics := await self._live_topics(session)):
             pending = self._timeline_requests(topics, self._clock())
             documents = await self._executor(
-                self._read, session, FAST_SHADOWS, topics, positions, pending, timelines
+                self._read, session, FAST_SHADOWS, topics, positions, pending, timelines, raw_routes
             )
         else:
             documents = await self._executor(self._read, session)
@@ -692,19 +1591,22 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             if rooms := telemetry.pop("last_mission_room_results", ()):
                 floor_names = self.maps_for_robot(key) if self.show_maps else ()
                 telemetry["last_mission_rooms"] = present_rooms(rooms, floor_names)
+            if zones := telemetry.pop("last_mission_zone_results", ()):
+                zone_maps = await self._zone_label_maps(key, zones)
+                telemetry["last_mission_zones"] = present_zones(zones, zone_maps)
             if self.show_maps:
-                telemetry.update(self._timeline_metrics(state, timelines.get(key), now))
+                telemetry.update(await self._timeline_metrics(state, timelines.get(key), now))
             if zone_name := telemetry.get("robot_timezone"):
                 zone = await dt_util.async_get_time_zone(zone_name)
                 if zone is None:
                     telemetry["robot_timezone"] = None
                 if "cloud_schedule_times" in telemetry:
                     telemetry["next_cloud_schedule"] = (
-                        next_weekly_start(telemetry, zone, now) if zone is not None else None
+                        next_schedule_start(telemetry, zone, now) if zone is not None else None
                     )
             result[key] = self._add_map_capabilities(replace(state, telemetry=telemetry))
         if self.show_maps:
-            await self._update_live_paths(result, positions, now)
+            await self._update_live_paths(result, positions, now, raw_routes)
         active = any(
             state.activity in {"cleaning", "paused", "returning"}
             or state.mission_at_dock is True
@@ -750,25 +1652,66 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             return ()
         return self._maps.get(robot_id, ())
 
-    async def _resolve_areas(self, robot_id, segments, reviewed_map=None):
-        async with self._io_lock:
-            return await self._resolve_current_areas(robot_id, segments, reviewed_map)
+    def cleaning_maps_for_robot(self, robot_id):
+        maps = self.maps_for_robot(robot_id)
+        return tuple(
+            with_archive_destinations(floor, plan)
+            if (plan := self._floor_plans.get((robot_id, floor.geometry_key))) is not None
+            else floor
+            for floor in maps
+        )
 
-    async def _resolve_current_areas(self, robot_id, segments, reviewed_map=None):
+    async def _resolve_areas(
+        self, robot_id, segments, reviewed_map=None, *, include_furniture=False
+    ):
+        async with self._io_lock:
+            return await self._resolve_current_areas(
+                robot_id, segments, reviewed_map, include_furniture=include_furniture
+            )
+
+    async def _resolve_current_areas(
+        self, robot_id, segments, reviewed_map=None, *, include_furniture=False
+    ):
         state = (self.data or {}).get(robot_id)
         if not state or state.capabilities.persistent_maps is not True:
             raise action_error("unsupported_areas", "This robot has no available cleaning map")
         maps = await self._read_map_action(self._read_maps, robot_id)
+        inventory_id = raw_inventory = reviewed_selection = None
         if reviewed_map is not None:
             map_id, version, inventory_id = reviewed_map
             maps = tuple(
-                floor
-                for floor in maps
-                if (floor.map_id, floor.version_id) == (map_id, version)
-                and (inventory_id is None or floor.inventory_id == inventory_id)
+                floor for floor in maps if (floor.map_id, floor.version_id) == (map_id, version)
             )
             if not maps:
                 raise action_error("map_changed", "The map changed. Review your selection.")
+            raw_inventory = maps[0].inventory_id
+        if self.show_maps and segments and isinstance(segments[0], str):
+            map_id = segments[0].partition(":")[0]
+            floor = next((item for item in maps if item.map_id == map_id), None)
+            if floor is not None:
+                try:
+                    plan = await self._floor_plan(robot_id, floor)
+                except HomeAssistantError, ProtocolError:
+                    regions = tuple(
+                        region
+                        for region in floor.regions
+                        if region.kind is not RegionKind.ZONE
+                        or region.region_id not in SAVED_ZONE_IDS
+                    )
+                    maps = (replace(floor, regions=regions),)
+                else:
+                    floor = with_archive_destinations(floor, plan)
+                    if include_furniture:
+                        if inventory_id is not None:
+                            reviewed_selection = floor.selection_id
+                        floor = replace(floor, regions=(*floor.regions, *furniture_regions(plan)))
+                    maps = (floor,)
+        if inventory_id is not None and inventory_id not in (
+            raw_inventory,
+            reviewed_selection,
+            maps[0].selection_id,
+        ):
+            raise action_error("map_changed", "The map changed. Review your selection.")
         try:
             return resolve_segments(maps, segments)
         except ValueError:
@@ -792,32 +1735,117 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         except Exception:
             raise action_error("map_unavailable", "Could not read the current map") from None
 
-    async def _resolve_point(self, robot_id, region_id, x, y):
+    async def _readable_floor(self, robot_id, map_id, version):
+        if (
+            self._closed
+            or not self.show_maps
+            or robot_id not in self.selected
+            or not self.last_update_success
+            or not self._maps_available.get(robot_id)
+        ):
+            raise action_error("map_unavailable", "Floor maps are unavailable")
+        maps = self.maps_for_robot(robot_id)
+        if map_id is None and len(maps) > 1:
+            raise action_error("map_selection_required", "Select a floor")
+        floor = next((item for item in maps if map_id in (None, item.map_id)), None)
+        if floor is None or version not in (None, floor.version_id):
+            raise action_error("map_changed", "Select the current floor")
+        try:
+            plan = await self._floor_plan(robot_id, floor)
+        except ProtocolError:
+            raise action_error("map_unavailable", "Could not read the current map") from None
+        return floor, plan
+
+    async def async_map_cleaning_scores(self, robot_id, map_id=None, version=None):
+        async with self._io_lock:
+            floor, plan = await self._readable_floor(robot_id, map_id, version)
+            scores = await self._read_map_action(
+                self.client.map_cleaning_scores, robot_id, with_archive_destinations(floor, plan)
+            )
+            state = (self.data or {}).get(robot_id)
+            if state is not None and (
+                presets := smart_routine_presets(state.sku, state.capabilities, scores["rooms"])
+            ):
+                return {**scores, "smart_presets": presets}
+            return scores
+
+    async def async_list_map_routines(self, robot_id, map_id=None, version=None):
+        async with self._io_lock:
+            floor, plan = await self._readable_floor(robot_id, map_id, version)
+            state = (self.data or {}).get(robot_id)
+            if state is None:
+                raise action_error("map_unavailable", "Floor maps are unavailable")
+            mapped = with_archive_destinations(floor, plan)
+            mapped = replace(mapped, regions=(*mapped.regions, *furniture_regions(plan)))
+            found = await self._read_map_action(
+                self.client.map_quick_routines, robot_id, mapped, state.capabilities
+            )
+            current = await self._read_map_action(self._read_maps, robot_id)
+            if floor not in current:
+                raise action_error("map_changed", "Select the current floor")
+            return found
+
+    async def async_mission_history(self, robot_id, report_id=None, map_index=0):
+        async with self._io_lock:
+            if self._closed or not self.show_maps or robot_id not in self.selected:
+                raise action_error("history_unavailable", "Cleaning history is unavailable")
+            reports = await self._read_map_action(self.client.mission_reports, robot_id)
+            if report_id is None:
+                return {"missions": [report.summary() for report in reports]}
+            report = next((row for row in reports if row.key == report_id), None)
+            if report is None or not 0 <= map_index < max(1, len(report.maps)):
+                raise action_error(
+                    "report_not_found", "The requested cleaning report is no longer available"
+                )
+            scope = report.maps[map_index] if report.maps else None
+            archive = None
+            if scope is not None:
+                try:
+                    archive = await self._read_map_action(self.client.map_geometry, *scope)
+                except HomeAssistantError as error:
+                    if error.translation_key != "map_unavailable":
+                        raise
+        floors, geometry = (), None
+        if archive is not None:
+            try:
+                floor, geometry = await self._executor(read_mission_map, archive, *scope)
+                floors = (floor,)
+            except ProtocolError:
+                pass
+        return {**report.detail(floors), "geometry": geometry, "map_index": map_index}
+
+    async def _resolve_point(self, robot_id, region_id, x, y, reviewed_map, mops):
         async with self._io_lock:
             state = (self.data or {}).get(robot_id)
             if not state or not supports_point_clean(state.capabilities.digital_spot):
                 raise action_error("unsupported_point", "This robot cannot clean a mapped point")
-            area = await self._resolve_current_areas(robot_id, [region_id])
+            area = await self._resolve_current_areas(robot_id, [region_id], reviewed_map)
             if area.regions[0].kind is not RegionKind.ROOM:
                 raise action_error("point_requires_room", "Select a mapped room")
             bundle = await self._read_map_action(
                 self.client.map_geometry, area.map_id, area.version_id
             )
         try:
-            return await self._executor(resolve_room_point, bundle, area, x, y)
+            return await self._executor(partial(resolve_room_point, mops=mops), bundle, area, x, y)
         except ProtocolError:
             raise action_error("map_unavailable", "Could not read the current map") from None
         except ValueError:
-            raise action_error("invalid_map_point", "Select a point within the room") from None
+            raise action_error(
+                "invalid_map_point", "Select an allowed point within the room"
+            ) from None
 
-    async def async_clean_point(self, robot_id, region_id, x, y):
+    async def async_clean_point(
+        self, robot_id, region_id, x, y, reviewed_map=None, *, mode=CleaningMode.VACUUM
+    ):
         async with self._robot_operation(robot_id):
             try:
-                target = await self._resolve_point(robot_id, region_id, x, y)
+                target = await self._resolve_point(
+                    robot_id, region_id, x, y, reviewed_map, mode.mops
+                )
                 await execute_control(
                     RobotControlAdapter(self, robot_id, target),
                     Command.POINT_CLEAN,
-                    CleaningProfile(),
+                    CleaningProfile(mode),
                 )
             except AuthenticationError as error:
                 self._notify_status(robot_id, "unconfirmed")
@@ -825,85 +1853,343 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             except ControlError as error:
                 raise action_error(error.key, error.key) from None
 
+    async def async_reset_maintenance_counter(self, robot_id, part):
+        async with self._robot_operation(robot_id):
+            async with self._io_lock:
+                robot = (self.data or {}).get(robot_id)
+                part_id = RESETTABLE_PARTS.get(part)
+                if robot is None or not self.last_update_success or part_id is None:
+                    raise action_error("part_reset_unavailable", "Part counter unavailable")
+                usage_key = f"part_{part_id}_usage"
+                try:
+                    current = await self.client.robot_parts(robot_id)
+                    current_metrics = project_parts(current, self._part_catalog)
+                    if current_metrics.get(usage_key) is None:
+                        raise action_error("part_reset_unavailable", "Part counter unavailable")
+                    # The POST can change the confirmed provider state even if the reply is lost.
+                    self._parts_due = self._clock()
+                    await self.client.reset_part(robot_id, part_id)
+                    for delay in (0, 1, 2):
+                        await self._sleep(delay)
+                        document = await self.client.robot_parts(robot_id)
+                        metrics = project_parts(document, self._part_catalog)
+                        if metrics.get(usage_key) == 0:
+                            self._parts[robot_id] = document
+                            self.data[robot_id] = replace(
+                                robot, telemetry={**robot.telemetry, **metrics}
+                            )
+                            self.async_update_listeners()
+                            return
+                except AuthenticationError as error:
+                    raise ConfigEntryAuthFailed("Authentication required") from error
+                except OSError, RoombaError:
+                    pass
+                raise action_error("part_reset_unconfirmed", "Roomba did not confirm the reset")
+
+    async def async_get_software_status(self, robot_id):
+        if self._closed or robot_id not in self.selected:
+            raise action_error("not_configured", "Robot is not configured")
+        state = (self.data or {}).get(robot_id)
+        if state is None or not self.last_update_success:
+            raise action_error("software_status_unavailable", "Robot software is unavailable")
+        installed = state.telemetry.get("software_version")
+        if installed is None:
+            raise action_error("software_status_unavailable", "Robot software is unavailable")
+        dock = state.telemetry.get("dock_firmware")
+        updated = state.telemetry.get("software_updated_at")
+        try:
+            candidates = await self.client.firmware_candidates(state.sku, installed, dock)
+        except OSError, RoombaError:
+            raise action_error(
+                "software_status_unavailable", "Could not read software status"
+            ) from None
+        return {
+            "installed_version": installed,
+            "last_installed_at": updated.isoformat() if updated is not None else None,
+            "dock_version": dock,
+            "status": "catalog_candidates" if candidates else "up_to_date",
+            "catalog_versions": list(candidates),
+        }
+
+    async def async_list_voice_languages(self, robot_id):
+        if self._closed or robot_id not in self.selected:
+            raise action_error("not_configured", "Robot is not configured")
+        state = (self.data or {}).get(robot_id)
+        if state is None or not self.last_update_success:
+            raise action_error("voice_catalog_unavailable", "Robot voice settings are unavailable")
+        installed = {code.lower() for code in state.telemetry.get("installed_voice_languages", ())}
+        if not installed:
+            raise action_error("voice_catalog_unavailable", "Robot voice settings are unavailable")
+        try:
+            catalog = await self.client.voice_catalog(state.sku)
+        except OSError, RoombaError:
+            raise action_error("voice_catalog_unavailable", "Could not read robot voices") from None
+        selected = state.telemetry.get("voice_language")
+        return {
+            "current": selected.lower() if selected else None,
+            "installed": sorted(installed),
+            "downloadable": sorted(set(catalog) - installed),
+        }
+
+    async def async_install_voice_language(self, robot_id, language):
+        async with self._robot_operation(robot_id):
+            await self._refresh_for_command()
+            try:
+                await self._install_voice_language(robot_id, language)
+            except AuthenticationError as error:
+                raise ConfigEntryAuthFailed("Authentication required") from error
+            except OSError, RoombaError:
+                raise action_error(
+                    "voice_install_unavailable", "Voice installation unavailable"
+                ) from None
+
+    async def _install_voice_language(self, robot_id, language):
+        async with self._io_lock:
+            robot = (self.data or {}).get(robot_id)
+            if robot is None or not self.last_update_success or robot.connected is not True:
+                raise action_error("voice_install_unavailable", "Robot settings are unavailable")
+            if robot.activity != "docked" or robot.cycle != "none":
+                raise action_error(
+                    "voice_install_requires_dock", "Dock the robot before installing"
+                )
+            session = await self.client.ensure_session()
+            sender = MqttCommandSender(session, robot_id)
+            observed = await self._read_voice_installation(robot_id, sender)
+            # Selecting an already installed voice must not start another deployment.
+            installed = next(
+                (code for code in observed.installed if code.lower() == language), None
+            )
+            if installed is None:
+                if not observed.slots or observed.state is None:
+                    raise action_error(
+                        "voice_install_unavailable", "Voice installation unavailable"
+                    )
+                if observed.pending or 0 < observed.state < 100:
+                    raise action_error("voice_install_busy", "A software deployment is in progress")
+                pack = await self.client.voice_pack(robot.sku, language)
+                if pack is None:
+                    raise action_error("unsupported_voice_pack", "Voice pack is unavailable")
+                identifier = voice_deployment_id(datetime.now(UTC))
+                self._notify_status(robot_id, "pending")
+                try:
+                    await self._executor(sender.install_voice_pack, identifier, pack)
+                except asyncio.CancelledError:
+                    self._notify_status(robot_id, "unconfirmed")
+                    raise
+                except (OSError, ProtocolError) as error:
+                    # A lost acknowledgement does not justify a second deployment.
+                    _LOGGER.debug("Voice install write not acknowledged: %s", type(error).__name__)
+        if installed is not None:
+            await self._write_robot_setting(robot_id, RobotSetting.VOICE_LANGUAGE, installed)
+            return
+        try:
+            state = await self._wait_for_voice_installation(robot_id, identifier, pack.language)
+            if state.selected != pack.language:
+                await self._write_robot_setting(
+                    robot_id, RobotSetting.VOICE_LANGUAGE, pack.language
+                )
+        except Exception, asyncio.CancelledError:
+            self._notify_status(robot_id, "unconfirmed")
+            raise
+        self._notify_status(robot_id, "confirmed")
+
+    async def _wait_for_voice_installation(self, robot_id, identifier, language):
+        deadline = self._clock() + VOICE_INSTALL_TIMEOUT
+        while not self._closed and self._clock() < deadline:
+            async with self._io_lock:
+                try:
+                    session = await self.client.ensure_session()
+                    sender = MqttCommandSender(session, robot_id)
+                    state = await self._read_voice_installation(robot_id, sender)
+                except OSError, ProtocolError:
+                    pass
+                else:
+                    match state.result(identifier, language):
+                        case "installed":
+                            return state
+                        case "failed":
+                            raise HomeAssistantError(
+                                f"Voice installation failed ({state.state})",
+                                translation_domain=DOMAIN,
+                                translation_key="voice_install_failed",
+                                translation_placeholders={"code": str(state.state)},
+                            )
+            await self._sleep(5)
+        raise action_error("voice_install_unconfirmed", "Voice installation was not confirmed")
+
+    async def _read_voice_installation(self, robot_id, sender):
+        reader = self._robot_settings_reader(sender, robot_id)
+        replies = await self._executor(reader.read, ("rw-settings", "rw-software"))
+        documents = {reply.shadow: reply.document for reply in replies if reply.accepted}
+        if robot := (self.data or {}).get(robot_id):
+            self._details.setdefault(robot_id, {}).update(documents)
+            telemetry = {**robot.telemetry, **project_telemetry(documents)}
+            self.data[robot_id] = replace(robot, telemetry=telemetry)
+            self.async_update_listeners()
+        return voice_installation(
+            documents.get("rw-settings", {}), documents.get("rw-software", {})
+        )
+
     async def async_list_cleaning_estimates(self, robot_id, segments):
         async with self._io_lock:
-            if self._closed or robot_id not in self.selected:
-                raise action_error("not_configured", "Robot is not configured")
-            if self._clock() < max(self._read_retry_until, self._estimates_retry_until):
-                raise action_error("estimate_rate_limited", "Waiting to retry time estimates")
-            state = (self.data or {}).get(robot_id)
-            if state is None or self._maps_available.get(robot_id) is not True:
-                raise action_error("map_unavailable", "Could not read the current map")
+            state = self._estimate_state(robot_id)
             try:
                 target = resolve_segments(self.maps_for_robot(robot_id), segments)
             except ValueError:
                 raise action_error("unsupported_areas", "Select areas on one current map") from None
             if any(region.kind is not RegionKind.ROOM for region in target.regions):
                 raise action_error("estimate_requires_rooms", "Select rooms for time estimates")
+            return await self._read_time_estimates(robot_id, target, state.capabilities.cleaning)
+
+    def _estimate_state(self, robot_id):
+        if self._closed or robot_id not in self.selected:
+            raise action_error("not_configured", "Robot is not configured")
+        if self._clock() < max(self._read_retry_until, self._estimates_retry_until):
+            raise action_error("estimate_rate_limited", "Waiting to retry time estimates")
+        state = (self.data or {}).get(robot_id)
+        if state is None or self._maps_available.get(robot_id) is not True:
+            raise action_error("map_unavailable", "Could not read the current map")
+        return state
+
+    async def _read_time_estimates(self, robot_id, target, capabilities):
+        try:
+            return await self.client.cleaning_time_estimates(robot_id, target, capabilities)
+        except AuthenticationError as error:
+            raise ConfigEntryAuthFailed("Authentication required") from error
+        except RateLimited as error:
+            self._estimates_retry_until = self._clock() + error.retry_after
+            raise action_error("estimate_rate_limited", "Waiting to retry time estimates") from None
+        except Exception as error:
+            _LOGGER.debug("Time estimate request failed: %s", type(error).__name__)
+            raise action_error("estimate_unavailable", "Could not read time estimates") from None
+
+    @staticmethod
+    def _estimate_defaults(state):
+        return {
+            field: setting.observed_on(state.telemetry, state.capabilities)
+            for field, setting in (
+                ("suction_level", RobotSetting.SUCTION),
+                ("smart_scrub", RobotSetting.SMART_SCRUB),
+                ("two_pass", RobotSetting.TWO_PASS),
+            )
+        }
+
+    async def async_estimate_cleaning_routine(self, robot_id, selections, reviewed_map=None):
+        async with self._io_lock:
+            state = self._estimate_state(robot_id)
             try:
-                return await self.client.cleaning_time_estimates(
+                target = await self._profiled_map_target(robot_id, state, selections, reviewed_map)
+                matrix = await self._read_time_estimates(
                     robot_id, target, state.capabilities.cleaning
                 )
+                current = await self._read_map_action(self._read_maps, robot_id)
             except AuthenticationError as error:
                 raise ConfigEntryAuthFailed("Authentication required") from error
-            except RateLimited as error:
-                self._estimates_retry_until = self._clock() + error.retry_after
-                raise action_error(
-                    "estimate_rate_limited", "Waiting to retry time estimates"
-                ) from None
-            except Exception as error:
-                _LOGGER.debug("Time estimate request failed: %s", type(error).__name__)
-                raise action_error(
-                    "estimate_unavailable", "Could not read time estimates"
-                ) from None
+            if (target.map_id, target.version_id) not in {
+                (floor.map_id, floor.version_id) for floor in current
+            }:
+                raise action_error("map_changed", "The map changed. Review your selection.")
+            return routine_time_estimate(target, matrix, self._estimate_defaults(state))
 
     async def async_schedule_action(
-        self, robot_id, schedule_id=None, *, weekdays=None, time=None, enabled=None
+        self,
+        robot_id,
+        schedule_id=None,
+        *,
+        weekdays=None,
+        time=None,
+        enabled=None,
+        frequency=None,
+        name=None,
+        selections=None,
+        reviewed_map=None,
     ):
-        async with self._schedule_transaction(robot_id, write=schedule_id is not None):
+        async with self._schedule_transaction(robot_id, write=schedule_id is not None) as state:
             if schedule_id is None:
-                return {"schedules": await self.client.list_weekly_schedules(robot_id)}
+                return {"schedules": await self.client.list_cleaning_schedules(robot_id)}
             if enabled is None:
-                return await self.client.update_weekly_schedule(
-                    robot_id, schedule_id, weekdays, time
+                changes = {}
+                if name is not None:
+                    changes["name"] = name
+                if selections is not None:
+                    changes["target"] = await self._profiled_map_target(
+                        robot_id, state, selections, reviewed_map, include_furniture=False
+                    )
+                if time is None:
+                    if frequency is not None or weekdays is not None or not changes:
+                        raise ValueError(
+                            "Provide a time for timing changes or new cleaning settings."
+                        )
+                    return await self.client.update_cleaning_schedule(
+                        robot_id, schedule_id, **changes
+                    )
+                frequency = frequency or "weekly"
+                days = await self._schedule_days(state, weekdays, time, frequency)
+                return await self.client.update_cleaning_schedule(
+                    robot_id, schedule_id, days, time, frequency=frequency, **changes
                 )
-            return await self.client.set_weekly_schedule_enabled(robot_id, schedule_id, enabled)
+            return await self.client.set_cleaning_schedule_enabled(robot_id, schedule_id, enabled)
 
     async def async_create_cleaning_schedule(
-        self, robot_id, name, weekdays, time, segments, overrides
+        self,
+        robot_id,
+        name,
+        weekdays,
+        time,
+        segments,
+        overrides,
+        *,
+        frequency="weekly",
+        reviewed_map=None,
     ):
         async with self._schedule_transaction(robot_id, write=True) as state:
-            target = await self._resolve_current_areas(robot_id, segments)
-            profiles = self._area_profiles(self.profile(robot_id), target, overrides)
-            try:
-                for profile in profiles:
-                    profile.validate(state.capabilities.cleaning)
-            except ValueError:
-                raise action_error(
-                    "unsupported_profile", "Invalid schedule cleaning settings"
-                ) from None
-            return await self.client.create_weekly_schedule(
-                robot_id, name, weekdays, time, replace(target, profiles=profiles)
+            days = await self._schedule_days(state, weekdays, time, frequency)
+            target = await self._profiled_map_target(
+                robot_id, state, (segments, overrides), reviewed_map, include_furniture=False
             )
+            return await self.client.create_cleaning_schedule(
+                robot_id, name, days, time, target, frequency=frequency
+            )
+
+    @staticmethod
+    async def _schedule_days(state, weekdays, time, frequency):
+        if frequency == "weekly":
+            if weekdays is None:
+                raise ValueError("Select the weekdays for the recurring schedule.")
+            return weekdays
+        if weekdays is not None:
+            raise ValueError("Provide only a local time for a one-time schedule.")
+        name = state.telemetry.get("robot_timezone")
+        zone = await dt_util.async_get_time_zone(name) if name else None
+        if zone is None:
+            raise action_error("schedule_timezone_unavailable", "Robot time zone is unavailable")
+        return [once_weekday(time, zone, dt_util.utcnow())]
 
     async def async_remove_cleaning_schedule(self, robot_id, schedule_id):
         async with self._schedule_transaction(robot_id, write=True):
-            return await self.client.remove_weekly_schedule(robot_id, schedule_id)
+            return await self.client.remove_cleaning_schedule(robot_id, schedule_id)
 
     async def async_list_cleaning_routines(self, robot_id):
         async with self._routine_transaction(robot_id):
             return {"routines": await self.client.list_cleaning_routines(robot_id)}
 
-    async def async_create_cleaning_routine(self, robot_id, name, selections):
+    async def async_create_cleaning_routine(self, robot_id, name, selections, *, ordered=True):
         async with self._routine_transaction(robot_id) as state:
-            target = await self._profiled_routine_target(robot_id, state, selections)
-            return await self.client.create_cleaning_routine(robot_id, name, target)
+            target = await self._profiled_map_target(robot_id, state, selections)
+            return await self.client.create_cleaning_routine(
+                robot_id, name, replace(target, ordered=ordered)
+            )
 
-    async def async_update_cleaning_routine(self, robot_id, routine_id, name, selections):
+    async def async_update_cleaning_routine(
+        self, robot_id, routine_id, name, selections, *, ordered=None
+    ):
         async with self._routine_transaction(robot_id) as state:
             target = None
             if selections is not None:
-                target = await self._profiled_routine_target(robot_id, state, selections)
+                target = await self._profiled_map_target(robot_id, state, selections)
+                target = replace(target, ordered=ordered is not False)
+            elif ordered is not None:
+                raise ValueError("Provide regions to change the cleaning order.")
             if target is None and name is None:
                 raise ValueError("Provide a new routine name or region selection.")
             return await self.client.update_cleaning_routine(robot_id, routine_id, name, target)
@@ -912,15 +2198,19 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         async with self._routine_transaction(robot_id):
             return await self.client.remove_cleaning_routine(robot_id, routine_id)
 
-    async def _profiled_routine_target(self, robot_id, state, selections):
+    async def _profiled_map_target(
+        self, robot_id, state, selections, reviewed_map=None, *, include_furniture=True
+    ):
         segments, overrides = selections
-        target = await self._resolve_current_areas(robot_id, segments)
+        target = await self._resolve_current_areas(
+            robot_id, segments, reviewed_map, include_furniture=include_furniture
+        )
         profiles = self._area_profiles(self.profile(robot_id), target, overrides)
         try:
             for profile in profiles:
                 profile.validate(state.capabilities.cleaning)
         except ValueError:
-            raise action_error("unsupported_profile", "Invalid routine cleaning settings") from None
+            raise action_error("unsupported_profile", "Invalid area cleaning settings") from None
         return replace(target, profiles=profiles)
 
     @asynccontextmanager
@@ -1009,24 +2299,48 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             self._command_tasks.discard(task)
 
     async def async_command(
-        self, robot_id, command: Command, *, segments=None, overrides=(), reviewed_map=None
+        self,
+        robot_id,
+        command: Command,
+        *,
+        segments=None,
+        overrides=(),
+        reviewed_map=None,
+        reviewed_skip=None,
+        ordered=True,
     ):
         async with self._robot_operation(robot_id):
             try:
+                skip_target = None
+                if reviewed_skip is not None:
+                    skip_target = self._skip_review(robot_id)
+                    if _skip_review_id(skip_target) != reviewed_skip:
+                        raise ControlError("skip_destination_changed")
                 target = None
                 if segments is not None:
-                    target = await self._resolve_areas(robot_id, segments, reviewed_map)
+                    target = await self._resolve_areas(
+                        robot_id, segments, reviewed_map, include_furniture=bool(overrides)
+                    )
                 profile = self.profile(robot_id)
                 area_profiles = ()
                 if overrides:
                     area_profiles = self._area_profiles(profile, target, overrides)
-                    target = replace(target, profiles=area_profiles)
+                    if not ordered and any(
+                        region.kind is RegionKind.FURNITURE for region in target.regions
+                    ):
+                        raise action_error(
+                            "unsupported_areas", "Furniture requires an explicit order"
+                        )
+                    target = replace(target, profiles=area_profiles, ordered=ordered)
                 await execute_control(
-                    RobotControlAdapter(self, robot_id, target),
+                    RobotControlAdapter(
+                        self, robot_id, target, refresh_timeline=command is Command.SKIP
+                    ),
                     command,
                     area_profiles[0] if area_profiles else profile,
                     new_mission=target is not None,
                     area_profiles=area_profiles,
+                    reviewed_skip=skip_target,
                 )
             except AuthenticationError as error:
                 self._notify_status(robot_id, "unconfirmed")
@@ -1034,14 +2348,14 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             except ControlError as error:
                 raise action_error(error.key, error.key) from None
 
-    async def async_set_cleaning_setting(
-        self, robot_id, setting: CleaningSetting, value: int | bool
+    async def async_set_robot_setting(
+        self, robot_id, setting: RobotSetting, value: int | bool | str
     ):
-        """Update one default and verify it without starting a mission."""
+        """Update one reported setting and confirm it on the same robot."""
         async with self._robot_operation(robot_id):
             await self._refresh_for_command()
             try:
-                await self._write_cleaning_setting(robot_id, setting, value)
+                await self._write_robot_setting(robot_id, setting, value)
             except AuthenticationError as error:
                 raise ConfigEntryAuthFailed("Authentication required") from error
             except RateLimited as error:
@@ -1057,7 +2371,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                     "robot_setting_unavailable", "Robot settings are unavailable"
                 ) from None
 
-    async def _write_cleaning_setting(self, robot_id, setting, value):
+    async def _write_robot_setting(self, robot_id, setting, value):
         async with self._io_lock:
             state = (self.data or {}).get(robot_id)
             if state is None or not self.last_update_success or state.connected is not True:
@@ -1065,29 +2379,33 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             if state.cycle != "none" or state.activity not in {"idle", "docked"}:
                 raise action_error("robot_setting_active", "End the active mission first")
             capabilities = state.capabilities.cleaning
-            if not isinstance(setting, CleaningSetting) or not setting.accepts(value, capabilities):
+            if not isinstance(setting, RobotSetting) or not setting.accepts(value, capabilities):
+                if isinstance(setting, RobotSetting) and setting in DEVICE_CONFIGURATION_SETTINGS:
+                    raise action_error("unsupported_robot_setting", "This value is not supported")
                 raise action_error("unsupported_profile", "This cleaning setting is not supported")
-            if (
-                setting is CleaningSetting.AUTO_EVACUATION_AREA
-                and not state.capabilities.supports_auto_evacuation_area
-            ):
-                raise action_error("unsupported_dock_action", "An evacuation dock is required")
+            if not setting.supported_on(state.capabilities):
+                raise action_error("unsupported_dock_action", "A compatible dock is required")
             session = await self.client.ensure_session()
             sender = MqttCommandSender(session, robot_id)
             if not setting.accepts(value, sender.capabilities):
                 raise action_error("unsupported_profile", "This cleaning setting is not supported")
-            mqtt = replace(sender.profile, devices={robot_id: sender.profile.devices[robot_id]})
-            reader = MqttShadowReader(mqtt, timeout=5)
-            document, telemetry = await self._read_cleaning_settings(reader)
+            reader = self._robot_settings_reader(sender, robot_id)
+            document, telemetry = await self._read_robot_settings(reader)
             observed = setting.observed(telemetry, capabilities)
             if observed is None:
                 raise action_error("robot_setting_unavailable", "Robot settings are unavailable")
+            if setting is RobotSetting.VOICE_LANGUAGE and value not in telemetry.get(
+                "installed_voice_languages", ()
+            ):
+                raise action_error(
+                    "voice_language_not_installed", "Voice language is not installed"
+                )
             if observed == value:
-                self._cache_cleaning_setting(robot_id, setting, document, telemetry)
+                self._cache_robot_setting(robot_id, setting, document, telemetry)
                 return
             self._details_due = 0
             try:
-                await self._executor(sender.write_cleaning_setting, setting, value)
+                await self._executor(sender.write_robot_setting, setting, value)
             except (OSError, ProtocolError) as error:
                 # The publication can have succeeded before the acknowledgement was lost.
                 _LOGGER.debug("Robot settings write not acknowledged: %s", type(error).__name__)
@@ -1097,28 +2415,51 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 await self._sleep(delay)
             async with self._io_lock:
                 try:
-                    document, telemetry = await self._read_cleaning_settings(reader)
+                    document, telemetry = await self._read_robot_settings(reader)
                 except OSError, ProtocolError:
                     continue
                 if setting.observed(telemetry, capabilities) == value:
-                    self._cache_cleaning_setting(robot_id, setting, document, telemetry)
+                    self._cache_robot_setting(robot_id, setting, document, telemetry)
                     return
         raise action_error("robot_setting_unconfirmed", "The robot did not confirm the setting")
 
-    async def _read_cleaning_settings(self, reader):
+    @staticmethod
+    def _robot_settings_reader(sender, robot_id):
+        mqtt = replace(sender.profile, devices={robot_id: sender.profile.devices[robot_id]})
+        return MqttShadowReader(mqtt, timeout=5)
+
+    async def _read_robot_settings(self, reader):
         replies = await self._executor(reader.read, ("rw-settings",))
         document = next((reply.document for reply in replies if reply.accepted), {})
-        return document, project_telemetry({"rw-settings": document})
+        settings = project_telemetry({"rw-settings": document})
+        if (name := convert("robot_name", reported(document).get("name"))) is not None:
+            settings[RobotSetting.NAME.value] = name
+        return document, settings
 
-    def _cache_cleaning_setting(self, robot_id, setting, document, telemetry):
+    def _cache_robot_setting(self, robot_id, setting, document, settings):
         self._details.setdefault(robot_id, {})["rw-settings"] = document
         if state := (self.data or {}).get(robot_id):
-            updated = {**state.telemetry, setting.value: telemetry[setting.value]}
-            self.data[robot_id] = replace(state, telemetry=updated)
+            value = settings[setting.value]
+            if setting is RobotSetting.NAME:
+                state = replace(state, name=value, reported_name=value)
+                self._sync_robot_device(robot_id, name=value)
+            else:
+                state = replace(state, telemetry={**state.telemetry, setting.value: value})
+            self.data[robot_id] = state
             self.async_update_listeners()
+
+    def _sync_robot_device(self, robot_id, **updates):
+        registry = device_registry.async_get(self.hass)
+        identifier = (DOMAIN, f"{self.config_entry.unique_id}_{robot_id}")
+        device = registry.async_get_device_by_identifier(identifier, self.config_entry.entry_id)
+        if device is not None and any(
+            getattr(device, key) != value for key, value in updates.items()
+        ):
+            registry.async_update_device(device.id, **updates)
 
     async def async_close(self):
         self._closed = True
+        await self._live_stream.async_close()
         await self.async_shutdown()
         tasks = self._command_tasks.copy()
         if (refresh := self._command_refresh_task) is not None and not refresh.done():
@@ -1136,18 +2477,32 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 self._cancel_live_expiration = None
             self._live_announcements.clear()
             self._live_timelines.clear()
+            self._live_estimates.clear()
             self._timeline_due.clear()
             self._live_paths.clear()
+            self._live_floor_pins.clear()
+            self._live_coverage.clear()
+            self._live_obstacles.clear()
+            self._stream_route_references.clear()
+            self._live_route_attempts.clear()
             self._floor_plans.clear()
 
 
 class RobotControlAdapter:
     """Bind one robot to the application port, owning HA/provider translation."""
 
-    def __init__(self, coordinator, robot_id, target: AreaTarget | PointTarget | None = None):
+    def __init__(
+        self,
+        coordinator,
+        robot_id,
+        target: AreaTarget | PointTarget | None = None,
+        *,
+        refresh_timeline=False,
+    ):
         self.coordinator = coordinator
         self.robot_id = robot_id
         self.target = target
+        self.refresh_timeline = refresh_timeline
 
     @property
     def active(self):
@@ -1155,11 +2510,17 @@ class RobotControlAdapter:
 
     async def refresh(self):
         coordinator = self.coordinator
+        previous = coordinator._live_timelines.get(self.robot_id)
+        if self.refresh_timeline:
+            coordinator._timeline_due.pop(self.robot_id, None)
         await coordinator._refresh_for_command()
         state = (coordinator.data or {}).get(self.robot_id)
         if state is None or not coordinator.last_update_success:
             return ControlState(None, None, None, None, CleaningCapabilities())
-        return control_snapshot(state)
+        report = None
+        if self.refresh_timeline and previous is not coordinator._live_timelines.get(self.robot_id):
+            report = coordinator._current_timeline(state, datetime.now(UTC))
+        return control_snapshot(state, report)
 
     async def send(self, command, profile):
         coordinator = self.coordinator
@@ -1195,7 +2556,11 @@ class RobotControlAdapter:
         return self.coordinator._clock()
 
 
-def control_snapshot(state):
+def _skip_review_id(key):
+    return sha256(repr(key).encode()).hexdigest() if key is not None else None
+
+
+def control_snapshot(state, timeline=None):
     number = state.telemetry.get("mission_number")
     started = state.telemetry.get("mission_started")
     return ControlState(
@@ -1213,6 +2578,10 @@ def control_snapshot(state):
         mission_identity=(number, started) if number and started else None,
         digital_spot=state.capabilities.digital_spot,
         mission_initiator=state.telemetry.get("mission_initiator"),
+        skip_capability=state.capabilities.skip,
+        skip_observation=timeline.skip_observation() if timeline is not None else None,
+        mapping_supported=state.capabilities.persistent_maps is True,
+        mapping=state.mapping is True,
     )
 
 

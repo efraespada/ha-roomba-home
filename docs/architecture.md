@@ -126,4 +126,24 @@ next attempt with exponential waiting 60 a 900 seconds.
 
 `DeviceCapabilities` It brings together tipades of cleanliness, base and maps with information sources. `DockSnapshot` It combines the equipment's status and capabilities to validate maintenance orders. The issuer serializes known orders and the application confirms their transitions. When the robot recognizes its base, Home Assistant it registers as a child device. Readings have been shown to explain `dock.known` and basic capabilities but omits manufacturing identifier `dock.id`. The child device is identified by its association with the robot and preserves a group if they replace their base. The sensors and controls share the coordinator of that robot, while maintaining their `unique_id` To associate with the child device. [Registration of children's devices Home Assistant](https://contributors.home-assistant.io/core/integrations/device-registry/#child-devices)
 
-`maps.py` accepts active maps and associated regions. The adapter looks at the map again before an area order to validate IDs and version. A failed consultation preserves known regions for HA associations and sets the source as unavailable. The map counters are expecting a valid reading. A fair reading replaces earlier data, even if the supplier returns an empty inventory. The [Extended SDD](../specs/007-device-capabilities.md) register the contract and physical evidence still outstanding.
+`maps.py` validates associated active maps and their regions. The adapter
+rereads the map before an area command to validate the revision and
+destinations. A failed read preserves the known region associations and
+marks the data unavailable. A successful read replaces the previous
+inventory, including an empty result.
+
+Directed cleaning places each profile beside its destination in the
+serialized command. The command application observes a new remote
+mission to confirm submission of a vacuum-then-mop sequence. The mission
+history supplies its physical phases and final outcome. Live and finished
+zone and furniture names use the command's associated map revision and
+share the archive cache. [Cleaning profile SDD](../specs/006-cleaning-profiles.md) ·
+[Map and mission SDD](../specs/008-mission-detail-and-map-card.md)
+
+The timeline adapter projects destination identities and skip events into
+the command use case. Home Assistant hashes the reviewed mission and
+destination for its card and validates that review before issuing a new
+read. The use case compares the freshly reported destination and confirms
+the request only when a matching new skip event appears. The same robot
+operation lock covers preparation, dispatch, and confirmation.
+[Skip command validation](../specs/004-command-validation.md)

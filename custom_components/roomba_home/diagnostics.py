@@ -1,14 +1,17 @@
 """Diagnostics contain counts, model and classification, never account data."""
 
-from .const import VERSION
+from homeassistant.loader import async_get_integration
+
+from .const import DOMAIN
 from .core.problems import observations
 
 
 async def async_get_config_entry_diagnostics(hass, entry):
+    integration = await async_get_integration(hass, DOMAIN)
     coordinator = entry.runtime_data
     states = list((coordinator.data or {}).values())
     return {
-        "integration_version": VERSION,
+        "integration_version": str(integration.version),
         "transport": "cloud_polling",
         "last_update_success": coordinator.last_update_success,
         "robot_count": len(states),

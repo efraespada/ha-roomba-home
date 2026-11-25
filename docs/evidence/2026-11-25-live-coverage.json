@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-25",
+  "tested_model": "Roomba Max 700 Combo",
+  "archive_comparison": {
+    "mission_archives": 3,
+    "calibrated_radii_metres": {
+      "vacuuming": 0.09,
+      "mopping": 0.11,
+      "vacuum_and_mop": 0.10
+    },
+    "renderer_cell_size_metres": 0.025,
+    "production_overlap_percent": {
+      "vacuuming": 95.0,
+      "mopping": [96.6, 97.6],
+      "vacuum_and_mop": 95.3
+    },
+    "comparison": "Intersection divided by union with Roomba's coverage polygon",
+    "evaluated_on_calibration_archives": true
+  },
+  "raw_snapshot_replay": {
+    "combined_early": { "points": 199, "coverage_rows": 135, "mode_masks": [3] },
+    "combined_later": { "points": 481, "coverage_rows": 166, "mode_masks": [3] },
+    "vacuum_only": { "points": 83, "coverage_rows": 57, "mode_masks": [1] }
+  },
+  "independent_vacuum_archives": {
+    "mission_archives": 2,
+    "production_overlap_percent": [89.2, 89.3]
+  },
+  "late_join_replay": {
+    "direct_points": 30,
+    "realigned_snapshot_points_added": 446,
+    "coverage_cells_before_recovery": 689,
+    "coverage_cells_after_recovery": 6241
+  },
+  "physical_live_coordinator": {
+    "observation_seconds": 25,
+    "position_updates": 14,
+    "median_position_interval_seconds": 1,
+    "coverage_rows": 66,
+    "coverage_mode_masks": [3],
+    "robot_commands_sent": 0
+  }
+}

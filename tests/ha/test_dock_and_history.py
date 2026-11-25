@@ -115,6 +115,18 @@ async def test_dock_telemetry_can_discover_its_parent_before_vacuum_setup(
     assert sensor.device_info.parent_device_id == parent.id
 
 
+async def test_wash_button_is_available_during_drying(hass, entry, account):
+    robot = account.data["fixture-0"]
+    account.async_set_updated_data(
+        {**account.data, "fixture-0": replace(robot, telemetry={**HEALTHY, "pad_dry_state": 702})}
+    )
+    wash_button = entity_id(hass, entry, "wash_mop")
+    assert hass.states.get(wash_button).state != "unavailable"
+    account.async_command = AsyncMock()
+    await hass.services.async_call("button", "press", {"entity_id": wash_button}, blocking=True)
+    account.async_command.assert_awaited_once_with("fixture-0", Command.WASH_MOP)
+
+
 async def test_reloading_moves_existing_dock_entities_to_child_without_renaming(
     hass, entry, account
 ):
