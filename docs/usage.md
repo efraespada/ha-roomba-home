@@ -152,8 +152,10 @@ zone events. Its `zones` attribute includes the type, label when available,
 status, area, total area, and pass count of each destination. The existing
 room results sensor continues to count rooms. When an older map revision
 is unavailable, history still shows the result and destination type.
-**Current mission measurements** shows in-progress room readings when a fresh
-timeline reply provides them.
+**Current mission measurements** shows in-progress room and zone readings
+when a fresh timeline reply provides them. A saved zone can show its
+reported target size as soon as the pass starts. The measured area for
+a completed pass appears when Roomba supplies its completion event.
 [Mission telemetry](telemetry.md)
 
 ## Room cleaning scores
@@ -431,6 +433,8 @@ time for a selected cleaning area, including a localized point.
 For a directed cleaning run, the floor plan card lists the destinations
 and shows how many have finished. **Planned order** appears when Roomba
 commits to an order. **Two passes on** describes the requested preference.
+**Pass 1** and **Pass 2** display the current saved-zone pass when Roomba
+identifies the active event.
 **Completed passes** counts the completion events Roomba supplied for a
 saved zone. A row without confirmed passes can show **Reported pass
 value** from the current or most recent destination event. The

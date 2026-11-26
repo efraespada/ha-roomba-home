@@ -1,0 +1,131 @@
+{
+  "model": "Roomba Max 700 Combo (X185240)",
+  "controlled_trial": {
+    "scope": "single saved zone on a disposable floor",
+    "requested_passes": 2,
+    "requested_mode": "vacuum",
+    "rectangle_m2": 9.922
+  },
+  "mqtt": {
+    "timeline_requests": {
+      "query_attempts": 66,
+      "correlated_reports": 65,
+      "zone_stage_reports": 59
+    },
+    "sampled_second_pass_fields": [
+      {
+        "list": "active",
+        "stage": "zone",
+        "numeric_fields": {
+          "area": 106,
+          "passCount": 1
+        },
+        "measure_fields_present": [
+          "area",
+          "passCount"
+        ]
+      },
+      {
+        "list": "finished",
+        "stage": "zone",
+        "numeric_fields": {
+          "status": 1,
+          "area": 106,
+          "totalArea": 62,
+          "passCount": 0
+        },
+        "measure_fields_present": [
+          "area",
+          "passCount",
+          "status",
+          "totalArea"
+        ]
+      }
+    ],
+    "matching_events": [
+      {
+        "list": "current",
+        "target_area_sqft": 106,
+        "measured_area_sqft": null,
+        "reported_pass_index": 0,
+        "status": null
+      },
+      {
+        "list": "current",
+        "target_area_sqft": 106,
+        "measured_area_sqft": null,
+        "reported_pass_index": 1,
+        "status": null
+      },
+      {
+        "list": "finished",
+        "target_area_sqft": 106,
+        "measured_area_sqft": 62,
+        "reported_pass_index": 0,
+        "status": 1
+      },
+      {
+        "list": "finished",
+        "target_area_sqft": 106,
+        "measured_area_sqft": 63,
+        "reported_pass_index": 1,
+        "status": 0
+      }
+    ]
+  },
+  "authenticated_home_assistant": {
+    "floor_plan_verified": true,
+    "live_timeline_sensor_verified": true,
+    "current_pass_number": 2,
+    "reported_pass_index": 1,
+    "confirmed_completed_passes": 1,
+    "target_area_m2": 9.85,
+    "completed_passes_area_m2": 5.76,
+    "robot_commands_sent_for_readback": 0,
+    "archived_readback": {
+      "target_area_m2": 9.85,
+      "completed_passes_area_m2": 11.61,
+      "confirmed_completed_passes": 2,
+      "mission_area_m2": 11.71,
+      "active_pass_cleared_after_docking": true
+    }
+  },
+  "whole_mission_shadow_near_end": [
+    {
+      "mission_area_m2": 11.61,
+      "mission_area_sqft": 125
+    },
+    {
+      "mission_area_m2": 11.61,
+      "mission_area_sqft": 125
+    },
+    {
+      "mission_area_m2": 11.61,
+      "mission_area_sqft": 125
+    }
+  ],
+  "archived_report": {
+    "outcome": "completed",
+    "duration_minutes": 20,
+    "target_area_sqft": 106,
+    "completed_passes_sqft": [
+      62,
+      63
+    ],
+    "mission_area_sqft": 126
+  },
+  "duration_lookup": {
+    "bulk": {
+      "http_status": 404
+    },
+    "zone_selected": {
+      "http_status": 404
+    }
+  },
+  "restoration": {
+    "disposable_floor_removed": true,
+    "original_floor_and_programs_preserved": true,
+    "settings_restored": true,
+    "docked": true
+  }
+}

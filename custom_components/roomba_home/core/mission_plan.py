@@ -90,6 +90,7 @@ def present_mission_plan(
     *,
     archived: bool = False,
     paused: bool = False,
+    active_pass: AreaResult | None = None,
 ) -> dict:
     """Historical callers supply only map revisions linked to the archived mission."""
     names = {
@@ -127,6 +128,11 @@ def present_mission_plan(
                 row["requested_settings"] = settings
         if result is not None and result.pass_count is not None:
             row["reported_pass_count"] = result.pass_count
+            if (
+                result is active_pass
+                and (current_pass := result.current_saved_zone_pass) is not None
+            ):
+                row["current_pass_number"] = current_pass
         if finished is not None and finished.confirmed_completed_passes is not None:
             row["confirmed_completed_passes"] = finished.confirmed_completed_passes
         destinations.append(row)

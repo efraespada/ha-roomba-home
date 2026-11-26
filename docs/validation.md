@@ -1,5 +1,33 @@
 # Roomba Home validation
 
+## Live saved-zone passes
+
+Home Assistant started a two-pass vacuum run in a 9.92 m² test rectangle
+on a disposable Max 700 Combo floor. The matched live zone events
+reported a target of 106 ft² and changed the `passCount` index from zero
+to one. The open event sampled during the second pass supplied `area`
+and `passCount`. Its separate first-pass completion supplied
+`totalArea` of 62 ft². Neither sampled event included `coverage` or
+`passArea`.
+
+A separate read-only Home Assistant instance confirmed the second pass
+through the authenticated floor-plan command and the live timeline
+sensor. The plan showed **Pass 2** and one completed pass. The target
+was 9.85 m² and the confirmed pass measured 5.76 m². A signed duration
+request on this disposable floor returned HTTP 404 with both the empty
+zone selector and the saved-zone selector.
+
+Roomba returned 65 matching timelines for 66 requests. The final live
+completion measured 63 ft² for the second pass. The signed archive
+confirmed both pass measurements and a separate 126 ft² mission total.
+The current mission shadow had reported 125 ft² near the end of cleaning.
+Home Assistant removed the disposable floor after docking. Signed reads
+confirmed the original floor revision, geometry, programs, and settings.
+The authenticated history command then returned 9.85 m² for the target,
+11.61 m² for two completed passes, and 11.71 m² for the mission.
+The active pass cleared after docking.
+[Anonymized live and archived evidence](evidence/2026-11-26-live-saved-zone-passes.json)
+
 ## Saved-zone area measurements
 
 The Max 700 Combo's signed history contained 38 missions, including 32

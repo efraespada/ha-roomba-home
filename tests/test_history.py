@@ -4,6 +4,23 @@ import pytest
 
 from custom_components.roomba_home.core.errors import ProtocolError
 from custom_components.roomba_home.core.history import history_metrics, mission_reports
+from custom_components.roomba_home.core.mission_areas import AreaResult
+
+
+@pytest.mark.parametrize(
+    ("kind", "status", "index", "number"),
+    [
+        ("saved_zone", None, 0, 1),
+        ("saved_zone", None, 1, 2),
+        ("saved_zone", None, None, None),
+        ("saved_zone", 1, 0, None),
+        ("temporary_zone", None, 0, None),
+        ("room", None, 0, None),
+    ],
+)
+def test_current_saved_zone_pass_uses_open_zone_events(kind, status, index, number):
+    area = AreaResult(("floor", "revision", "area"), 100, status, None, None, index, kind)
+    assert area.current_saved_zone_pass == number
 
 
 def test_mission_reports_expose_only_owned_cleaning_records_and_exact_archive_references():

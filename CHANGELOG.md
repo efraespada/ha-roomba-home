@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.72.2
+
+- Show the current saved-zone pass in the live plan and area results as
+  Pass 1, Pass 2, and so on. Keep the provider's index and confirmed
+  completed pass count available separately.
+
 ## 0.72.1
 
 - Keep an explicit live mission timeline request open through the MQTT

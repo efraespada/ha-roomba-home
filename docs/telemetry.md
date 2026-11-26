@@ -109,6 +109,9 @@ stage, final room results, and in-progress room measurements. The
 `zones` and `active_zones` attributes preserve the equivalent zone and
 furniture measurements. The **Zones and furniture in the last mission**
 sensor exposes completed-mission results separately as `zones`.
+`active_zones` includes `current_pass_number` for an open saved-zone event
+matched to the current stage. This number starts at one. `pass_count`
+preserves the reported index.
 For a signed saved-zone destination, `target_area_m2` reports Roomba's
 target size. `completed_passes_area_m2` sums the area measured in confirmed
 passes. Both are optional and use square metres. The raw fields `area`
@@ -124,7 +127,8 @@ with a finished outcome in the same active timeline. Its `total`,
 `ordered`, and `destinations` attributes describe the provider's
 declared targets and their statuses, with names and requested cleaning
 modes when available. A destination can also include `requested_settings`
-from its command and `reported_pass_count` from its timeline event.
+from its command and `reported_pass_count` from its timeline event. The
+verified current saved-zone destination includes `current_pass_number`.
 Omitted command preferences use the robot's defaults. Unfinished, skipped,
 and revisited destinations
 keep a separate status. Whole-floor and point runs have their own views.
