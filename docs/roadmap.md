@@ -73,13 +73,13 @@ the resulting floor and its destinations, before offering it in the card.
 The Max 700 Combo's three Android choices and a custom threshold were
 confirmed through signed settings. A completed 0.65 m² routine with
 per-routine emptying enabled returned with zero reported evacuations.
-Two older reports confirm end-of-mission emptying after cleaning about
-6 m². The active dock preference for those reports is unknown. Observe
-the dock on a larger completed routine to determine its trigger
-conditions. Check the area mode separately when a run reaches its
-configured threshold.
+Two runs of the same saved routine each reported one emptying after
+cleaning about 12.4 m², first in per-routine mode and then at the 25 m²
+setting. Investigate whether the dock carries area across runs or reports
+another trigger. Include an uninterrupted dock trace and a run reaching
+a configured threshold before promising specific physical timing.
 [Short routine and map comparison](validation.md#physical-emptying-after-a-short-routine) ·
-[Prior signed evacuations](validation.md#archived-bin-emptying-and-faults)
+[Saved-routine comparison](validation.md#saved-routine-dock-frequency-comparison)
 
 ## Android setup walkthrough
 
