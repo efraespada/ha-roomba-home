@@ -1,247 +1,246 @@
-# Native orders and physical validation
+# Native robot commands and physical validation
 
 - Status: As-built baseline
 - Date: 2026-11-23
 - Catalog capability ID: native-commands
 - Last verified: 2026-11-26
 - Owners: ha-roomba-home maintainer
-- Scope: Native command dispatch and independent verification of physical results.
-- Related issues/PRs: No local work without publication.
+- Scope: Dispatch supported robot commands and verify their reported effects.
+- Related issues/PRs: [Command confirmation recovery](https://github.com/efraespada/ha-roomba-home/pull/38)
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
-- Open decisions blocking readiness: Physical verification of additional provider command variants.
+- Open decisions blocking readiness: Physical verification of additional firmware behaviors and command variants.
 
 ## 1. Executive summary
 
-The client sends supported robot commands over MQTT. The transport receipt
-records broker acceptance, and the Home Assistant use case checks the
-physical result. An authorized cycle verifies the observed behavior for
-the tested device and command.
+Home Assistant validates a requested action against the selected robot and
+sends a typed command over MQTT. Broker acceptance records delivery to the
+broker. A separate Roomba state read verifies the robot's response. Each
+physical trial applies to the tested model, firmware, and command.
 
 ## 2. Problem, current behavior, and evidence
 
-The HTTP readings do not contain the motion orders. The topic was identified `{irbtTopics}/things/{robot_id}/cmd` at the native SSK and was contrasted with an independent test: vacuuming in mode 2, pause after 210 seconds and cancellation. The [report](../docs/validation.md) retains only normalised transitions.
-
-- Observed behavior: start production run / clean; pause produce stop and clear, drop
-  cancels with cycle none.
-- Intentional contract: strict enumeration, a single consignment and TLS with physical
-  result unconfirmed by PUBACK.
-- Known debt and limitations: connection by order with no persistent coordinator, resumption
-  or tested areas.
-- Unknown rationale: No supplier's guarantees for duplicates or all physical errors are
-  available.
-- Proposed improvements: confirmation and availability at the co-ordinator provided for by
-  SDD 003.
+- Observed behavior: The Android client publishes to
+  `{irbtTopics}/things/{robot_id}/cmd`. The first physical trial on the Max
+  700 Combo observed the `clean` cycle after start, a stopped phase during
+  pause, and the `none` cycle after canceling. Later trials exercised
+  [directed cleaning](../docs/validation.md#directed-vacuum-then-mop) and
+  [returning from active cleaning](../docs/validation.md#return-during-active-cleaning).
+- Intentional contract: Validate capabilities and authorization before
+  publication. Publish each command once over TLS. Confirm its effect
+  through a fresh state read or a matching event.
+- Known debt and limitations: The transport opens a dedicated MQTT
+  connection for each publication. Hardware coverage varies by command,
+  region, and model. The [capability matrix](../docs/capabilities.md) lists
+  physical cases still pending.
+- Unknown rationale: The provider's duplicate-delivery guarantees and
+  behavior after every physical fault remain unknown.
+- Proposed improvements: Add physical coverage for supported variants
+  as their preconditions and outcomes are verified.
 
 ## 3. Actors, surfaces, and terminology
 
 | Actor | Objective | Input | Surface |
 | --- | --- | --- | --- |
-| Holder | To give permission to have a physical test | Robot and concrete duration | App and physical observation |
-| Research | Validate protocol | CLI and private destination | Transport receipt |
-| Robot | To conduct the mission | Cloud command | Subsequent status |
+| Home Assistant operator | Control an associated robot | Vacuum entity and action | Entity controls, map card, or automation |
+| Maintainer | Verify a contract with authorized hardware | Scoped command and baseline state | Tests and anonymized evidence |
+| Robot | Carry out a mission or dock operation | Authorized broker command | Reported state, timeline, and history |
 
-PUBACK's acceptance of transport and physical confirmation is a later contrasted mission
-transition. Canceling and returning to the dock are different orders.
-
-The current area can be skipped when the robot advertises the capability
-and the live timeline identifies an active room or zone. An identifiable
-travel destination uses the same policy. The map card reviews a specific
-destination and the coordinator refreshes that mission and destination
-before sending once. A newly reported skipped event for that area in the
-same mission confirms the result.
-[Skip validation](../docs/validation.md#skip-the-current-destination)
+A **PUBACK** acknowledges receipt at the MQTT broker. **Confirmation**
+requires a matching robot state or mission event. Cancel ends the mission.
+Return sends the robot to its dock. Pause preserves the current mission.
 
 ## 4. Goals, non-goals, and fixed invariants
 
-- CMD-01: The emitter MUST serialize only typed, supported commands.
-- CMD-02: selection MUST belong to the inventory and token with validated SKU, topic without
-  injection.
-- CMD-03: the issuer MUST send once with QoS 1 and retain false, without automatic retrying.
-- CMD-04: the receipt MUST declare physical result `unconfirmed` even after PUBACK.
-- CMD-05: errors and output MUST omit private destination, tokens and original payloads.
-- CMD-06: A skip MUST use a fresh, scoped destination. Confirm it with a new
-  matching event in the same mission and reject a changed review before dispatch.
-- CMD-07: On the Max 700 Combo, a return during active cleaning MUST wait
-  for the same mission to pause before publishing `dock`. Confirm arrival
-  from robot state. If the robot starts returning while the pause is
-  pending, observe the return without publishing a second command.
-- CMD-08: After publishing a command, a missing connection state in a
-  successful account refresh MAY be followed by another state read within
-  the current confirmation window.
-  A missing read MUST NOT confirm a command, extend its deadline, or cause
-  a second publish. A pause before return still requires the same mission
-  identity before the `dock` command can be sent.
+- **CMD-01** The transport MUST serialize only typed, supported commands.
+- **CMD-02** The selected robot MUST belong to the authenticated account
+  and the relevant MQTT token group. Validate its model and topic segments.
+- **CMD-03** Each command MUST publish once with QoS 1 and retain disabled.
+- **CMD-04** A broker receipt MUST keep the physical result `unconfirmed`.
+- **CMD-05** Errors and public evidence MUST omit private identifiers,
+  authentication material, and raw household payloads.
+- **CMD-06** Skip MUST use a fresh, reviewed destination. A new matching
+  skip event in the same mission confirms its result.
+- **CMD-07** On the Max 700 Combo, a return during active cleaning MUST
+  wait for the same mission to pause before publishing `dock`. If the
+  robot starts returning on its own, observe arrival without publishing `dock`.
+- **CMD-08** After dispatch, a successful account refresh that omits the
+  connection state MAY be followed by another read. Preserve the existing
+  deadline and one publish per command. A missing state cannot confirm an action.
 
-It does not include reset, clear maps and fringes. Retirement changes have been added to
-them by area planning or cleanup as an integral part of the system's production operations
-with a high level The tool isn't an automation engine.
+This capability covers typed device commands and their verification. Map
+editing and backup recovery are specified separately. [Map editor SDD](009-map-zone-editor.md)
 
 ## 5. Current versus proposed product journey
 
-The emitter sends a single command. Home Assistant coordinates preparation
-and checks the reported result independently.
+Home Assistant validates the action, publishes the command and reports the
+progress of confirmation. New commands follow the same sequence with
+capability and result checks specific to that operation.
 
 ```mermaid
 flowchart LR
-    A[Private destination] --> B[Validate authorisation]
-    B --> C[Connect with TLS]
-    C --> D[Publish an order]
-    D --> E[I get from the broker]
-    E --> F[Check status separately]
+    A[Select a robot and action] --> B[Check authorization, capabilities, and state]
+    B --> C[Publish once over MQTT]
+    C --> D[Receive broker acknowledgment]
+    D --> E[Read robot state or the matching event]
+    E --> F[Report the outcome]
 ```
-
-Textual equivalent: destination → validation --- connection > unique sending {receipt} •
-independent reading of result. A receipt doesn't advance the last step.
 
 ## 6. Functional behavior and state model
 
-| Stage | Evidence | Retirement |
+| Stage | Evidence | Next step |
 | --- | --- | --- |
-| Prepared | Inum, timestamp and valid destination | Can connect |
-| Connected | CONNACK accepted | Can publish once |
-| Sended | Publish Local Accepted | WAIT PUBACK TOGETHER |
-| Accepted by broker | PUBACK | Reforms `unconfirmed` for physical result |
-| Untrue | Error or timeout | He doesn't repeat his order. |
+| Prepared | Valid action, destination, and robot state | Open the MQTT connection |
+| Connected | Broker accepts the TLS connection | Publish once |
+| Accepted by broker | `PUBACK` | Read the robot state within the confirmation window |
+| Confirmed | Matching state or newly reported event | Present the confirmed result |
+| Unconfirmed | Failure or expired confirmation window | Report uncertainty without resending |
 
-Physical tests read the robot state before and after each command. Pause
-keeps the current mission active. Cancel ends it. In a whole-area Max 700
-Combo trial, a direct return during active vacuuming left the robot
-cleaning. In a subsequent trial, pause followed by return reached the
-dock and cleared the mission cycle with error code 0. The Home Assistant
-use case requires fresh, connected telemetry and the same mission
-identity before proceeding from pause to dock.
-[Return trial](../docs/validation.md#return-during-active-cleaning)
+The Max 700 Combo return flow observes the same active mission after
+`pause`. A matching paused state permits `dock`. When the mission finishes
+while the pause is pending, a reported return or arrival can confirm the
+operation without further publication. [Return trial](../docs/validation.md#return-during-active-cleaning)
 
 ## 7. User-facing configuration
 
-| Input | Default | Validation | Persistence |
-| --- | --- | --- | --- |
-| Session | Mandatory | Private archives and credentials not close to expire | External |
-| Destination | Mandatory | Private file with robot_id associated | External |
-| Order | Mandatory | Closed numbering | By implementation |
+| Input | Source | Validation |
+| --- | --- | --- |
+| Account session | Roomba Home config entry | Authenticated account and current MQTT token |
+| Robot | Linked vacuum or dock entity | Associated and selected in the integration |
+| Action | Standard vacuum controls or a Roomba Home action | Typed command, device capability, and preconditions |
+| Cleaning settings | Next-cleaning preferences or reviewed destinations | Supported mode and values for each requested area |
 
-Recommended for research: check earlier connectivity, mission and physical status.
-Alternative: library with controlled test composition. There's no way to publish JSON or
-arbitrary issues.
+The diagnostic command-line tool uses a private session and destination
+file. It returns a broker receipt. [Development guide](../docs/development.md)
 
 ## 8. Clean Architecture design
 
-`Command` and `command_body` they define vocabulary and serialisation. `MqttCommandSender`
-Valid session / destination and composes paho. The CLI reads files and presents a receipt.
-The mission confirmation belongs to the call and not transport adapter.
+`Command` and `command_body` define the typed transport vocabulary.
+`MqttCommandSender` validates the session, builds the target topic, and
+publishes through Paho. A client factory lets tests exercise transport
+behavior with a fake broker. The sender owns connection cleanup.
 
-The core MUST NOT matter HA or interpoints. The client's factory is for injection to test
-Rejections without moving robots. The tests explicitly check QoS, lack of retention and
-closure. No persisting orders.
+The application policy depends on `ControlPort`. It checks command
+preconditions and evaluates fresh observations. The Home Assistant
+coordinator binds the port to one associated robot, obtains provider
+state, and reports the command status to entities. The core policy has
+no Home Assistant dependency. [Architecture](../docs/architecture.md)
 
 ## 9. UI/UX and content contract
 
-- Pending: currently sending with no physical success announced.
-- Action required: To identify the destination and check its status before operation.
-- Blocked: an alien destination, a model that isn't valid or expired session prevents
-  sending.
-- Partial: uncertain publication and read status before applying again for action.
-- Complete: receipt with `accepted_by_broker: true` and `physical_result: unconfirmed`.
+- Pending: `pending` reports dispatch or state confirmation in progress.
+- Action required: The dashboard asks the operator to review a changed map
+  destination or resolve a reported precondition before retrying.
+- Blocked: Home Assistant explains when the robot or the requested action
+  is unavailable.
+- Partial: `submitted` allows limited or deferred confirmation. `unconfirmed`
+  records an uncertain physical result after a failed read or deadline.
+- Complete: `confirmed` records a matching robot state or event.
 
-The CLI, its keys, and the guide use English. It doesn't depend
-on color. It does not produce notifications or messages to other services.
+Locate remains `submitted` after broker acceptance. The CLI presents the
+broker receipt as machine-readable JSON.
+[Command results](../docs/usage.md#command-confirmation)
 
 ## 10. Failure, recovery, and cleanup
 
-Failed validation before dispatch prevents publication. A transient
-missing state during confirmation keeps the existing deadline. An
-explicit offline report or failed account refresh ends confirmation for
-ordinary commands. Reboot waits for a confirmed disconnect and reconnect.
-Persistent missing state ends as `unconfirmed` when the deadline expires.
-Each transport operation closes its MQTT client. The tests cover a
-recovered read, an expired window, and the required pause before return.
-[Control policy tests](../tests/test_application.py)
+Failed validation prevents publication. A successful refresh that omits
+connection state can be followed by another read within the original
+window. An explicit offline report or failed account refresh ends
+confirmation for ordinary commands. Reboot waits for an observed
+connection cycle. An expired window leaves the result `unconfirmed`.
+
+The MQTT sender closes its connection on every exit. Service and control
+policy tests cover recovered reads, timeouts, unload, and no repeated
+publication. [Control policy tests](../tests/test_application.py)
 
 ## 11. Security, permissions, and privacy
 
-Only session robots and family tested are allowed. Ids, prefixes and header are validated
-before passing tokens. The library verifies TLS and does not accept arbitrary issues. Count,
-names and maps with raw evidence MUST to get out of Git. The authorisation of physical
-testing is obtained from the holder.
+Token selection is scoped to the associated robot. The sender validates
+model and topic segments and verifies TLS. Home Assistant authorizes
+writes through the linked entity. Physical trials require authorization
+for the selected device. Public artifacts retain sanitized outcomes and
+omit raw session data, floor geometry, and private identifiers.
 
 ## 12. Observability and operational UX
 
-The receipt indicates only order and stage of acceptance. The campaign report indicates
-duration, phases and results with no names or IDs. A run / clear transition is different
-from CONNACK and PUBINK. The physical errors are preserved for the assessment of a test and
-they aren't hidden under an effective transport result.
+The broker receipt records transport delivery and leaves physical effects
+unconfirmed. The Home Assistant command-result sensor reflects semantic
+confirmation. Trial evidence records durations, phases, outcome, and
+fault codes. For a skip, the timeline must identify the same destination
+and show a new skip event within that mission.
+[Skip validation](../docs/validation.md#skip-the-current-destination)
 
 ## 13. Compatibility, migration, rollout, and rollback
 
-On SKU X185240, physical trials verified whole-area vacuuming from the
-dock, pausing, cancelling, and returning after pause or cancellation.
-The staged behavior applies to active cleaning outside mapping and
-mop preparation. Check the reported
-robot state after a timeout because the command may already have been
-published.
+Physical evidence covers the Max 700 Combo (X185240). Expose commands
+according to the connected robot's reported capabilities. Pause before
+return applies to active cleaning on this model, with separate handling
+for mapping and mop preparation. A restart or upgrade preserves the robot
+entities and account associations. [Installation and rollback](../docs/installation.md)
 
 ## 14. Testing strategy and numeric budget
 
-| Area | Minimum number of different cases | Risks |
+| Area | Minimum cases | Focus |
 | --- | ---: | --- |
-| Payload and vocabulary | 9 | Four orders, four invalid tipprints and arbitrary chain |
-| Sending and errors | 4 | Non-physical receipt, rejection and malfunctioning |
-| Destination and authorisation | 6 | Other ID, injection and nil. SKU) token or prefix |
-| **Total** | **19** | No double computation |
+| Payload and vocabulary | 9 | Typed commands, valid settings, invalid timestamps, and arbitrary strings |
+| Sending and errors | 4 | Broker receipt, transport rejection, closure, and one publish |
+| Destination and authorization | 6 | Association, model, token group, and topic validation |
+| **Total** | **19** | The application tests add semantic confirmation and its failure cases. |
 
-The cover with branches of commands.py MUST achieve 100%. No usual tests have been put into
-network. The physical campaign is opt-in and complements the fake broker. Before announcing
-another monitoring context, his evidence and budget should be expanded.
+The command transport and application policy require 100% line and branch
+coverage as part of the integration suite. Fixtures exercise confirmation
+and errors without sending robot commands. Authorized hardware scenarios
+verify outcomes that fixtures cannot establish.
 
 ## 15. Documentation and discoverability
 
-| Path | Change |
+| Document | Purpose |
 | --- | --- |
-| docs / api.md | update |
-| docs / development.md | update |
-| docs / validation.md | update |
-| docs / architecture.md | update |
-| specs /003- man...assistant.md | update |
-
-The [Contents](../docs/index.md) links reference and research boundaries.
+| [Usage](../docs/usage.md) | Entity controls, actions, and confirmation status |
+| [API](../docs/api.md) | Observed command payloads and provider responses |
+| [Architecture](../docs/architecture.md) | Application and transport boundaries |
+| [Validation](../docs/validation.md) | Physical verification and remaining gaps |
+| [Development](../docs/development.md) | Test commands and evidence handling |
 
 ## 16. Acceptance scenarios
 
-1. A valid start serializes only vacuuming without activating fringes.
-2. A non-commercial or wild destination doesn't cause a connection.
-3. Unvalidated model does not allow commands.
-4. A refusal to transport closed the client and did not repeat.
-5. PUBACK produces unconfirmed receipt physically.
-6. In actual test, run / clean follows start and stop or clear a pause.
-7. Stop cancels the mission and return is confirmed as a separate operation.
-8. The output contains no private destination or original responses.
+1. A supported start publishes a typed payload for the selected robot.
+2. An invalid, unauthorized, or unvalidated target prevents a broker connection.
+3. A failed publication closes its connection and leaves the result uncertain.
+4. `PUBACK` alone leaves the physical receipt `unconfirmed`.
+5. Fresh state confirms start, pause, cancel, and return independently.
+6. Return from active Max 700 Combo cleaning sends `dock` only after the same mission pauses.
+7. A transient missing state can recover during the original confirmation window without an additional publish.
+8. A timeout retains uncertainty and public evidence omits private data.
 
 ## 17. Requirements traceability
 
-| Requirement | Component | Test / evidence | Document |
-| --- | --- | --- | --- |
-| CMD-01 | Command / command_body | 9 payload and actual evidence cases | docs / api.md |
-| CMD-02 | Issuer builder | 6 | SECURITY.md |
-| CMD-03 | send / finally | 4 sending and error cases | docs / development.md |
-| CMD-04 | CommandReceipt | Non-physical receipt test | docs / architecture.md |
-| CMD-05 | CLI and errors | Privacy and Inspection Tests | docs / validation.md |
-| CMD-06 | Mission command policy and live timeline projection | Fresh and stale reviews, one send, matched skip, and a physical transition to the next area | [Skip validation](../docs/validation.md#skip-the-current-destination) |
-| CMD-07 | Return-to-base use case | [Control policy tests](../tests/test_application.py) and [Home Assistant service tests](../tests/ha/test_cleaning_controls.py) | [Return validation](../docs/validation.md#return-during-active-cleaning) |
+| Requirement | Component | Test or evidence |
+| --- | --- | --- |
+| CMD-01 | `Command`, `command_body` | [Typed payload tests](../tests/test_commands.py) |
+| CMD-02 | `MqttCommandSender` | [Association, model, and topic checks](../tests/test_commands.py) |
+| CMD-03 | `MqttCommandSender.send` | [Broker and failure tests](../tests/test_commands.py) |
+| CMD-04 | `CommandReceipt` | [Broker receipt test](../tests/test_commands.py) |
+| CMD-05 | Transport errors and evidence tooling | [Privacy scan](../scripts/check_privacy.py) and [public validation](../docs/validation.md) |
+| CMD-06 | Control policy and live timeline | [Policy tests](../tests/test_application.py) and [physical skip](../docs/validation.md#skip-the-current-destination) |
+| CMD-07 | Return-to-base policy | [Policy tests](../tests/test_application.py) and [physical return](../docs/validation.md#return-during-active-cleaning) |
+| CMD-08 | Confirmation polling and coordinator adapter | [Policy tests](../tests/test_application.py) and [coordinator tests](../tests/ha/test_coordinator.py) |
 
 ## 18. Implementation sequence
 
-The maintenance first updates enum, contract and synthetic cases after adaptor with CLI or
-documentation. The protocol changes require an authorized physical test and final status
-registration. No production HA is added from this retrospective SDD.
+Verify the command contract and prerequisites, then implement the typed
+payload and transport tests. Add the confirmation rule in the core policy
+and wire it through the device entity or service. Run the full suite and
+record scoped hardware evidence before advertising physical verification.
 
 ## 19. Definition of Done
 
-- [x] Vocabulary and theme contrasted with native SDK & actual robot.
-- [x] Unique sending, TLS and non-physical closure.
-- [x] 19 synthetic cases cover payload, clearance and malfunctions.
-- [x] Final status of the physical cycle and final validation registered.
-- [x] Catalogue and documentation updated with evidence without private data.
+- [x] The transport validates and sends supported commands once over TLS.
+- [x] The core distinguishes broker acceptance and physical confirmation.
+- [x] Tests cover authorization, failures, and confirmation boundaries.
+- [x] Physical outcomes and remaining cases are documented.
+- [x] The SDD catalog and public evidence pass validation and privacy checks.
 
 ## 20. References and decisions
 
-[API](../docs/api.md), [Readings MQTT](002-mqtt-state.md), [That's been scheduled.](003-home-assistant.md) and [SDD standard](README.md). No code from the app was added. The Research Issuer remains separate from future HA availability, confirmation and reconnection policies.
+[MQTT state SDD](002-mqtt-state.md) · [Home Assistant SDD](003-home-assistant.md) ·
+[API reference](../docs/api.md) · [SDD standard](README.md)
