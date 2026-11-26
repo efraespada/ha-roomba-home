@@ -27,5 +27,30 @@
     "both_combined_profiles_visible": true,
     "vacuum_preferences_copied_to_draft": true,
     "mutating_actions_on_preset_selection": 0
+  },
+  "individual_combined_variant_trial": {
+    "viewport_widths_px": [358, 900],
+    "variants_copied_from_the_one_off_editor": [6, 32],
+    "stale_variant_rejected": true,
+    "signed_routine_preferences": {
+      "6": {
+        "mode": "vacuum_mop",
+        "suction_level": 1,
+        "wetness_level": 1,
+        "smart_scrub": false,
+        "two_pass": false
+      },
+      "32": {
+        "mode": "vacuum_mop",
+        "suction_level": 3,
+        "wetness_level": 2,
+        "smart_scrub": false,
+        "two_pass": false
+      }
+    },
+    "temporary_routines_removed": 2,
+    "original_routines_and_remembered_preferences_preserved": true,
+    "original_map_preserved": true,
+    "movement_commands": 0
   }
 }

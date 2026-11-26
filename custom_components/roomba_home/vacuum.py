@@ -197,17 +197,17 @@ class RoombaVacuum(RoombaEntity, StateVacuumEntity):
             ordered=ordered,
         )
 
-    async def async_create_cleaning_routine(self, name, regions, ordered=True):
+    async def async_create_cleaning_routine(self, name, regions, ordered=True, **appearance):
         return await self.account.async_create_cleaning_routine(
-            self.robot_id, name, self._region_selections(regions), ordered=ordered
+            self.robot_id, name, self._region_selections(regions), ordered=ordered, **appearance
         )
 
     async def async_update_cleaning_routine(
-        self, routine_id, name=None, regions=None, ordered=None
+        self, routine_id, name=None, regions=None, ordered=None, **appearance
     ):
         selections = self._region_selections(regions) if regions is not None else None
         return await self.account.async_update_cleaning_routine(
-            self.robot_id, routine_id, name, selections, ordered=ordered
+            self.robot_id, routine_id, name, selections, ordered=ordered, **appearance
         )
 
     async def async_remove_cleaning_routine(self, routine_id):

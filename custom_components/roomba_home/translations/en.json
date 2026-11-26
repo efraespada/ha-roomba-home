@@ -1175,6 +1175,14 @@
           "name": "Regions and preferences",
           "description": "Ordered list of regions from one current floor plan with optional cleaning settings."
         },
+        "icon": {
+          "name": "Icon",
+          "description": "Emoji or printable symbol shown for this routine."
+        },
+        "color": {
+          "name": "Color",
+          "description": "Six-digit hexadecimal background color, such as #CBCBFB."
+        },
         "ordered": {
           "name": "Use listed order",
           "description": "Defaults to the listed order. Clear it to let Roomba choose."
@@ -1183,7 +1191,7 @@
     },
     "update_cleaning_routine": {
       "name": "Update a cleaning routine",
-      "description": "Change its name or replace its selected regions and preferences.",
+      "description": "Update its name, appearance, or selected regions and preferences.",
       "fields": {
         "routine_id": {
           "name": "Routine",
@@ -1196,6 +1204,14 @@
         "regions": {
           "name": "Regions and preferences",
           "description": "Ordered list of regions from one current floor plan with optional cleaning settings."
+        },
+        "icon": {
+          "name": "Icon",
+          "description": "Emoji or printable symbol shown for this routine."
+        },
+        "color": {
+          "name": "Color",
+          "description": "Six-digit hexadecimal background color, such as #CBCBFB."
         },
         "ordered": {
           "name": "Use listed order",

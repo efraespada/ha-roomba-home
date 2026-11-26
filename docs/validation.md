@@ -1,5 +1,13 @@
 # Roomba Home validation
 
+## Version 0.65.0
+
+The release adds one-off area cleaning preferences, explicit selection of
+compatible remembered profiles, and routine icon and color editing. A
+Max 700 Combo accepted the reviewed one-off room settings and returned to
+its dock. Signed reads confirmed both remembered combined profiles and
+the appearance changes in removable trial routines.
+
 ## Version 0.64.0
 
 The release adds remembered area profiles, a maintenance panel with official
@@ -442,6 +450,41 @@ and 31 card tests. Hassfest and specification validation passed. The routine
 list, draft import, and start review rendered in isolated Chrome at 358 and
 900 pixels. Household installation and screenshots remain pending.
 
+## One-off area cleaning
+
+In Roomba Home on Android, the Max 700 Combo's room editor showed Normal
+with medium suction and liquid. Choosing Light and tapping the room
+editor's **Save** applied low suction and liquid to the current selection.
+A signed read after the change matched the original active revision,
+room defaults, and account favorites. Reopening the floor after restart
+showed Normal again.
+
+A repeat with verified HTTPS capture recorded three time-estimate calls
+and one analytics event while editing. Tapping **Save** produced zero
+requests to the observed Roomba hosts during the test window. The signed
+room defaults, map revision, and favorite inventory still matched the
+preflight values. These observations confirm that the edit applied to
+the current draft.
+
+In an isolated Home Assistant instance, the authenticated floor plan
+provided the single active room and its exact revision. The normal
+`run_cleaning_draft` service started a vacuum mission targeting that room. The robot
+returned to its dock without errors when Home Assistant requested it,
+with the original rooms, zones, restrictions, routines, and schedules
+preserved.
+
+An independent signed history read without the quick-cancellation filter
+matched the reviewed room, vacuum mode, suction level 1, and two passes
+on the requested map revision. The standard filtered history excluded
+the short canceled mission. The stored command confirmed the requested
+two-pass setting. The trial ended before a second pass.
+[Anonymized trial evidence](evidence/2026-11-26-one-off-area-cleaning.json)
+
+Chrome exercised the map selection, one-off preferences, start
+confirmation, and transfer to the named routine editor at 358 and 900
+pixels using redacted data. The suite passed 2,544 Python tests with 100%
+statement and branch coverage and 68 card tests.
+
 ## Remembered area cleaning preferences
 
 Roomba Home's release notes describe the Routine Builder remembering its
@@ -467,6 +510,19 @@ using the redacted live profile response. In the routine editor, it exposed
 both combined variants, applied the vacuum settings to the draft, and
 issued only the routine and schedule list actions. The suite passed 2,544
 Python tests with 100% statement and branch coverage and 65 card tests.
+
+A second trial selected both combined variants separately. The signed
+read-backed routines retained suction and liquid levels of 1 and 1 for
+the profile recorded under mode 6, and 3 and 2 for the profile recorded
+under mode 32. The temporary routines were removed, and the map, defaults,
+and original favorites matched their preflight values. The trial sent no
+movement command.
+
+At both viewport widths, the one-off editor copied each profile on
+request, kept its settings visible, and required a new review when a
+reported profile changed. Copying either profile left the draft unsaved.
+The updated suite passed 2,544 Python tests at 100% statement and branch
+coverage and 69 card tests.
 
 ## Routine draft estimates
 
@@ -525,9 +581,11 @@ The response matched the active floor revision.
 On the attic robot, Android saved a temporary favorite with **Smart**
 selected. That record contained concrete suction and liquid level 2 for
 its room. A signed read for the same floor revision recommended level 1
-for both. The captured favorite supplied concrete region parameters.
-The integration exposes the signed preferences in its recommendation
-preset. [iRobot Smart routine guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
+for both. A repeat captured the successful Android write itself and
+confirmed it already carried the level 2 regional parameters.
+The command contained no field identifying Smart. The integration's
+recommendation preset uses the signed room score preferences.
+[iRobot Smart routine guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
 
 The integration read the attic recommendations through its production
 coordinator and saved a temporary ordered routine with a furniture
@@ -538,6 +596,27 @@ Both temporary favorites were removed. The final signed reads matched
 the preflight favorites and floor revision.
 [Recommendation tests](../tests/test_routine_presets.py) ·
 [Draft tests](../tests/frontend/map-card.test.cjs)
+
+## Routine appearance
+
+The Android favorite editor offered seven colors and an emoji picker.
+On a Max 700 Combo, its edition 1 favorites request stored a smile emoji
+and `#CBCBFB`. Proxyman recorded HTTP 201, and an independent signed
+read confirmed both fields and the reviewed destination. The trial then
+removed the temporary routine.
+
+In isolated Home Assistant, **Create a cleaning routine** stored the same
+appearance. **Update a cleaning routine** changed it to a joined emoji
+with `#FDF4A9`. A signed read confirmed the new values with the same
+command, creation timestamp, and other routine metadata. The temporary
+routine was removed. A separate update confirmed that the color picker
+could store `#4466AA`, outside the seven presets. The original active routines and floor were
+preserved, and the trials sent zero movement commands.
+
+Chrome verified the icon preview, seven swatches, appearance-only update,
+and duplication on 358 and 900 pixel viewports. The suite passed 2,555
+Python tests with 100% statement and branch coverage and 70 card tests.
+[Anonymized trial evidence](evidence/2026-11-26-routine-appearance.json)
 
 ## Native single-area routines
 

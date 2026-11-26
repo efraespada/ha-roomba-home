@@ -1112,6 +1112,15 @@ parameters. A rename preserves unmodified provider fields. Replacing regions
 invalidates the former time estimates. A full collection read confirms changes.
 [Saved routines SDD](../specs/010-saved-cleaning-routines.md)
 
+Native favorites store the visible emoji in `icon` and the background in
+`color`. Create and update actions accept the fields independently, and the
+routine list returns valid recorded values. The integration accepts a
+printable Unicode icon, including joined emoji, and normalizes six-digit
+hexadecimal colors to uppercase. A signed appearance edit changes only
+the supplied style fields and preserves the original command and other
+provider metadata. The confirmation read must match the
+requested appearance. [Routine appearance validation](validation.md#routine-appearance)
+
 Native formats include an ordered `start` with `select_all: false` and a
 Normal or Replay tag, plus timestamped commands from `initiator: rmtApp`.
 Roomba sends the concrete settings in each region. A verified timed variant
@@ -1143,15 +1152,19 @@ zone only after its identifier and kind match the active signed map archive.
 It can refresh these preferences independently when the card already has the
 geometry. The response retains each recognized variant's mode code, validated
 settings, supported preset label, and update timestamp when one is supplied.
+Each profile's `can_apply` indicates whether its mode and settings are
+compatible with the robot's current capabilities.
 Retired room identifiers and temporary targets with no verified persistent
 destination stay out of the projection.
 
 For each compatible cleaning mode, the card can reuse the variant with the
 exact reported last mode code, the sole known variant, or the uniquely most
 recent dated variant. If multiple compatible variants remain ambiguous,
-the card shows them for inspection and leaves that mode's preset unavailable.
-Applying a preset copies settings into a draft. Saving the draft uses the
-existing routine or schedule action.
+the card leaves the automatic preset for that mode unavailable and lets
+the user pick a verified variant explicitly. The selection copies the
+typed settings into the draft and verifies the same profile is still
+current. The card displays the original wire mode alongside those settings.
+Saving uses the existing routine or schedule action.
 [Remembered settings validation](validation.md#remembered-area-cleaning-preferences)
 
 ### Saved routine estimates and cleaning defaults
@@ -1185,6 +1198,10 @@ preset. It applies the returned settings to eligible rooms in place
 while retaining each area's mode and order. It discards a response if
 the reviewed floor or draft changes during the read. Saving uses the
 existing ordered routine write with concrete settings.
+In the captured Android Smart favorite, the request itself carried concrete
+combined mode parameters and the server retained them. The selected Smart
+label was absent from the request. The signed score recommendation remained a
+separate source of settings.
 [Physical validation](validation.md#smart-routine-recommendations)
 
 ### Recent and suggested floor routines
@@ -1204,11 +1221,22 @@ records remain visible with unavailable draft settings. The clean-all
 suggestion loads current rooms in the editor. The spot suggestion opens
 the existing point picker on supported models.
 
-`roomba_home.run_cleaning_draft` accepts an ordered area list and an exact
-floor review. It resolves areas using the active archive and sends the
-usual reviewed cleaning command. The provider favorite inventory is
-independent of this start.
 [Quick routine validation](validation.md#recent-and-suggested-routines)
+
+### One-off area cleaning
+
+`roomba_home.run_cleaning_draft` accepts an area list and an exact floor
+review. The map card uses it both for **Customize cleaning** and for a
+loaded recent draft. The service resolves areas and validates settings
+against the active archive and capabilities, then dispatches the reviewed
+start command. The draft can use explicit listed order or supported
+automatic order. The start tests confirmed that the favorite inventory
+was preserved.
+**Save as routine** transfers the draft to the existing favorite editor
+and requires a separate save.
+[One-off cleaning validation](validation.md#one-off-area-cleaning)
+
+### Whole-area cleaning
 
 `roomba_home.clean_everywhere` uses the native untargeted `start` command
 with the current next-cleaning profile. It sends no map identifier,

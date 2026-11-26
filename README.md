@@ -78,13 +78,14 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   [Room cleaning scores](docs/usage.md#room-cleaning-scores)
 - **Routines and schedules.** List, create, edit, duplicate, and remove supported
   cleaning routines from the floor plan. Set the order and cleaning profile
-  for each room, zone, or supported furniture target. Let Roomba choose the
+  for each room, zone, or supported furniture target. Choose a routine's
+  icon and color when creating or editing it. Let Roomba choose the
   order for rooms and saved zones and see its saved duration estimate when
   available. Apply Light, Normal, or Deep to a single
   destination or the entire selection on the supported Max 700 Combo.
   Apply Roomba's **Smart recommendations** to each eligible room, or apply
-  them across an ordered draft. Inspect and reuse Roomba's remembered
-  settings for each area on the current map. Preview the duration before
+  them across an ordered draft. Inspect and reuse individual variants of
+  Roomba's remembered settings for each area. Preview the duration before
   saving. Edit supported routines created in Roomba Home. Load recent and
   suggested routines and run a reviewed draft. Use **Manage schedules** on the floor
   card to manage weekly and one-time cleanings, including the order, mode,
@@ -121,7 +122,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.64.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.65.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Enable Advanced Mode in your user
    profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
 3. Add a manual card with your robot's vacuum entity.
@@ -179,6 +180,10 @@ reload the dashboard. Use one card per robot.
 - **Show furniture** displays saved and detected objects. In **Edit
   furniture**, choose **Chair**, place its center, enter its width and
   depth, and check the rotation preview before saving.
+- **Customize cleaning** opens a one-off draft from **Review selection**.
+  Set each area's mode and preferences, check the order, then confirm the
+  start. **Save as routine** carries the same draft to the routine editor.
+  [One-off cleaning](docs/usage.md#customize-a-one-off-cleaning)
 - **Manage routines** opens the saved routines list. Select areas on the map
   before opening it to prefill a new routine. Add furniture, rooms, or zones,
   set their individual cleaning preferences, and arrange them in order.
@@ -304,8 +309,11 @@ data:
 ### Run a saved routine
 
 Choose **Manage routines** to save the ordered destinations and their profiles.
+Use **Appearance** to pick a color and enter an emoji for the saved routine.
 Open an area's remembered settings, then choose **Remembered by Roomba** under
 **Cleaning preset** to copy the compatible settings into the draft.
+To choose a specific variant, open **Roomba's remembered settings** and
+select **Use these settings** next to it.
 Use **List cleaning routines** to find the assigned routine ID.
 
 ```yaml

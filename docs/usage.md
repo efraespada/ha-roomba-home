@@ -293,6 +293,21 @@ asking the Max 700 Combo to dock. An already paused robot can return
 directly. If the robot starts returning while the pause is pending, Home
 Assistant observes the arrival. [Return validation](validation.md#return-during-active-cleaning)
 
+### Customize a one-off cleaning
+
+Select rooms or saved zones on the floor plan, then choose **Review
+selection → Customize cleaning**. The draft starts in the order you
+selected the areas. Add a supported destination or use the order buttons
+to move it. Choose each area's cleaning mode and settings or use an
+available preset. For example, vacuum the hall first and give the kitchen
+two mop passes. **Estimate draft** shows available room estimates.
+
+Choose **Start cleaning**, review the order, and select **Confirm start**.
+The card returns to the map after Roomba accepts the request. To keep the
+same settings for another day, choose **Save as routine**, enter a name,
+then choose **Save routine**. Closing the editor discards a one-off draft.
+[One-off cleaning validation](validation.md#one-off-area-cleaning)
+
 ### Clean everywhere
 
 Choose **Clean everywhere** on the floor plan card and confirm the robot.
@@ -875,6 +890,27 @@ The card shows the estimate saved by Roomba and its confidence when available.
 Saving changes and removing routines leave the robot idle. **Run saved
 routine** asks for confirmation and displays the saved order preference.
 
+Use **Appearance** when creating or editing a saved routine. Enter an
+emoji and choose a color from the seven Roomba Home presets or the color
+picker. The preview updates as you edit. An appearance-only save preserves
+the destinations, cleaning settings, and saved estimate. **Duplicate**
+copies the appearance along with the draft.
+
+To update an existing routine from an automation, use the ID from **List
+cleaning routines**.
+
+```yaml
+action: roomba_home.update_cleaning_routine
+target:
+  entity_id: vacuum.example_robot
+data:
+  routine_id: "0123456789abcdef0123456789abcdef"
+  icon: "🧹"
+  color: "#CBCBFB"
+```
+
+[Routine appearance validation](validation.md#routine-appearance)
+
 On a supported Max 700 Combo, use **Cleaning preset** to apply Light, Normal,
 or Deep to one destination. **Apply preset to all areas** applies the same
 preset to every destination, keeping each area's cleaning mode and the order
@@ -911,6 +947,12 @@ the card tries the area's last reported mode and uses the next-cleaning
 mode when Roomba supplied no last mode. For example, leave the entry hall's
 mode unset to reuse its last vacuum settings and explicitly choose **Mop**
 for the kitchen to reuse its saved mopping settings.
+
+Choose **Use these settings** next to an individual compatible profile to
+copy the variant you reviewed. On the verified Max 700 Combo, two
+combined profiles held suction and liquid levels of 1 and 1 or 3 and 2.
+An individual choice can change the area's mode and copies the settings
+Roomba reported. The other destinations keep their order and preferences.
 
 **Apply preset to all areas** keeps their order and applies each eligible
 area's own settings. Review and adjust the draft before saving. The same
