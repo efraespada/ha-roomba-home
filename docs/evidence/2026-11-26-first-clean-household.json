@@ -1,0 +1,15 @@
+{
+  "installed_version": "0.70.0",
+  "core_configuration_check_passed": true,
+  "core_restarted": true,
+  "published_module_matches_served_bytes": true,
+  "registered_dashboard_resource_version": "0.70.0",
+  "robot_count": 3,
+  "dock_count": 3,
+  "preparation_steps_visible": 4,
+  "unboxing_link_visible": true,
+  "screenshot_scope": "Installed help heading and expanded checklist",
+  "screenshot_width": 844,
+  "screenshot_height": 820,
+  "screenshot_sha256": "53bd01c803ff9eb5eaf01571cef145c2497efb52d3288ce14a5bfa94ae4dcfc5"
+}
