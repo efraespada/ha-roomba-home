@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.72.1
+
+- Keep an explicit live mission timeline request open through the MQTT
+  deadline, even after state and position replies have arrived. Preserve
+  the state replies when the timeline is unavailable.
+
 ## 0.72.0
 
 - Show the reported target size and area cleaned across confirmed passes
