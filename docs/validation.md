@@ -210,9 +210,20 @@ this model from its current map save and retrieval workflow.
 
 The inspected client SDK declares `revert_user_edits` for an identified
 map with an empty command parameter object. The declaration has no input
-for choosing a saved version. This investigation used read-only checks
-and left the active revision untouched. End-to-end reactivation of the
-original archived geometry remains open.
+for choosing a saved version.
+
+A signed Max 700 Combo trial created a separate floor through a mapping
+run. The active archive confirmed a saved zone and the floor settings
+confirmed a temporary name. One SDK-shaped request to revert user edits
+returned HTTP 500. The following reads kept the edited revision, zone,
+effective cleaning destination, and name. The initial geometry did not
+reappear during the observation window. This trial leaves complete
+archived-floor recovery open.
+
+The disposable floor was removed afterward. Independent reads confirmed
+the original floor revision and decoded layers, the original routines
+and schedules, and the robot docked.
+[Anonymized signed trial](evidence/2026-11-26-clearview-revert-trial.json)
 
 ### Archived bin emptying and faults
 

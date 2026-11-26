@@ -1,0 +1,31 @@
+{
+  "model": "Roomba Max 700 Combo (X185240)",
+  "scope": {
+    "owned_disposable_floor_generated_through_mapping": true,
+    "original_floor_archived_and_checked_before_writes": true,
+    "final_disposable_revision_rechecked_after_mapping": true,
+    "temporary_zone_verified_in_active_archive": true,
+    "temporary_floor_name_verified": true
+  },
+  "operation": {
+    "method": "POST",
+    "relative_path": "/v2/p2maps/{map_id}/versions",
+    "command": "revert_user_edits",
+    "command_parameters": {},
+    "response_type": "binary",
+    "attempts": 1,
+    "http_status": 500
+  },
+  "follow_up_reads": {
+    "edited_revision_preserved": true,
+    "temporary_zone_and_effective_destination_preserved": true,
+    "temporary_name_preserved": true,
+    "initial_geometry_restored": false
+  },
+  "restoration": {
+    "temporary_floor_removed": true,
+    "original_revision_and_decoded_geometry_preserved": true,
+    "original_routines_and_schedules_preserved": true,
+    "robot_docked": true
+  }
+}
