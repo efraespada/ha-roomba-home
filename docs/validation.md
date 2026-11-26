@@ -18,6 +18,15 @@ tests with 100% statement and branch coverage, 74 card tests, and
 the official hassfest integration checks.
 [Anonymized evidence](evidence/2026-11-26-first-clean-preparation.json)
 
+In the household Home Assistant, the installed 0.70.0 card matched the
+published module byte for byte. The authenticated view showed the three
+robots and their three dock devices. The dashboard resource was updated
+to 0.70.0. The R2-D2 card displayed the four steps and the unboxing link.
+The documentation capture isolates the rendered checklist and heading
+from the household dashboard.
+[Household evidence](evidence/2026-11-26-first-clean-household.json) ·
+[Component screenshot](screenshots/roomba-first-clean.png)
+
 ### Wi-Fi settings entry
 
 The Max 700 Combo's Android device settings opened the Wi-Fi settings page

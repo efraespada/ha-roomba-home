@@ -10,8 +10,8 @@ uses Roomba's own cloud services for device data and control.
 ## Quick start
 
 The verified model is **Roomba Max 700 Combo (X185240)**, linked to a Roomba Home
-account. The 0.69.1 household upgrade verified three robots, their three
-docks, and the Robot help manual and diagnostic lookup after a layout change.
+account. The 0.70.0 household upgrade verified three robots, their three
+docks, and the first-clean checklist in Robot help.
 [Capability matrix](docs/capabilities.md) · [Physical validation](docs/validation.md)
 
 1. In **HACS → Custom repositories**, add `efraespada/ha-roomba-home` as an
@@ -132,6 +132,8 @@ threshold. [Dock settings and automation example](docs/usage.md#dock-settings)
 ## Robot help
 
 ![Robot help panel isolated from the installed Home Assistant card with Charging error 101 selected](docs/screenshots/roomba-robot-help.png)
+
+![First-clean preparation checklist isolated from the installed Max 700 Combo help panel](docs/screenshots/roomba-first-clean.png)
 
 ## Floor plan dashboard
 
