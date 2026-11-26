@@ -11,7 +11,7 @@ uses Roomba's own cloud services for device data and control.
 
 The verified model is **Roomba Max 700 Combo (X185240)**, linked to a Roomba Home
 account. The household checks verified three robots and their docks, the
-first-clean checklist, and the archived dock timeline in 0.71.0.
+first-clean checklist, and the archived dock timeline and emptying counts.
 [Capability matrix](docs/capabilities.md) · [Physical validation](docs/validation.md)
 
 1. In **HACS → Custom repositories**, add `efraespada/ha-roomba-home` as an
@@ -80,7 +80,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   Browse recorded cleaning reports with the mission's own coverage, route,
   timeline, and 3D floor plan. Hide travel, cleaning paths, or coverage
   independently and see zones and restrictions saved in the archived map.
-  The timeline includes the end of the run and reported fault codes.
+  The timeline includes the end of the run and reported fault codes. **Recorded
+  bin emptyings** shows Roomba's count separately from the dock stage.
   Directed reports include the requested order and preferences, plus the
   reported outcome and recorded cleaning time for each destination.
   [Cleaning history](docs/usage.md#cleaning-history)
