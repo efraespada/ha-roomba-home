@@ -70,6 +70,7 @@ CAPTURE_BACKUP = {
 }
 HISTORY = {"id": 1, "type": "roomba_home/mission_history", "entity_id": ENTITY}
 MAINTENANCE = {"id": 1, "type": "roomba_home/maintenance", "entity_id": ENTITY}
+ROBOT_HELP = {"id": 1, "type": "roomba_home/robot_help", "entity_id": ENTITY}
 SCORES = {
     "id": 1,
     "type": "roomba_home/cleaning_scores",
@@ -266,6 +267,66 @@ async def test_maintenance_rejects_denied_missing_or_unrelated_entities(
     configured.data = {}
     await socket.send_json(MAINTENANCE | {"id": 4})
     assert (await socket.receive_json())["error"]["code"] == "maintenance_unavailable"
+
+
+@pytest.mark.parametrize("fresh", [True, False])
+async def test_robot_help_requires_read_access_and_is_independent_of_maps(
+    configured, hass_ws_client, hass_admin_user, fresh
+):
+    configured.show_maps = False
+    configured.last_update_success = fresh
+    robot = replace(configured.data["fixture-0"], connected=True, error=101)
+    configured.data["fixture-0"] = robot
+    article = {
+        "family": "charging_error",
+        "code": 101,
+        "url": "https://prod-help-content.care.irobotapi.com/web/es/10601.html",
+    }
+    report = {
+        "manual_url": None,
+        "support_url": "https://answers.irobot.com/appanswers",
+        "device_guides": {},
+        "articles": [article],
+    }
+    configured.client.robot_help = AsyncMock(return_value=report)
+    socket = await hass_ws_client()
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda entity, policy: entity == ENTITY and policy == POLICY_READ,
+    ):
+        await socket.send_json(ROBOT_HELP)
+        result = (await socket.receive_json())["result"]
+    assert result == {
+        "robot": robot.name,
+        **report,
+        "current_articles": [article] if fresh else [],
+    }
+    configured.client.robot_help.assert_awaited_once_with(
+        robot.sku, configured.hass.config.language
+    )
+    configured.client.map_geometry.assert_not_awaited()
+
+
+async def test_robot_help_rejects_denied_or_unrelated_entities_and_masks_errors(
+    hass, configured, hass_ws_client, hass_admin_user
+):
+    configured.client.robot_help = AsyncMock(side_effect=ApiError(503))
+    socket = await hass_ws_client()
+    with patch.object(type(hass_admin_user.permissions), "check_entity", return_value=False):
+        await socket.send_json(ROBOT_HELP)
+        assert (await socket.receive_json())["error"]["code"] == "unauthorized"
+    await socket.send_json(ROBOT_HELP | {"id": 2, "entity_id": "vacuum.other"})
+    assert (await socket.receive_json())["error"]["code"] == "robot_help_unavailable"
+    with patch.dict(hass.data, {DATA_COMPONENT: None}):
+        await socket.send_json(ROBOT_HELP | {"id": 3})
+        assert (await socket.receive_json())["error"]["code"] == "robot_help_unavailable"
+    configured.client.robot_help.assert_not_awaited()
+    await socket.send_json(ROBOT_HELP | {"id": 4})
+    assert (await socket.receive_json())["error"] == {
+        "code": "robot_help_unavailable",
+        "message": "Could not read Roomba robot help",
+    }
 
 
 async def test_remembered_preferences_follow_verified_destinations_and_refresh_without_geometry(

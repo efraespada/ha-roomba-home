@@ -36,8 +36,8 @@ fleeting region. The SDK distinguishes command codes, regions and basic capabili
 to know an enum doesn't prove availability in all models.
 
 The Android device review confirmed the following Max 700 Combo surfaces.
-The comparison uses actual values only where a signed Roomba API read
-established their meaning.
+The comparison uses signed robot data and the manufacturer's public
+model catalogs where applicable.
 
 | Android surface | Integration status |
 |---|---|
@@ -48,7 +48,7 @@ established their meaning.
 | Change Wi-Fi | App entry point observed; setup protocol and recovery require verification |
 | Factory reset and remove robot | App entry point observed; account removal, device reset, and recovery require verification |
 | Part SKUs and replacement or care links | Validated model catalog projected on existing sensors and in the maintenance view |
-| General user guide and robot help | Android opened the Spanish manual and a separate setup walkthrough. The [public help catalog](../docs/roadmap.md#robot-guide-and-problem-help) supplies the matching manual and error articles. Home Assistant controls are pending. |
+| General user guide and robot help | The card and an action expose the verified manual, setup links and diagnostic code lookup. Android also has an [illustrated setup walkthrough](../docs/roadmap.md#android-setup-walkthrough). |
 
 [Android device settings comparison](../docs/validation.md#android-device-settings-comparison)
 
@@ -99,6 +99,11 @@ becoming an indiscriminately false or zero.
   Preserve the existing area number, unit conversion, and raw code sensor.
   Verify changes through the same signed settings shadow and require a
   connected robot with no active mission and a recognized emptying dock.
+- CAP-21: Offer the owner’s manual, verified help links and provider code
+  lookup by model, interface language and country. Separate provider error
+  families and link only documented current faults. Authorize card reads
+  using the selected vacuum's read permissions and keep help usable when
+  maps are disabled.
 
 No endpoints, maps and empty states are invented with HA entities or capabilities. No
 physical errors are induced and no maps, accounts or data beyond the test have been
@@ -401,6 +406,11 @@ with API operations.
     unknown value. Restore the 25 m² preset. Confirm each signed frequency
     and both entities' states, preserve their device association, and
     verify that an unknown native scheme or missing dock blocks writes.
+21. Open Robot help for the selected vacuum and confirm the owner's manual
+    matches Android's regional PDF. Look up one article from each
+    diagnostic family. Validate overlapping codes, repeated entries,
+    rejected links, stale robot state, and denied access. Compare the
+    card response and action return with maps disabled.
 
 ## 17. Requirements traceability
 
@@ -425,6 +435,7 @@ with API operations.
 | CAP-18 | Schedule editor and typed Home Assistant actions | [Schedule API](../docs/api.md#cloud-schedule-frequency-and-ownership), [action tests](../tests/ha/test_schedules.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed trial](../docs/validation.md#schedule-editor-and-per-area-settings) |
 | CAP-19 | Maintenance view and part sensor attributes | [Catalog parser tests](../tests/test_maintenance.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [catalog validation](../docs/validation.md#maintenance-catalog-and-links) |
 | CAP-20 | Dock emptying selector and existing area number | [Native values](../docs/api.md#automatic-dock-emptying), [entity tests](../tests/ha/test_cleaning_controls.py), [write confirmation tests](../tests/ha/test_coordinator.py), and [signed trial](../docs/validation.md#automatic-dock-emptying-frequency) |
+| CAP-21 | Robot help panel and read action | [Catalog and article validation](../docs/validation.md#robot-help-catalog), [protocol tests](../tests/test_help_catalog.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [panel tests](../tests/frontend/map-card.test.cjs) |
 
 CAP-09 includes floor plans, room labels, position, heading, trajectory,
 coverage, and estimates supported by Roomba. Enable the map option to expose

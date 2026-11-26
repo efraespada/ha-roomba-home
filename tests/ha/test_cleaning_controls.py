@@ -283,6 +283,58 @@ async def test_software_status_preserves_unknown_and_failed_states(loaded, cause
         catalog.assert_not_awaited()
 
 
+async def test_robot_help_is_a_response_only_action_that_never_commands_the_robot(hass, loaded):
+    robot = loaded.data["fixture-0"]
+    catalog = {
+        "manual_url": "https://prod-help-content.care.irobotapi.com/files/example.pdf",
+        "support_url": "https://answers.irobot.com/appanswers",
+        "device_guides": {},
+        "articles": [],
+    }
+
+    async def read_while_entity_changes(*args):
+        del loaded.data["fixture-0"]
+        return catalog
+
+    loaded.client.robot_help = AsyncMock(side_effect=read_while_entity_changes)
+    loaded.async_command = AsyncMock()
+    result = await hass.services.async_call(
+        DOMAIN,
+        "get_robot_help",
+        {"entity_id": "vacuum.robot_0"},
+        blocking=True,
+        return_response=True,
+    )
+    assert result["vacuum.robot_0"] == {"robot": robot.name, **catalog, "current_articles": []}
+    loaded.client.robot_help.assert_awaited_once_with(robot.sku, hass.config.language)
+    loaded.async_command.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("condition", "expected"),
+    [
+        ("closed", "not_configured"),
+        ("unselected", "not_configured"),
+        ("no_state", "robot_help_unavailable"),
+    ],
+)
+async def test_robot_help_requires_an_associated_model_before_requesting_catalog(
+    loaded, condition, expected
+):
+    robot_id = "fixture-0"
+    loaded.client.robot_help = AsyncMock()
+    if condition == "closed":
+        loaded._closed = True
+    elif condition == "unselected":
+        robot_id = "unassociated"
+    else:
+        del loaded.data[robot_id]
+    with pytest.raises(HomeAssistantError) as error:
+        await loaded.async_get_robot_help(robot_id)
+    assert error.value.translation_key == expected
+    loaded.client.robot_help.assert_not_awaited()
+
+
 async def test_voice_catalog_action_lists_installed_and_downloadable_voice_codes(
     hass, entry, loaded
 ):

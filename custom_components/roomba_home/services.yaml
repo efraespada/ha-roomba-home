@@ -24,6 +24,11 @@ get_software_status:
     entity:
       integration: roomba_home
       domain: vacuum
+get_robot_help:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
 start_mapping:
   target:
     entity:

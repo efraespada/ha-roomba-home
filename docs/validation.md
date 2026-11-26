@@ -18,6 +18,24 @@ routine** and back. Independent signed reads confirmed both writes while
 the robot stayed docked with error code 0.
 [Selector crop from the installed Home Assistant](screenshots/roomba-dock-auto-empty.png)
 
+## Robot help catalog
+
+Android opened the 36-page Spanish manual for the Max 700 Combo. The
+public catalog returned the same PDF and 87 diagnostic entries. Four
+duplicate entries resolved to identical URLs. The integration returned
+49 distinct error codes, 16 charging error codes, 18 start refusals,
+and six setup and control links. The English catalogs selected the
+British edition for Spain and the US edition for the United States.
+[Android and catalog discovery](evidence/2026-11-26-robot-help-discovery.json)
+
+An authenticated Home Assistant instance associated with the authorized
+robot exercised both the card WebSocket command and the action with maps
+disabled. Their results matched. The PDF and article selections for
+error 48, charging error 101, and start refusal 1 returned HTTP 200.
+The docked robot reported error 0 and Home Assistant displayed no
+current error links.
+[Home Assistant and Roomba evidence](evidence/2026-11-26-robot-help-home-assistant.json)
+
 ## Automatic dock emptying frequency
 
 On the Max 700 Combo, Android switched from 25 m² to **After each routine**

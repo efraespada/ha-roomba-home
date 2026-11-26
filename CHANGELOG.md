@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.69.0
+
+- Open the owner’s manual and setup guides from Robot help. Browse
+  Roomba's separate error, charging error, and start-refusal catalogs.
+- Link confirmed current robot and dock codes to their support articles.
+  Automations can read the same catalog with `roomba_home.get_robot_help`.
+
 ## 0.68.0
 
 - Choose automatic dock emptying after each routine, every 25 m², or

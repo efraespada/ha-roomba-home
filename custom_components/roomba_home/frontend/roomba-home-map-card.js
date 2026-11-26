@@ -44,6 +44,19 @@ const MAINTENANCE_UNITS = {
   minutes: "min", missions: "missions", combo_missions: "combo missions",
   evacs: "emptying cycles", pad_washes_used: "wash cycles", sqft: "m²",
 };
+const HELP_ARTICLE_LABELS = {
+  error: "Error",
+  charging_error: "Charging error",
+  start_refusal: "Start refusal",
+};
+const HELP_GUIDE_LABELS = {
+  wifi_setup: "Wi-Fi setup",
+  wifi_reconnect: "Reconnect Wi-Fi",
+  mac_address: "Find the MAC address",
+  child_lock: "Child and pet lock",
+  reboot: "Reboot the robot",
+  serial_number: "Find the serial number",
+};
 const PROGRAM_RECOVERY_STATUS = {
   missing_program: "Program deleted",
   unsupported_selection: "Current selection cannot be edited",
@@ -101,12 +114,16 @@ template.innerHTML = `
     #routine-dialog { width:min(34rem, calc(100vw - 3rem)); max-width:none; }
     #mission-history-dialog { width:min(55rem, calc(100vw - 3rem)); max-width:none; }
     #cleaning-scores-dialog { width:min(36rem, calc(100vw - 3rem)); max-width:none; }
-    #maintenance-dialog { width:min(28rem, calc(100vw - 3rem)); max-width:none; }
+    #maintenance-dialog, #robot-help-dialog { width:min(28rem, calc(100vw - 3rem)); max-width:none; }
     #maintenance-parts { list-style:none; padding:0; margin:12px 0; }
     #maintenance-parts li { padding:10px 0; border-top:1px solid var(--divider-color,#647382); }
     #maintenance-parts p { margin:4px 0; }
     #maintenance-parts a { color:var(--link-text-color,#8ae0d5); display:inline-block; margin-inline-end:12px; }
     #maintenance-status:empty { display:none; }
+    #robot-help-dialog li { margin-block:6px; }
+    #robot-help-dialog a { color:var(--link-text-color,#8ae0d5); }
+    #help-lookup { display:grid; gap:8px; }
+    #help-status:empty { display:none; }
     #scores-rooms section { border-top:1px solid var(--divider-color,#647382); margin:12px 0; padding-top:10px; }
     #mission-history-dialog select { max-width:100%; }
     #history-map { background:#101e2a; cursor:grab; touch-action:none; }
@@ -161,6 +178,7 @@ template.innerHTML = `
       <select id="maps" aria-label="Floor plan" hidden></select>
       <button id="open-mission-history">Cleaning history</button>
       <button id="open-maintenance">Maintenance</button>
+      <button id="open-robot-help">Robot help</button>
     </header>
     <div id="scene" class="scene">
       <canvas width="${WIDTH}" height="${HEIGHT}" tabindex="0"
@@ -378,6 +396,21 @@ template.innerHTML = `
       <p id="maintenance-status" class="muted" role="status"></p>
       <ul id="maintenance-parts"></ul>
       <div class="actions"><button id="close-maintenance">Close</button></div>
+    </dialog>
+    <dialog id="robot-help-dialog" aria-labelledby="robot-help-title">
+      <h3 id="robot-help-title">Robot help</h3>
+      <p id="help-status" class="muted" role="status"></p>
+      <ul id="help-guides" hidden></ul>
+      <section id="help-current" aria-labelledby="help-current-title" hidden>
+        <h4 id="help-current-title">Current errors</h4>
+        <ul id="help-current-articles"></ul>
+      </section>
+      <div id="help-lookup" hidden>
+        <label for="help-code">Look up an error code</label>
+        <select id="help-code"></select>
+        <div id="help-article" aria-live="polite"></div>
+      </div>
+      <div class="actions"><button id="close-robot-help">Close</button></div>
     </dialog>
     <dialog id="mission-history-dialog" aria-labelledby="mission-history-title">
       <h3 id="mission-history-title">Recent cleaning reports</h3>
@@ -634,6 +667,15 @@ function openPath([start, ...points], xy) {
 
 function option(value, label) {
   return new Option(label, value);
+}
+
+function externalLink(label, url) {
+  const link = document.createElement("a");
+  link.textContent = label;
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  return link;
 }
 
 function mapBounds(points) {
@@ -973,6 +1015,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.sequence = 0;
     this.scoreSequence = 0;
     this.maintenanceSequence = 0;
+    this.helpSequence = 0;
     this.$("maps").onchange = (event) => {
       this.closeLiveSubscription();
       this.removalDraft = null;
@@ -1000,6 +1043,8 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("open-mission-history").onclick = () => this.openMissionHistory();
     this.$("open-maintenance").onclick = () => this.openMaintenance();
     this.$("close-maintenance").onclick = () => this.$("maintenance-dialog").close();
+    this.$("open-robot-help").onclick = () => this.openRobotHelp();
+    this.$("close-robot-help").onclick = () => this.$("robot-help-dialog").close();
     this.$("open-cleaning-scores").onclick = () => this.openCleaningScores();
     this.$("close-cleaning-scores").onclick = () => this.$("cleaning-scores-dialog").close();
     this.$("close-mission-history").onclick = () => this.$("mission-history-dialog").close();
@@ -1279,6 +1324,7 @@ class RoombaHomeMapCard extends HTMLElement {
     if (this.routineDialog.open) this.routineDialog.close();
     if (this.$("mission-history-dialog").open) this.$("mission-history-dialog").close();
     if (this.$("maintenance-dialog").open) this.$("maintenance-dialog").close();
+    if (this.$("robot-help-dialog").open) this.$("robot-help-dialog").close();
     if (this.$("map-backups-dialog").open) this.$("map-backups-dialog").close();
     if (this.$("cleaning-scores-dialog").open) this.$("cleaning-scores-dialog").close();
     if (this.$("mapping-dialog").open) this.$("mapping-dialog").close();
@@ -1728,11 +1774,7 @@ class RoombaHomeMapCard extends HTMLElement {
           ["iRobot shop", part.replacement_url], ["Maintenance guide", part.maintenance_guide_url],
         ]) {
           if (!url) continue;
-          const link = document.createElement("a");
-          link.href = url;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.textContent = label;
+          const link = externalLink(label, url);
           link.setAttribute("aria-label", `${label} for ${name.textContent.toLowerCase()}`);
           row.append(link);
         }
@@ -1743,6 +1785,69 @@ class RoombaHomeMapCard extends HTMLElement {
         : "Roomba has no maintenance details for this robot.";
     } catch (error) {
       if (current()) status.textContent = error?.message || "Maintenance is unavailable.";
+    }
+  }
+
+  async openRobotHelp() {
+    if (!this.config || !this._hass) return;
+    const { entity } = this.config;
+    const dialog = this.$("robot-help-dialog");
+    if (dialog.open) return;
+    const sequence = ++this.helpSequence;
+    const current = () => dialog.open && sequence === this.helpSequence && entity === this.config.entity;
+    const title = this.$("robot-help-title");
+    const status = this.$("help-status");
+    const guides = this.$("help-guides");
+    const errors = this.$("help-current");
+    const lookup = this.$("help-lookup");
+    title.textContent = "Robot help";
+    status.textContent = "Loading robot help…";
+    guides.hidden = errors.hidden = lookup.hidden = true;
+    dialog.showModal();
+    try {
+      const report = await this._hass.callWS({ type: "roomba_home/robot_help", entity_id: entity });
+      if (!current()) return;
+      title.textContent = report.robot ? `${report.robot} help` : "Robot help";
+      const links = [
+        ["Owner’s manual", report.manual_url],
+        ["iRobot support", report.support_url],
+        ...Object.entries(HELP_GUIDE_LABELS).map(([key, label]) => [label, report.device_guides[key]]),
+      ].filter(([, url]) => url);
+      const linkRow = (label, url) => {
+        const row = document.createElement("li");
+        row.append(externalLink(label, url));
+        return row;
+      };
+      guides.replaceChildren(...links.map(([label, url]) => linkRow(label, url)));
+      guides.hidden = !links.length;
+      const label = ({ family, code }) => `${HELP_ARTICLE_LABELS[family]} ${code}`;
+      this.$("help-current-articles").replaceChildren(
+        ...report.current_articles.map((article) => linkRow(label(article), article.url)),
+      );
+      errors.hidden = !report.current_articles.length;
+      const picker = this.$("help-code");
+      const selected = this.$("help-article");
+      const key = ({ family, code }) => `${family}:${code}`;
+      const byCode = new Map(report.articles.map((article) => [key(article), article]));
+      picker.replaceChildren(option("", "Choose a code"));
+      for (const [family, name] of Object.entries(HELP_ARTICLE_LABELS)) {
+        const items = report.articles.filter((article) => article.family === family);
+        if (!items.length) continue;
+        const group = document.createElement("optgroup");
+        group.label = name;
+        group.append(...items.map((article) => option(key(article), label(article))));
+        picker.append(group);
+      }
+      picker.value = "";
+      selected.replaceChildren();
+      picker.onchange = () => {
+        const article = byCode.get(picker.value);
+        selected.replaceChildren(...(article ? [externalLink(label(article), article.url)] : []));
+      };
+      lookup.hidden = !report.articles.length;
+      status.textContent = links.length || report.articles.length ? "" : "Roomba has no help articles for this model.";
+    } catch (error) {
+      if (current()) status.textContent = error?.message || "Robot help is unavailable.";
     }
   }
 

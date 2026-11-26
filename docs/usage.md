@@ -769,6 +769,29 @@ actions:
       option: three_hours
 ```
 
+## Robot help
+
+Choose **Robot help** on the card to open the owner’s manual, iRobot support
+and setup guides. **Current errors** appears when a fresh robot or dock
+code has a matching article. Use **Look up an error code** to browse the
+catalog by error, charging error or start refusal, then open the article.
+The lookup works with maps disabled and while the configured robot is
+offline. The displayed guides follow your Home Assistant language and
+the Roomba account country.
+
+```yaml
+action: roomba_home.get_robot_help
+target:
+  entity_id: vacuum.example_robot
+response_variable: robot_help
+```
+
+Replace the example entity ID with the one from your device. Read the
+report at `robot_help['vacuum.example_robot']`. Each article contains
+`family`, `code` and `url`. Use `current_articles` in an automation to
+include a matching provider article with a robot problem notification.
+[Provider contract](api.md#robot-help-catalog)
+
 ## Maintenance and replacement parts
 
 Choose **Maintenance** on the dashboard card to see Roomba's usage percentage
