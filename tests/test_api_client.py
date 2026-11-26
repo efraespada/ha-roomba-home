@@ -304,6 +304,32 @@ async def test_firmware_status_uses_a_public_model_query_and_returns_only_versio
 
 
 @pytest.mark.parametrize(
+    ("language", "country", "locale"),
+    [("es-ES", "es", "es-ES"), ("en", "US", "en-US"), ("invalid", "ES", "en-ES")],
+)
+async def test_robot_help_uses_only_model_language_market_and_month(language, country, locale):
+    http = FakeHttp([HttpResponse(200, {"otherContent": []})])
+    assert (await client(http, country=country).robot_help("X185240", language))["articles"] == []
+    assert http.calls == [
+        (
+            "GET",
+            f"https://content-prod.iot.irobotapi.com/v2/help/{locale}/{country.upper()}"
+            f"/X185240?track={NOW:%Y.%m}",
+            None,
+            None,
+        )
+    ]
+
+
+@pytest.mark.parametrize("sku", [None, "../X185240", "X185240?fixture"])
+async def test_robot_help_does_not_request_an_invalid_model(sku):
+    http = FakeHttp([])
+    with pytest.raises(ProtocolError, match="model identifier"):
+        await client(http).robot_help(sku, "es")
+    assert http.calls == []
+
+
+@pytest.mark.parametrize(
     "document",
     [
         None,

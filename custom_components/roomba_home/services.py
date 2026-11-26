@@ -80,6 +80,15 @@ def async_setup_services(hass):
     service.async_register_platform_entity_service(
         hass,
         DOMAIN,
+        "get_robot_help",
+        entity_domain=VACUUM_DOMAIN,
+        schema=None,
+        func="async_get_robot_help",
+        supports_response=SupportsResponse.ONLY,
+    )
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
         "start_mapping",
         entity_domain=VACUUM_DOMAIN,
         schema={vol.Required("confirmed"): vol.All(bool, vol.In([True]))},

@@ -68,6 +68,7 @@ from .core.furniture_edits import (
     prepare_furniture_restore,
 )
 from .core.furniture_targets import furniture_regions
+from .core.help_catalog import current_help_articles
 from .core.history import (
     ended_mission_start,
     history_includes_mission,
@@ -111,6 +112,7 @@ from .core.point_maps import (
     with_archive_destinations,
 )
 from .core.preferences import profile_preferences, restore_profile
+from .core.problems import observations
 from .core.restriction_edits import (
     confirm_restriction_edit,
     prepare_restriction_edit,
@@ -2138,6 +2140,26 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             "dock_version": dock,
             "status": "catalog_candidates" if candidates else "up_to_date",
             "catalog_versions": list(candidates),
+        }
+
+    async def async_get_robot_help(self, robot_id):
+        if self._closed or robot_id not in self.selected:
+            raise action_error("not_configured", "Robot is not configured")
+        state = (self.data or {}).get(robot_id)
+        if state is None:
+            raise action_error("robot_help_unavailable", "Robot help is unavailable")
+        try:
+            catalog = await self.client.robot_help(state.sku, self.hass.config.language)
+        except ClientError, OSError, RoombaError:
+            raise action_error(
+                "robot_help_unavailable", "Could not read Roomba robot help"
+            ) from None
+        latest = (self.data or {}).get(robot_id)
+        problems = observations(latest) if latest is not None and self.last_update_success else {}
+        return {
+            "robot": state.name,
+            **catalog,
+            "current_articles": current_help_articles(catalog["articles"], problems),
         }
 
     async def async_list_voice_languages(self, robot_id):

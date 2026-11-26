@@ -29,6 +29,7 @@ from .errors import (
     ScheduleUpdateUnconfirmed,
 )
 from .floor_settings import FloorSettingsEdit
+from .help_catalog import project_help_catalog
 from .history import MissionReport, history_metrics, mission_reports
 from .live_route import RawRouteReference
 from .map_programs import program_selection
@@ -65,6 +66,7 @@ from .voice_catalog import VoicePack, catalog_voice_languages, catalog_voice_pac
 DISCOVERY_URL = "https://disc-prod.iot.irobotapi.com/v1/discover/endpoints"
 VOICE_CATALOG_URL = "https://content-prod.iot.irobotapi.com/v2/app/langpacks"
 FIRMWARE_CATALOG_URL = "https://content-prod.iot.irobotapi.com/v2/firmware"
+HELP_CATALOG_URL = "https://content-prod.iot.irobotapi.com/v2/help"
 
 
 class MapEdit(Protocol):
@@ -290,6 +292,22 @@ class RoombaClient:
 
     async def voice_catalog(self, sku: str) -> tuple[str, ...]:
         return catalog_voice_languages(await self._voice_catalog(sku), sku)
+
+    async def robot_help(self, sku: str, language: str) -> dict:
+        """Fetch reference articles by model and locale without authenticating."""
+        if not isinstance(sku, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", sku):
+            raise ProtocolError("Expected a Roomba model identifier.")
+        code = language.lower().split("-", 1)[0]
+        if not re.fullmatch(r"[a-z]{2,3}", code):
+            code = "en"
+        country = self.country
+        track = self.clock().strftime("%Y.%m")
+        response = await self.http.request(
+            "GET",
+            f"{HELP_CATALOG_URL}/{code}-{country}/{country}/{sku}?track={track}",
+        )
+        check_status(response)
+        return project_help_catalog(response.data)
 
     async def firmware_candidates(
         self, sku: str, installed: str, dock_version: str | None

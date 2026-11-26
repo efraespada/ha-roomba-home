@@ -87,6 +87,9 @@ class RoombaVacuum(RoombaEntity, StateVacuumEntity):
     async def async_get_software_status(self):
         return await self.account.async_get_software_status(self.robot_id)
 
+    async def async_get_robot_help(self):
+        return await self.account.async_get_robot_help(self.robot_id)
+
     async def async_list_voice_languages(self):
         return await self.account.async_list_voice_languages(self.robot_id)
 
