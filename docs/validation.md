@@ -181,6 +181,11 @@ Both events reported dock state 301 and error code zero. Android displayed
 bin emptying before the end of the matching 6.50 m² report. The active
 automatic emptying setting at the time of either mission is unknown.
 
+A follow-up signed read identified three further reports with the same
+evacuation state and error in the timeline and an evacuation count of zero.
+Two reports were canceled and one completed. The card labels this event
+as a stage and displays the reported count independently.
+
 The Home Assistant history command returned both evacuations, the matching
 end of each report, and separately recorded robot error codes 48 and 654
 in an authenticated session linked to the Max 700 Combo. The robot stayed

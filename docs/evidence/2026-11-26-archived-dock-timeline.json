@@ -18,6 +18,12 @@
       "dock_error_code": 0
     }
   ],
+  "further_reports_with_evacuation_stage_and_zero_count": {
+    "completed": 1,
+    "canceled": 2,
+    "dock_state_code": 301,
+    "dock_error_code": 0
+  },
   "android_displayed_evacuation_before_finish": true,
   "automatic_emptying_setting_then": null,
   "authenticated_home_assistant_history_verified": true,
