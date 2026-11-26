@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Open one-off cleaning preferences from the map selection. Set the order
+  and profile for each area, then start cleaning or save the draft as a
+  named routine.
+
 ## 0.64.0
 
 - Inspect Roomba's remembered cleaning settings by area and reuse them in

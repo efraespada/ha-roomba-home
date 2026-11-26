@@ -442,6 +442,36 @@ and 31 card tests. Hassfest and specification validation passed. The routine
 list, draft import, and start review rendered in isolated Chrome at 358 and
 900 pixels. Household installation and screenshots remain pending.
 
+## One-off area cleaning
+
+In Roomba Home on Android, the Max 700 Combo's room editor showed Normal
+with medium suction and liquid. Choosing Light and tapping the room
+editor's **Save** applied low suction and liquid to the current selection.
+A signed read after the change matched the original active revision,
+room defaults, and account favorites. The emulator's Proxyman route
+failed to load the app after restart. Disabling the route restored access,
+and opening the floor after restart showed Normal again. The signed
+comparison confirms that the settings remained in the current draft.
+
+In an isolated Home Assistant instance, the authenticated floor plan
+provided the single active room and its exact revision. The normal
+`run_cleaning_draft` service started a vacuum mission targeting that room. The robot
+returned to its dock without errors when Home Assistant requested it,
+with the original rooms, zones, restrictions, routines, and schedules
+preserved.
+
+An independent signed history read without the quick-cancellation filter
+matched the reviewed room, vacuum mode, suction level 1, and two passes
+on the requested map revision. The standard filtered history excluded
+the short canceled mission. The stored command confirmed the requested
+two-pass setting. The trial ended before a second pass.
+[Anonymized trial evidence](evidence/2026-11-26-one-off-area-cleaning.json)
+
+Chrome exercised the map selection, one-off preferences, start
+confirmation, and transfer to the named routine editor at 358 and 900
+pixels using redacted data. The suite passed 2,544 Python tests with 100%
+statement and branch coverage and 68 card tests.
+
 ## Remembered area cleaning preferences
 
 Roomba Home's release notes describe the Routine Builder remembering its

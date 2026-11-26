@@ -179,6 +179,10 @@ reload the dashboard. Use one card per robot.
 - **Show furniture** displays saved and detected objects. In **Edit
   furniture**, choose **Chair**, place its center, enter its width and
   depth, and check the rotation preview before saving.
+- **Customize cleaning** opens a one-off draft from **Review selection**.
+  Set each area's mode and preferences, check the order, then confirm the
+  start. **Save as routine** carries the same draft to the routine editor.
+  [One-off cleaning](docs/usage.md#customize-a-one-off-cleaning)
 - **Manage routines** opens the saved routines list. Select areas on the map
   before opening it to prefill a new routine. Add furniture, rooms, or zones,
   set their individual cleaning preferences, and arrange them in order.

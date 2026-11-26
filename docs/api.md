@@ -1204,11 +1204,22 @@ records remain visible with unavailable draft settings. The clean-all
 suggestion loads current rooms in the editor. The spot suggestion opens
 the existing point picker on supported models.
 
-`roomba_home.run_cleaning_draft` accepts an ordered area list and an exact
-floor review. It resolves areas using the active archive and sends the
-usual reviewed cleaning command. The provider favorite inventory is
-independent of this start.
 [Quick routine validation](validation.md#recent-and-suggested-routines)
+
+### One-off area cleaning
+
+`roomba_home.run_cleaning_draft` accepts an area list and an exact floor
+review. The map card uses it both for **Customize cleaning** and for a
+loaded recent draft. The service resolves areas and validates settings
+against the active archive and capabilities, then dispatches the reviewed
+start command. The draft can use explicit listed order or supported
+automatic order. The start tests confirmed that the favorite inventory
+was preserved.
+**Save as routine** transfers the draft to the existing favorite editor
+and requires a separate save.
+[One-off cleaning validation](validation.md#one-off-area-cleaning)
+
+### Whole-area cleaning
 
 `roomba_home.clean_everywhere` uses the native untargeted `start` command
 with the current next-cleaning profile. It sends no map identifier,

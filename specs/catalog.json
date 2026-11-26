@@ -402,7 +402,7 @@
       "id": "saved-cleaning-routines",
       "title": "Saved Cleaning Routines",
       "status": "implemented",
-      "scope": "Editing and launching supported one-robot routines with per-target preferences, remembered settings, furniture destinations, and draft estimates",
+      "scope": "Editing and launching supported one-robot routines and one-off cleanings with per-area profiles, order, remembered settings, and draft estimates",
       "owner": "ha-roomba-home maintainer",
       "lastVerified": "2026-11-26",
       "specs": [
@@ -448,7 +448,8 @@
         "docs/evidence/2026-11-25-fixed-routine-presets.json",
         "docs/evidence/2026-11-25-routine-draft-estimates.json",
         "docs/evidence/2026-11-25-quick-routines.json",
-        "docs/evidence/2026-11-26-remembered-area-preferences.json"
+        "docs/evidence/2026-11-26-remembered-area-preferences.json",
+        "docs/evidence/2026-11-26-one-off-area-cleaning.json"
       ]
     }
   ]

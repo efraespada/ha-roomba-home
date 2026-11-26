@@ -293,6 +293,21 @@ asking the Max 700 Combo to dock. An already paused robot can return
 directly. If the robot starts returning while the pause is pending, Home
 Assistant observes the arrival. [Return validation](validation.md#return-during-active-cleaning)
 
+### Customize a one-off cleaning
+
+Select rooms or saved zones on the floor plan, then choose **Review
+selection → Customize cleaning**. The draft starts in the order you
+selected the areas. Add a supported destination or use the order buttons
+to move it. Choose each area's cleaning mode and settings or use an
+available preset. For example, vacuum the hall first and give the kitchen
+two mop passes. **Estimate draft** shows available room estimates.
+
+Choose **Start cleaning**, review the order, and select **Confirm start**.
+The card returns to the map after Roomba accepts the request. To keep the
+same settings for another day, choose **Save as routine**, enter a name,
+then choose **Save routine**. Closing the editor discards a one-off draft.
+[One-off cleaning validation](validation.md#one-off-area-cleaning)
+
 ### Clean everywhere
 
 Choose **Clean everywhere** on the floor plan card and confirm the robot.

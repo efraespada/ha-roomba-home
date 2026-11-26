@@ -399,7 +399,11 @@ template.innerHTML = `
     </dialog>
     <dialog id="confirm-dialog" aria-labelledby="confirm-title">
       <h3 id="confirm-title">Start cleaning?</h3><p id="confirm-text"></p>
-      <div class="actions"><button id="cancel">Cancel</button><button id="start" class="primary">Start cleaning</button></div>
+      <div class="actions">
+        <button id="cancel">Cancel</button>
+        <button id="customize-cleaning" hidden>Customize cleaning</button>
+        <button id="start" class="primary">Start cleaning</button>
+      </div>
     </dialog>
     <dialog id="map-backups-dialog" aria-labelledby="map-backups-title">
       <h3 id="map-backups-title">Map backups</h3>
@@ -496,13 +500,13 @@ template.innerHTML = `
     <dialog id="routine-dialog" aria-labelledby="routine-title">
       <h3 id="routine-title">Cleaning routines</h3>
       <form id="routine-form">
-        <label><span id="routine-list-label">Routine</span> <select id="routine-list"></select></label>
+        <label id="routine-picker"><span id="routine-list-label">Routine</span> <select id="routine-list"></select></label>
         <div id="quick-routine-fields">
           <button id="load-quick-routines" type="button">Recent and suggested routines</button>
           <p id="quick-routines-status" class="muted" role="status" hidden></p>
           <ul id="quick-routines" aria-label="Recent and suggested routines" hidden></ul>
         </div>
-        <label>Name <input id="routine-name" required maxlength="120" autocomplete="off"></label>
+        <label id="routine-name-label">Name <input id="routine-name" required maxlength="120" autocomplete="off"></label>
         <div id="schedule-fields" hidden>
           <label>Repeat <select id="schedule-frequency"><option value="weekly">Weekly</option><option value="once">Once</option></select></label>
           <label>Start time <input id="schedule-time" type="time"></label>
@@ -529,6 +533,7 @@ template.innerHTML = `
           <button id="copy-routine" type="button">Duplicate</button>
           <button id="use-routine-in-schedule" type="button" hidden>Use in schedule</button>
           <button id="remove-routine" type="button">Delete</button>
+          <button id="save-cleaning-as-routine" type="button" hidden>Save as routine</button>
           <button id="run-routine" type="button">Run saved routine</button>
           <button id="toggle-schedule" type="button" hidden>Enable</button>
           <button id="close-routines" type="button">Close</button>
@@ -959,6 +964,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.draw();
     };
     this.$("review").onclick = () => this.review();
+    this.$("customize-cleaning").onclick = () => this.customizeCleaning();
     this.$("cancel").onclick = () => this.dialog.close();
     this.$("start").onclick = () => this.submit();
     this.$("review-mapping").onclick = () => this.reviewMapping();
@@ -1002,7 +1008,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("point-cleaning-mode").onchange = (event) => this.setPointCleaningMode(event.target.value);
     this.$("place-point").onclick = () => this.placePoint();
     this.$("manage-routines").onclick = () => this.openRoutines();
-    this.$("manage-schedules").onclick = () => this.openRoutines(true);
+    this.$("manage-schedules").onclick = () => this.openRoutines({ schedule: true });
     this.$("clean-everywhere").onclick = () => this.reviewCleanEverywhere();
     this.$("open-map-backups").onclick = () => this.openMapBackups();
     this.$("close-map-backups").onclick = () => this.$("map-backups-dialog").close();
@@ -1178,6 +1184,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("estimate-routine").onclick = () => this.estimateRoutine();
     this.$("remove-routine").onclick = () => this.removeRoutine();
     this.$("run-routine").onclick = () => this.runRoutine();
+    this.$("save-cleaning-as-routine").onclick = () => this.saveCleaningAsRoutine();
     this.$("toggle-schedule").onclick = () => this.toggleSchedule();
     this.$("close-routines").onclick = () => this.routineDialog.close();
     this.$("routine-form").onsubmit = (event) => {
@@ -3227,7 +3234,26 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("confirm-text").textContent = point
       ? `${data.robot} will ${MODES[this.pointCleaningMode].toLowerCase()} around the marked point in ${point.name}.`
       : `${data.robot} will clean ${names.join(", ")}.`;
+    this.$("customize-cleaning").hidden = Boolean(point || !data.cleaning);
     this.dialog.showModal();
+  }
+
+  cleaningReviewIsCurrent(choice) {
+    const map = this.snapshot?.map;
+    return Boolean(map && choice.id === map.id && choice.version === map.version &&
+      choice.selectionId === (this.geometry?.selection_id ?? this.snapshot.inventory_id));
+  }
+
+  async customizeCleaning() {
+    const choice = this.confirmation;
+    if (!this.dialog.open || this.routineDialog.open || this.routineBusy || this.submitting ||
+        !this.snapshot?.cleaning || !choice?.regions?.length || choice.point ||
+        !this.cleaningReviewIsCurrent(choice)) return;
+    this.confirmation = null;
+    this.dialog.close();
+    await this.openRoutines({
+      selection: true, initialDraft: { regions: choice.regions.map((id) => ({ id })) },
+    });
   }
 
   reviewCleanEverywhere() {
@@ -3236,6 +3262,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.confirmation = { everywhere: true, entity: this.config.entity };
     this.$("confirm-text").textContent =
       `${this.snapshot.robot} will clean every reachable area using its next-cleaning preferences.`;
+    this.$("customize-cleaning").hidden = true;
     this.dialog.showModal();
   }
 
@@ -3245,8 +3272,7 @@ class RoombaHomeMapCard extends HTMLElement {
     if (choice.everywhere) {
       if (!this.dialog.open || !this.snapshot.can_clean_everywhere || choice.entity !== this.config.entity) return;
     } else if ((choice.point && (!this.pointAvailable || !this.pointModes.includes(choice.mode))) ||
-        choice.id !== this.snapshot.map?.id || choice.version !== this.snapshot.map?.version ||
-        choice.selectionId !== (this.geometry?.selection_id ?? this.snapshot.inventory_id)) return;
+        !this.cleaningReviewIsCurrent(choice)) return;
     this.submitting = true;
     this.confirmation = null;
     this.dialog.close();
@@ -3332,7 +3358,7 @@ class RoombaHomeMapCard extends HTMLElement {
     status.hidden = !messages.length;
   }
 
-  async openRoutines(scheduleEditor = false, initialDraft) {
+  async openRoutines({ schedule = false, selection = false, initialDraft } = {}) {
     if (!this.snapshot || !this.geometry || this.routineBusy ||
         this.routineDialog.open && !initialDraft) return;
     const entity = this.config.entity;
@@ -3340,18 +3366,20 @@ class RoombaHomeMapCard extends HTMLElement {
       ...this.snapshot.map,
       selectionId: this.geometry.selection_id ?? this.snapshot.inventory_id,
     };
-    this.scheduleEditor = scheduleEditor;
-    const furniture = scheduleEditor ? [] : this.geometry.furniture?.destinations ?? [];
+    this.scheduleEditor = schedule;
+    this.cleaningEditor = selection;
+    const furniture = schedule ? [] : this.geometry.furniture?.destinations ?? [];
     const areas = [...this.geometry.regions, ...furniture];
     this.routineAreas = new Map(areas.filter((area) => area.id)
       .map((area) => [area.id, area.name]));
     this.routines = [];
     this.quickRoutines = null;
-    this.routineBusy = true;
+    this.routineBusy = !selection;
     this.editRoutine("", initialDraft);
-    const kind = scheduleEditor ? "schedules" : "routines";
-    this.$("routine-status").textContent = `Loading ${kind}…`;
     if (!this.routineDialog.open) this.routineDialog.showModal();
+    if (selection) return;
+    const kind = schedule ? "schedules" : "routines";
+    this.$("routine-status").textContent = `Loading ${kind}…`;
     try {
       const result = await this.callAction(`list_cleaning_${kind}`, {}, entity);
       if (this.config.entity === entity) this.routines = result[kind];
@@ -3374,7 +3402,7 @@ class RoombaHomeMapCard extends HTMLElement {
       name: saved?.name ?? initialDraft?.name ?? "",
       regions: saved ? (canReplace ? settings.map((region) => ({ ...region })) : null)
         : initialDraft?.regions ?? [...selected].map((id) => ({ id })),
-      ordered: saved?.ordered !== false,
+      ordered: (saved ?? initialDraft)?.ordered !== false,
     };
     if (this.scheduleEditor) Object.assign(this.routineDraft, {
       frequency: saved?.frequency ?? "weekly", weekdays: [...(saved?.weekdays ?? [])], time: saved?.time ?? "",
@@ -3388,9 +3416,12 @@ class RoombaHomeMapCard extends HTMLElement {
     const busy = this.routineBusy;
     const locked = busy || saved?.editable === false;
     const schedule = Boolean(this.scheduleEditor);
-    this.$("routine-title").textContent = schedule ? "Cleaning schedules" : "Cleaning routines";
+    const selection = Boolean(this.cleaningEditor);
+    this.$("routine-title").textContent = selection ? "Cleaning preferences"
+      : schedule ? "Cleaning schedules" : "Cleaning routines";
+    this.$("routine-picker").hidden = selection;
     this.$("routine-list-label").textContent = schedule ? "Schedule" : "Routine";
-    this.$("quick-routine-fields").hidden = schedule;
+    this.$("quick-routine-fields").hidden = schedule || selection;
     const source = this.$("routine-list");
     source.replaceChildren(option("", schedule ? "New schedule" : "New routine"), ...this.routines
       .map((routine) => option(routine.id, schedule
@@ -3400,8 +3431,9 @@ class RoombaHomeMapCard extends HTMLElement {
     source.disabled = busy;
     const input = this.$("routine-name");
     input.value = name;
-    input.disabled = locked;
-    input.required = !schedule || !saved;
+    input.disabled = locked || selection;
+    input.required = !selection && (!schedule || !saved);
+    this.$("routine-name-label").hidden = selection;
     this.renderScheduleTiming(locked);
     const estimate = this.$("routine-estimate");
     const minutes = saved?.estimate?.duration_minutes;
@@ -3427,22 +3459,29 @@ class RoombaHomeMapCard extends HTMLElement {
     add.replaceChildren(option("", "Choose an area"), ...remaining.map(([id, label]) => option(id, label)));
     this.$("add-routine-region-label").hidden = regions === null || locked || regions.length >= 32;
     add.disabled = !remaining.length;
+    this.$("copy-routine").hidden = selection;
     this.$("copy-routine").disabled = busy || !saved || !regions?.length;
     this.$("use-routine-in-schedule").hidden = !this.canUseRoutineInSchedule();
     const deleteButton = this.$("remove-routine");
+    deleteButton.hidden = selection;
     deleteButton.textContent = "Delete";
     deleteButton.disabled = locked || !saved;
     const runButton = this.$("run-routine");
     runButton.hidden = schedule;
-    runButton.textContent = saved ? "Run saved routine" : "Run draft";
+    runButton.className = selection ? "primary" : "";
+    runButton.textContent = this.routineRunLabel(saved);
     runButton.disabled = busy || !regions?.length || Boolean(saved && !saved.region_settings?.length);
     const toggle = this.$("toggle-schedule");
     toggle.hidden = !schedule || !saved;
     toggle.disabled = locked;
     toggle.textContent = saved?.enabled ? "Disable schedule" : "Enable schedule";
     const save = this.$("save-routine");
+    save.hidden = selection;
     save.textContent = schedule ? "Save schedule" : "Save routine";
-    save.disabled = locked || (!saved && !regions?.length);
+    save.disabled = selection || locked || (!saved && !regions?.length);
+    const saveAs = this.$("save-cleaning-as-routine");
+    saveAs.hidden = !selection;
+    saveAs.disabled = locked || !regions?.length || !this.routineFloorIsCurrent();
     this.renderRoutineEstimate();
     this.renderQuickRoutines();
   }
@@ -3851,7 +3890,9 @@ class RoombaHomeMapCard extends HTMLElement {
   async useRoutineInSchedule() {
     if (!this.routineDialog.open || !this.canUseRoutineInSchedule()) return;
     const { name, regions } = this.routineDraft;
-    await this.openRoutines(true, { name, regions: regions.map((region) => ({ ...region })) });
+    await this.openRoutines({
+      schedule: true, initialDraft: { name, regions: regions.map((region) => ({ ...region })) },
+    });
     if (this.routineDialog.open && this.scheduleEditor) this.$("schedule-frequency").focus();
   }
 
@@ -3865,7 +3906,7 @@ class RoombaHomeMapCard extends HTMLElement {
   async saveRoutine() {
     const { saved, name, regions } = this.routineDraft;
     const ordered = this.routineDraft.ordered !== false;
-    if (this.routineBusy || saved?.editable === false || !name.trim()) return;
+    if (this.cleaningEditor || this.routineBusy || saved?.editable === false || !name.trim()) return;
     const data = { name: name.trim() };
     if (!saved || (regions && (JSON.stringify(regions) !== JSON.stringify(saved.region_settings) ||
         ordered !== (saved.ordered !== false)))) {
@@ -3941,6 +3982,19 @@ class RoombaHomeMapCard extends HTMLElement {
     } else await this.mutateRoutine("remove_cleaning_routine", { routine_id: saved.id });
   }
 
+  async saveCleaningAsRoutine() {
+    const { regions, ordered } = this.routineDraft;
+    if (!this.routineDialog.open || !this.cleaningEditor || this.routineBusy ||
+        !regions?.length || !this.routineFloorIsCurrent()) return;
+    await this.openRoutines({ initialDraft: { regions: regions.map((region) => ({ ...region })), ordered } });
+    if (this.routineDialog.open && !this.cleaningEditor) this.$("routine-name").focus();
+  }
+
+  routineRunLabel(saved) {
+    if (this.cleaningEditor) return "Start cleaning";
+    return saved ? "Run saved routine" : "Run draft";
+  }
+
   async runRoutine() {
     const { saved } = this.routineDraft;
     const regions = saved?.region_settings ?? this.routineDraft.regions;
@@ -3949,8 +4003,8 @@ class RoombaHomeMapCard extends HTMLElement {
     const status = this.$("routine-status");
     if (button.disabled || this.routineBusy || !regions?.length) return;
     if (!this.routineFloorIsCurrent()) {
-      button.textContent = saved ? "Run saved routine" : "Run draft";
-      status.textContent = "Reopen routines to review the current floor plan.";
+      button.textContent = this.routineRunLabel(saved);
+      status.textContent = "Reopen the editor to review the current floor plan.";
       return;
     }
     const draftReview = saved ? null : JSON.stringify([regions, ordered]);
@@ -3959,8 +4013,9 @@ class RoombaHomeMapCard extends HTMLElement {
       this.routineRunReview = draftReview;
       const order = regions.map(({ id }) => this.routineAreas.get(id));
       const label = saved?.name ?? (this.routineDraft.name || "draft");
-      status.textContent = ordered ? `Start ${label}: ${order.join(" → ")}?` :
-        `Start ${label} in ${order.join(", ")}? Roomba will choose the order.`;
+      const start = this.cleaningEditor ? "Start cleaning" : `Start ${label}`;
+      status.textContent = ordered ? `${start}: ${order.join(" → ")}?` :
+        `${start} in ${order.join(", ")}? Roomba will choose the order.`;
       return;
     }
     const { id, version, selectionId } = this.routineMap ?? {};
@@ -3968,13 +4023,23 @@ class RoombaHomeMapCard extends HTMLElement {
     const data = saved ? { routine_id: saved.id }
       : { regions, floor: { map_id: id, version, inventory_id: selectionId } };
     if (!saved && !ordered) data.ordered = false;
+    const entity = this.config.entity;
     this.routineRunReview = null;
     this.routineBusy = true;
     this.renderRoutine();
     status.textContent = "Waiting for Roomba to start…";
     try {
-      await this._hass.callService("roomba_home", service, data, { entity_id: this.config.entity });
-      status.textContent = "Routine request accepted. Check the robot state.";
+      await this._hass.callService("roomba_home", service, data, { entity_id: entity });
+      const accepted = "Cleaning request accepted. Check the robot state.";
+      status.textContent = accepted;
+      if (this.cleaningEditor && this.config.entity === entity) {
+        if (this.routineDialog.open) this.routineDialog.close();
+        this.selected.clear();
+        this.operationMessage = accepted;
+        this.$("status").textContent = accepted;
+        this.updateSelection();
+        this.draw();
+      }
     } catch (error) {
       status.textContent = error?.message || "Roomba did not confirm the start.";
     } finally {

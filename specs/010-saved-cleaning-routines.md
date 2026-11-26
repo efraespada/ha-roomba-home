@@ -84,6 +84,9 @@ calendar trigger and may carry an independent copy of a routine.
   schedule draft, preserving the sequence and each destination's settings.
 - ROUTINE-15: Inspect Roomba's remembered settings for current rooms and
   saved zones and copy a compatible mode profile into an ordered draft.
+- ROUTINE-16: Open one-off cleaning preferences from a reviewed map selection.
+  Preserve destination order and settings through start confirmation or
+  copy them into a new named routine.
 - Saving, updating, and removing a routine leave the robot's movement state alone.
 - The supported edition 1 favorites each address one robot. Multi-robot
   favorite commands require separate protocol evidence.
@@ -214,6 +217,15 @@ the current archive. Offer the clean-all and point suggestions from the
 provider. Start a draft after confirmation and revalidate its map review and
 profiles through the usual command path.
 
+Offer **Customize cleaning** for a current reviewed area selection.
+Initialize an unsaved draft in selection order and reuse the typed per-area
+controls, presets, and estimate. Editing the draft uses no favorite write.
+Recheck the active floor, area inventory, and exact settings at start
+confirmation. Dispatch through `roomba_home.run_cleaning_draft` and return
+to the map after acceptance. **Save as routine** copies the areas and order
+preference into the routine editor. A named save from that editor creates
+the favorite through the existing action.
+
 ## 11. Security, permissions, and privacy
 
 Require Home Assistant entity permissions and validate the selected robot's
@@ -283,6 +295,11 @@ saved routines and scheduled cleaning independently identifiable.
     supported robot, save one reviewed profile to a temporary routine, check
     it on a signed read-back, remove the routine, and confirm the original
     favorites and floor.
+14. Open one-off cleaning from a map selection and change two destination
+    profiles. Confirm the submitted profile and order, including a changed
+    setting after the first confirmation. Reject a stale map. Independently
+    open **Save as routine**, preserve the order choice, and confirm that
+    only a named save creates a favorite.
 
 ## 17. Requirements traceability
 
@@ -302,6 +319,7 @@ saved routines and scheduled cleaning independently identifiable.
 | ROUTINE-13 | [Native favorite formats](../docs/api.md#saved-cleaning-routines) | [Parser tests](../tests/test_api_client.py), [Home Assistant actions](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed favorite trial](../docs/validation.md#native-multi-area-favorites) |
 | ROUTINE-14 | [Schedule editor](../docs/usage.md#cleaning-schedules) | [Card tests](../tests/frontend/map-card.test.cjs) and [signed copy trial](../docs/validation.md#copying-a-routine-into-a-schedule) |
 | ROUTINE-15 | [Remembered profiles](../custom_components/roomba_home/core/area_preferences.py) | [Parser tests](../tests/test_area_preferences.py), [floor projection tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed routine trial](../docs/validation.md#remembered-area-cleaning-preferences) |
+| ROUTINE-16 | [Floor plan card](../custom_components/roomba_home/frontend/roomba-home-map-card.js) and [reviewed start](../custom_components/roomba_home/vacuum.py) | [Card tests](../tests/frontend/map-card.test.cjs) and [one-off trial](../docs/validation.md#one-off-area-cleaning) |
 
 ## 18. Implementation sequence
 
