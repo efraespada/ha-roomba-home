@@ -2458,6 +2458,21 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         async with self._routine_transaction(robot_id):
             return await self.client.remove_cleaning_routine(robot_id, routine_id)
 
+    async def async_reorder_cleaning_routine(
+        self, robot_id, routine_id, anchor_id, position, expected_order
+    ):
+        async with self._routine_transaction(robot_id):
+            try:
+                routines = await self.client.reorder_cleaning_routine(
+                    robot_id, routine_id, anchor_id, position, expected_order=expected_order
+                )
+            except ProgramSelectionChanged:
+                raise action_error(
+                    "routine_order_changed",
+                    "The routine order changed. Reopen the list and try again.",
+                ) from None
+            return {"routines": routines}
+
     async def _profiled_map_target(
         self, robot_id, state, selections, reviewed_map=None, *, include_furniture=True
     ):

@@ -364,6 +364,30 @@ remove_cleaning_routine:
       required: true
       selector:
         text:
+reorder_cleaning_routine:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    routine_id:
+      required: true
+      selector:
+        text:
+    anchor_id:
+      required: true
+      selector:
+        text:
+    position:
+      required: true
+      selector:
+        select:
+          options:
+            - before
+            - after
+    expected_order:
+      selector:
+        object:
 run_cleaning_routine:
   target:
     entity:

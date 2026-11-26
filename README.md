@@ -94,8 +94,9 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   [Room cleaning scores](docs/usage.md#room-cleaning-scores)
 - **Routines and schedules.** List, create, edit, duplicate, and remove supported
   cleaning routines from the floor plan. Set the order and cleaning profile
-  for each room, zone, or supported furniture target. Choose a routine's
-  icon and color when creating or editing it. Let Roomba choose the
+  for each room, zone, or supported furniture target. Use **Move earlier**
+  and **Move later** to order the saved list. Set a routine's icon and color
+  when creating or editing it. Let Roomba choose the
   order for rooms and saved zones and see its saved duration estimate when
   available. Apply Light, Normal, or Deep to a single
   destination or the entire selection on the supported Max 700 Combo.
@@ -164,7 +165,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.72.2` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.73.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)

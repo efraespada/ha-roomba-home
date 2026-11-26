@@ -881,6 +881,9 @@
     "routine_not_editable": {
       "message": "Select an editable routine belonging to this robot and valid settings."
     },
+    "routine_order_changed": {
+      "message": "The routine order changed. Reopen the list and try again."
+    },
     "routine_rate_limited": {
       "message": "Roomba Home is limiting requests. Wait before checking routines again."
     },
@@ -1245,6 +1248,28 @@
         "routine_id": {
           "name": "Routine",
           "description": "Identifier returned by List cleaning routines."
+        }
+      }
+    },
+    "reorder_cleaning_routine": {
+      "name": "Reorder a cleaning routine",
+      "description": "Move a saved routine before or after another routine for the same robot.",
+      "fields": {
+        "routine_id": {
+          "name": "Routine",
+          "description": "Saved routine to move."
+        },
+        "anchor_id": {
+          "name": "Reference routine",
+          "description": "Saved routine to move next to."
+        },
+        "position": {
+          "name": "Position",
+          "description": "Place the routine before or after the reference routine."
+        },
+        "expected_order": {
+          "name": "Reviewed order",
+          "description": "Optional list of routine identifiers in their displayed order."
         }
       }
     },
