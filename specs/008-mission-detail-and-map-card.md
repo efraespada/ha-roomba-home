@@ -68,6 +68,10 @@ trajectory contains observed positions and retains sequence gaps.
 ## 4. Goals, non-goals, and fixed invariants
 
 - MAP-01: Expose room, zone, and furniture outcomes, pass counts, and provider area fields from mission history.
+  For a saved zone correlated to the mission command, expose its target
+  size and the sum of reported area across confirmed passes in square
+  metres alongside the raw fields. Count each pass index once and preserve
+  unknown area when a confirmed pass has no valid measurement.
 - MAP-02: Improve continuity of the observed path and correlate live timeline reads with the current mission.
 - MAP-03: Physically verify sequential cleaning, a saved-zone run, and recharge with automatic resume.
 - MAP-04: Provide zoom, room and zone selection, keep-out overlays, and explicit confirmation in a standard dashboard card.
@@ -399,7 +403,7 @@ features, physical results, and open scenarios.
 
 | Requirement | Related specification | Validation |
 |---|---|---|
-| MAP-01 | [Telemetry](005-telemetry-and-problems.md) | [History parser tests](../tests/test_history.py) and [telemetry](../docs/telemetry.md) |
+| MAP-01 | [Telemetry](005-telemetry-and-problems.md) | [History parser tests](../tests/test_history.py), [card tests](../tests/frontend/map-card.test.cjs), [signed zone area comparison](../docs/validation.md#saved-zone-area-measurements), and [telemetry](../docs/telemetry.md) |
 | MAP-02 | [Capabilities](007-device-capabilities.md) | [Transport tests](../tests/test_mqtt.py), [route correlation tests](../tests/test_live_route.py), [late join evidence](../docs/validation.md#live-route-recovery), and [active timeline evidence](../docs/validation.md#mission-detail-and-dashboard-validation) |
 | MAP-03 | [Profiles](006-cleaning-profiles.md) and [capabilities](007-device-capabilities.md) | [Household validation](../docs/validation.md#mission-detail-and-dashboard-validation) |
 | MAP-04 | [Home Assistant](003-home-assistant.md) | [Authenticated endpoint and command-scope tests](../tests/ha/test_roomba_map_api.py) and [card screenshots](../README.md#floor-plan-dashboard) |

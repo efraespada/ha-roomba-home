@@ -442,12 +442,17 @@ def test_zone_history_uses_the_mission_target_with_its_requested_map_revision():
     assert summary["last_mission_zone_results"][1] == results[1]
 
 
-@pytest.mark.parametrize(("final_status", "confirmed"), [(0, 2), (5, 1)])
-def test_saved_zone_counts_completed_events_across_correlated_revisions(final_status, confirmed):
+@pytest.mark.parametrize(
+    ("final_status", "final_area", "confirmed", "cleaned_area"),
+    [(0, 67, 2, 12.45), (5, -36, 1, 6.22), (0, None, 2, None), (0, 0, 2, 6.22)],
+)
+def test_saved_zone_measures_completed_passes_across_correlated_revisions(
+    final_status, final_area, confirmed, cleaned_area
+):
     from custom_components.roomba_home.core.history import present_zones, zone_results
     from custom_components.roomba_home.core.mission_plan import mission_plan, present_mission_plan
 
-    def event(timestamp, status, passes, map_id="floor"):
+    def event(timestamp, status, passes, map_id="floor", total=None):
         return {
             "type": "zone",
             "ts": timestamp,
@@ -457,6 +462,8 @@ def test_saved_zone_counts_completed_events_across_correlated_revisions(final_st
                 "zid": "100",
                 "passCount": passes,
                 "status": status,
+                "area": 106,
+                "totalArea": total,
             },
         }
 
@@ -466,14 +473,19 @@ def test_saved_zone_counts_completed_events_across_correlated_revisions(final_st
         "user_p2mapv_id": "reviewed",
         "regions": [{"type": "zid", "region_id": "100", "params": {"twoPass": True}}],
     }
-    first = event(10, 1, 0)
-    second = event(20, final_status, 1)
-    duplication = event(11, 1, 0)
-    unrelated = event(15, 0, 2, map_id="foreign")
+    first = event(10, 1, 0, total=65)
+    second = event(20, final_status, 1, total=final_area)
+    duplication = event(11, 1, 0, total=67)
+    older_duplicate = event(9, 1, 0, total=62)
+    unrelated = event(15, 0, 2, map_id="foreign", total=99)
     draft = mission_plan(command)
-    finished = zone_results([second, unrelated, first, duplication], command)
+    finished = zone_results([second, unrelated, first, duplication, older_duplicate], command)
     zone = present_zones(finished, ())[1]
     assert zone["pass_count"] == 1 and zone["confirmed_completed_passes"] == confirmed
+    assert zone["target_area_m2"] == 9.85
+    assert zone.get("completed_passes_area_m2") == cleaned_area
+    assert ("completed_passes_area_m2" in zone) == (cleaned_area is not None)
+    assert "target_area_m2" not in present_zones(finished, ())[0]
     history = present_mission_plan(draft, finished, (), None, (), archived=True)
     assert history["destinations"][0]["confirmed_completed_passes"] == confirmed
     assert history["destinations"][0]["reported_pass_count"] == 1

@@ -1,0 +1,41 @@
+{
+  "model": "Roomba Max 700 Combo (X185240)",
+  "signed_history_sample": {
+    "missions": 38,
+    "missions_with_area_events": 32,
+    "room_events_with_area_and_total_area": 15,
+    "zone_events_with_area_and_total_area": 31,
+    "events_with_explicit_coverage_or_pass_area": 0
+  },
+  "archived_revision_comparisons": [
+    {
+      "geometry_m2": 9.922,
+      "target_area_sqft": 106,
+      "completed_passes_sqft": [67, 66],
+      "mission_cleaned_sqft": 133
+    },
+    {
+      "geometry_m2": 9.922,
+      "target_area_sqft": 106,
+      "completed_passes_sqft": [67, 67],
+      "mission_cleaned_sqft": 134
+    },
+    {
+      "geometry_m2": 2.56,
+      "target_area_sqft": 27,
+      "completed_passes_sqft": [35, 35],
+      "mission_cleaned_sqft": 70
+    },
+    {
+      "geometry_m2": 0.722,
+      "target_area_sqft": 7,
+      "completed_passes_sqft": [9],
+      "mission_cleaned_sqft": 9
+    }
+  ],
+  "canceled_pass": {
+    "target_area_sqft": 27,
+    "prior_completed_pass_sqft": 36,
+    "canceled_pass_total_area": -36
+  }
+}
