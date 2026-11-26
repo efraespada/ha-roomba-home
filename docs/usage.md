@@ -266,6 +266,10 @@ global wetness at 2 and SmartScrub enabled. [Mopping evidence](evidence/2026-11-
 In another trial, the robot reported two passes enabled after a directed
 run that requested it. Use the default switch to set that value explicitly
 when the robot is idle. [Two-pass trial](validation.md#requested-settings-and-reported-passes)
+The Max 700 Combo also reported its routine's suction level as the robot
+default after starting a saved zone. Use the default suction control while
+the robot is idle to set a different level for later runs.
+[Saved-zone trial](validation.md#saved-routine-dock-frequency-comparison)
 
 For directed **Vacuum then mop**, choose the mode and confirm the selected
 areas on the floor plan, or call `vacuum.clean_area` with linked areas. Set

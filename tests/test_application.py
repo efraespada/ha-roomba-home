@@ -367,10 +367,21 @@ async def test_return_observes_arrival_if_the_robot_starts_docking_on_its_own(in
     assert port.statuses == ["pending", "confirmed"]
 
 
+async def test_return_recovers_a_missing_read_before_confirming_the_same_pause():
+    unknown = replace(RETURN_RUNNING, connected=None, mission_identity=None)
+    port = Port(RETURN_RUNNING, unknown, RETURN_PAUSED, BASE)
+    await execute_control(port, Command.DOCK, CleaningProfile())
+    assert port.sent == [(Command.PAUSE, None), (Command.DOCK, None)]
+    assert port.statuses == ["pending", "confirmed"]
+    assert port.now == 15
+
+
 @pytest.mark.parametrize(
     "intermediate",
     [
         RETURN_RUNNING,
+        replace(RETURN_RUNNING, connected=None),
+        replace(RETURN_RUNNING, connected=None, refresh_failed=True),
         replace(RETURN_PAUSED, connected=False),
         replace(RETURN_PAUSED, mission_identity=None),
         replace(RETURN_PAUSED, mission_identity=(11, MISSION_IDENTITY[1])),
@@ -673,6 +684,25 @@ async def test_disconnected_post_command_read_stops_confirmation_early():
     with pytest.raises(ControlError):
         await execute_control(port, Command.VACUUM, CleaningProfile())
     assert port.now == 5 and len(port.sent) == 1
+
+
+async def test_start_confirms_after_a_missing_read_without_publishing_again():
+    profile = CleaningProfile()
+    port = Port(BASE, replace(RUNNING, connected=None), RUNNING)
+    await execute_control(port, Command.VACUUM, profile)
+    assert port.sent == [(Command.VACUUM, profile)]
+    assert port.statuses == ["pending", "confirmed"]
+    assert port.now == 10
+
+
+async def test_missing_reads_do_not_extend_the_start_confirmation_deadline():
+    profile = CleaningProfile()
+    port = Port(BASE, replace(RUNNING, connected=None))
+    with pytest.raises(ControlError, match="command_unconfirmed"):
+        await execute_control(port, Command.VACUUM, profile)
+    assert port.sent == [(Command.VACUUM, profile)]
+    assert port.statuses == ["pending", "unconfirmed"]
+    assert port.now == 40
 
 
 async def test_unloaded_port_does_not_continue_polling():

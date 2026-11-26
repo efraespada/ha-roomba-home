@@ -180,6 +180,10 @@ After the robot docked, the temporary routine and floor were removed. The
 original floor revision, decoded map layers, routines, and schedules
 matched the preflight snapshot. Independent settings reads reported the
 original dock frequency of 25 m².
+
+The Home Assistant recorder showed the reported default suction changing
+from 1 to 2 when the first routine started. After the trials a signed
+settings write and read restored level 1 without starting a new mission.
 [Anonymized trial and restoration evidence](evidence/2026-11-26-saved-routine-dock-frequency.json)
 
 ### ClearView archive recovery

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.71.2
+
+- Keep confirming a sent command when a successful refresh temporarily
+  omits the robot's connection state. Use the existing deadline and send
+  the command only once.
+
 ## 0.71.1
 
 - Distinguish the recorded bin emptying count from the dock stage in
