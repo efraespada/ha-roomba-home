@@ -57,6 +57,12 @@ const HELP_GUIDE_LABELS = {
   reboot: "Reboot the robot",
   serial_number: "Find the serial number",
 };
+const HELP_SETUP_ICONS = new Map([
+  ["brushes", "mdi:broom"],
+  ["water", "mdi:water"],
+  ["charge", "mdi:battery-charging"],
+  ["rooms", "mdi:door-open"],
+]);
 const PROGRAM_RECOVERY_STATUS = {
   missing_program: "Program deleted",
   unsupported_selection: "Current selection cannot be edited",
@@ -122,6 +128,12 @@ template.innerHTML = `
     #maintenance-status:empty { display:none; }
     #robot-help-dialog li { margin-block:6px; }
     #robot-help-dialog a { color:var(--link-text-color,#8ae0d5); }
+    #help-setup { margin:14px 0; }
+    #help-setup summary { cursor:pointer; font-weight:600; }
+    #help-setup-steps { padding-inline-start:24px; }
+    #help-setup-steps li { padding-inline-start:4px; margin-block:12px; }
+    #help-setup-steps ha-icon { margin-inline-end:6px; vertical-align:middle; --mdc-icon-size:18px; }
+    #help-setup-steps p { margin:4px 0; }
     #help-lookup { display:grid; gap:8px; }
     #help-status:empty { display:none; }
     #scores-rooms section { border-top:1px solid var(--divider-color,#647382); margin:12px 0; padding-top:10px; }
@@ -400,6 +412,11 @@ template.innerHTML = `
     <dialog id="robot-help-dialog" aria-labelledby="robot-help-title">
       <h3 id="robot-help-title">Robot help</h3>
       <p id="help-status" class="muted" role="status"></p>
+      <details id="help-setup" hidden>
+        <summary>Prepare for the first clean</summary>
+        <ol id="help-setup-steps"></ol>
+        <div id="help-setup-reference"></div>
+      </details>
       <ul id="help-guides" hidden></ul>
       <section id="help-current" aria-labelledby="help-current-title" hidden>
         <h4 id="help-current-title">Current errors</h4>
@@ -1797,6 +1814,31 @@ class RoombaHomeMapCard extends HTMLElement {
     }
   }
 
+  renderSetupGuide(guide) {
+    const panel = this.$("help-setup");
+    panel.hidden = !guide?.steps?.length;
+    panel.open = false;
+    const steps = (guide?.steps ?? []).map(({ id, title, instructions }) => {
+      const row = document.createElement("li");
+      if (HELP_SETUP_ICONS.has(id)) {
+        const icon = document.createElement("ha-icon");
+        icon.setAttribute("icon", HELP_SETUP_ICONS.get(id));
+        icon.setAttribute("aria-hidden", "true");
+        row.append(icon);
+      }
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      const body = document.createElement("p");
+      body.textContent = instructions;
+      row.append(heading, body);
+      return row;
+    });
+    this.$("help-setup-steps").replaceChildren(...steps);
+    this.$("help-setup-reference").replaceChildren(
+      ...(guide?.reference_url ? [externalLink("iRobot unboxing guide", guide.reference_url)] : []),
+    );
+  }
+
   async openRobotHelp() {
     if (!this.config || !this._hass) return;
     const { entity } = this.config;
@@ -1814,12 +1856,14 @@ class RoombaHomeMapCard extends HTMLElement {
     const lookup = this.$("help-lookup");
     title.textContent = "Robot help";
     status.textContent = "Loading robot help…";
+    this.renderSetupGuide(null);
     guides.hidden = errors.hidden = lookup.hidden = true;
     ensureModal(dialog);
     try {
       const report = await this._hass.callWS({ type: "roomba_home/robot_help", entity_id: entity });
       if (!current()) return;
       title.textContent = report.robot ? `${report.robot} help` : "Robot help";
+      this.renderSetupGuide(report.setup_guide);
       const links = [
         ["Owner’s manual", report.manual_url],
         ["iRobot support", report.support_url],
@@ -1857,7 +1901,8 @@ class RoombaHomeMapCard extends HTMLElement {
         selected.replaceChildren(...(article ? [externalLink(label(article), article.url)] : []));
       };
       lookup.hidden = !report.articles.length;
-      status.textContent = links.length || report.articles.length ? "" : "Roomba has no help articles for this model.";
+      status.textContent = links.length || report.articles.length || !this.$("help-setup").hidden
+        ? "" : "Roomba has no help articles for this model.";
     } catch (error) {
       if (current()) status.textContent = error?.message || "Robot help is unavailable.";
     }

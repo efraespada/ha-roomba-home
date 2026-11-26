@@ -326,6 +326,37 @@ test("robot help ignores a previous robot's reply and reports an empty or failed
   assert.equal(card.$("help-status").textContent, "Could not read help");
 });
 
+test("robot help shows an ordered preparation guide and hides it when the robot changes", async () => {
+  const { card, dialog } = robotHelpCard();
+  const reference = "https://homesupport.irobot.com/articles/en_US/Knowledge/20503";
+  const steps = ["brushes", "water", "charge", "rooms"].map((id) => ({
+    id, title: `Prepare ${id}`, instructions: `Instructions for ${id}`,
+  }));
+  const catalog = { device_guides: {}, articles: [], current_articles: [] };
+  card._hass = { callWS: async () => ({ ...catalog, setup_guide: { steps, reference_url: reference } }) };
+  await card.openRobotHelp();
+  const panel = card.$("help-setup");
+  const list = card.$("help-setup-steps");
+  assert.equal(panel.hidden, false);
+  assert.equal(panel.open, false);
+  assert.equal(card.$("help-status").textContent, "");
+  assert.deepEqual(list.querySelectorAll("strong").map((node) => node.textContent), steps.map((step) => step.title));
+  assert.deepEqual(list.querySelectorAll("p").map((node) => node.textContent), steps.map((step) => step.instructions));
+  const icons = list.querySelectorAll("ha-icon");
+  assert.deepEqual(icons.map((icon) => icon.icon), ["mdi:broom", "mdi:water", "mdi:battery-charging", "mdi:door-open"]);
+  assert.ok(icons.every((icon) => icon["aria-hidden"] === "true"));
+  assert.equal(card.$("help-setup-reference").querySelector("a").href, reference);
+  panel.open = true;
+  dialog.close();
+  card.config.entity = "vacuum.other";
+  card._hass.callWS = async () => ({ ...catalog, setup_guide: null });
+  await card.openRobotHelp();
+  assert.equal(panel.hidden, true);
+  assert.equal(panel.open, false);
+  assert.deepEqual(list.children, []);
+  assert.deepEqual(card.$("help-setup-reference").children, []);
+});
+
 test("robot help restores modal state and the selected article when the dashboard moves the card", async () => {
   const { card, dialog } = robotHelpCard();
   const article = { family: "charging_error", code: 101, url: "https://prod-help-content.care.irobotapi.com/web/es/10601.html" };

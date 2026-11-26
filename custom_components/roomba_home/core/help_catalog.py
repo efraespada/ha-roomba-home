@@ -26,6 +26,43 @@ DEVICE_GUIDES = {
     "Serial_number": "serial_number",
 }
 
+MAX_700_COMBO_SETUP = (
+    (
+        "brushes",
+        "Fit both side brushes",
+        "Match the letter on each brush to the corresponding A or B mount on the robot.",
+    ),
+    (
+        "water",
+        "Fill the clean water tank",
+        "Add water to the dock’s right-hand tank. The separate detergent reservoir is optional "
+        "and only takes StayClean concentrate.",
+    ),
+    (
+        "charge",
+        "Charge the robot",
+        "Place it on the dock and let it charge before starting the first cleaning run.",
+    ),
+    (
+        "rooms",
+        "Prepare the rooms",
+        "Open the doors to the areas you want to clean and pick up loose items from the floor.",
+    ),
+)
+
+
+def setup_guide_for(sku: str) -> dict | None:
+    """Return preparation steps for a model verified in Roomba Home."""
+    if sku.upper() != "X185240":
+        return None
+    return {
+        "steps": [
+            {"id": key, "title": title, "instructions": instructions}
+            for key, title, instructions in MAX_700_COMBO_SETUP
+        ],
+        "reference_url": "https://homesupport.irobot.com/articles/en_US/Knowledge/20503",
+    }
+
 
 def _link(value: object, host: str, path: re.Pattern[str]) -> str | None:
     if not isinstance(value, str) or len(value) > 512 or any(c.isspace() for c in value):
