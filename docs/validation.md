@@ -1,5 +1,16 @@
 # Roomba Home validation
 
+## Robot help after moving a card
+
+A Chromium browser reproduced the modal losing its top-layer state when the
+open card moved between dashboard containers. The dialog retained its
+`open` attribute and the selected code while its visible modal was lost.
+The 0.69.1 card restores the native modal on reattachment and on an
+explicit reopen. The browser repeated the same move and retained both
+the visible modal and the selected charging error. The card suite also
+checks that the catalog is read only once.
+[Regression tests](../tests/frontend/map-card.test.cjs)
+
 ## Version 0.69.0
 
 The release adds the Robot help panel and the response-only action.

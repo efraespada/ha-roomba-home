@@ -16,7 +16,7 @@ const sandbox = {
   document: { createElement: (tag) => mockElement(tag) },
   customElements: { define() {} },
   Option: class { constructor(text, value) { this.text = text; this.value = value; } },
-  window: {},
+  window: { setInterval: () => 1 },
   HTMLElement: class {},
   Path2D: Path,
 };
@@ -259,8 +259,10 @@ function robotHelpCard() {
   const { card } = mockCard(0);
   const dialog = card.$("robot-help-dialog");
   dialog.open = false;
-  dialog.showModal = () => { dialog.open = true; };
-  dialog.close = () => { dialog.open = false; };
+  dialog.modal = false;
+  dialog.matches = (selector) => selector === ":modal" && dialog.modal;
+  dialog.showModal = () => { dialog.open = dialog.modal = true; };
+  dialog.close = () => { dialog.open = dialog.modal = false; };
   card.helpSequence = 0;
   card.config = { entity: "vacuum.example" };
   return { card, dialog };
@@ -322,6 +324,34 @@ test("robot help ignores a previous robot's reply and reports an empty or failed
   card._hass.callWS = async () => { throw Error("Could not read help"); };
   await card.openRobotHelp();
   assert.equal(card.$("help-status").textContent, "Could not read help");
+});
+
+test("robot help restores modal state and the selected article when the dashboard moves the card", async () => {
+  const { card, dialog } = robotHelpCard();
+  const article = { family: "charging_error", code: 101, url: "https://prod-help-content.care.irobotapi.com/web/es/10601.html" };
+  let reads = 0;
+  card._hass = {
+    callWS: async () => {
+      reads++;
+      return { robot: "Roomba", device_guides: {}, articles: [article], current_articles: [] };
+    },
+  };
+  await card.openRobotHelp();
+  const picker = card.$("help-code");
+  picker.value = "charging_error:101";
+  picker.onchange();
+  dialog.modal = false;
+  assert.equal(dialog.open, true);
+  card.connectedCallback();
+  assert.equal(dialog.modal, true);
+  await card.openRobotHelp();
+  assert.equal(reads, 1);
+  dialog.modal = false;
+  await card.openRobotHelp();
+  assert.equal(dialog.modal, true);
+  assert.equal(reads, 1);
+  assert.equal(picker.value, "charging_error:101");
+  assert.equal(card.$("help-article").querySelector("a").href, article.url);
 });
 
 test("saved routines display the estimate from the selected provider record", () => {

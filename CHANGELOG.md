@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.69.1
+
+- Keep Robot help visible with the selected article when Home Assistant
+  moves its card to another dashboard container.
+
 ## 0.69.0
 
 - Open the owner’s manual and setup guides from Robot help. Browse

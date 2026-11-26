@@ -678,6 +678,12 @@ function externalLink(label, url) {
   return link;
 }
 
+function ensureModal(dialog) {
+  if (dialog.matches(":modal")) return;
+  if (dialog.open) dialog.close();
+  dialog.showModal();
+}
+
 function mapBounds(points) {
   return points.reduce(([left, top, right, bottom], [x, y]) =>
     [Math.min(left, x), Math.min(top, y), Math.max(right, x), Math.max(bottom, y)],
@@ -1352,6 +1358,9 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   connectedCallback() {
+    const help = this.$("robot-help-dialog");
+    // Moving a card can remove its dialog from the top layer while leaving it open.
+    if (help.open) ensureModal(help);
     this.timer = window.setInterval(() => { this.draw(); this.refresh(); }, 5000);
     this.refresh();
   }
@@ -1792,7 +1801,10 @@ class RoombaHomeMapCard extends HTMLElement {
     if (!this.config || !this._hass) return;
     const { entity } = this.config;
     const dialog = this.$("robot-help-dialog");
-    if (dialog.open) return;
+    if (dialog.open) {
+      ensureModal(dialog);
+      return;
+    }
     const sequence = ++this.helpSequence;
     const current = () => dialog.open && sequence === this.helpSequence && entity === this.config.entity;
     const title = this.$("robot-help-title");
@@ -1803,7 +1815,7 @@ class RoombaHomeMapCard extends HTMLElement {
     title.textContent = "Robot help";
     status.textContent = "Loading robot help…";
     guides.hidden = errors.hidden = lookup.hidden = true;
-    dialog.showModal();
+    ensureModal(dialog);
     try {
       const report = await this._hass.callWS({ type: "roomba_home/robot_help", entity_id: entity });
       if (!current()) return;
