@@ -402,9 +402,9 @@
       "id": "saved-cleaning-routines",
       "title": "Saved Cleaning Routines",
       "status": "implemented",
-      "scope": "Editing and launching supported one-robot routines with per-target profiles, fixed presets, furniture destinations, and draft estimates",
+      "scope": "Editing and launching supported one-robot routines with per-target preferences, remembered settings, furniture destinations, and draft estimates",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-25",
+      "lastVerified": "2026-11-26",
       "specs": [
         "specs/010-saved-cleaning-routines.md"
       ],
@@ -416,6 +416,7 @@
         "custom_components/roomba_home/vacuum.py"
       ],
       "code": [
+        "custom_components/roomba_home/core/area_preferences.py",
         "custom_components/roomba_home/core/routines.py",
         "custom_components/roomba_home/core/routine_presets.py",
         "custom_components/roomba_home/core/quick_routines.py",
@@ -426,6 +427,7 @@
       ],
       "tests": [
         "tests/test_api_client.py",
+        "tests/test_area_preferences.py",
         "tests/test_routine_presets.py",
         "tests/test_quick_routines.py",
         "tests/test_time_estimates.py",
@@ -445,7 +447,8 @@
         "docs/evidence/2026-11-25-native-single-area-routines.json",
         "docs/evidence/2026-11-25-fixed-routine-presets.json",
         "docs/evidence/2026-11-25-routine-draft-estimates.json",
-        "docs/evidence/2026-11-25-quick-routines.json"
+        "docs/evidence/2026-11-25-quick-routines.json",
+        "docs/evidence/2026-11-26-remembered-area-preferences.json"
       ]
     }
   ]

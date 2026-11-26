@@ -260,6 +260,10 @@ A failed read or an unpublished result leaves the cursor unchanged.
 **Usage percentage** measures consumption. The remaining quantity uses the
 counter's own unit. The `category` attribute distinguishes maintenance and
 replacement. The following are catalog part codes shared by the validated model.
+The model catalog supplies optional `part_sku`, `replacement_url`, and
+`maintenance_guide_url` attributes for these sensors. **Maintenance** on
+the card includes the dust bag reference even when its usage counter is
+disabled. [Maintenance and replacement parts](usage.md#maintenance-and-replacement-parts)
 
 | Part | Code | Used / remaining unit |
 |---|---|---|

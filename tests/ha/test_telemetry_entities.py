@@ -548,6 +548,63 @@ async def test_optional_sources_use_their_own_cadence_and_exclude_unsupported_ro
     assert reader.client.request.await_count == 6
 
 
+async def test_catalog_reference_survives_a_missing_counter_and_uses_the_configured_market(reader):
+    reader.hass.config.language = "es"
+    reader.client.http.request.return_value = HttpResponse(
+        200,
+        {
+            "parts": [
+                {
+                    "part_id": "147",
+                    "counter_enabled": False,
+                    "sku": "4849916",
+                    "buy_url": (
+                        "https://directory.irobotapi.com/v1/ecom/pdp-app/ES/4849916"
+                        "?utm_medium=app&locale=es-es"
+                    ),
+                }
+            ]
+        },
+    )
+    reader.client.request.side_effect = [
+        ProtocolError("fixture"),
+        {"parts": []},
+        {"parts": []},
+    ]
+    states = await reader._async_update_data()
+    reader.client.http.request.assert_awaited_once_with(
+        "GET", "https://content-prod.iot.irobotapi.com/v2/es-es/ES/X185240/parts"
+    )
+    values = states["fixture-0"].telemetry
+    assert values["parts_available"] is False
+    assert values["part_references"]["147"] == {
+        "part_sku": "4849916",
+        "replacement_url": "https://www.irobot.es/es_ES/4849916.html",
+    }
+    assert "part_147_usage" not in values
+
+
+async def test_part_references_update_the_existing_sensor_attributes(hass, entry, loaded):
+    robot = loaded.data["fixture-0"]
+    key = entity_id(hass, entry, "part_71_remaining")
+    assert hass.states.get(key).state == "200"
+    href = "https://directory.irobotapi.com/v1/ecom/pdp-app/ES/4849905"
+    new = replace(
+        robot,
+        telemetry={
+            **robot.telemetry,
+            "part_references": {"71": {"part_sku": "4849905", "replacement_url": href}},
+        },
+    )
+    loaded.async_set_updated_data(loaded.data | {robot.robot_id: new})
+    await hass.async_block_till_done()
+    state = hass.states.get(key)
+    assert state.state == "200"
+    assert state.attributes["category"] == "replacement"
+    assert state.attributes["part_sku"] == "4849905"
+    assert state.attributes["replacement_url"] == href
+
+
 async def test_robot_serials_update_device_registry_and_survive_optional_failures(
     hass, entry, reader
 ):

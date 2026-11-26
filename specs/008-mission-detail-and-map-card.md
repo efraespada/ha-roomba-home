@@ -3,7 +3,7 @@
 - Status: Draft
 - Date: 2026-11-24
 - Catalog capability ID: mission-detail-and-map-card
-- Last verified: 2026-11-25
+- Last verified: 2026-11-26
 - Owners: ha-roomba-home maintainer
 - Scope: Per-destination results, live progress, physical scenario verification, and map-based cleaning selection.
 - Related issues/PRs: Local development and authorized household validation.
@@ -90,6 +90,11 @@ trajectory contains observed positions and retains sequence gaps.
   outcome for each destination.
 - MAP-17: Offer a confirmed untargeted start with next-cleaning preferences
   for an idle or docked robot, including before its first saved floor.
+- MAP-18: Support pinch-to-zoom and panning on live and recorded maps.
+  Drag the 3D view at fit or when zoomed and provide arrow-key panning.
+  Preserve dashboard scrolling over a fitted overhead map. Treat a tap
+  as area selection only if it belongs to the current floor and stayed
+  within the tap threshold.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -249,9 +254,10 @@ The existing account map option enables its geometry and private live data.
 The dashboard card is optional and requires a Roomba vacuum entity. Selecting
 a different map clears staged regions. Updating the map version invalidates a
 staged confirmation. Existing actions, entities, and preferences retain their IDs.
-The 3D toggle and camera rotation belong to the card. They leave the saved floor
-orientation intact. The card uses its overhead view during geometry edits and
-resumes the chosen view when the editor closes.
+The 3D toggle, camera rotation, pan, and zoom belong to local viewport
+state. Adjust saved floor orientation through the floor editor. The card
+uses its overhead view during geometry edits and resumes the chosen view
+when the editor closes.
 
 ## 8. Clean Architecture design
 
@@ -354,6 +360,10 @@ features, physical results, and open scenarios.
 14. Review an untargeted start without a saved map. Verify that no floor
     or regions are sent and that a paused run cannot be resumed by this
     action.
+15. On a mobile viewport, scroll the dashboard across the fitted overhead
+    map and pinch to zoom the map. Drag the live 3D view at fit. Pinch, pan,
+    and reset a recorded 3D map. Verify that a drag, cancelled gesture,
+    or pinch cannot select a cleaning area.
 
 ## 17. Requirements traceability
 
@@ -376,6 +386,7 @@ features, physical results, and open scenarios.
 | MAP-15 | [Live destination preferences](../docs/api.md#live-mission-destinations) | [Profile projection tests](../tests/test_mission_plan.py), [authenticated plan tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [device evidence](../docs/validation.md#requested-settings-and-reported-passes) |
 | MAP-16 | [Archived report contract](../docs/api.md#archived-cleaning-reports) | [Destination tests](../tests/test_mission_plan.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed report verification](../docs/validation.md#historical-destination-plans) |
 | MAP-17 | [Clean everywhere action](../docs/usage.md#clean-everywhere) | [Home Assistant control tests](../tests/ha/test_cleaning_controls.py), [card tests](../tests/frontend/map-card.test.cjs), and [scope validation](../docs/validation.md#whole-area-and-directed-cleaning-scope) |
+| MAP-18 | [Interactive floor plan](../docs/usage.md#interactive-floor-plan) and [cleaning history](../docs/usage.md#cleaning-history) | [Card tests](../tests/frontend/map-card.test.cjs) and [Chrome touch verification](../docs/validation.md#touch-navigation-for-floor-plans-and-reports) |
 
 ## 18. Implementation sequence
 

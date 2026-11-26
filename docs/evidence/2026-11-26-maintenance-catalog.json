@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-26",
+  "tested_model": "Roomba Max 700 Combo",
+  "android": {
+    "filter_replacement_opened_in_embedded_view": true,
+    "filter_title_matched_official_product_page": true
+  },
+  "roomba_catalog": {
+    "market": "ES",
+    "catalog_parts": 7,
+    "replacement_references": 5,
+    "maintenance_guides": 2,
+    "mobile_product_route_landed_on_regional_storefront_in_http_probes": true,
+    "short_spanish_links_reached_matching_products": 5
+  },
+  "isolated_home_assistant": {
+    "readable_with_maps_disabled": true,
+    "signed_counters": 6,
+    "dust_bag_reference_available_without_counter": true,
+    "filter_sensor_matches_api_projection": true,
+    "movement_commands": 0,
+    "counter_resets": 0
+  },
+  "isolated_chrome": {
+    "viewport_widths_px": [358, 900],
+    "links_rendered": 7
+  }
+}

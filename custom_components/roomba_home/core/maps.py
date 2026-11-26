@@ -3,11 +3,12 @@
 import json
 import re
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from hashlib import sha256
 from math import tau
 
+from .area_preferences import AreaDefaults, read_area_defaults
 from .cleaning import CleaningProfile
 from .errors import ProtocolError
 
@@ -26,6 +27,7 @@ class CleaningRegion:
     region_id: str
     kind: RegionKind
     name: str | None
+    remembered: AreaDefaults | None = field(default=None, compare=False, kw_only=True)
 
     def segment_id(self, map_id: str) -> str:
         return f"{map_id}:{self.kind.value}:{self.region_id}"
@@ -140,7 +142,12 @@ def parse_maps(response: object, robot_id: str) -> tuple[PersistentMap, ...]:
             key = (kind, region_id)
             if key in regions:
                 raise ProtocolError("An active map contains duplicate region identifiers")
-            regions[key] = CleaningRegion(region_id, kind, _name(metadata.get("name")))
+            regions[key] = CleaningRegion(
+                region_id,
+                kind,
+                _name(metadata.get("name")),
+                remembered=read_area_defaults(metadata),
+            )
         if identifier in maps:
             raise ProtocolError("The map list contains duplicate active map identifiers")
         maps[identifier] = PersistentMap(

@@ -82,6 +82,7 @@ from .core.live_route import (
     decode_raw_snapshot,
     reconcile_live_snapshot,
 )
+from .core.maintenance import parts_catalog_url, project_part_references
 from .core.map_programs import (
     capture_map_programs,
     matching_backup_destinations,
@@ -358,7 +359,10 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             self._part_catalog = {}
             try:
                 response = await self.client.http.request(
-                    "GET", "https://content-prod.iot.irobotapi.com/v2/es-es/ES/X185240/parts"
+                    "GET",
+                    parts_catalog_url(
+                        self.client.country, self.hass.config.language, SUPPORTED_SKU
+                    ),
                 )
                 check_status(response)
                 if isinstance(response.data, dict):
@@ -1698,6 +1702,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             documents = await self._executor(self._read, session)
         observed_at = datetime.now(UTC)
         await self._optional_sources(session, self._clock())
+        part_references = project_part_references(self._part_catalog, self.client.country)
         result = {}
         for robot_id, details in session.raw["robots"].items():
             if robot_id not in self.selected or details.get("sku") != SUPPORTED_SKU:
@@ -1719,6 +1724,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             telemetry = {
                 **state.telemetry,
                 **project_parts(self._parts.get(robot_id), self._part_catalog),
+                "part_references": part_references,
                 "details_available": bool(self._details.get(robot_id)),
                 "parts_available": bool(self._parts.get(robot_id)),
             }

@@ -83,16 +83,18 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   available. Apply Light, Normal, or Deep to a single
   destination or the entire selection on the supported Max 700 Combo.
   Apply Roomba's **Smart recommendations** to each eligible room, or apply
-  them across an ordered draft. Preview the duration before saving. Edit
-  supported routines created in Roomba Home. Load recent and suggested
-  routines and run a reviewed draft. Use **Manage schedules** on the floor
+  them across an ordered draft. Inspect and reuse Roomba's remembered
+  settings for each area on the current map. Preview the duration before
+  saving. Edit supported routines created in Roomba Home. Load recent and
+  suggested routines and run a reviewed draft. Use **Manage schedules** on the floor
   card to manage weekly and one-time cleanings, including the order, mode,
   and settings for each room or saved zone. Review map dependencies before
   editing destinations.
   [Saved routine actions](docs/usage.md#saved-cleaning-routines) · [Cleaning schedules](docs/usage.md#cleaning-schedules)
-- **Maintenance and alerts.** Inspect consumables, reset supported counters after
-  servicing a part, and automate robot and dock
-  problem alerts and mission-finished events.
+- **Maintenance and alerts.** Open **Maintenance** to see consumables, part
+  references, and links to iRobot's shop or care guides. Reset supported
+  counters after servicing a part, and automate robot and dock problem alerts
+  and mission-finished events. [Maintenance and parts](docs/usage.md#maintenance-and-replacement-parts)
 - **Robot settings.** Rename the robot and choose from its installed voices.
   The robot's device information includes the serial number reported by Roomba.
   List and install downloadable voices, adjust voice volume and the child
@@ -119,7 +121,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.63.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.64.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Enable Advanced Mode in your user
    profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
 3. Add a manual card with your robot's vacuum entity.
@@ -140,9 +142,10 @@ reload the dashboard. Use one card per robot.
   During a run, the card marks the point and mode reported by Roomba.
   [Point cleaning](docs/usage.md#clean-a-map-point)
 - **3D view** shows reported walls and optional furniture on an angled floor
-  plan. Rotate the camera with **⟳** and use **Show furniture** to toggle the
-  furniture layer. Room and zone selection works in both views. The editor
-  temporarily uses the overhead view when you place or change an object.
+  plan. Drag to pan, pinch to zoom on touch screens, and rotate the camera with
+  **⟳**. Use **Show furniture** to toggle the furniture layer. Room and zone
+  selection works in both views. The editor temporarily uses the overhead
+  view when you place or change an object.
 - **Floor settings** renames the selected floor or rotates it in 90° steps.
   Choose **Rotate floor** and **Rotate right 90°**, then review and save the
   preview. The saved orientation also applies to the Home Assistant floor image.
@@ -301,6 +304,8 @@ data:
 ### Run a saved routine
 
 Choose **Manage routines** to save the ordered destinations and their profiles.
+Open an area's remembered settings, then choose **Remembered by Roomba** under
+**Cleaning preset** to copy the compatible settings into the draft.
 Use **List cleaning routines** to find the assigned routine ID.
 
 ```yaml
