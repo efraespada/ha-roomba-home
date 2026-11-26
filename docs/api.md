@@ -1176,6 +1176,11 @@ to `good`, `partial`, and `poor`. The card displays the rounded-up minutes.
 The estimate describes the saved configuration at the time Roomba generated
 it. [Native routine comparison](validation.md#native-single-area-routines)
 
+The captured Android create request supplied an empty `time_estimates`
+array. A controlled trial with two identical integration commands received
+the same provider-generated estimate with the field omitted or set to an
+empty array. [Saved estimate generation](validation.md#routine-draft-estimates)
+
 The floor plan snapshot has `cleaning.default_mode` from the selected robot's
 next-cleaning profile and `cleaning.presets` keyed by mode and preset name.
 The provisioned model and reported `digiCap.cleaningProfiles` code must match

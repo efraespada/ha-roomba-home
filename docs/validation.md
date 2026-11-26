@@ -526,6 +526,12 @@ coverage and 69 card tests.
 
 ## Routine draft estimates
 
+The captured Android favorite supplied an empty estimate array at creation.
+Two disposable integration favorites with the same reviewed room and
+combined profile returned an identical good-confidence estimate of 3,449
+seconds, one with that field omitted and one with an empty array. The
+signed read confirmed cleanup of both routines and preservation of the map.
+
 The signed estimate table returned 36 profile rows for the current room
 on a Max 700 Combo. A comparison across seven favorites captured from
 Android 3.4.1 matched their saved times to the second. Normal combined
