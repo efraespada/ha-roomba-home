@@ -216,6 +216,13 @@ class RoombaVacuum(RoombaEntity, StateVacuumEntity):
     async def async_remove_cleaning_routine(self, routine_id):
         return await self.account.async_remove_cleaning_routine(self.robot_id, routine_id)
 
+    async def async_reorder_cleaning_routine(
+        self, routine_id, anchor_id, position, expected_order=None
+    ):
+        return await self.account.async_reorder_cleaning_routine(
+            self.robot_id, routine_id, anchor_id, position, expected_order
+        )
+
     async def async_run_cleaning_routine(self, routine_id):
         saved = (await self.account.async_list_cleaning_routines(self.robot_id))["routines"]
         routine = next((item for item in saved if item["id"] == routine_id), {})

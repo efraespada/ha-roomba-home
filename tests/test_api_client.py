@@ -1962,6 +1962,104 @@ async def test_favorite_appearance_update_preserves_command_order_and_estimates(
     assert [call[0] for call in http.calls[3:]].count("PUT") == 1
 
 
+@pytest.mark.parametrize("position", ["before", "after"])
+async def test_native_favorite_reorder_uses_ranks_and_preserves_the_commands(position):
+    anchor_id = "2" * 32
+    first = provider_routine(display_order=-2)
+    second = provider_routine("Other routine", favorite_id=anchor_id, display_order=3)
+    moving, anchor = (second, first) if position == "before" else (first, second)
+    reordered = [first | {"display_order": 30}, second | {"display_order": 10}]
+    changed = reordered[0] | {"commanddefs": [first["commanddefs"][0] | {"ordered": 0}]}
+    http = FakeHttp(
+        login_responses()
+        + [
+            HttpResponse(200, [second, first]),
+            HttpResponse(204, None),
+            HttpResponse(200, [second, first]),
+            HttpResponse(200, [changed, reordered[1]]),
+            HttpResponse(200, reordered),
+            HttpResponse(200, reordered),
+        ]
+    )
+    api = client(http)
+    with patch("custom_components.roomba_home.core.client.asyncio.sleep", new=AsyncMock()):
+        result = await api.reorder_cleaning_routine(
+            ROUTINE_ROBOT,
+            moving["favorite_id"],
+            anchor["favorite_id"],
+            position,
+            expected_order=[ROUTINE_ID, anchor_id],
+        )
+    assert [(item["id"], item["display_order"]) for item in result] == [
+        (anchor_id, 10),
+        (ROUTINE_ID, 30),
+    ]
+    assert result == await api.reorder_cleaning_routine(
+        ROUTINE_ROBOT, moving["favorite_id"], anchor["favorite_id"], position
+    )
+    method, url, _, body = http.calls[4]
+    assert method == "PUT" and body is None
+    assert url.endswith(
+        f"/v1/user/favorites/{moving['favorite_id']}/order?app_edition=1"
+        f"&insert_{position}={anchor['favorite_id']}"
+    )
+    assert [row[0] for row in http.calls[3:]] == ["GET", "PUT", "GET", "GET", "GET", "GET"]
+
+
+@pytest.mark.parametrize(
+    "invalid", ["unranked", "duplicate_rank", "foreign", "default", "same", "position", "stale"]
+)
+async def test_saved_routine_reorder_rejects_invalid_or_changed_selection(invalid):
+    anchor_id = "2" * 32
+    moving = provider_routine(display_order=0, default=invalid == "default")
+    anchor = provider_routine("Other routine", favorite_id=anchor_id, display_order=2)
+    if invalid in {"unranked", "duplicate_rank"}:
+        anchor["display_order"] = True if invalid == "unranked" else 0
+    if invalid == "foreign":
+        anchor["commanddefs"][0]["robot_id"] = "different-robot"
+    http = FakeHttp(login_responses() + [HttpResponse(200, [anchor, moving])])
+    with pytest.raises(ProgramSelectionChanged if invalid == "stale" else RoutineNotEditable):
+        await client(http).reorder_cleaning_routine(
+            ROUTINE_ROBOT,
+            ROUTINE_ID,
+            ROUTINE_ID if invalid == "same" else anchor_id,
+            "at" if invalid == "position" else "after",
+            expected_order=[anchor_id, ROUTINE_ID],
+        )
+    assert [row[0] for row in http.calls[3:]] == ["GET"]
+
+
+def test_listed_routines_preserve_unranked_rows_after_native_display_order():
+    entries = [
+        provider_routine(display_order=2),
+        provider_routine("Missing rank", favorite_id="2" * 32),
+        provider_routine("Earlier", favorite_id="3" * 32, display_order=-6),
+        provider_routine("Old rank", favorite_id="4" * 32, display_order="1"),
+    ]
+    entries[1].pop("display_order", None)
+    rows = [row.action_response() for row in cleaning_routines(entries, ROUTINE_ROBOT).values()]
+    assert [(row["id"], row.get("display_order")) for row in rows] == [
+        ("3" * 32, -6),
+        (ROUTINE_ID, 2),
+        ("2" * 32, None),
+        ("4" * 32, None),
+    ]
+
+
+async def test_unconfirmed_routine_move_is_never_republished():
+    anchor_id = "2" * 32
+    first = provider_routine(display_order=0)
+    second = provider_routine("Other routine", favorite_id=anchor_id, display_order=1)
+    old = HttpResponse(200, [first, second])
+    http = FakeHttp(login_responses() + [old, HttpResponse(503, {}), old, old, old])
+    with (
+        patch("custom_components.roomba_home.core.client.asyncio.sleep", new=AsyncMock()),
+        pytest.raises(RoutineUpdateUnconfirmed),
+    ):
+        await client(http).reorder_cleaning_routine(ROUTINE_ROBOT, ROUTINE_ID, anchor_id, "after")
+    assert [call[0] for call in http.calls[3:]] == ["GET", "PUT", "GET", "GET", "GET"]
+
+
 async def test_failed_or_ambiguous_favorite_creation_is_not_repeated():
     item = provider_routine()
     different_id = item | {"favorite_id": "2" * 32}

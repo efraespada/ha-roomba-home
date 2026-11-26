@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.73.0
+
+- List saved routines in Roomba's display order. Move a routine earlier or
+  later from the floor plan card or the new reorder action. Verify the
+  updated order and preserve the saved cleaning destinations and settings.
+
 ## 0.72.2
 
 - Show the current saved-zone pass in the live plan and area results as

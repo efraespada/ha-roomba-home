@@ -970,6 +970,22 @@ The card shows the estimate saved by Roomba and its confidence when available.
 Saving changes and removing routines leave the robot idle. **Run saved
 routine** asks for confirmation and displays the saved order preference.
 
+Select a saved routine and use **Move earlier** or **Move later** to change
+its position in the list. Home Assistant verifies the new order through
+Roomba. The saved sequence of rooms, zones, or furniture and their cleaning
+preferences stay with the routine. Use **List cleaning routines** to obtain
+identifiers for the same action in an automation.
+
+```yaml
+action: roomba_home.reorder_cleaning_routine
+target:
+  entity_id: vacuum.example_robot
+data:
+  routine_id: "0123456789abcdef0123456789abcdef"
+  anchor_id: "abcdef0123456789abcdef0123456789"
+  position: before
+```
+
 Use **Appearance** when creating or editing a saved routine. Enter an
 emoji and choose a color from the seven Roomba Home presets or the color
 picker. The preview updates as you edit. An appearance-only save preserves

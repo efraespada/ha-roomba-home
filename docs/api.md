@@ -1234,6 +1234,19 @@ parameters. A rename preserves unmodified provider fields. Replacing regions
 invalidates the former time estimates. A full collection read confirms changes.
 [Saved routines SDD](../specs/010-saved-cleaning-routines.md)
 
+The native order route is `PUT /v1/user/favorites/{id}/order`. It takes
+`app_edition=1` and one relative query parameter, `insert_before` or
+`insert_after`, with a reference favorite ID. The request has an empty
+body. The collection's signed integer `display_order` determines the order
+of ranked routines even when the response array arrives in a different
+order. Routines without a valid rank follow them in response order.
+Home Assistant requires a distinct, complete order for the selected
+robot before a move and can check the reviewed order supplied by the card.
+It sends the requested move once and confirms the resulting order and
+original cleaning commands through the list. Roomba can reassign display
+ranks and update internal modification timestamps across the collection.
+[Signed routine order trial](validation.md#saved-routine-display-order)
+
 Native favorites store the visible emoji in `icon` and the background in
 `color`. Create and update actions accept the fields independently, and the
 routine list returns valid recorded values. The integration accepts a

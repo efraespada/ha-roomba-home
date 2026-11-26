@@ -405,6 +405,42 @@ test("saved routines display the estimate from the selected provider record", ()
   assert.equal(estimate.hidden, true);
 });
 
+test("saved routine display order moves without discarding the open cleaning draft", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  const first = { id: "first", name: "First", editable: true, display_order: -3 };
+  const second = { id: "second", name: "Second", editable: true, display_order: 1 };
+  card.routineAreas = new Map();
+  card.routines = [first, second];
+  const draft = { saved: second, name: "Unsaved name", regions: [], ordered: false };
+  card.routineDraft = draft;
+  card.routineDialog.open = true;
+  card.renderRoutine();
+  assert.equal(card.$("move-routine-earlier").disabled, false);
+  assert.equal(card.$("move-routine-later").disabled, true);
+  const requests = [];
+  card.callAction = async (...args) => {
+    requests.push(JSON.parse(JSON.stringify(args)));
+    return { routines: [{ ...second, display_order: 0 }, { ...first, display_order: 1 }] };
+  };
+  await card.moveRoutine(-1);
+  assert.deepEqual(requests, [["reorder_cleaning_routine", {
+    routine_id: "second", anchor_id: "first", position: "before", expected_order: ["first", "second"],
+  }, card.config.entity]]);
+  assert.equal(card.routineDraft, draft);
+  assert.equal(draft.name, "Unsaved name");
+  assert.equal(draft.ordered, false);
+  assert.equal(card.$("routine-list").value, "second");
+  assert.equal(card.$("move-routine-earlier").disabled, true);
+  assert.equal(card.$("move-routine-later").disabled, false);
+  card.callAction = async () => { throw new Error("The routine order changed."); };
+  await card.moveRoutine(1);
+  assert.equal(card.$("routine-status").textContent, "The routine order changed.");
+  card.routines = [first, { ...second, display_order: first.display_order }];
+  card.renderRoutine();
+  assert.equal(card.$("routine-list-order").hidden, true);
+});
+
 test("routine presets preserve order and apply only to the intended areas and modes", () => {
   const { card } = mockCard(0);
   const vacuumLight = { mode: "vacuum", suction_level: 1, two_pass: false, wetness_level: null };

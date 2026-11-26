@@ -566,6 +566,10 @@ template.innerHTML = `
       <h3 id="routine-title">Cleaning routines</h3>
       <form id="routine-form">
         <label id="routine-picker"><span id="routine-list-label">Routine</span> <select id="routine-list"></select></label>
+        <div id="routine-list-order" role="group" aria-label="Saved routine order" hidden>
+          <button id="move-routine-earlier" type="button">Move earlier</button>
+          <button id="move-routine-later" type="button">Move later</button>
+        </div>
         <div id="quick-routine-fields">
           <button id="load-quick-routines" type="button">Recent and suggested routines</button>
           <p id="quick-routines-status" class="muted" role="status" hidden></p>
@@ -1261,6 +1265,8 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("save-furniture-edit").onclick = () => this.saveFurnitureEdit();
     this.$("close-impact").onclick = () => this.$("impact-dialog").close();
     this.$("routine-list").onchange = (event) => this.editRoutine(event.target.value);
+    this.$("move-routine-earlier").onclick = () => this.moveRoutine(-1);
+    this.$("move-routine-later").onclick = () => this.moveRoutine(1);
     this.$("routine-name").oninput = (event) => { this.routineDraft.name = event.target.value; };
     this.$("schedule-frequency").onchange = (event) => {
       this.routineDraft.frequency = event.target.value;
@@ -3641,6 +3647,11 @@ class RoombaHomeMapCard extends HTMLElement {
         : [routine.icon, routine.name].filter(Boolean).join(" "))));
     source.value = saved?.id ?? "";
     source.disabled = busy;
+    const earlier = this.routineNeighbor(-1);
+    const later = this.routineNeighbor(1);
+    this.$("routine-list-order").hidden = !earlier && !later;
+    this.$("move-routine-earlier").disabled = busy || !earlier;
+    this.$("move-routine-later").disabled = busy || !later;
     const input = this.$("routine-name");
     input.value = name;
     input.disabled = locked || selection;
@@ -4273,6 +4284,44 @@ class RoombaHomeMapCard extends HTMLElement {
     } else await this.mutateRoutine("remove_cleaning_routine", { routine_id: saved.id });
   }
 
+  routineNeighbor(offset) {
+    const saved = this.routineDraft.saved;
+    if (this.scheduleEditor || this.cleaningEditor || !saved?.editable) return null;
+    const ranks = this.routines.map((routine) => routine.display_order);
+    if (!ranks.every(Number.isInteger) || new Set(ranks).size !== ranks.length) return null;
+    const index = this.routines.findIndex((routine) => routine.id === saved.id);
+    return index < 0 ? null : (this.routines[index + offset] ?? null);
+  }
+
+  async moveRoutine(offset) {
+    const anchor = this.routineNeighbor(offset);
+    if (this.routineBusy || !anchor || !this.routineDialog.open) return;
+    const entity = this.config.entity;
+    const draft = this.routineDraft;
+    const routineId = draft.saved.id;
+    const status = this.$("routine-status");
+    this.routineBusy = true;
+    this.renderRoutine();
+    status.textContent = "Waiting for Roomba to confirm the order…";
+    try {
+      const { routines } = await this.callAction("reorder_cleaning_routine", {
+        routine_id: routineId,
+        anchor_id: anchor.id,
+        position: offset < 0 ? "before" : "after",
+        expected_order: this.routines.map((routine) => routine.id),
+      }, entity);
+      if (this.config.entity !== entity || this.routineDraft !== draft) return;
+      this.routines = routines;
+      draft.saved = routines.find((routine) => routine.id === routineId);
+      status.textContent = "Routine order saved.";
+    } catch (error) {
+      if (this.routineDraft === draft) status.textContent = error?.message || "Roomba could not confirm the order.";
+    } finally {
+      this.routineBusy = false;
+      this.renderRoutine();
+    }
+  }
+
   async saveCleaningAsRoutine() {
     const { regions, ordered } = this.routineDraft;
     if (!this.routineDialog.open || !this.cleaningEditor || this.routineBusy ||
@@ -4350,6 +4399,8 @@ class RoombaHomeMapCard extends HTMLElement {
       this.routines = this.routines.filter((routine) => routine.id !== result.id);
       const removed = service === "remove_cleaning_routine" || service === "remove_cleaning_schedule";
       if (!removed) this.routines.push(result);
+      if (!this.scheduleEditor) this.routines.sort((left, right) =>
+        (left.display_order ?? Infinity) - (right.display_order ?? Infinity));
       this.editRoutine(removed ? "" : result.id);
       const kind = this.scheduleEditor ? "Schedule" : "Routine";
       this.$("routine-status").textContent = `${kind} ${removed ? "deleted" : "saved"}.`;

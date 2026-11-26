@@ -1,0 +1,30 @@
+{
+  "model": "Roomba Max 700 Combo (X185240)",
+  "original_visible_routines": 6,
+  "original_routines_for_test_robot": 2,
+  "temporary_test_routines": 2,
+  "insert_before_http_status": 200,
+  "insert_before_verified": true,
+  "insert_after_http_status": 200,
+  "insert_after_verified": true,
+  "explicit_integer_ranks": true,
+  "response_array_matched_display_ranks": false,
+  "temporary_routines_removed": true,
+  "visible_inventory_restored": true,
+  "original_relative_order_preserved": true,
+  "provider_metadata_fields_changed": {
+    "display_order": 6,
+    "last_modified": 6,
+    "last_user_modified": 6,
+    "other_fields": 0
+  },
+  "robot_commands_sent": 0,
+  "authenticated_home_assistant": {
+    "authenticated_list_verified": true,
+    "real_ranked_routines": 2,
+    "already_ordered_action_verified": true,
+    "stale_order_rejected": true,
+    "routine_collection_unchanged": true,
+    "robot_remained_docked": true
+  }
+}
