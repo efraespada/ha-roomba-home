@@ -1,0 +1,31 @@
+{
+  "tested_model": "Roomba Max 700 Combo",
+  "date": "2026-11-26",
+  "signed_map": {
+    "metadata_records": 12,
+    "current_destinations_with_preferences": 1,
+    "reported_mode_codes": [2, 4, 6, 32],
+    "last_mode_code": 2,
+    "android_room_preview_mode": "vacuum_mop"
+  },
+  "isolated_home_assistant": {
+    "profile_count": 4,
+    "cached_inventory_omitted_geometry": true,
+    "saved_vacuum_preferences": {
+      "suction_level": 1,
+      "two_pass": true
+    },
+    "signed_read_back_confirmed_preferences": true,
+    "temporary_routine_removed": true,
+    "original_routines_restored": true,
+    "original_floor_and_preferences_preserved": true,
+    "movement_commands": 0
+  },
+  "isolated_chrome": {
+    "viewport_widths_px": [358, 900],
+    "routine_and_schedule_controls_visible": true,
+    "both_combined_profiles_visible": true,
+    "vacuum_preferences_copied_to_draft": true,
+    "mutating_actions_on_preset_selection": 0
+  }
+}

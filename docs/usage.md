@@ -39,7 +39,10 @@ mission or floor revision changes. Saved keep-out and no-mop zones have
 their own overlays.
 
 Use the map or the accessible buttons below it to select rooms and saved
-zones. Use the zoom buttons to change scale and drag the map to pan it.
+zones. Pinch or use the zoom buttons to change scale. Drag a zoomed floor
+or the 3D view to pan it. With the map focused, use the arrow keys to pan.
+On an overhead map fitted to the card, a one-finger drag can still scroll
+the dashboard. **Reset map view** fits the floor and centers it again.
 The legend distinguishes keep-out areas and virtual walls from no-mop areas.
 The card shows a notice for zone outlines that cannot be resolved as a
 cleaning destination, or legacy destinations without a matching outline.
@@ -181,15 +184,16 @@ recorded duration, area, outcome, available per-mode measurements, and
 timeline. The list includes recent cleaning records with missing maps, so
 the count can exceed the map-backed history displayed in Roomba Home.
 
-Use the map view to zoom and pan the original report. The legend identifies
+Pinch, drag, or use the map controls to inspect the original report. The
+arrow keys pan the recorded map when it has focus. The legend identifies
 travel, vacuuming, mopping, and simultaneous cleaning. Use **Travel path**,
 **Cleaning path**, and **Coverage** to show or hide the layers present in
 the report. If the report includes travel coverage, it stays visible until
 you turn off **Coverage**. The final recorded position stays visible. The
 card shows room names, saved cleaning zones, and restrictions from the archived revision
 when Roomba includes them. Turn on **3D view**
-when the archive provides walls or furniture, and use the rotate button to
-inspect it from another angle. The archive is scoped to the mission's
+when the archive provides walls or furniture. Drag to pan and use the rotate
+button to inspect it from another angle. The archive is scoped to the mission's
 original revision. A report can still show its measurements and timeline
 after its map becomes unavailable. [Report protocol](api.md#archived-cleaning-reports)
 
@@ -721,6 +725,20 @@ actions:
       option: three_hours
 ```
 
+## Maintenance and replacement parts
+
+Choose **Maintenance** on the dashboard card to see Roomba's usage percentage
+and remaining count for each reported part. The dust bag has a replacement
+reference even though its catalog counter is disabled. The mop and dock
+washing systems link to their care guides. Existing consumable sensors
+include the available reference and link attributes.
+
+The **iRobot shop** link uses the market configured for the account. In
+Spain it opens the official product page by part number. In other markets
+the catalog link may open the regional storefront, where you can look up
+the printed part number. The card can read this view before the robot has
+a saved map.
+
 ## Reset a maintenance counter
 
 After replacing a part or cleaning a washing system, run **Reset maintenance
@@ -883,6 +901,21 @@ For example, a room set to **Vacuum** can receive its recommended suction
 and passes while a room set to **Mop** receives its recommended liquid
 and scrubbing settings. Review or adjust the values before saving.
 [Smart recommendation validation](validation.md#smart-routine-recommendations)
+
+Open **Roomba's remembered settings** on a destination to see its last
+reported mode and the settings Roomba saved for each available mode. A combined
+vacuum-and-mop profile can have more than one recorded variant.
+Choose **Remembered by Roomba** under **Cleaning preset** to copy the compatible
+settings for the mode you chose. If you left the mode for the robot to choose,
+the card tries the area's last reported mode and uses the next-cleaning
+mode when Roomba supplied no last mode. For example, leave the entry hall's
+mode unset to reuse its last vacuum settings and explicitly choose **Mop**
+for the kitchen to reuse its saved mopping settings.
+
+**Apply preset to all areas** keeps their order and applies each eligible
+area's own settings. Review and adjust the draft before saving. The same
+controls are available in schedule drafts for eligible rooms and saved zones.
+[Remembered settings validation](validation.md#remembered-area-cleaning-preferences)
 
 Choose **Estimate draft** after selecting areas and settings. The card shows
 the planned time for each area. When some areas lack an estimate, **Known
