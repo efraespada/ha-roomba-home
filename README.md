@@ -50,7 +50,7 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   and then mop a selected destination in the same mission.
 - **Saved floors.** Start a mapping-only run and see when it is active or
   paused. Review and remove a saved floor from the card. [Mapping and floor removal](docs/usage.md#map-a-floor)
-- **Mission progress and history.** See the reported phase, mode, surface,
+- **Mission progress and history.** See the reported phase, mode, cleaned area,
   elapsed time, connectivity timestamp, and recent position. The last
   mission includes outcomes, area values, and pass counts for reported
   rooms and zones.
@@ -64,7 +64,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   is available as a Home Assistant sensor. A continuous Roomba subscription
   updates the map marker between state polls. The marker follows consecutive
   reported positions through turns and can recover earlier route segments
-  when a viewer joins midway through a mission.
+  when a viewer joins midway through a mission. **On mapped carpet** appears
+  when the latest position falls inside a carpet on the active floor.
   For robots with several saved maps, **Follow active floor** switches to
   the floor Roomba identifies for the current mission.
   **Estimated coverage** shades where Roomba reports vacuuming and mopping,
@@ -73,8 +74,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   Browse recorded cleaning reports with the mission's own coverage, route,
   timeline, and 3D floor plan. Hide travel, cleaning paths, or coverage
   independently and see zones and restrictions saved in the archived map.
-  Directed reports include the requested order, preferences, and reported
-  outcome and recorded cleaning time for each destination.
+  Directed reports include the requested order and preferences, plus the
+  reported outcome and recorded cleaning time for each destination.
   [Cleaning history](docs/usage.md#cleaning-history)
 - **Room cleaning scores.** View Roomba's reported score, mission timestamps,
   and suggested settings for each matched room on the active floor.
@@ -125,7 +126,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.66.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.67.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Enable Advanced Mode in your user
    profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
 3. Add a manual card with your robot's vacuum entity.

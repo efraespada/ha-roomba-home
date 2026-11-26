@@ -1501,18 +1501,26 @@ async def test_live_floor_is_resolved_and_pinned_across_multiple_saved_floors(
     assert selected["map"]["id"] == MAP.map_id
     assert selected["live"]["position"]["index"] == 10
     assert selected["current_room"] == "Office"
+    assert selected["on_mapped_carpet"] is False
     assert selected["active_rooms"] == [{"room": "Office"}]
     await socket.send_json(request | {"id": 2, "map_id": other.map_id})
     unselected = (await socket.receive_json())["result"]
     assert unselected["map"]["id"] == other.map_id
     assert unselected["live"] == {"trail": [], "position": None}
     assert unselected["current_room"] is None and unselected["active_rooms"] == []
+    assert unselected["on_mapped_carpet"] is None
     assert unselected["skip_review"] is None
     await socket.send_json(
         request | {"id": 3, "known_map_id": MAP.map_id, "known_version": MAP.version_id}
     )
     cached = (await socket.receive_json())["result"]
     assert cached["map"]["id"] == MAP.map_id and "geometry" not in cached
+    with patch("custom_components.roomba_home.map_api.datetime", wraps=datetime) as clock:
+        clock.now.return_value = now + timedelta(seconds=31)
+        await socket.send_json(request | {"id": 4})
+        expired = (await socket.receive_json())["result"]
+    assert expired["live"]["position"] is None
+    assert expired["current_room"] is None and expired["on_mapped_carpet"] is None
     watch = configured._map_watch(active)
     configured._receive_live_map_sample(
         replace(watch, map_version=(other.map_id, other.version_id)), replace(batch, index=11)
@@ -1531,7 +1539,7 @@ async def test_live_floor_is_resolved_and_pinned_across_multiple_saved_floors(
     configured.async_set_updated_data(idle)
     assert not configured._live_floor_pins
     await socket.send_json(
-        request | {"id": 4, "known_map_id": updated.map_id, "known_version": updated.version_id}
+        request | {"id": 5, "known_map_id": updated.map_id, "known_version": updated.version_id}
     )
     idle_view = (await socket.receive_json())["result"]
     assert idle_view["map"]["id"] == updated.map_id and "geometry" not in idle_view

@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-26",
+  "tested_model": "Roomba Max 700 Combo",
+  "environment": "physical robot, official Android app and isolated Home Assistant",
+  "source_layer": "floorTypes",
+  "temporary_zone_area_m2": 0.72,
+  "requested_profile": {"mode": "vacuum", "suction_level": 1, "two_pass": false},
+  "trials": [
+    {
+      "carpet_boost": false,
+      "vacuuming_samples_on_mapped_carpet": 2,
+      "samples_outside_mapped_carpet": 3,
+      "home_assistant_binary_sensor_verified": true,
+      "live_and_signed_requested_setting_verified": true,
+      "mission_outcome": "completed",
+      "zone_outcome_code": 0
+    },
+    {
+      "carpet_boost": true,
+      "vacuuming_samples_on_mapped_carpet": 2,
+      "samples_outside_mapped_carpet": 2,
+      "home_assistant_binary_sensor_verified": true,
+      "live_and_signed_requested_setting_verified": true,
+      "mission_outcome": "cancelled",
+      "zone_outcome_code": 5
+    }
+  ],
+  "effective_motor_power_observed": false,
+  "return_race": {
+    "completed_zone_at_mission_second": 119,
+    "automatic_travel_began_at_mission_second": 119,
+    "pause_began_at_mission_second": 127,
+    "stopped_with_no_active_mission": true,
+    "subsequent_dock_confirmed": true,
+    "same_mission_idle_transition_regression_test": true
+  },
+  "returned_to_dock": true,
+  "final_error_code": 0,
+  "temporary_zone_removed": true,
+  "original_default_settings_map_and_programs_preserved": true,
+  "other_robot_commands": 0
+}

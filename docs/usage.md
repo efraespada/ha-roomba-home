@@ -404,6 +404,10 @@ robot reported along its latest fresh position. Use `mopping` or
 `vacuum_mop` as state conditions for an automation that needs to know
 whether the robot is using the mop. The entity reads as unknown when the
 position expires or the mission ends. [Route telemetry](telemetry.md)
+The **On mapped carpet** binary sensor and map label show when the
+latest position falls on a carpet recorded in the active floor plan.
+The sensor becomes unknown when the live position expires or the floor
+cannot be matched. [Map and carpet readings](telemetry.md)
 The **Last live mission timeline update** sensor exposes the reported
 `stage_started_at` timestamp for the current stage. This can anchor elapsed
 time for a selected cleaning area, including a localized point.

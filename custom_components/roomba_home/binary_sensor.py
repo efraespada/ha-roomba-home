@@ -35,6 +35,8 @@ def binary_candidates(state):
             yield key, RoombaMetricBinary
         elif key in SOURCE_AVAILABILITY:
             yield key, RoombaMetricBinary
+    if state.telemetry.get("on_mapped_carpet") is not None:
+        yield "on_mapped_carpet", RoombaMetricBinary
     if "not_ready_code" in state.telemetry or "not_ready_conditions" in state.telemetry:
         yield "ready", RoombaMetricBinary
     if state.phase in PHASES:

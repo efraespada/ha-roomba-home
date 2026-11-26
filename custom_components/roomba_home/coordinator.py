@@ -1501,12 +1501,14 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
 
     def _with_live_position(self, state, floor, batch):
         point = batch.positions[-1]
+        coordinates = (point.x, point.y)
         geometry = self._floor_plans.get((state.robot_id, floor.geometry_key))
         return replace(
             state,
             telemetry={
                 **state.telemetry,
-                "current_room": geometry.room_at((point.x, point.y)) if geometry else None,
+                "current_room": geometry.room_at(coordinates) if geometry else None,
+                "on_mapped_carpet": geometry.mapped_carpet_at(coordinates) if geometry else None,
                 "live_route_activity": POSITION_ACTIVITIES.get(point.modes),
                 "position_updated": datetime.fromtimestamp(batch.timestamp, UTC),
             },
@@ -1585,6 +1587,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             if path.latest.expires <= now.timestamp() and (state := self.data.get(key)):
                 values = dict(state.telemetry)
                 values.pop("current_room", None)
+                values.pop("on_mapped_carpet", None)
                 values.pop("live_route_activity", None)
                 values.pop("position_updated", None)
                 self.data[key] = replace(state, telemetry=values)

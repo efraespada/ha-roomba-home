@@ -1,5 +1,14 @@
 # Roomba Home validation
 
+## Version 0.67.0
+
+The release adds accumulated cleaning time by destination, mapped carpet
+membership, and recovery when a short cleaning job finishes during a return
+request. Validation passed 2,571 Python tests with 100% line and branch
+coverage, 70 card tests, hassfest, and the SDD and privacy checks.
+[Timing validation](#accumulated-destination-cleaning-time) ·
+[Carpet and return validation](#carpet-boost-and-mapped-surface)
+
 ## Version 0.65.0
 
 The release adds one-off area cleaning preferences, explicit selection of
@@ -72,6 +81,33 @@ robot. Roomba reported active cleaning, pause, return, and arrival. The
 action returned `confirmed` at the dock with error code 0, and the
 provider read again found the original map and programs.
 [Anonymized return evidence](evidence/2026-11-26-return-during-cleaning.json)
+
+## Carpet boost and mapped surface
+
+The signed Max 700 Combo floor included a carpet polygon. An isolated
+Home Assistant instance created one temporary 0.72 m² saved zone within
+that polygon and requested vacuuming with suction level 1. Two missions
+used the same zone and changed only the requested carpet boost setting.
+Each run supplied two distinct vacuuming position samples on the mapped
+carpet. The map response and the **On mapped carpet** binary sensor
+classified those positions consistently. Each run also supplied positions
+outside the carpet. The active timeline and signed report preserved false
+in the first mission and true in the second. The observed current-state
+and mission shadows supplied no effective motor power measurement.
+
+The first zone finished as Home Assistant was requesting a pause ahead of
+return. The signed timeline recorded completed zone cleaning, automatic
+travel, then a pause. The robot stopped idle without an error and returned
+after a separate dock request. The regression test replays this transition.
+The return action now proceeds to dock when the same mission becomes idle
+and leaves a different or unverified mission untouched.
+
+The second trial ended with a return request after its readings were
+collected. Signed history contained the interrupted zone result. An
+independent read confirmed the robot at the dock with error code zero,
+the original suction, pass, and boost settings, and removal of the test
+zone. The map layers, routines, and schedules matched the original reads.
+[Anonymized trial evidence](evidence/2026-11-26-mapped-carpet.json)
 
 ## Whole-area and directed cleaning scope
 

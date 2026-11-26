@@ -27,7 +27,7 @@ MAP = PersistentMap(
 
 
 async def test_live_floor_image_and_room_are_private_opt_in_and_expire(
-    hass, entry, robot_states, make_point_bundle, cloud_session
+    hass, entry, robot_states, make_point_bundle, cloud_session, map_display_layers
 ):
     hass.config_entries.async_update_entry(entry, options={CONF_SHOW_MAPS: True})
     robot_id = "fixture-0"
@@ -47,7 +47,9 @@ async def test_live_floor_image_and_room_are_private_opt_in_and_expire(
     async def first_refresh(account):
         account._maps = {robot_id: (MAP,)}
         account._maps_available = {robot_id: True}
-        account.client.map_geometry = AsyncMock(return_value=make_point_bundle())
+        account.client.map_geometry = AsyncMock(
+            return_value=make_point_bundle(mutate=map_display_layers)
+        )
         account.client.live_map_topic = AsyncMock(return_value=topic)
         return {robot_id: active}
 
@@ -91,7 +93,11 @@ async def test_live_floor_image_and_room_are_private_opt_in_and_expire(
     activity_id = reg.async_get_entity_id(
         "sensor", DOMAIN, f"{entry.unique_id}_{robot_id}_live_route_activity"
     )
+    carpet_id = reg.async_get_entity_id(
+        "binary_sensor", DOMAIN, f"{entry.unique_id}_{robot_id}_on_mapped_carpet"
+    )
     assert hass.states.get(room_id).state == "Office"
+    assert hass.states.get(carpet_id).state == "off"
     assert hass.states.get(timestamp_id).state == datetime.fromtimestamp(timestamp, UTC).isoformat()
     activity = hass.states.get(activity_id)
     assert activity.state == "vacuuming"
@@ -105,11 +111,17 @@ async def test_live_floor_image_and_room_are_private_opt_in_and_expire(
     assert with_path.content != still.content
     assert hass.states.get(image_id).state != "unknown"
 
+    on_carpet = replace(position, index=32, positions=(Position(5.5, 0.5, 0, 5),))
+    await account._update_live_paths(active_states, {robot_id: [on_carpet]}, now)
+    account.async_set_updated_data(active_states)
+    assert hass.states.get(carpet_id).state == "on"
+
     idle = {robot_id: replace(active, phase="charge", cycle="none")}
     await account._update_live_paths(idle, {}, now)
     account.async_set_updated_data(idle)
     assert hass.states.get(room_id).state == "unknown"
     assert hass.states.get(activity_id).state == "unknown"
+    assert hass.states.get(carpet_id).state == "unknown"
     assert (await async_get_image(hass, image_id)).content == still.content
 
     await account._update_live_paths(active_states, {robot_id: [position]}, now)
@@ -122,6 +134,7 @@ async def test_live_floor_image_and_room_are_private_opt_in_and_expire(
     assert hass.states.get(room_id).state == "unknown"
     assert hass.states.get(timestamp_id).state == "unknown"
     assert hass.states.get(activity_id).state == "unknown"
+    assert hass.states.get(carpet_id).state == "unknown"
     assert len(account.live_path(robot_id).points) == 2
     await hass.config_entries.async_unload(entry.entry_id)
     assert account.live_path(robot_id) is None

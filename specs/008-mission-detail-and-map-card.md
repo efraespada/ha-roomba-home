@@ -71,7 +71,9 @@ trajectory contains observed positions and retains sequence gaps.
 - MAP-02: Improve continuity of the observed path and correlate live timeline reads with the current mission.
 - MAP-03: Physically verify sequential cleaning, a saved-zone run, and recharge with automatic resume.
 - MAP-04: Provide zoom, room and zone selection, keep-out overlays, and explicit confirmation in a standard dashboard card.
-- MAP-05: Offer an optional 3D map from the reported wall layer. Keep room and zone selection, live positions, and detected features aligned when the camera rotates.
+- MAP-05: Offer an optional 3D map from the reported wall layer. Keep room
+  and zone selection, live positions, and detected features aligned when
+  the camera rotates. Indicate when a fresh position is on mapped carpet.
 - MAP-06: Show the reported center and mode of a current point-cleaning mission on the associated map revision.
 - MAP-07: Browse recent cleaning reports, including numerical results and archived coverage, trajectories, and timelines.
 - MAP-08: Read the active floor revision's reported room cleaning scores and suggested cleaning settings.
@@ -255,7 +257,10 @@ The backend revalidates current map versions, permissions, and readiness.
 
 An associated archive may provide walls, detected carpet, and dock points as
 optional display layers. Omit malformed layers independently and retain all
-valid rooms and overlays. A 3D view requires a reported wall segment. Leave
+valid rooms and overlays. Project live carpet membership from the latest
+valid position and the active revision's carpet polygons. Expose an unknown
+reading when no carpet layer is available, the position is outside mapped
+rooms, or the position expires. A 3D view requires a reported wall segment. Leave
 reported doors open. Render a raised approximation of walls and furniture
 from their two-dimensional geometry. Project live positions, the observed
 route, and selectable areas with the same map-to-screen transform. Furniture
@@ -392,7 +397,7 @@ features, physical results, and open scenarios.
 | MAP-02 | [Capabilities](007-device-capabilities.md) | [Transport tests](../tests/test_mqtt.py), [route correlation tests](../tests/test_live_route.py), [late join evidence](../docs/validation.md#live-route-recovery), and [active timeline evidence](../docs/validation.md#mission-detail-and-dashboard-validation) |
 | MAP-03 | [Profiles](006-cleaning-profiles.md) and [capabilities](007-device-capabilities.md) | [Household validation](../docs/validation.md#mission-detail-and-dashboard-validation) |
 | MAP-04 | [Home Assistant](003-home-assistant.md) | [Authenticated endpoint and command-scope tests](../tests/ha/test_roomba_map_api.py) and [card screenshots](../README.md#floor-plan-dashboard) |
-| MAP-05 | [Map and zone editor](009-map-zone-editor.md) | [Archive parser tests](../tests/test_live_maps.py), [authenticated snapshot tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
+| MAP-05 | [Map and zone editor](009-map-zone-editor.md) | [Archive parser tests](../tests/test_live_maps.py), [live entity tests](../tests/ha/test_live_map_entities.py), [authenticated snapshot tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [physical carpet validation](../docs/validation.md#carpet-boost-and-mapped-surface) |
 | MAP-06 | [Capabilities](007-device-capabilities.md) | [Point timeline tests](../tests/test_live_maps.py), [authenticated snapshot tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 | MAP-07 | [Archived report contract](../docs/api.md#archived-cleaning-reports) | [Archive tests](../tests/test_mission_map.py), [authenticated reports](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [device validation](../docs/validation.md#archived-cleaning-reports) |
 | MAP-08 | [Cleaning score contract](../docs/api.md#room-cleaning-score-reads) | [Parser tests](../tests/test_clean_scores.py), [Home Assistant tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [device validation](../docs/validation.md#room-cleaning-scores) |

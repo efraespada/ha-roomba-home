@@ -1390,7 +1390,8 @@ class RoombaHomeMapCard extends HTMLElement {
         ? "" : "This floor contains furniture the editor cannot preserve.";
       this.$("activity").textContent = data.mapping?.activity ?
         (data.mapping.activity === "paused" ? "Mapping paused" : "Mapping in progress") :
-        (data.current_room ? `Current room · ${data.current_room}` : "");
+        [data.current_room ? `Current room · ${data.current_room}` : null,
+          data.on_mapped_carpet === true ? "On mapped carpet" : null].filter(Boolean).join(" · ");
       if (staleFloorDraft) {
         this.operationMessage = "The floor settings changed. Open the editor again.";
         this.$("status").textContent = this.operationMessage;

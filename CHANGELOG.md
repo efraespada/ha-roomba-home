@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.67.0
 
 - Show each destination's accumulated cleaning time across passes and
   resumes. Keep the timer steady during pauses and include the recorded
   total in mission history.
+- Show when the robot's latest position falls on a carpet recorded in
+  the active floor plan. Expose the same reading as a binary sensor.
+- Return the robot to its dock if a short cleaning mission ends while
+  the return action waits for a pause.
 
 ## 0.66.0
 

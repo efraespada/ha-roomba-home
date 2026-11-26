@@ -515,6 +515,9 @@
       "preparing_mop": {
         "name": "Preparing the mop"
       },
+      "on_mapped_carpet": {
+        "name": "On mapped carpet"
+      },
       "mop_attached": {
         "name": "Mop attached"
       },

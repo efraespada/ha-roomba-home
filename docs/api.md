@@ -404,6 +404,10 @@ map identifiers.
 The Max 700 persistent map archive includes optional layers alongside room
 polygons and furniture. The authenticated floor plan response provides usable
 layers from the associated revision in `geometry.presentation`.
+The response's `on_mapped_carpet` values come from the latest in-room position
+and the active revision's carpet polygons. The boolean is null without
+valid geometry, fresh position, or a matching active floor. False describes
+a mapped point outside the known carpet polygons.
 
 | Manifest type | GeoJSON data | Dashboard use |
 | --- | --- | --- |
