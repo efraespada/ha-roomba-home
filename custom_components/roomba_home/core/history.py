@@ -1,5 +1,6 @@
 """Typed history summaries. Private mission, map and event data stay in the API response."""
 
+from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
@@ -50,10 +51,9 @@ EXTRA_HISTORY_FIELDS = {
 }
 
 
-def _area_results(events: object, kind: str, field: str) -> tuple[AreaResult, ...]:
+def _area_events(events: object, kind: str, field: str) -> Iterable[AreaResult]:
     if not isinstance(events, list):
-        return ()
-    results = {}
+        return
     for event in events:
         if not isinstance(event, dict) or event.get("type") != kind:
             continue
@@ -69,31 +69,49 @@ def _area_results(events: object, kind: str, field: str) -> tuple[AreaResult, ..
         )
         if all(value is None for value in (status, area, total, passes)):
             continue
+        yield AreaResult(key, timestamp, status, area, total, passes, kind)
+
+
+def _latest_area_results(events: Iterable[AreaResult]) -> tuple[AreaResult, ...]:
+    results = {}
+    completed_indexes = {}
+    for result in events:
+        key = result.kind, result.identity
         earlier = results.get(key)
-        if earlier is None or timestamp >= earlier.timestamp:
-            results[key] = AreaResult(key, timestamp, status, area, total, passes, kind)
+        if earlier is None or result.timestamp >= earlier.timestamp:
+            results[key] = result
+        if (
+            result.kind == "saved_zone"
+            and result.status in (0, 1)
+            and result.pass_count is not None
+        ):
+            completed_indexes.setdefault(key, set()).add(result.pass_count)
+    # Firmware uses zero-based pass indexes in saved-zone completion events.
+    for key, indexes in completed_indexes.items():
+        if 0 in indexes:
+            results[key] = replace(results[key], confirmed_completed_passes=len(indexes))
     return tuple(sorted(results.values(), key=lambda area: area.timestamp))
 
 
 def room_results(events: object) -> tuple[AreaResult, ...]:
     """Keep the newest reported result for each room and exact map revision."""
-    return _area_results(events, "room", "rid")
+    return _latest_area_results(_area_events(events, "room", "rid"))
 
 
 def zone_results(events: object, command: object = None) -> tuple[AreaResult, ...]:
     """Resolve zone events to the matching command's saved, temporary, or furniture target."""
-    return identify_zones(_area_results(events, "zone", "zid"), command)
+    return identify_zones(tuple(_area_events(events, "zone", "zid")), command)
 
 
 def identify_zones(results: tuple[AreaResult, ...], command: object) -> tuple[AreaResult, ...]:
     if not results or not isinstance(command, dict) or command.get("command") != "start":
-        return results
+        return _latest_area_results(results)
     regions = command.get("regions")
     if not isinstance(regions, list):
-        return results
+        return _latest_area_results(results)
     scope = command.get("p2map_id"), command.get("user_p2mapv_id")
     if not all(map_identifier(value) for value in scope):
-        return results
+        return _latest_area_results(results)
     kinds = {
         region["region_id"]: kind
         for region in regions
@@ -102,7 +120,7 @@ def identify_zones(results: tuple[AreaResult, ...], command: object) -> tuple[Ar
         and (kind := command_region_kind(region)) in {"tid", "zid"}
     }
     links = furniture_links(command.get("id_multipolys"))
-    identified = {}
+    identified = []
     for result in results:
         identity = result.identity[2]
         # The robot can report a different revision from the requested user map.
@@ -115,18 +133,21 @@ def identify_zones(results: tuple[AreaResult, ...], command: object) -> tuple[Ar
                 result = replace(result, identity=(*scope, furniture_id), kind="furniture")
             else:
                 result = replace(result, kind="temporary_zone")
-        identified[result.kind, result.identity] = result
-    return tuple(sorted(identified.values(), key=lambda area: area.timestamp))
+        identified.append(result)
+    return _latest_area_results(identified)
 
 
 def _public_result(area: AreaResult) -> dict:
-    return {
+    result = {
         "status": ROOM_STATUSES.get(area.status),
         "status_code": area.status,
         "area": area.area,
         "total_area": area.total_area,
         "pass_count": area.pass_count,
     }
+    if area.confirmed_completed_passes is not None:
+        result["confirmed_completed_passes"] = area.confirmed_completed_passes
+    return result
 
 
 def present_rooms(results: tuple[AreaResult, ...], maps: tuple[PersistentMap, ...]) -> list[dict]:

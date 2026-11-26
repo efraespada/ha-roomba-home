@@ -155,7 +155,7 @@ timeline echoed both settings and reported zero passes during the active
 room stage. Its signed history later returned `done: ok` and a room event
 with status `5` (`user_ended`) and `passCount: 0` after a return-to-base
 request. This run verifies the request and reporting path. A natural second
-pass remains unverified.
+pass was outside the scope of this room trial.
 
 The robot returned to its dock with error code 0. The active floor revision,
 rooms, zones, restrictions, routines, and schedules matched the initial
@@ -170,6 +170,45 @@ checks verify those fields, preservation of false and zero, and handling of
 null parameter groups. The suite passed 2,465 Python tests with 100% line
 and branch coverage and 55 card tests.
 [Anonymized trial evidence](evidence/2026-11-25-requested-and-reported-passes.json)
+
+### Saved-zone passes and live stage timing
+
+Two isolated Home Assistant trials used a 2.56 m² saved zone on a
+Max 700 Combo with suction 1 and two passes requested. The official
+Android app displayed the requested passes and elapsed zone minutes.
+A return-to-base request ended the first trial during the second pass.
+The second trial completed after seven minutes and returned to the
+dock without a control command. Both trials ended at the dock with
+error code zero.
+
+For both trials, the signed history contained a first event with
+status `finished_with_more_passes` and raw `passCount: 0`. The
+second event used raw `passCount: 1` and reported `user_ended` in
+the cancelled trial and `finished` in the completed trial. The two
+passes used different robot revisions for the same saved zone. The
+integration correlates them against the requested floor and zone
+before counting the completion events. Authenticated Home Assistant
+history exposed two confirmed passes, the raw value of one, and the
+zone label from the archived map after the trial zone was deleted.
+
+The updated integration also returned time in the zone's current stage
+on authenticated floor-plan reads. At 118 seconds from mission start it
+reported 67 seconds in the cleaning stage. The Android view showed two
+minutes at 121 seconds from mission start. While the robot was relocating,
+the destination had no stage time. Isolated Chrome verified that the
+same destination row showed the requested setting, reported pass count,
+and elapsed time at 358 and 900 pixels without overflowing.
+The elapsed value restarted when Roomba reported the second stage.
+Android continued to show accumulated minutes for the whole zone.
+Deriving that accumulated time from the full event sequence remains open.
+
+The temporary zones were removed. The saved rooms, zone and policy
+layers, boundaries, routines, and schedules matched the baseline.
+Suction and the two-pass default matched the preflight values after
+the natural run. Roomba updated robot-detected furniture identifiers
+and moved the dock marker by 25.63 cm in the map while learning from
+the run. The run added no user-saved furniture or cleaning regions.
+[Anonymized zone evidence](evidence/2026-11-26-saved-zone-passes.json)
 
 ## Historical map layers
 

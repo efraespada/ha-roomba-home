@@ -1075,6 +1075,21 @@ parameter group contributes no preferences. Omitted preferences remain
 omitted in the public plan. `reported_pass_count` preserves a current or
 finished `passCount` event, including zero.
 
+`confirmed_completed_passes` counts distinct completed pass indexes
+from saved-zone events correlated to the same mission and requested floor.
+It is available in zone outcomes and destination rows when the events
+include a completed index of zero. During a second pass, the completed
+indexes come from final events and the raw value comes from the active
+event when available. The archived `pass_count` and the plan's
+`reported_pass_count` preserve the original values. A completed
+two-pass zone reported index one in its final event.
+
+`stage_elapsed_seconds` is available for the single in-progress
+destination in a matched `room` or `zone` stage while the robot is
+cleaning. It is calculated on each floor-plan read from that stage's
+reported start time. It is omitted when paused, travelling, or when the
+stage cannot be associated with one current destination.
+
 A physical room-only vacuuming run reported `cleanMissionStatus.sqft`
 increasing from 0 to 21 during cleaning. Replays of the two-furniture
 timeline advanced from one confirmed destination to two. The observed

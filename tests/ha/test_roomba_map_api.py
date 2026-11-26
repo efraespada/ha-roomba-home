@@ -1188,14 +1188,20 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     assert reply["destinations"][0]["status"] == "in_progress"
     assert reply["destinations"][0]["requested_settings"] == {"suction_level": 3, "two_pass": False}
     assert reply["destinations"][0]["reported_pass_count"] == 0
+    assert reply["destinations"][0]["stage_elapsed_seconds"] == 23
 
     later = now + timedelta(seconds=39)
     next_snapshot = await snapshot(later, 2)
     assert next_snapshot["estimated_remaining_seconds"] == 440
-    assert next_snapshot["destinations"] == reply["destinations"]
+    assert next_snapshot["destinations"] == [
+        reply["destinations"][0] | {"stage_elapsed_seconds": 62}
+    ]
     assert reading.telemetry["live_timeline_plan"]["estimated_remaining_seconds"] == 479
+    assert "stage_elapsed_seconds" not in reading.telemetry["live_timeline_plan"]["destinations"][0]
     configured.async_set_updated_data({robot: replace(reading, phase="stop")})
-    assert (await snapshot(later, 3))["estimated_remaining_seconds"] is None
+    paused_snapshot = await snapshot(later, 3)
+    assert paused_snapshot["estimated_remaining_seconds"] is None
+    assert "stage_elapsed_seconds" not in paused_snapshot["destinations"][0]
     configured.async_set_updated_data({robot: reading})
     assert await snapshot(now + timedelta(seconds=101), 4) is None
 

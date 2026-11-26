@@ -52,10 +52,13 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   paused. Review and remove a saved floor from the card. [Mapping and floor removal](docs/usage.md#map-a-floor)
 - **Mission progress and history.** See the reported phase, mode, surface,
   elapsed time, connectivity timestamp, and recent position. The last
-  mission includes outcomes, area values, and pass counts per reported room.
+  mission includes outcomes, area values, and pass counts for reported
+  rooms and zones.
   Fresh timeline replies add the current stage, its reported start time,
   in-progress measurements, and the selected destinations with their
-  requested modes and observed outcomes.
+  requested preferences and observed outcomes. The active destination
+  shows time in its current cleaning stage when Roomba supplies its start.
+  Saved zones show the number of passes confirmed by completion events.
   The live route distinguishes travel, vacuuming, and mopping, including
   simultaneous vacuuming and mopping. The latest reported route activity
   is available as a Home Assistant sensor. A continuous Roomba subscription

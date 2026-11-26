@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-26",
+  "tested_model": "Roomba Max 700 Combo",
+  "environment": "isolated Home Assistant and official Android app",
+  "temporary_zone_area_m2": 2.56,
+  "requested_profile": {"mode": "vacuum", "suction_level": 1, "two_pass": true},
+  "signed_history": [
+    {
+      "outcome": "cancelled",
+      "duration_minutes": 5,
+      "return_requested": true,
+      "zone_events": [
+        {"status": 1, "raw_pass_index": 0},
+        {"status": 5, "raw_pass_index": 1}
+      ],
+      "confirmed_completed_passes": 1
+    },
+    {
+      "outcome": "completed",
+      "duration_minutes": 7,
+      "return_requested": false,
+      "zone_events": [
+        {"status": 1, "raw_pass_index": 0},
+        {"status": 0, "raw_pass_index": 1}
+      ],
+      "zone_events_used_distinct_robot_revisions": true,
+      "confirmed_completed_passes": 2,
+      "home_assistant_history_verified": true,
+      "zone_label_resolved_from_archive_after_deletion": true
+    }
+  ],
+  "authenticated_live_samples": [
+    {"mission_elapsed_seconds": 26, "stage": "reloc", "destination_stage_elapsed_seconds": null},
+    {"mission_elapsed_seconds": 118, "stage": "zone", "destination_stage_elapsed_seconds": 67},
+    {"mission_elapsed_seconds": 232, "stage": "zone", "destination_stage_elapsed_seconds": 181},
+    {"mission_elapsed_seconds": 243, "stage": "zone", "destination_stage_elapsed_seconds": 35},
+    {"mission_elapsed_seconds": 383, "stage": "travel", "destination_stage_elapsed_seconds": null}
+  ],
+  "android_at_mission_elapsed_seconds": 121,
+  "android_displayed_zone_elapsed_minutes": 2,
+  "chrome_viewport_widths_verified": [358, 900],
+  "temporary_zones_removed": true,
+  "rooms_saved_zones_restrictions_boundaries_and_programs_preserved": true,
+  "original_suction_and_two_pass_settings_verified_after_natural_run": true,
+  "provider_revised_detected_furniture_identifiers": true,
+  "provider_dock_marker_displacement_cm": 25.63,
+  "returned_to_dock": true,
+  "final_error_code": 0,
+  "other_robot_commands": 0
+}

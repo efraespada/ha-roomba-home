@@ -4,6 +4,10 @@
 
 - Refresh the map's countdown between robot polls using the latest verified
   room stage and the saved time estimate.
+- Show elapsed time for the current destination's cleaning stage when
+  Roomba reports a matching start time.
+- Count confirmed saved-zone passes from the robot's completion events and
+  preserve the original pass value in the API.
 
 ## 0.65.0
 
