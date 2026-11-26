@@ -158,6 +158,34 @@ legend and timeline for an inspected older report. Reactivating the
 earlier provider revision remains open.
 [Anonymized trial and restoration evidence](evidence/2026-11-26-short-routine-auto-emptying.json)
 
+### Saved-routine dock frequency comparison
+
+Two vacuum-only runs used the same saved routine, 9.92 m² cleaning zone,
+suction level, and two-pass setting on a disposable floor. Signed history
+matched each report to that floor and destination. Both completed and
+reported one bin emptying. The **After each routine** run recorded 12.45 m²
+in 18 minutes. The **Every 25 m²** run recorded 12.36 m² in 21 minutes.
+Both evacuation stages lasted 18 seconds and reported dock state 301
+with error code zero.
+
+An independent signed read confirmed the 25 m² setting before and after
+the second run. The live observer lost confirmation from Home Assistant
+and recovered the result from the signed mission report. The dock never
+reported a motor-active state in the captured samples. These runs show a
+counted emptying on 25 m² mode even though the mission's reported area
+was below that setting. They leave the effective trigger and any dock-side
+accumulated area unresolved.
+
+After the robot docked, the temporary routine and floor were removed. The
+original floor revision, decoded map layers, routines, and schedules
+matched the preflight snapshot. Independent settings reads reported the
+original dock frequency of 25 m².
+
+The Home Assistant recorder showed the reported default suction changing
+from 1 to 2 when the first routine started. After the trials a signed
+settings write and read restored level 1 without starting a new mission.
+[Anonymized trial and restoration evidence](evidence/2026-11-26-saved-routine-dock-frequency.json)
+
 ### ClearView archive recovery
 
 The Android Max 700 Combo report showed the original map legend, cleaning
@@ -192,6 +220,21 @@ in an authenticated session linked to the Max 700 Combo. The robot stayed
 docked. Refill codes and an explicitly reported finish event were covered
 with protocol fixtures.
 [Anonymized evidence](evidence/2026-11-26-archived-dock-timeline.json)
+
+### Android history list and totals
+
+All 29 visible Android reports for the Max 700 Combo matched signed
+reports by start minute, duration, and outcome. Two completed reports
+were visible without a map. In the same signed response, Android omitted
+one mapping run, two canceled cleaning runs without a map, and one
+cleaning attempt that got stuck without a map. Home Assistant kept the
+three cleaning reports and excluded the mapping run.
+
+The 29 matching reports totaled 189 minutes. Android displayed 3.1 h
+and 123.3 m². The exact conversion of the matched signed areas totaled
+123.7 m². The source calculation for Android's area total remains open.
+Home Assistant calculates its total from the signed reports it displays.
+[Anonymized comparison](evidence/2026-11-26-android-history-totals.json)
 
 ## Version 0.67.0
 

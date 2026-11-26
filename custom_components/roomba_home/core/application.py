@@ -61,6 +61,7 @@ class ControlState:
     mapping_supported: bool = False
     mapping: bool = False
     pause_before_return: bool = False
+    refresh_failed: bool = False
 
 
 def _skip_error(state: ControlState) -> str | None:
@@ -323,8 +324,10 @@ async def _pause_for_return(
     while port.active and port.clock() < deadline:
         await port.wait(5)
         state = await port.refresh()
-        if state.connected is not True:
+        if state.refresh_failed or state.connected is False:
             break
+        if state.connected is None:
+            continue
         if plan.confirms(state) or state.activity == "returning":
             return state
         if state.mission_identity != before.mission_identity:
@@ -408,8 +411,10 @@ async def execute_control(
                     return
                 disconnected |= state.connected is False
                 continue
-            if state.connected is not True:
+            if state.refresh_failed or state.connected is False:
                 break
+            if state.connected is None:
+                continue
             if plan.command is Command.SKIP:
                 if _confirmed_skip(before, state):
                     port.report("confirmed")
