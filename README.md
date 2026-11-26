@@ -10,9 +10,9 @@ uses Roomba's own cloud services for device data and control.
 ## Quick start
 
 The verified model is **Roomba Max 700 Combo (X185240)**, linked to a Roomba Home
-account. The latest household cleaning test used Home Assistant Core 2026.11.2
-and integration version 0.26.1. [Capability matrix](docs/capabilities.md) ·
-[Physical validation](docs/validation.md)
+account. The 0.66.0 household upgrade verified three robots, their three
+docks, and the completed saved-zone report in the dashboard.
+[Capability matrix](docs/capabilities.md) · [Physical validation](docs/validation.md)
 
 1. In **HACS → Custom repositories**, add `efraespada/ha-roomba-home` as an
    **Integration** and download the latest release. The installation guide

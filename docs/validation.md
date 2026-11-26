@@ -210,6 +210,17 @@ and moved the dock marker by 25.63 cm in the map while learning from
 the run. The run added no user-saved furniture or cleaning regions.
 [Anonymized zone evidence](evidence/2026-11-26-saved-zone-passes.json)
 
+### Household 0.66.0 upgrade
+
+The 0.66.0 archive downloaded on the household instance matched the
+checksum calculated from the published release archive.
+The household deployment backed up 0.27.0, passed `ha core check`, and
+restarted Core. Home Assistant served the released map card and listed
+all three robots and their three dock devices. The dashboard resource was
+updated to the 0.66.0 URL. The installed card displayed two completed
+passes and the requested suction and pass settings for the real saved-zone
+report. The deployment verification sent no robot commands.
+
 ## Historical map layers
 
 The integration opened 21 signed reports for the Max 700 Combo using each
