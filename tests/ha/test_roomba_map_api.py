@@ -1169,18 +1169,43 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     )
     result = await configured._timeline_metrics(state, report, now)
     assert result["live_estimated_remaining"] == 479
-    configured.async_set_updated_data({robot: replace(state, telemetry=state.telemetry | result)})
+    assert configured.live_plan(state, MAP, now) is None
+    reading = replace(state, telemetry=state.telemetry | result)
+    configured.async_set_updated_data({robot: reading})
     socket = await hass_ws_client()
-    await socket.send_json({"id": 1, "type": "roomba_home/floor_plan", "entity_id": ENTITY})
-    reply = (await socket.receive_json())["result"]["live_plan"]
+    request = {"id": 1, "type": "roomba_home/floor_plan", "entity_id": ENTITY}
+
+    async def snapshot(clock, request_id):
+        with patch("custom_components.roomba_home.map_api.datetime", wraps=datetime) as clock_api:
+            clock_api.now.return_value = clock
+            await socket.send_json(request | {"id": request_id})
+            return (await socket.receive_json())["result"]["live_plan"]
+
+    reply = await snapshot(now, 1)
     assert reply["estimated_remaining_seconds"] == 479
     assert reply["estimated_duration_seconds"] == 502
     assert reply["destinations"][0]["estimated_duration_seconds"] == 502
     assert reply["destinations"][0]["status"] == "in_progress"
     assert reply["destinations"][0]["requested_settings"] == {"suction_level": 3, "two_pass": False}
     assert reply["destinations"][0]["reported_pass_count"] == 0
+    assert reply["destinations"][0]["stage_elapsed_seconds"] == 23
 
-    advanced = await configured._timeline_metrics(state, None, now + timedelta(seconds=39))
+    later = now + timedelta(seconds=39)
+    next_snapshot = await snapshot(later, 2)
+    assert next_snapshot["estimated_remaining_seconds"] == 440
+    assert next_snapshot["destinations"] == [
+        reply["destinations"][0] | {"stage_elapsed_seconds": 62}
+    ]
+    assert reading.telemetry["live_timeline_plan"]["estimated_remaining_seconds"] == 479
+    assert "stage_elapsed_seconds" not in reading.telemetry["live_timeline_plan"]["destinations"][0]
+    configured.async_set_updated_data({robot: replace(reading, phase="stop")})
+    paused_snapshot = await snapshot(later, 3)
+    assert paused_snapshot["estimated_remaining_seconds"] is None
+    assert "stage_elapsed_seconds" not in paused_snapshot["destinations"][0]
+    configured.async_set_updated_data({robot: reading})
+    assert await snapshot(now + timedelta(seconds=101), 4) is None
+
+    advanced = await configured._timeline_metrics(state, None, later)
     assert advanced["live_estimated_remaining"] == 440
     paused = await configured._timeline_metrics(replace(state, phase="stop"), None, now)
     assert paused["live_estimated_remaining"] is None

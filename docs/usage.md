@@ -410,10 +410,12 @@ time for a selected cleaning area, including a localized point.
 
 For a directed cleaning run, the floor plan card lists the destinations
 and shows how many have finished. **Planned order** appears when Roomba
-commits to an order. A row shows the requested preferences and the pass
-count reported by Roomba when those fields are available. **Two passes on**
-describes the request. **Reported passes** reflects the current or most
-recent destination event.
+commits to an order. **Two passes on** describes the requested preference.
+**Completed passes** counts the completion events Roomba supplied for a
+saved zone. A row without confirmed passes can show **Reported pass
+value** from the current or most recent destination event. **In current
+stage** measures the time since Roomba started that cleaning stage.
+The value can restart when the robot begins a new stage.
 
 The **Completed destinations in the current mission**
 sensor can trigger an automation as soon as the first destination finishes.
@@ -433,8 +435,9 @@ actions:
 
 **Estimated cleaning time remaining** reports seconds for ongoing directed
 cleaning with a verified estimate for each remaining destination. The card
-rounds up to minutes and shows each available planned duration. The reading
-becomes unknown on pause, once the estimate is exhausted, or when the
+rounds up to minutes and shows each available planned duration. It refreshes
+the countdown between robot polls from the last verified room stage. The
+reading becomes unknown on pause, once the estimate is exhausted, or when the
 mission ends. [Timing and telemetry](telemetry.md#how-to-interpret-progress)
 
 Use the robot and dock problem event entities for new, changed, or cleared

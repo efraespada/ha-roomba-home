@@ -178,6 +178,8 @@ Keep the original provider command on a rename. An explicit replacement
 saves the selected order and reviewed profiles against the current floor.
 Furniture uses listed order. Keep the estimate and known confidence in the
 list response when the provider returns a single, valid duration in minutes.
+The provider can generate the saved estimate from the reviewed command
+with an omitted or empty estimate array.
 
 Offer fixed presets for the verified Max 700 model only when its digital
 capability and the required settings are available. Apply each preset

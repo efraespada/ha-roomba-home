@@ -125,9 +125,10 @@ The count becomes unknown after the mission ends or the report expires.
 duration for each directed room with the live mission stage and its time.
 The state is in seconds. The `estimated_duration_seconds` attribute is
 available for a complete plan. Remaining time is approximate and may
-differ from Roomba Home's displayed value. The active estimate becomes
-unknown on an interrupted stage or when an unfinished destination lacks
-a duration. Global coverage and percentage still require verification.
+differ from Roomba Home's displayed value. The card updates the countdown
+between robot polls from the verified stage timestamp. The estimate becomes
+unknown on an interrupted stage or when an unfinished destination lacks a
+duration. Global coverage and percentage still require verification.
 [View estimates](usage.md#rooms-zones-and-dock) ·
 [Live map evidence](evidence/2026-11-24-live-progress.json)
 

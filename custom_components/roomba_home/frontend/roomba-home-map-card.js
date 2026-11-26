@@ -945,6 +945,11 @@ function showPresetChoices(select, keys, locked) {
   select.disabled = locked || !keys.length;
 }
 
+function passSummary(completed, reported) {
+  if (completed != null) return `Completed passes ${completed}`;
+  return reported != null ? `Reported pass value ${reported}` : null;
+}
+
 function historyLabel(value) {
   return value ? value.replaceAll("_", " ").replace(/^./, (first) => first.toUpperCase()) : "Unknown";
 }
@@ -2519,9 +2524,12 @@ class RoombaHomeMapCard extends HTMLElement {
       status.className = "muted";
       const duration = destination.estimated_duration_seconds;
       const planned = duration != null ? `${Math.ceil(duration / 60)} min planned` : null;
-      const count = destination.reported_pass_count;
-      const passes = count != null ? `Reported passes ${count}` : null;
-      status.textContent = [MODES[destination.mode], statuses[destination.status], passes, planned]
+      const elapsed = destination.stage_elapsed_seconds;
+      const stageTime = elapsed != null
+        ? `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")} in current stage`
+        : null;
+      const passes = passSummary(destination.confirmed_completed_passes, destination.reported_pass_count);
+      status.textContent = [MODES[destination.mode], statuses[destination.status], stageTime, passes, planned]
         .filter(Boolean).join(" · ");
       row.append(name, status);
       if (destination.requested_settings) {
@@ -2562,7 +2570,8 @@ class RoombaHomeMapCard extends HTMLElement {
       status.textContent = area.status?.replaceAll("_", " ") ?? defaultStatus;
       const metrics = document.createElement("div");
       const values = [];
-      if (area.pass_count !== null) values.push(`Passes ${area.pass_count}`);
+      const passes = passSummary(area.confirmed_completed_passes, area.pass_count);
+      if (passes !== null) values.push(passes);
       if (area.area !== null) values.push(`Reported area ${area.area}${area.total_area !== null ? ` / ${area.total_area}` : ""}`);
       metrics.className = "muted";
       metrics.textContent = values.join(" · ");

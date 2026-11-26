@@ -407,3 +407,48 @@ def test_zone_history_uses_the_mission_target_with_its_requested_map_revision():
     assert summary["last_mission_target"] == "furniture"
     assert summary["last_mission_target_count"] == 1
     assert summary["last_mission_zone_results"][1] == results[1]
+
+
+@pytest.mark.parametrize(("final_status", "confirmed"), [(0, 2), (5, 1)])
+def test_saved_zone_counts_completed_events_across_correlated_revisions(final_status, confirmed):
+    from custom_components.roomba_home.core.history import present_zones, zone_results
+    from custom_components.roomba_home.core.mission_plan import mission_plan, present_mission_plan
+
+    def event(timestamp, status, passes, map_id="floor"):
+        return {
+            "type": "zone",
+            "ts": timestamp,
+            "zone": {
+                "p2mapId": map_id,
+                "p2mapvId": f"robot-{timestamp}",
+                "zid": "100",
+                "passCount": passes,
+                "status": status,
+            },
+        }
+
+    command = {
+        "command": "start",
+        "p2map_id": "floor",
+        "user_p2mapv_id": "reviewed",
+        "regions": [{"type": "zid", "region_id": "100", "params": {"twoPass": True}}],
+    }
+    first = event(10, 1, 0)
+    second = event(20, final_status, 1)
+    duplication = event(11, 1, 0)
+    unrelated = event(15, 0, 2, map_id="foreign")
+    draft = mission_plan(command)
+    finished = zone_results([second, unrelated, first, duplication], command)
+    zone = present_zones(finished, ())[1]
+    assert zone["pass_count"] == 1 and zone["confirmed_completed_passes"] == confirmed
+    history = present_mission_plan(draft, finished, (), None, (), archived=True)
+    assert history["destinations"][0]["confirmed_completed_passes"] == confirmed
+    assert history["destinations"][0]["reported_pass_count"] == 1
+    underway = zone_results([event(20, None, 1)], command)
+    running = present_mission_plan(draft, zone_results([first], command), underway, None, ())
+    assert running["destinations"][0]["status"] == "in_progress"
+    assert running["destinations"][0]["confirmed_completed_passes"] == 1
+    assert zone_results([second], command)[0].confirmed_completed_passes is None
+    assert all(
+        result.confirmed_completed_passes is None for result in zone_results([first, second])
+    )

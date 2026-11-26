@@ -292,7 +292,7 @@
       "status": "proposed",
       "scope": "Per-room history and cleaning scores, archived reports, live progress and route recovery, dashboard selection, and household checks",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-25",
+      "lastVerified": "2026-11-26",
       "specs": [
         "specs/008-mission-detail-and-map-card.md"
       ],
@@ -335,7 +335,8 @@
         "docs/evidence/2026-11-25-live-route-activity.json",
         "docs/evidence/2026-11-25-live-route-backfill.json",
         "docs/evidence/2026-11-25-wet-route-activity.json",
-        "docs/evidence/2026-11-25-room-cleaning-scores.json"
+        "docs/evidence/2026-11-25-room-cleaning-scores.json",
+        "docs/evidence/2026-11-26-live-countdown.json"
       ]
     },
     {

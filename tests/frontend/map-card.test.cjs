@@ -1437,10 +1437,11 @@ test("the history panel opens the latest report and shows measurements when geom
   card.renderAreaResults = () => {};
   const planView = card.$("history-plan");
   planView.append(mockElement("summary"), mockElement("div"));
-  const plan = { ordered: true, total: 2, completed: 0, destinations: [
+  const plan = { ordered: true, total: 2, completed: 1, destinations: [
     { kind: "furniture", mode: "vacuum", status: "skipped", reported_pass_count: 0,
       requested_settings: { two_pass: false, suction_level: 2 } },
-    { kind: "saved_zone", mode: "mop", status: "unreported", requested_settings: { wetness_level: 3 } },
+    { kind: "saved_zone", mode: "mop", status: "finished", reported_pass_count: 1,
+      confirmed_completed_passes: 2, requested_settings: { wetness_level: 3 } },
   ] };
   card.$("mission-history-dialog").showModal = function () { this.open = true; };
   const calls = [];
@@ -1457,14 +1458,14 @@ test("the history panel opens the latest report and shows measurements when geom
   assert.equal(card.$("history-totals").textContent, "1 report · 2 min · 0.5 m²");
   assert.ok(card.$("history-measurements").children.length);
   assert.equal(planView.hidden, false);
-  assert.equal(planView.querySelector("summary").textContent, "Requested order · 0 of 2 completed");
+  assert.equal(planView.querySelector("summary").textContent, "Requested order · 1 of 2 completed");
   assert.deepEqual(planView.querySelector("ol").children.map((item) =>
     item.children[0].children.map((field) => field.textContent)), [
-    ["Furniture target", "Vacuum · Skipped · Reported passes 0", "Requested · Suction 2 · Two passes off"],
-    ["Saved zone", "Mop · No final result", "Requested · Mop wetness 3"],
+    ["Furniture target", "Vacuum · Skipped · Reported pass value 0", "Requested · Suction 2 · Two passes off"],
+    ["Saved zone", "Mop · Completed · Completed passes 2", "Requested · Mop wetness 3"],
   ]);
   card.renderMissionReport({ ...card.historyReport, plan: { ...plan, ordered: false } });
-  assert.equal(planView.querySelector("summary").textContent, "Requested destinations · 0 of 2 completed");
+  assert.equal(planView.querySelector("summary").textContent, "Requested destinations · 1 of 2 completed");
   assert.ok(planView.querySelector("ul"));
   card.renderMissionReport({ ...card.historyReport, plan: null });
   assert.equal(planView.hidden, true);
@@ -2253,12 +2254,15 @@ test("last mission results name furniture and keep separately reported zone metr
   try {
     card.renderAreaResults("history", [
       { kind: "furniture", name: "Sofa", status: "finished", area: 8, total_area: 10, pass_count: 0 },
+      { kind: "saved_zone", name: "Entry", status: "finished", area: null, total_area: null,
+        pass_count: 1, confirmed_completed_passes: 2 },
       { kind: "temporary_zone", name: null, status: null, area: null, total_area: null, pass_count: null },
     ], "Unknown outcome");
     assert.equal(details.hidden, false);
     assert.deepEqual(rows.children.map((row) => row.children.map((child) => child.textContent)), [
-      ["Sofa", "finished", "Passes 0 · Reported area 8 / 10"],
-      ["Temporary zone 2", "Unknown outcome", ""],
+      ["Sofa", "finished", "Reported pass value 0 · Reported area 8 / 10"],
+      ["Entry", "finished", "Completed passes 2"],
+      ["Temporary zone 3", "Unknown outcome", ""],
     ]);
   } finally {
     sandbox.document.createElement = createElement;
@@ -2296,12 +2300,13 @@ test("live plans show real destination counts, preserve order and disappear when
   card.renderMissionPlan({
     ...plan, estimated_remaining_seconds: 401,
     destinations: plan.destinations.map((destination) => destination.kind === "room" ?
-      { ...destination, estimated_duration_seconds: 502, reported_pass_count: 0,
+      { ...destination, status: "in_progress", stage_elapsed_seconds: 64,
+        estimated_duration_seconds: 502, reported_pass_count: 0,
         requested_settings: { suction_level: 3, two_pass: true, carpet_boost: false } } : destination),
   });
   assert.equal(summary.textContent, "Planned order · 1 of 3 completed · About 7 min left");
   assert.equal(results.children[0].children[1].children[0].children[1].textContent,
-    "Vacuum · On the way · Reported passes 0 · 9 min planned");
+    "Vacuum · In progress · 1:04 in current stage · Reported pass value 0 · 9 min planned");
   assert.equal(results.children[0].children[1].children[0].children[2].textContent,
     "Requested · Suction 3 · Two passes on · Carpet boost off");
   card.renderMissionPlan(null);
