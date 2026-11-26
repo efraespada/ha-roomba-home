@@ -87,7 +87,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   bin emptyings** shows Roomba's count separately from the dock stage.
   Directed reports include the requested order and preferences, plus the
   reported outcome and recorded cleaning time for each destination.
-  [Cleaning history](docs/usage.md#cleaning-history)
+  [Cleaning history](docs/usage.md#cleaning-history) ·
+  [Verified live pass example](docs/validation.md#live-saved-zone-passes)
 - **Room cleaning scores.** View Roomba's reported score, mission timestamps,
   and suggested settings for each matched room on the active floor.
   [Room cleaning scores](docs/usage.md#room-cleaning-scores)
