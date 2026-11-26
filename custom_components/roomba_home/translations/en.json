@@ -815,6 +815,9 @@
     "software_status_unavailable": {
       "message": "Roomba's installed software or firmware catalog is unavailable."
     },
+    "robot_help_unavailable": {
+      "message": "Roomba's model-specific help catalog could not be read."
+    },
     "mapping_unsupported": {
       "message": "This robot does not report support for saved maps."
     },
@@ -902,6 +905,10 @@
     "get_software_status": {
       "name": "Get robot software status",
       "description": "Read the reported robot and dock software, last robot update, and firmware versions returned by Roomba's catalog."
+    },
+    "get_robot_help": {
+      "name": "Get robot help",
+      "description": "Read the owner’s manual and support articles for the robot model, including links for recognized current errors."
     },
     "start_mapping": {
       "name": "Start a mapping run",

@@ -354,6 +354,37 @@ Combo. Other catalog versions are listed as candidates. iRobot can stage
 their delivery by device. A failed or malformed response leaves the status
 unavailable. [Software rollout](https://homesupport.irobot.com/articles/en_US/Knowledge/550)
 
+### Robot help catalog
+
+Roomba's public endpoint serves the owner’s manual, support links and
+diagnostic articles by model and locale.
+
+```text
+GET https://content-prod.iot.irobotapi.com/v2/help/es-ES/ES/X185240?track=2026.11
+```
+
+The path uses the Home Assistant interface's base language, the configured
+country and the selected robot's reported model. The `track` query parameter
+uses the current year and month. The endpoint is public and the request
+contains only those four values.
+
+The response's `ownersManual` supplies the PDF and `customerCareWeb`
+supplies the iRobot support link. Within `otherContent`, the identifiers
+`Error N`, `Charging Error N` and `Start-Refuse N` identify three
+independent diagnostic families. The integration deduplicates by family
+and code and keeps the returned regional path. It recognizes setup,
+reconnection, MAC address, child lock, reboot, and serial-number guides.
+It accepts only the verified HTTPS content and support destinations and
+strips query strings and fragments before returning links.
+
+`roomba_home/robot_help` requires read access to the selected vacuum.
+`roomba_home.get_robot_help` exposes the same result as a Home Assistant
+action. Both return `manual_url`, `support_url`, `device_guides`,
+`articles` and `current_articles`. Active links use a fresh mission error
+with an unambiguous catalog family or a documented dock code. Start-refusal
+codes can be looked up explicitly in their own family.
+[Signed-state and public-catalog validation](validation.md#robot-help-catalog)
+
 ### Archived cleaning reports
 
 The signed mission history resource returns cleaning records and their

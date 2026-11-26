@@ -42,6 +42,10 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   dock empties the robot's bin. Choose after each routine, every 25 or
   50 m², or set a custom area threshold.
   [Robot settings](docs/usage.md#robot-settings) · [Dock settings](docs/usage.md#dock-settings)
+- **Robot help.** Open Roomba's owner’s manual and model-specific setup
+  guides from the card. Look up error, charging, and start-refusal codes
+  in separate groups and see linked articles for recognized current
+  problems. [Robot help and automation example](docs/usage.md#robot-help)
 - **Room and zone cleaning.** Select regions and review the robot and
   destinations before sending a command. **Clean everywhere** starts a new
   run across the robot's reachable area after confirmation. Zoom in to see
@@ -136,7 +140,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.68.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.69.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Enable Advanced Mode in your user
    profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
 3. Add a manual card with your robot's vacuum entity.

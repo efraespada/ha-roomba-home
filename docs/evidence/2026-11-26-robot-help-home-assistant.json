@@ -1,0 +1,42 @@
+{
+  "model": "Roomba Max 700 Combo (X185240)",
+  "authenticated_websocket_matches_action": true,
+  "available_with_maps_disabled": true,
+  "current_error_article_count": 0,
+  "distinct_article_counts": {
+    "error": 49,
+    "charging_error": 16,
+    "start_refusal": 18
+  },
+  "setup_and_control_guide_count": 6,
+  "verified_lookups": [
+    {
+      "family": "error",
+      "code": 48,
+      "http_status": 200
+    },
+    {
+      "family": "charging_error",
+      "code": 101,
+      "http_status": 200
+    },
+    {
+      "family": "start_refusal",
+      "code": 1,
+      "http_status": 200
+    }
+  ],
+  "spanish_owner_manual_matches_android": true,
+  "spanish_owner_manual_http_status": 200,
+  "english_manual_editions": [
+    {
+      "configuration_country": "ES",
+      "manual_edition": "en-GB"
+    },
+    {
+      "configuration_country": "US",
+      "manual_edition": "en-US"
+    }
+  ],
+  "robot_remained_docked": true
+}

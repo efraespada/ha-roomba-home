@@ -255,6 +255,75 @@ test("maintenance ignores a reply after closing and reopening on a different rob
   assert.equal(card.$("maintenance-status").textContent, "Could not read Roomba");
 });
 
+function robotHelpCard() {
+  const { card } = mockCard(0);
+  const dialog = card.$("robot-help-dialog");
+  dialog.open = false;
+  dialog.showModal = () => { dialog.open = true; };
+  dialog.close = () => { dialog.open = false; };
+  card.helpSequence = 0;
+  card.config = { entity: "vacuum.example" };
+  return { card, dialog };
+}
+
+test("robot help opens the model manual and distinguishes article families with the same code", async () => {
+  const { card, dialog } = robotHelpCard();
+  const manual = "https://prod-help-content.care.irobotapi.com/files/example.pdf";
+  const setup = "https://prod-help-content.care.irobotapi.com/web/es/10503.html";
+  const path = { family: "error", code: 48, url: "https://prod-help-content.care.irobotapi.com/web/es/10548.html" };
+  const refusal = { family: "start_refusal", code: 48, url: "https://prod-help-content.care.irobotapi.com/web/es/10511.html" };
+  card._hass = {
+    callWS: async (request) => {
+      assert.deepEqual({ ...request }, { type: "roomba_home/robot_help", entity_id: "vacuum.example" });
+      return {
+        robot: "Roomba", manual_url: manual, support_url: null, device_guides: { wifi_setup: setup },
+        articles: [path, refusal], current_articles: [path],
+      };
+    },
+  };
+  await card.openRobotHelp();
+  assert.equal(dialog.open, true);
+  assert.equal(card.$("robot-help-title").textContent, "Roomba help");
+  assert.equal(card.$("help-status").textContent, "");
+  const guideLinks = card.$("help-guides").querySelectorAll("a");
+  assert.deepEqual(guideLinks.map((link) => link.href), [manual, setup]);
+  assert.ok(guideLinks.every((link) => link.target === "_blank" && link.rel === "noopener noreferrer"));
+  assert.equal(card.$("help-current").hidden, false);
+  assert.equal(card.$("help-current-articles").querySelector("a").textContent, "Error 48");
+  const picker = card.$("help-code");
+  const groups = picker.querySelectorAll("optgroup");
+  assert.deepEqual(groups.map((group) => [group.label, group.children[0].value]), [
+    ["Error", "error:48"], ["Start refusal", "start_refusal:48"],
+  ]);
+  picker.value = "start_refusal:48";
+  picker.onchange();
+  assert.equal(card.$("help-article").querySelector("a").href, refusal.url);
+  picker.value = "";
+  picker.onchange();
+  assert.deepEqual(card.$("help-article").children, []);
+});
+
+test("robot help ignores a previous robot's reply and reports an empty or failed catalog", async () => {
+  const { card, dialog } = robotHelpCard();
+  let resolve;
+  card._hass = { callWS: () => new Promise((complete) => { resolve = complete; }) };
+  const previous = card.openRobotHelp();
+  dialog.close();
+  card.config.entity = "vacuum.next";
+  card._hass.callWS = async () => ({ robot: "Other", device_guides: {}, articles: [], current_articles: [] });
+  await card.openRobotHelp();
+  resolve({ robot: "Previous" });
+  await previous;
+  assert.equal(card.$("robot-help-title").textContent, "Other help");
+  assert.equal(card.$("help-status").textContent, "Roomba has no help articles for this model.");
+  assert.equal(card.$("help-lookup").hidden, true);
+  assert.equal(card.$("help-guides").hidden, true);
+  dialog.close();
+  card._hass.callWS = async () => { throw Error("Could not read help"); };
+  await card.openRobotHelp();
+  assert.equal(card.$("help-status").textContent, "Could not read help");
+});
+
 test("saved routines display the estimate from the selected provider record", () => {
   const { card } = mockCard(0);
   const saved = { id: "saved", name: "Test routine", estimate: {

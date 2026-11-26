@@ -42,6 +42,7 @@ async def async_setup_map_api(hass):
     websocket_api.async_register_command(hass, websocket_live_positions)
     websocket_api.async_register_command(hass, websocket_mission_history)
     websocket_api.async_register_command(hass, websocket_maintenance)
+    websocket_api.async_register_command(hass, websocket_robot_help)
     websocket_api.async_register_command(hass, websocket_cleaning_scores)
     websocket_api.async_register_command(hass, websocket_edit_floor_settings)
     websocket_api.async_register_command(hass, websocket_remove_floor)
@@ -395,6 +396,30 @@ def websocket_maintenance(hass, connection, message):
             "counters_available": counters_available,
         },
     )
+
+
+@websocket_api.websocket_command(
+    {"type": "roomba_home/robot_help", vol.Required("entity_id"): cv.entity_id}
+)
+@websocket_api.async_response
+async def websocket_robot_help(hass, connection, message):
+    entity_id = message["entity_id"]
+    if not connection.user.permissions.check_entity(entity_id, POLICY_READ):
+        connection.send_error(message["id"], websocket_api.ERR_UNAUTHORIZED, "Access denied.")
+        return
+    component = hass.data.get(DATA_COMPONENT)
+    vacuum = component.get_entity(entity_id) if component else None
+    if not isinstance(vacuum, RoombaVacuum):
+        connection.send_error(message["id"], "robot_help_unavailable", "Robot help is unavailable.")
+        return
+    try:
+        catalog = await vacuum.async_get_robot_help()
+    except HomeAssistantError as error:
+        connection.send_error(
+            message["id"], error.translation_key or "robot_help_unavailable", str(error)
+        )
+        return
+    connection.send_result(message["id"], catalog)
 
 
 @websocket_api.websocket_command(
