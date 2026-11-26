@@ -87,6 +87,15 @@ class FloorPlan:
         ]
         return matches[0].name if len(matches) == 1 else None
 
+    def mapped_carpet_at(self, point: Coordinate) -> bool | None:
+        if not self.carpets or not any(
+            _inside(point, polygon, include_boundary=True)
+            for room in self.rooms
+            for polygon in room.polygons
+        ):
+            return None
+        return any(_inside(point, polygon, include_boundary=True) for polygon in self.carpets)
+
 
 def _coordinate(value: object) -> bool:
     # Keep planar calculations finite even for corrupted provider coordinates.

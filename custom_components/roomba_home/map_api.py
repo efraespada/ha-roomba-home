@@ -465,6 +465,14 @@ async def websocket_floor_plan(hass, connection, message):
     can_clean_point = can_control and supports_point_clean(state.capabilities.digital_spot)
     now = datetime.now(UTC)
     path = account.live_path(robot_id) if active_floor else None
+    live = live_geometry(
+        path,
+        floor,
+        now,
+        account.live_coverage_rows(robot_id, path),
+        account.live_obstacles(robot_id, path, now),
+    )
+    position_available = live["position"] is not None
     response = {
         "robot": state.name,
         "mapping": mapping,
@@ -499,7 +507,8 @@ async def websocket_floor_plan(hass, connection, message):
             },
         },
         "maps": [{"id": item.map_id, "name": item.name} for item in maps],
-        "current_room": state.telemetry.get("current_room") if active_floor else None,
+        "current_room": state.telemetry.get("current_room") if position_available else None,
+        "on_mapped_carpet": state.telemetry.get("on_mapped_carpet") if position_available else None,
         "last_mission_rooms": state.telemetry.get("last_mission_rooms", []),
         "last_mission_zones": state.telemetry.get("last_mission_zones", []),
         "active_rooms": state.telemetry.get("live_timeline_active_rooms", [])
@@ -509,13 +518,7 @@ async def websocket_floor_plan(hass, connection, message):
         if active_floor
         else [],
         "live_plan": account.live_plan(state, floor, now),
-        "live": live_geometry(
-            path,
-            floor,
-            now,
-            account.live_coverage_rows(robot_id, path),
-            account.live_obstacles(robot_id, path, now),
-        ),
+        "live": live,
         "active_point": live_point_geometry(account.live_point(robot_id, now), floor),
     }
     needs_geometry = (

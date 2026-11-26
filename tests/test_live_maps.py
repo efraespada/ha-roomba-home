@@ -1,6 +1,7 @@
 """Synthetic native position batches and associated map archives."""
 
 from copy import deepcopy
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -243,6 +244,11 @@ def test_floor_display_layers_ignore_degenerate_segments_and_unknown_features(
     assert plan.walls == (("exterior", ((0, 0), (10, 0))), ("door", ((0, 0), (10, 0))))
     assert plan.carpets == ((((4, 0), (6, 0), (6, 2), (4, 0)),),)
     assert plan.docks == ((8, 1),)
+    assert plan.mapped_carpet_at((5.5, 0.5)) is True
+    assert plan.mapped_carpet_at((6, 0)) is True
+    assert plan.mapped_carpet_at((1, 1)) is False
+    assert plan.mapped_carpet_at((90, 90)) is None
+    assert replace(plan, carpets=()).mapped_carpet_at((5.5, 0.5)) is None
 
 
 @pytest.mark.parametrize("problem", ["missing", "duplicate", "malformed"])

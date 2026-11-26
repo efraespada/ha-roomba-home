@@ -335,6 +335,14 @@ async def test_return_waits_for_pause_and_reports_success_only_at_the_dock():
     assert port.now == 20
 
 
+async def test_return_docks_if_the_same_cleaning_mission_ends_while_pausing():
+    ended = replace(RETURN_RUNNING, activity="idle", mission_active=False)
+    port = Port(RETURN_RUNNING, ended, RETURN_TRAVEL, BASE)
+    await execute_control(port, Command.DOCK, CleaningProfile())
+    assert port.sent == [(Command.PAUSE, None), (Command.DOCK, None)]
+    assert port.statuses == ["pending", "confirmed"]
+
+
 @pytest.mark.parametrize(
     "initial",
     [
@@ -366,6 +374,8 @@ async def test_return_observes_arrival_if_the_robot_starts_docking_on_its_own(in
         replace(RETURN_PAUSED, connected=False),
         replace(RETURN_PAUSED, mission_identity=None),
         replace(RETURN_PAUSED, mission_identity=(11, MISSION_IDENTITY[1])),
+        replace(RETURN_PAUSED, activity="idle", mission_active=True),
+        replace(RETURN_PAUSED, activity="idle", mission_active=False, mission_identity=None),
         replace(RETURN_PAUSED, docking=None),
         replace(RETURN_RUNNING, activity="error"),
     ],

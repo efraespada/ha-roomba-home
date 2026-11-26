@@ -107,8 +107,11 @@ support his model. No sign of an incompatible combination from a catalogue with 
 robot's type.
 
 Pause and resume operate on the same active mission. The profile of a new
-mission does not change an already active one. For a directed vacuum-then-mop
-start, put mode 512 and the relevant preferences in the destination's
+mission does not change an already active one. A return request can
+encounter a short mission that finishes while Home Assistant waits for
+a pause. If the same mission is now idle, connected, and supports
+docking, send the dock step and still confirm arrival. For a directed
+vacuum-then-mop start, put mode 512 and the relevant preferences in the destination's
 parameters. Confirm submission only after a fresh remote mission enters an
 expected cleaning mode. Use the same mission identity to track both phases
 and its final result. [Directed command evidence](../docs/api.md#directed-vacuum-then-mop)

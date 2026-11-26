@@ -1390,7 +1390,8 @@ class RoombaHomeMapCard extends HTMLElement {
         ? "" : "This floor contains furniture the editor cannot preserve.";
       this.$("activity").textContent = data.mapping?.activity ?
         (data.mapping.activity === "paused" ? "Mapping paused" : "Mapping in progress") :
-        (data.current_room ? `Current room · ${data.current_room}` : "");
+        [data.current_room ? `Current room · ${data.current_room}` : null,
+          data.on_mapped_carpet === true ? "On mapped carpet" : null].filter(Boolean).join(" · ");
       if (staleFloorDraft) {
         this.operationMessage = "The floor settings changed. Open the editor again.";
         this.$("status").textContent = this.operationMessage;
@@ -2509,6 +2510,7 @@ class RoombaHomeMapCard extends HTMLElement {
     };
     const statuses = {
       pending: "Pending", traveling: "On the way", in_progress: "In progress", finished: "Completed",
+      paused: "Paused",
       finished_with_more_passes: "More passes expected", partial_incomplete: "Partially cleaned",
       partial_skipped: "Partially skipped", kidnapped: "Robot moved", user_ended: "Ended by user",
       robot_aborted: "Ended by robot", skipped: "Skipped", skipped_will_return: "Skipped, will return",
@@ -2524,9 +2526,10 @@ class RoombaHomeMapCard extends HTMLElement {
       status.className = "muted";
       const duration = destination.estimated_duration_seconds;
       const planned = duration != null ? `${Math.ceil(duration / 60)} min planned` : null;
-      const elapsed = destination.stage_elapsed_seconds;
+      const cleaning = destination.cleaning_elapsed_seconds;
+      const elapsed = cleaning ?? destination.stage_elapsed_seconds;
       const stageTime = elapsed != null
-        ? `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")} in current stage`
+        ? `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")} ${cleaning != null ? "cleaning" : "in current stage"}`
         : null;
       const passes = passSummary(destination.confirmed_completed_passes, destination.reported_pass_count);
       status.textContent = [MODES[destination.mode], statuses[destination.status], stageTime, passes, planned]

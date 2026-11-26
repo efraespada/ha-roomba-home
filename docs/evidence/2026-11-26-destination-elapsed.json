@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-26",
+  "tested_model": "Roomba Max 700 Combo",
+  "time_basis": "seconds relative to each matched robot mission start",
+  "two_pass_completed": {
+    "signed_zone_intervals": [[51, 207], [208, 366]],
+    "native_and_replayed_samples": [
+      {"mission_seconds": 121, "android_elapsed_minutes": 2, "cleaning_seconds": 70},
+      {"mission_seconds": 272, "android_elapsed_minutes": 4, "cleaning_seconds": 220}
+    ],
+    "signed_cleaning_seconds": 314,
+    "authenticated_home_assistant_history_verified": true
+  },
+  "one_pass_paused_and_resumed": {
+    "signed_zone_interval": [29, 206],
+    "signed_pause_intervals": [[58, 147], [192, 206]],
+    "android_elapsed_minutes": [
+      {"mission_seconds": 75, "minutes": 1},
+      {"mission_seconds": 130, "minutes": 1},
+      {"mission_seconds": 205, "minutes": 2}
+    ],
+    "live_report_replay": [
+      {"mission_seconds": 75, "stage": "pause", "cleaning_seconds": 29},
+      {"mission_seconds": 133, "stage": "pause", "cleaning_seconds": 29},
+      {"mission_seconds": 164, "stage": "zone", "cleaning_seconds": 46},
+      {"mission_seconds": 177, "stage": "zone", "cleaning_seconds": 59}
+    ],
+    "signed_cleaning_seconds": 74,
+    "authenticated_home_assistant_history_verified": true,
+    "same_mission_resumed": true,
+    "returned_to_dock": true,
+    "final_error_code": 0,
+    "temporary_zone_removed": true,
+    "original_map_geometry_preserved": true,
+    "original_programs_and_settings_preserved": true,
+    "other_robot_commands": 0
+  }
+}

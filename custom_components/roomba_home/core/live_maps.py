@@ -10,10 +10,11 @@ from math import pi
 from .application import SkipAreaEvent, SkipObservation
 from .cleaning import CleaningMode
 from .cleaning_protocol import reported_cleaning_mode
-from .history import identify_zones, room_results, zone_results
+from .history import identify_zones, mission_timing, room_results, zone_results
 from .maps import PersistentMap, map_identifier
 from .mission_areas import AreaResult
 from .mission_plan import MissionPlan, mission_plan
+from .mission_time import MissionTiming
 from .point_maps import PointTarget
 from .telemetry import integer
 
@@ -89,6 +90,23 @@ class MissionTimeline:
     plan: MissionPlan | None = None
     requested_floor: tuple[str, str] | None = None
     localized_maps: frozenset[str] = frozenset()
+    timing: MissionTiming = MissionTiming()
+
+    def timed_destination(self, stage_started: datetime | None) -> AreaResult | None:
+        if stage_started is None:
+            return None
+        active = {
+            "room": self.active_rooms,
+            "zone": self.active_zones,
+            "pause": (*self.active_rooms, *self.active_zones),
+        }.get(self.stage, ())
+        if len(active) != 1:
+            return None
+        area = active[0]
+        stamp = int(stage_started.timestamp())
+        if self.stage == "pause":
+            return area if area.timestamp <= stamp else None
+        return area if area.timestamp == stamp else None
 
     def skip_observation(self) -> SkipObservation:
         active = {
@@ -231,6 +249,7 @@ def mission_timeline(document, request_id, mission_number, now) -> MissionTimeli
         mission_plan(command),
         _requested_floor(command),
         _localized_maps(events) | _localized_maps(finished),
+        mission_timing(finished, command),
     )
 
 

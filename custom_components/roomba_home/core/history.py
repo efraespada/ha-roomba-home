@@ -10,6 +10,7 @@ from .furniture_targets import furniture_links
 from .maps import PersistentMap, RegionKind, map_identifier
 from .mission_areas import REGION_TARGETS, ROOM_STATUSES, AreaResult, command_region_kind
 from .mission_plan import MissionPlan, mission_plan, present_mission_plan
+from .mission_time import MissionTiming, reported_interruptions, with_destination_elapsed
 from .state import RobotState
 from .telemetry import CLEANING_CYCLES, at, convert, integer
 
@@ -69,7 +70,16 @@ def _area_events(events: object, kind: str, field: str) -> Iterable[AreaResult]:
         )
         if all(value is None for value in (status, area, total, passes)):
             continue
-        yield AreaResult(key, timestamp, status, area, total, passes, kind)
+        yield AreaResult(
+            key,
+            timestamp,
+            status,
+            area,
+            total,
+            passes,
+            kind,
+            ended_at=integer(event.get("ets"), 32_503_680_000),
+        )
 
 
 def _latest_area_results(events: Iterable[AreaResult]) -> tuple[AreaResult, ...]:
@@ -104,14 +114,18 @@ def zone_results(events: object, command: object = None) -> tuple[AreaResult, ..
 
 
 def identify_zones(results: tuple[AreaResult, ...], command: object) -> tuple[AreaResult, ...]:
+    return _latest_area_results(_correlate_zones(results, command))
+
+
+def _correlate_zones(results: tuple[AreaResult, ...], command: object) -> tuple[AreaResult, ...]:
     if not results or not isinstance(command, dict) or command.get("command") != "start":
-        return _latest_area_results(results)
+        return results
     regions = command.get("regions")
     if not isinstance(regions, list):
-        return _latest_area_results(results)
+        return results
     scope = command.get("p2map_id"), command.get("user_p2mapv_id")
     if not all(map_identifier(value) for value in scope):
-        return _latest_area_results(results)
+        return results
     kinds = {
         region["region_id"]: kind
         for region in regions
@@ -134,7 +148,16 @@ def identify_zones(results: tuple[AreaResult, ...], command: object) -> tuple[Ar
             else:
                 result = replace(result, kind="temporary_zone")
         identified.append(result)
-    return _latest_area_results(identified)
+    return tuple(identified)
+
+
+def mission_timing(events: object, command: object) -> MissionTiming:
+    """Preserve every timed area event before the outcome projection deduplicates them."""
+    if not isinstance(events, list):
+        return MissionTiming()
+    rooms = tuple(_area_events(events, "room", "rid"))
+    zones = _correlate_zones(tuple(_area_events(events, "zone", "zid")), command)
+    return MissionTiming((*rooms, *zones), reported_interruptions(events))
 
 
 def _public_result(area: AreaResult) -> dict:
@@ -319,6 +342,7 @@ class MissionReport:
     metrics: dict
     timeline: tuple[dict, ...]
     plan: MissionPlan | None = None
+    destination_elapsed: tuple[int | None, ...] = ()
 
     def summary(self) -> dict:
         started = self.metrics.get("last_mission_started")
@@ -356,8 +380,11 @@ class MissionReport:
             "zones": present_zones(zones, floors),
             "timeline": self.timeline,
             "plan": (
-                present_mission_plan(
-                    self.plan, (*rooms, *zones), (), None, label_floors, archived=True
+                with_destination_elapsed(
+                    present_mission_plan(
+                        self.plan, (*rooms, *zones), (), None, label_floors, archived=True
+                    ),
+                    self.destination_elapsed,
                 )
                 if self.plan is not None
                 else None
@@ -415,11 +442,22 @@ def mission_reports(response: object, robot_id: str) -> tuple[MissionReport, ...
         if not map_identifier(identity):
             identity = integer(row.get("nMssn"))
         key = sha256(f"{robot_id}:{identity}:{row['timestamp']}".encode()).hexdigest()
+        command = row.get("cmd")
+        metrics = _mission_metrics(row)
+        plan = mission_plan(command)
+        elapsed = (
+            mission_timing(at(row, "timeline.finEvents"), command).elapsed(
+                plan, metrics.get("last_mission_started"), metrics["last_mission_finished"]
+            )
+            if plan is not None
+            else ()
+        )
         reports[key] = MissionReport(
             key,
             _report_maps(row),
-            _mission_metrics(row),
+            metrics,
             _report_timeline(row),
-            mission_plan(row.get("cmd")),
+            plan,
+            elapsed,
         )
     return tuple(reports.values())

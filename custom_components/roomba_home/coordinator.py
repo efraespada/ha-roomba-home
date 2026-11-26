@@ -99,6 +99,7 @@ from .core.mission_time import (
     estimate_durations,
     estimate_target,
     remaining_plan_duration,
+    with_destination_elapsed,
     with_live_area_elapsed,
 )
 from .core.models import AppProfile, LoginDetails
@@ -1180,7 +1181,9 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         if plan is None:
             return None
         stage = report.stage if state.phase == "run" else None
-        stage_started = self._stage_started_during_mission(report, self._live_mission(state), now)
+        started = self._live_mission(state)
+        stage_started = self._stage_started_during_mission(report, started, now)
+        plan = self._plan_with_elapsed(plan, report, state, started, stage_started, now)
         if "estimated_remaining_seconds" in plan:
             plan = {
                 **plan,
@@ -1189,6 +1192,17 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 ),
             }
         return with_live_area_elapsed(plan, stage, stage_started, now)
+
+    @staticmethod
+    def _plan_with_elapsed(plan, report, state, started, stage_started, now):
+        interval = None
+        paused = report.stage == "pause"
+        if (state.phase == "run" or paused) and (area := report.timed_destination(stage_started)):
+            until = stage_started if paused else now
+            interval = (area, int(until.timestamp()))
+        return with_destination_elapsed(
+            plan, report.timing.elapsed(report.plan, started, now, interval)
+        )
 
     @staticmethod
     def _stage_started_during_mission(report, started, now):
@@ -1283,12 +1297,16 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         }
         if recent.plan is not None:
             active = {"room": recent.active_rooms, "zone": recent.active_zones}
+            paused = recent.stage == "pause"
+            if paused and (paused_area := recent.timed_destination(stage_started)) is not None:
+                active["pause"] = (paused_area,)
             plan = present_mission_plan(
                 recent.plan,
                 (*recent.rooms, *recent.zones),
                 active.get(recent.stage, ()),
                 recent.travelling_to,
                 zone_maps,
+                paused=paused,
             )
             metrics.update(
                 live_timeline_plan=plan,
@@ -1303,7 +1321,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 if all(seconds is not None for seconds in durations):
                     plan["estimated_duration_seconds"] = sum(durations)
                 remaining = remaining_plan_duration(
-                    plan,
+                    self._plan_with_elapsed(plan, recent, state, started, stage_started, now),
                     recent.stage if state.phase == "run" else None,
                     stage_started,
                     now,
@@ -1483,12 +1501,14 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
 
     def _with_live_position(self, state, floor, batch):
         point = batch.positions[-1]
+        coordinates = (point.x, point.y)
         geometry = self._floor_plans.get((state.robot_id, floor.geometry_key))
         return replace(
             state,
             telemetry={
                 **state.telemetry,
-                "current_room": geometry.room_at((point.x, point.y)) if geometry else None,
+                "current_room": geometry.room_at(coordinates) if geometry else None,
+                "on_mapped_carpet": geometry.mapped_carpet_at(coordinates) if geometry else None,
                 "live_route_activity": POSITION_ACTIVITIES.get(point.modes),
                 "position_updated": datetime.fromtimestamp(batch.timestamp, UTC),
             },
@@ -1567,6 +1587,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             if path.latest.expires <= now.timestamp() and (state := self.data.get(key)):
                 values = dict(state.telemetry)
                 values.pop("current_room", None)
+                values.pop("on_mapped_carpet", None)
                 values.pop("live_route_activity", None)
                 values.pop("position_updated", None)
                 self.data[key] = replace(state, telemetry=values)

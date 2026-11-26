@@ -10,9 +10,9 @@ uses Roomba's own cloud services for device data and control.
 ## Quick start
 
 The verified model is **Roomba Max 700 Combo (X185240)**, linked to a Roomba Home
-account. The latest household cleaning test used Home Assistant Core 2026.11.2
-and integration version 0.26.1. [Capability matrix](docs/capabilities.md) ·
-[Physical validation](docs/validation.md)
+account. The 0.66.0 household upgrade verified three robots, their three
+docks, and the completed saved-zone report in the dashboard.
+[Capability matrix](docs/capabilities.md) · [Physical validation](docs/validation.md)
 
 1. In **HACS → Custom repositories**, add `efraespada/ha-roomba-home` as an
    **Integration** and download the latest release. The installation guide
@@ -50,21 +50,22 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   and then mop a selected destination in the same mission.
 - **Saved floors.** Start a mapping-only run and see when it is active or
   paused. Review and remove a saved floor from the card. [Mapping and floor removal](docs/usage.md#map-a-floor)
-- **Mission progress and history.** See the reported phase, mode, surface,
+- **Mission progress and history.** See the reported phase, mode, cleaned area,
   elapsed time, connectivity timestamp, and recent position. The last
   mission includes outcomes, area values, and pass counts for reported
   rooms and zones.
   Fresh timeline replies add the current stage, its reported start time,
   in-progress measurements, and the selected destinations with their
-  requested preferences and observed outcomes. The active destination
-  shows time in its current cleaning stage when Roomba supplies its start.
-  Saved zones show the number of passes confirmed by completion events.
+  requested preferences and observed outcomes. See each destination's
+  accumulated cleaning time across passes and pauses. Saved zones show
+  the number of passes confirmed by completion events.
   The live route distinguishes travel, vacuuming, and mopping, including
   simultaneous vacuuming and mopping. The latest reported route activity
   is available as a Home Assistant sensor. A continuous Roomba subscription
   updates the map marker between state polls. The marker follows consecutive
   reported positions through turns and can recover earlier route segments
-  when a viewer joins midway through a mission.
+  when a viewer joins midway through a mission. **On mapped carpet** appears
+  when the latest position falls inside a carpet on the active floor.
   For robots with several saved maps, **Follow active floor** switches to
   the floor Roomba identifies for the current mission.
   **Estimated coverage** shades where Roomba reports vacuuming and mopping,
@@ -73,8 +74,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   Browse recorded cleaning reports with the mission's own coverage, route,
   timeline, and 3D floor plan. Hide travel, cleaning paths, or coverage
   independently and see zones and restrictions saved in the archived map.
-  Directed reports include the requested order, preferences, and reported
-  outcome for each destination.
+  Directed reports include the requested order and preferences, plus the
+  reported outcome and recorded cleaning time for each destination.
   [Cleaning history](docs/usage.md#cleaning-history)
 - **Room cleaning scores.** View Roomba's reported score, mission timestamps,
   and suggested settings for each matched room on the active floor.
@@ -125,7 +126,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.66.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.67.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Enable Advanced Mode in your user
    profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
 3. Add a manual card with your robot's vacuum entity.
