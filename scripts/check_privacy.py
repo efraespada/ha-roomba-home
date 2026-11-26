@@ -29,6 +29,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-routines.png": (
         "3b89e794cea1855c7f05c22b1ace8ae7abf676ea573428a8d20d63854a33dbac"
     ),
+    "docs/screenshots/roomba-dock-auto-empty.png": (
+        "a0472d6416143cea7b1ca3eb089197c1b35356d5a456337b192b58d654486db6"
+    ),
     "docs/screenshots/roomba-room-editor.jpg": (
         "db26543768c3549e2406489e02ea8b65662ec16a7e4432ff8baee5856d7438cb"
     ),

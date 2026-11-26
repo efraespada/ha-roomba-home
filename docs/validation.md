@@ -1,5 +1,23 @@
 # Roomba Home validation
 
+## Version 0.68.0
+
+The release adds the automatic emptying selector and preserves the area
+number and its unit conversion. Validation passed 2,580 Python tests with
+100% line and branch coverage, 70 card tests, hassfest, Ruff, and the SDD and
+privacy checks. Both pull requests passed GitHub validation.
+[Setting validation](#automatic-dock-emptying-frequency)
+
+The household installation verified the release archive checksum, kept a
+0.67.0 rollback, passed `ha core check`, and restarted Core. The browser
+resource pointed to the exact 0.68.0 module. The authenticated integration
+page showed three robots and three docks. The authorized robot's linked
+dock showed the area number and all three automatic emptying choices in
+Chrome. The household selector switched from 25 m² to **After each
+routine** and back. Independent signed reads confirmed both writes while
+the robot stayed docked with error code 0.
+[Selector crop from the installed Home Assistant](screenshots/roomba-dock-auto-empty.png)
+
 ## Automatic dock emptying frequency
 
 On the Max 700 Combo, Android switched from 25 m² to **After each routine**

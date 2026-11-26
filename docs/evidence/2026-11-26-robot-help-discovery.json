@@ -1,0 +1,42 @@
+{
+  "model": "Roomba Max 700 Combo (X185240)",
+  "catalog": "https://content-prod.iot.irobotapi.com/v2/help/es-ES/ES/X185240?track=2026.11",
+  "catalog_authentication_required": false,
+  "android": {
+    "guide": "OG700SeriesMAXCombowAWEMEAesES.pdf",
+    "guide_pages": 36,
+    "guide_matches_catalog": true,
+    "robot_help_first_view": "Initial setup and preparation for cleaning"
+  },
+  "catalog_entry_counts": {
+    "mission_error": 51,
+    "charging_error": 16,
+    "start_refusal": 20,
+    "other": 10
+  },
+  "verified_destinations": [
+    {
+      "kind": "owner_manual",
+      "http_status": 200,
+      "content_type": "application/pdf"
+    },
+    {
+      "kind": "mission_error",
+      "code": 48,
+      "http_status": 200,
+      "content_type": "text/html"
+    },
+    {
+      "kind": "charging_error",
+      "code": 101,
+      "http_status": 200,
+      "content_type": "text/html"
+    },
+    {
+      "kind": "start_refusal",
+      "code": 1,
+      "http_status": 200,
+      "content_type": "text/html"
+    }
+  ]
+}
