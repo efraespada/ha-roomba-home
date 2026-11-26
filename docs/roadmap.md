@@ -23,8 +23,9 @@ excludes newer ClearView robots such as the Max 700.
 The older mission detail in the inspected Android build displays its map
 and timeline. The local SDK also contains a `revert_user_edits` command
 which takes a map identifier and has an empty command parameter object.
-The command has no archived revision selector. Its service behavior
-remains unverified.
+The command has no archived revision selector. A signed request on an
+edited disposable Max 700 Combo floor returned HTTP 500, and follow-up
+reads retained the edited map and name.
 [Archived map investigation](validation.md#clearview-archive-recovery)
 
 1. **Capture and browse.** Available from the floor plan card. Save a

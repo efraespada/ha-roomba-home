@@ -255,6 +255,9 @@ Complete floor recovery requires proof
 that Roomba restores the archive to its usable floor inventory. Reading
 the exact bytes of an inactive revision establishes archive availability.
 The inspected SDK action to revert user edits accepts no target revision.
+A signed attempt on an edited disposable Max 700 Combo floor returned
+HTTP 500 and left the edited revision, zone, and name active throughout
+the observation window. Complete archived-floor recovery remains open.
 [ClearView archive investigation](../docs/validation.md#clearview-archive-recovery)
 
 Restriction recovery requires supported policy layers in the archived and
