@@ -9,6 +9,12 @@ coverage, 70 card tests, hassfest, and the SDD and privacy checks.
 [Timing validation](#accumulated-destination-cleaning-time) ·
 [Carpet and return validation](#carpet-boost-and-mapped-surface)
 
+The household installation verified the release checksum, retained the
+0.66.0 rollback, passed `ha core check`, and restarted Core. The dashboard
+resource was updated to 0.67.0. The installed integration showed all three
+robots and three docks. The saved-zone report showed 48 seconds of cleaning
+and one completed pass. The deployment verification sent no robot commands.
+
 ## Version 0.65.0
 
 The release adds one-off area cleaning preferences, explicit selection of

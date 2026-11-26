@@ -8,7 +8,7 @@
 - Scope: A central discovery, robot co-ordination and advanced base with clear regions.
 - Related issues/PRs: Extension requested by the incumbent and local development.
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
-- Open decisions blocking readiness: Automatic recharge and resume, the effect of every regional setting, and the device setup and removal contracts.
+- Open decisions blocking readiness: Automatic recharge and resume, the effect of every regional setting, per-routine dock emptying, and the device setup and removal contracts.
 
 ## 1. Executive summary
 
@@ -43,7 +43,7 @@ established their meaning.
 |---|---|
 | Robot name, model, software version, last software update | Device and firmware entities present |
 | Robot serial in the About screen | Verified asset lookup and Home Assistant device metadata |
-| Automatic pad washing, emptying frequency, voice language and volume, child and pet lock, locate, and reboot | Implemented device or dock controls |
+| Automatic pad washing, emptying by area, voice language and volume, child and pet lock, locate, and reboot | Implemented device or dock controls. Per-routine emptying has a [verified native setting](../docs/roadmap.md#dock-emptying-after-each-routine) awaiting its Home Assistant control. |
 | Component use and remaining life, including maintenance resets | Implemented; three displayed hour values matched the API's remaining minutes |
 | Change Wi-Fi | App entry point observed; setup protocol and recovery require verification |
 | Factory reset and remove robot | App entry point observed; account removal, device reset, and recovery require verification |
