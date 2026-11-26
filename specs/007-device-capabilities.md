@@ -48,7 +48,7 @@ established their meaning.
 | Change Wi-Fi | App entry point observed; setup protocol and recovery require verification |
 | Factory reset and remove robot | App entry point observed; account removal, device reset, and recovery require verification |
 | Part SKUs and replacement or care links | Validated model catalog projected on existing sensors and in the maintenance view |
-| General user guide and robot help | App entry points observed; destination links require separate verification |
+| General user guide and robot help | Android opened the Spanish manual and a separate setup walkthrough. The [public help catalog](../docs/roadmap.md#robot-guide-and-problem-help) supplies the matching manual and error articles. Home Assistant controls are pending. |
 
 [Android device settings comparison](../docs/validation.md#android-device-settings-comparison)
 

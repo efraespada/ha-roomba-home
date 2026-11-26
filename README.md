@@ -10,8 +10,8 @@ uses Roomba's own cloud services for device data and control.
 ## Quick start
 
 The verified model is **Roomba Max 700 Combo (X185240)**, linked to a Roomba Home
-account. The 0.67.0 household upgrade verified three robots, their three
-docks, and the recorded cleaning time for a completed saved-zone report.
+account. The 0.68.0 household upgrade verified three robots, their three
+docks, and the automatic emptying selector on the linked dock.
 [Capability matrix](docs/capabilities.md) · [Physical validation](docs/validation.md)
 
 1. In **HACS → Custom repositories**, add `efraespada/ha-roomba-home` as an
@@ -115,6 +115,14 @@ Capabilities and entity availability depend on the robot and dock. **Connected**
 and the connectivity timestamp reflect the values reported by Roomba. The
 optional **Last cloud read** sensor records when Home Assistant read the account.
 [Telemetry reference](docs/telemetry.md)
+
+## Dock settings
+
+Open the robot's linked dock in Home Assistant to set its automatic
+emptying frequency. Use **Auto-empty area** when you want a custom
+threshold. [Dock settings and automation example](docs/usage.md#dock-settings)
+
+![Auto-empty frequency selector set to Every 25 m² on the installed Home Assistant dock](docs/screenshots/roomba-dock-auto-empty.png)
 
 ## Floor plan dashboard
 

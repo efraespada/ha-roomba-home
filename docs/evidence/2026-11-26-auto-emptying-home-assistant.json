@@ -37,5 +37,18 @@
   "docked_and_error_free": true,
   "missions_unchanged": true,
   "other_settings_unchanged": true,
-  "maps_routines_and_schedules_unchanged": true
+  "maps_routines_and_schedules_unchanged": true,
+  "household_release": {
+    "version": "0.68.0",
+    "release_archive_verified": true,
+    "previous_version_rollback_retained": true,
+    "core_check_passed": true,
+    "core_restarted": true,
+    "robots": 3,
+    "docks": 3,
+    "native_options_visible_in_chrome": true,
+    "selector_screenshot_cropped_to_control": true,
+    "signed_frequency_transitions": [25, 0, 25],
+    "docked_and_error_free": true
+  }
 }

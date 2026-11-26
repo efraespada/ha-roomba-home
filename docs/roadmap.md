@@ -69,3 +69,16 @@ settings response. Observe a completed routine with per-routine emptying
 enabled and match the dock activity and evacuation count to that mission.
 Separately observe a run that reaches a configured area threshold.
 [Setting validation](validation.md#automatic-dock-emptying-frequency)
+
+## Robot guide and problem help
+
+The Max 700 Combo opened its 36-page Spanish owner manual in Android.
+The public Roomba help catalog returned the same PDF, 51 mission error
+articles, 16 charging error articles, and 20 start refusal articles in
+Spanish. A sample from each article family returned HTTP 200. The app's
+separate Robot Help entry opened a setup walkthrough.
+[Catalog and app evidence](evidence/2026-11-26-robot-help-discovery.json)
+
+Expose the model and market scoped manual and help links in Home Assistant.
+Match error articles by the reported family and code. Verify how the
+Android setup walkthrough obtains its steps and illustrations.
