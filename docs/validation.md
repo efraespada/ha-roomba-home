@@ -448,10 +448,15 @@ In Roomba Home on Android, the Max 700 Combo's room editor showed Normal
 with medium suction and liquid. Choosing Light and tapping the room
 editor's **Save** applied low suction and liquid to the current selection.
 A signed read after the change matched the original active revision,
-room defaults, and account favorites. The emulator's Proxyman route
-failed to load the app after restart. Disabling the route restored access,
-and opening the floor after restart showed Normal again. The signed
-comparison confirms that the settings remained in the current draft.
+room defaults, and account favorites. Reopening the floor after restart
+showed Normal again.
+
+A repeat with verified HTTPS capture recorded three time-estimate calls
+and one analytics event while editing. Tapping **Save** produced zero
+requests to the observed Roomba hosts during the test window. The signed
+room defaults, map revision, and favorite inventory still matched the
+preflight values. These observations confirm that the edit applied to
+the current draft.
 
 In an isolated Home Assistant instance, the authenticated floor plan
 provided the single active room and its exact revision. The normal
