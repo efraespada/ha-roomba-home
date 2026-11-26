@@ -42,6 +42,10 @@
     "original_floor_revision_and_decoded_layers_unchanged": true,
     "original_routines_and_schedules_unchanged": true,
     "original_auto_empty_frequency_m2": 25,
+    "pretrial_default_suction_from_home_assistant_recorder": 1,
+    "default_suction_reported_at_first_run_start": 2,
+    "restored_default_suction_from_signed_settings": 1,
+    "restoration_started_no_mission": true,
     "docked": true,
     "robot_error": 0
   }

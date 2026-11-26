@@ -912,6 +912,24 @@ async def test_failed_confirmation_read_does_not_hammer_the_service(coordinator)
     assert coordinator.async_refresh.await_count == 2
 
 
+async def test_command_confirms_after_a_refresh_with_missing_robot_connectivity(coordinator):
+    original = coordinator.data["fixture-0"]
+
+    async def refresh():
+        if coordinator.async_refresh.await_count == 2:
+            coordinator.data["fixture-0"] = replace(original, connected=None)
+        elif coordinator.async_refresh.await_count == 3:
+            coordinator.data["fixture-0"] = replace(original, phase="run", cycle="clean")
+
+    coordinator.async_refresh.side_effect = refresh
+    with patch("custom_components.roomba_home.coordinator.MqttCommandSender") as sender:
+        await coordinator.async_command("fixture-0", Command.VACUUM)
+        sender.return_value.send.assert_called_once_with(Command.VACUUM, CleaningProfile())
+    assert coordinator.last_update_success
+    assert coordinator.async_refresh.await_count == 3
+    assert coordinator.command_status["fixture-0"] == "confirmed"
+
+
 async def test_unselected_token_groups_and_rejected_shadows_are_not_projected(
     coordinator, cloud_session
 ):

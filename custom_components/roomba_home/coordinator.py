@@ -2773,7 +2773,14 @@ class RobotControlAdapter:
         await coordinator._refresh_for_command()
         state = (coordinator.data or {}).get(self.robot_id)
         if state is None or not coordinator.last_update_success:
-            return ControlState(None, None, None, None, CleaningCapabilities())
+            return ControlState(
+                None,
+                None,
+                None,
+                None,
+                CleaningCapabilities(),
+                refresh_failed=not coordinator.last_update_success,
+            )
         report = None
         if self.refresh_timeline and previous is not coordinator._live_timelines.get(self.robot_id):
             report = coordinator._current_timeline(state, datetime.now(UTC))

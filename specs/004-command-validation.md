@@ -65,6 +65,12 @@ same mission confirms the result.
   for the same mission to pause before publishing `dock`. Confirm arrival
   from robot state. If the robot starts returning while the pause is
   pending, observe the return without publishing a second command.
+- CMD-08: After publishing a command, a missing connection state in a
+  successful account refresh MAY be followed by another state read within
+  the current confirmation window.
+  A missing read MUST NOT confirm a command, extend its deadline, or cause
+  a second publish. A pause before return still requires the same mission
+  identity before the `dock` command can be sent.
 
 It does not include reset, clear maps and fringes. Retirement changes have been added to
 them by area planning or cleanup as an integral part of the system's production operations
@@ -142,10 +148,14 @@ on color. It does not produce notifications or messages to other services.
 
 ## 10. Failure, recovery, and cleanup
 
-A bug prior to sending doesn't publish. A subsequent malfunction can have an uncertain
-physical result and does not cause repetition. At any rate, the paho loop will be turned off
-and stopped. The test campaign controls the run time and emits pause, cancellation or return
-as authorized cleaning actions rather than re-trying to start.
+Failed validation before dispatch prevents publication. A transient
+missing state during confirmation keeps the existing deadline. An
+explicit offline report or failed account refresh ends confirmation for
+ordinary commands. Reboot waits for a confirmed disconnect and reconnect.
+Persistent missing state ends as `unconfirmed` when the deadline expires.
+Each transport operation closes its MQTT client. The tests cover a
+recovered read, an expired window, and the required pause before return.
+[Control policy tests](../tests/test_application.py)
 
 ## 11. Security, permissions, and privacy
 

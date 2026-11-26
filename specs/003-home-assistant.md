@@ -103,7 +103,14 @@ loop.
 | Unconfirmed result | Timeout without confirmation | Read status and do not double order |
 | Reauth | Rejected credentials | To request intervention by the incumbent |
 
-The format and its transitions are at [SDD orders](004-command-validation.md). After sending an order we have been consulted every five seconds: up 40 seconds for start, pause and cancellation or 120 To come back. Failed reading or timeout remains unconfirmed result and does not repeat the publication. To start a mission from pause is rejected: sum up isn't yet validated. The battery and error are separate sensors; phase, cycle or final result also appear in attributes of the vacuum.
+The integration reads the robot every five seconds after dispatch. The
+confirmation window is 40 seconds for start, pause, and cancel, and 120
+seconds for arrival at the dock after sending `dock`. A successful refresh
+with missing robot state leaves the command pending within that window.
+A timeout leaves it unconfirmed without republishing. Starting a paused
+robot resumes its current mission. Battery and error have separate sensors.
+Phase, cycle, and result also appear on the vacuum entity.
+[Command validation SDD](004-command-validation.md)
 
 ## 7. User-facing configuration
 
