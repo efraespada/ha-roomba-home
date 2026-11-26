@@ -2399,15 +2399,21 @@ test("last mission results name furniture and keep separately reported zone metr
   try {
     card.renderAreaResults("history", [
       { kind: "furniture", name: "Sofa", status: "finished", area: 8, total_area: 10, pass_count: 0 },
-      { kind: "saved_zone", name: "Entry", status: "finished", area: null, total_area: null,
-        pass_count: 1, confirmed_completed_passes: 2 },
+      { kind: "saved_zone", name: "Entry", status: "finished", area: 106, total_area: 67,
+        pass_count: 1, confirmed_completed_passes: 2, target_area_m2: 9.85, completed_passes_area_m2: 12.45 },
+      { kind: "saved_zone", name: "Pantry", status: "finished", area: 0, total_area: 0,
+        pass_count: 0, confirmed_completed_passes: 1, target_area_m2: 0, completed_passes_area_m2: 0 },
+      { kind: "saved_zone", name: "Door", status: null, area: 7, total_area: 4,
+        pass_count: null, target_area_m2: 0.65 },
       { kind: "temporary_zone", name: null, status: null, area: null, total_area: null, pass_count: null },
     ], "Unknown outcome");
     assert.equal(details.hidden, false);
     assert.deepEqual(rows.children.map((row) => row.children.map((child) => child.textContent)), [
       ["Sofa", "finished", "Reported pass value 0 · Reported area 8 / 10"],
-      ["Entry", "finished", "Completed passes 2"],
-      ["Temporary zone 3", "Unknown outcome", ""],
+      ["Entry", "finished", "Completed passes 2 · Target 9.85 m² · 12.45 m² in completed passes"],
+      ["Pantry", "finished", "Completed passes 1 · Target 0 m² · 0 m² in completed passes"],
+      ["Door", "Unknown outcome", "Target 0.65 m² · Provider total area 4"],
+      ["Temporary zone 5", "Unknown outcome", ""],
     ]);
   } finally {
     sandbox.document.createElement = createElement;

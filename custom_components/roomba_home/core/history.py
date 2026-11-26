@@ -90,7 +90,7 @@ def _area_events(events: object, kind: str, field: str) -> Iterable[AreaResult]:
 
 def _latest_area_results(events: Iterable[AreaResult]) -> tuple[AreaResult, ...]:
     results = {}
-    completed_indexes = {}
+    completed_passes = {}
     for result in events:
         key = result.kind, result.identity
         earlier = results.get(key)
@@ -101,11 +101,19 @@ def _latest_area_results(events: Iterable[AreaResult]) -> tuple[AreaResult, ...]
             and result.status in (0, 1)
             and result.pass_count is not None
         ):
-            completed_indexes.setdefault(key, set()).add(result.pass_count)
+            passes = completed_passes.setdefault(key, {})
+            previous_pass = passes.get(result.pass_count)
+            if previous_pass is None or result.timestamp >= previous_pass.timestamp:
+                passes[result.pass_count] = result
     # Firmware uses zero-based pass indexes in saved-zone completion events.
-    for key, indexes in completed_indexes.items():
-        if 0 in indexes:
-            results[key] = replace(results[key], confirmed_completed_passes=len(indexes))
+    for key, passes in completed_passes.items():
+        if 0 in passes:
+            values = [event.total_area for event in passes.values() if event.total_area is not None]
+            results[key] = replace(
+                results[key],
+                confirmed_completed_passes=len(passes),
+                completed_passes_sqft=sum(values) if len(values) == len(passes) else None,
+            )
     return tuple(sorted(results.values(), key=lambda area: area.timestamp))
 
 
@@ -176,6 +184,11 @@ def _public_result(area: AreaResult) -> dict:
     }
     if area.confirmed_completed_passes is not None:
         result["confirmed_completed_passes"] = area.confirmed_completed_passes
+    if area.kind == "saved_zone":
+        if area.area is not None:
+            result["target_area_m2"] = convert("area", area.area)
+        if area.completed_passes_sqft is not None:
+            result["completed_passes_area_m2"] = convert("area", area.completed_passes_sqft)
     return result
 
 

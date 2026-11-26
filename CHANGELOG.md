@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.72.0
+
+- Show the reported target size and area cleaned across confirmed passes
+  separately for saved zones. The card and Home Assistant attributes report
+  both measurements in square metres and retain the original provider fields.
+
 ## 0.71.2
 
 - Keep confirming a sent command when a successful refresh temporarily

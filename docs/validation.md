@@ -1,5 +1,26 @@
 # Roomba Home validation
 
+## Saved-zone area measurements
+
+The Max 700 Combo's signed history contained 38 missions, including 32
+with room or zone events. All 31 zone events and 15 room events had `area`
+and `totalArea`. The Android SDK describes optional `coverage` and
+`passArea` fields. Neither field appeared in these signed results.
+
+The matching saved-zone archives supplied independent polygon footprints.
+For a 9.922 m² footprint, Roomba reported a target of 106 ft². The two
+completed events reported 66 and 67 ft² in one mission and 67 ft² each in
+another, matching their mission totals of 133 and 134 ft². The 2.56 m²
+zone reported a target of 27 ft² and 35 ft² for each of its two completed
+passes. A canceled pass reported a negative `totalArea`, so the conversion
+uses measured area from completed passes only.
+
+The integration now shows the reported target size and the completed-pass
+sum in square metres. Raw area values remain available. The room samples
+reported zero `totalArea` even in missions that recorded cleaning, so
+this comparison establishes the contract for correlated saved zones.
+[Anonymized archive comparison](evidence/2026-11-26-saved-zone-area-measurements.json)
+
 ## Household installation of 0.71.2
 
 The 81 component files in the published archive matched the release tag.
