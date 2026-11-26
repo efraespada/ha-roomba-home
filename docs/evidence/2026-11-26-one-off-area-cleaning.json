@@ -1,0 +1,44 @@
+{
+  "tested_model": "Roomba Max 700 Combo",
+  "date": "2026-11-26",
+  "android": {
+    "initial_draft_preset": "normal",
+    "preset_after_room_save": "light",
+    "preset_after_app_restart": "normal",
+    "signed_map_revision_preserved": true,
+    "signed_room_defaults_preserved": true,
+    "signed_account_favorites_preserved": true,
+    "https_capture_repeat": {
+      "decrypted_successful_reads_after_recovery": 43,
+      "decrypted_map_inventory_reads_after_recovery": 3,
+      "editing_time_estimate_calls": 3,
+      "editing_analytics_events": 1,
+      "requests_during_save_window": 0,
+      "signed_read_back_matched_preflight": true
+    }
+  },
+  "isolated_home_assistant": {
+    "reviewed_active_room_count": 1,
+    "start_confirmed": true,
+    "returned_to_dock": true,
+    "final_error_code": 0,
+    "original_map_layers_preserved": true,
+    "original_routines_and_schedules_preserved": true,
+    "other_robot_commands": 0
+  },
+  "signed_history": {
+    "included_without_quick_cancel_filter": true,
+    "reviewed_room_and_map_revision_confirmed": true,
+    "requested_mode": "vacuum",
+    "requested_suction_level": 1,
+    "requested_two_pass": true,
+    "outcome": "cancelled"
+  },
+  "isolated_chrome": {
+    "viewport_widths_px": [358, 900],
+    "start_required_confirmation": true,
+    "start_returned_to_map": true,
+    "transfer_preserved_order_choice": true,
+    "transfer_loaded_existing_routines_without_creating_one": true
+  }
+}

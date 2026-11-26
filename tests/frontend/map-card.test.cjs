@@ -333,6 +333,159 @@ function draftEstimateCard() {
   return card;
 }
 
+function oneOffCleaningCard() {
+  const card = draftEstimateCard();
+  Object.assign(card.snapshot, {
+    robot: "Example robot", can_clean_everywhere: true,
+    cleaning: { modes: ["vacuum", "mop"], default_mode: "vacuum",
+      suction_level: 4, wetness_level: 3, two_pass: true },
+  });
+  card.geometry.regions = [{ id: "room-a", name: "Kitchen" }, { id: "room-b", name: "Hall" }];
+  card.selected = new Set(["room-b", "room-a"]);
+  for (const dialog of [card.dialog, card.routineDialog]) {
+    dialog.open = false;
+    dialog.showModal = () => { dialog.open = true; };
+    dialog.close = () => { dialog.open = false; };
+  }
+  return card;
+}
+
+test("the map review opens cleaning preferences and starts only the reviewed one-off", async () => {
+  const card = oneOffCleaningCard();
+  card.callAction = () => { throw Error("Opening or editing a one-off must not call an action"); };
+  card.draw = () => {};
+  const requests = [];
+  card._hass = { async callService(...args) { requests.push(JSON.parse(JSON.stringify(args))); } };
+  card.review();
+  assert.equal(card.$("customize-cleaning").hidden, false);
+  await card.customizeCleaning();
+  assert.equal(card.dialog.open, false);
+  assert.equal(card.routineDialog.open, true);
+  assert.equal(card.$("routine-title").textContent, "Cleaning preferences");
+  assert.equal(card.$("routine-picker").hidden, true);
+  assert.equal(card.$("routine-name").required, false);
+  assert.equal(card.$("save-routine").hidden, true);
+  assert.equal(card.$("save-cleaning-as-routine").disabled, false);
+  assert.deepEqual(Array.from(card.routineDraft.regions, ({ id }) => id), ["room-b", "room-a"]);
+  Object.assign(card.routineDraft.regions[0], { mode: "vacuum", suction_level: 3 });
+  Object.assign(card.routineDraft.regions[1], { mode: "mop", wetness_level: 1, two_pass: true });
+  await card.saveRoutine();
+  await card.runRoutine();
+  assert.equal(card.$("routine-status").textContent, "Start cleaning: Hall → Kitchen?");
+  card.routineDraft.regions[0].suction_level = 2;
+  await card.runRoutine();
+  assert.deepEqual(requests, []);
+  await card.runRoutine();
+  assert.deepEqual(requests, [["roomba_home", "run_cleaning_draft", {
+    floor: { map_id: "fixture-map", version: "v1", inventory_id: "inventory" },
+    regions: [
+      { id: "room-b", mode: "vacuum", suction_level: 2 },
+      { id: "room-a", mode: "mop", wetness_level: 1, two_pass: true },
+    ],
+  }, { entity_id: card.config.entity }]]);
+  assert.equal(card.routineDialog.open, false);
+  assert.equal(card.selected.size, 0);
+  assert.match(card.$("status").textContent, /Cleaning request accepted/);
+});
+
+test("one-off preferences can become a named routine with their order choice intact", async () => {
+  const card = oneOffCleaningCard();
+  const requests = [];
+  card.callAction = async (...args) => {
+    requests.push(JSON.parse(JSON.stringify(args)));
+    return args[0] === "list_cleaning_routines" ? { routines: [] } : {
+      id: "favorite", name: args[1].name, ordered: args[1].ordered, region_settings: args[1].regions,
+    };
+  };
+  card.review();
+  await card.customizeCleaning();
+  card.routineDraft.ordered = false;
+  card.routineDraft.regions[1].mode = "mop";
+  const previous = card.routineDraft.regions;
+  await card.saveCleaningAsRoutine();
+  assert.equal(card.$("routine-title").textContent, "Cleaning routines");
+  assert.equal(card.$("routine-name").focused, true);
+  assert.equal(card.$("routine-name").required, true);
+  assert.equal(card.$("routine-appearance").hidden, false);
+  assert.equal(card.routineDraft.ordered, false);
+  assert.notEqual(card.routineDraft.regions[1], previous[1]);
+  assert.deepEqual(requests.map(([command]) => command), ["list_cleaning_routines"]);
+  card.routineDraft.name = "Room preferences";
+  await card.saveRoutine();
+  assert.deepEqual(requests[1], ["create_cleaning_routine", {
+    name: "Room preferences", ordered: false,
+    regions: [{ id: "room-b" }, { id: "room-a", mode: "mop" }],
+  }, card.config.entity]);
+});
+
+test("edit or duplicate a routine's icon and color without changing its cleaning plan", async () => {
+  const card = draftEstimateCard();
+  const original = {
+    id: "favorite", name: "Kitchen routine", editable: true,
+    icon: "😄", color: "#CBCBFB", region_settings: [{ id: "room-a", mode: "mop" }],
+  };
+  card.routines = [original];
+  const requests = [];
+  card.callAction = async (service, data) => {
+    requests.push([service, JSON.parse(JSON.stringify(data))]);
+    return { ...original, name: data.name, icon: data.icon ?? original.icon,
+      color: data.color ?? original.color };
+  };
+  card.editRoutine(original.id);
+  assert.match(card.$("routine-list").children[1].text, /😄 Kitchen routine/);
+  assert.equal(card.$("routine-icon-preview").textContent, "😄");
+  assert.equal(card.$("routine-icon-preview").style.backgroundColor, "#cbcbfb");
+  const palette = card.$("routine-palette").children;
+  assert.equal(palette.length, 7);
+  assert.equal(palette.find(button => button["aria-label"] === "Violet")["aria-pressed"], "true");
+  palette.find(button => button["aria-label"] === "Yellow").onclick();
+  const input = card.$("routine-icon");
+  input.value = "🧹";
+  input.oninput();
+  assert.equal(card.$("routine-icon-preview").textContent, "🧹");
+  assert.equal(card.$("routine-icon-preview").style.backgroundColor, "#fdf4a9");
+  await card.saveRoutine();
+  assert.deepEqual(requests[0], ["update_cleaning_routine", {
+    name: original.name, routine_id: original.id, icon: "🧹", color: "#FDF4A9",
+  }]);
+  card.copyRoutine();
+  await card.saveRoutine();
+  assert.deepEqual(requests[1], ["create_cleaning_routine", {
+    name: "Kitchen routine (copy)", regions: original.region_settings, icon: "🧹", color: "#FDF4A9",
+  }]);
+
+  card.cleaningEditor = true;
+  card.renderRoutine();
+  assert.equal(card.$("routine-appearance").hidden, true);
+  card.cleaningEditor = false;
+  card.scheduleEditor = true;
+  card.editRoutine(original.id);
+  assert.equal(card.$("routine-appearance").hidden, true);
+});
+
+test("a changed floor invalidates one-off reviews and whole-area cleaning keeps its own confirmation", async () => {
+  const card = oneOffCleaningCard();
+  card.callAction = () => { throw Error("Invalid one-off must not call an action"); };
+  card._hass = { callService() { throw Error("Invalid one-off must not start a mission"); } };
+  card.reviewCleanEverywhere();
+  assert.equal(card.$("customize-cleaning").hidden, true);
+  await card.customizeCleaning();
+  assert.equal(card.routineDialog.open, false);
+  card.dialog.close();
+  card.review();
+  card.geometry.selection_id = "different rooms";
+  await card.customizeCleaning();
+  assert.equal(card.routineDialog.open, false);
+  card.dialog.close();
+  card.review();
+  await card.customizeCleaning();
+  card.snapshot.map.version = "v2";
+  await card.runRoutine();
+  assert.match(card.$("routine-status").textContent, /current floor plan/);
+  await card.saveCleaningAsRoutine();
+  assert.equal(card.cleaningEditor, true);
+});
+
 test("a draft can inspect and apply a room's remembered settings for its chosen mode", async () => {
   const card = draftEstimateCard();
   card.snapshot.cleaning = {
@@ -398,6 +551,53 @@ test("applying remembered settings to all areas preserves order and checks the c
   assert.equal(card.routineDraft.ordered, true);
 });
 
+test("choose either remembered variant even when Roomba has no preferred one", () => {
+  const card = draftEstimateCard();
+  card.callAction = () => { throw Error("Copying a profile must only edit the draft"); };
+  card.snapshot.cleaning = {
+    default_mode: "vacuum_mop", modes: ["vacuum", "mop", "vacuum_mop"],
+    suction_level: 4, wetness_level: 3, two_pass: true,
+  };
+  const reported = card.snapshot.remembered_cleaning = {
+    "room-a": { last_mode: null, preferred: {}, profiles: [
+      { mode_code: 6, can_apply: true, settings: {
+        mode: "vacuum_mop", suction_level: 1, wetness_level: 1,
+      } },
+      { mode_code: 32, can_apply: true, settings: {
+        mode: "vacuum_mop", suction_level: 3, wetness_level: 2,
+      } },
+      { mode_code: 512, can_apply: false, settings: { mode: "vacuum_then_mop", suction_level: 4 } },
+    ] },
+  };
+  const currentDetails = () => card.$("routine-regions").children[0].querySelector("details");
+  const rows = () => currentDetails().querySelector("ul").children;
+  const button = (index) => rows()[index].querySelector("button");
+  card.renderRoutine();
+  assert.match(rows()[2].textContent, /Mode 512/);
+  assert.equal(button(2), undefined);
+  button(1).onclick();
+  assert.deepEqual(card.routineDraft.regions[0], {
+    id: "room-a", mode: "vacuum_mop", two_pass: false, suction_level: 3, wetness_level: 2,
+  });
+  assert.equal(currentDetails().open, true);
+  assert.equal(currentDetails().querySelector("summary").focused, true);
+  assert.match(card.$("routine-status").textContent, /Copied/);
+  button(0).onclick();
+  assert.equal(card.routineDraft.regions[0].suction_level, 1);
+  assert.deepEqual(card.routineDraft.regions[1], { id: "furniture-b", mode: "vacuum" });
+
+  const stale = button(1);
+  reported["room-a"].profiles[1].settings.suction_level = 4;
+  stale.onclick();
+  assert.equal(card.routineDraft.regions[0].suction_level, 1);
+  assert.match(card.$("routine-status").textContent, /changed/);
+  const previousFloor = button(1);
+  card.snapshot.map.version = "elsewhere";
+  previousFloor.onclick();
+  assert.equal(card.routineDraft.regions[0].suction_level, 1);
+  assert.equal(currentDetails(), undefined);
+});
+
 test("native automatic order survives editing, copying, and confirming a draft", async () => {
   const card = draftEstimateCard();
   const saved = {
@@ -447,7 +647,7 @@ test("a schedule can be created from the reviewed floor, enabled and removed", a
     if (action === "set_cleaning_schedule_enabled") saved = { ...saved, enabled: data.enabled };
     return saved;
   };
-  await card.openRoutines(true);
+  await card.openRoutines({ schedule: true });
   assert.equal(card.$("routine-title").textContent, "Cleaning schedules");
   assert.equal(card.routineAreas.has("furniture-b"), false);
   assert.equal(card.$("run-routine").hidden, true);

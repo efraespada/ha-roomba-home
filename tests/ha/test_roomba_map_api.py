@@ -310,6 +310,7 @@ async def test_remembered_preferences_follow_verified_destinations_and_refresh_w
         for saved in preferences.values():
             assert saved["last_mode"] == "vacuum"
             assert saved["preferred"] == {"vacuum": 2}
+            assert saved["profiles"][0]["can_apply"] is True
             assert saved["profiles"][0]["settings"] == {"mode": "vacuum", "suction_level": level}
 
     with patch.object(

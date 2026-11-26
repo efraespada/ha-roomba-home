@@ -32,6 +32,12 @@ const PRESET_LABELS = {
   light: "Light", normal: "Normal", deep: "Deep", smart: "Smart recommendations",
   remembered: "Remembered by Roomba",
 };
+const ROUTINE_ICON = "🤖";
+const ROUTINE_COLOR = "#DAF6A1";
+const ROUTINE_PALETTE = [
+  ["Pink", "#F2D2DE"], ["Peach", "#FBE7CE"], ["Yellow", "#FDF4A9"], ["Green", "#DEF5A9"],
+  ["Sky blue", "#D9EEF5"], ["Blue", "#D2E2FA"], ["Violet", "#CBCBFB"],
+];
 const RESTRICTION_TYPES = { keep_out: "Keep-out zone", no_mop: "No-mop zone", wall: "Virtual wall" };
 const HISTORY_PATH_LAYERS = ["cleaning", "travel", "unclassified"];
 const MAINTENANCE_UNITS = {
@@ -117,12 +123,21 @@ template.innerHTML = `
     #schedule-fields { display:grid; gap:8px; }
     #schedule-days .actions { justify-content:flex-start; margin-top:0; }
     #routine-list { flex:1; min-width:0; }
+    #routine-appearance-controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+    #routine-icon { width:8rem; max-width:100%; }
+    #routine-icon-preview { display:grid; place-items:center; width:38px; height:38px;
+      color:#15151b; border-radius:8px; font-size:22px; overflow:hidden; }
+    #routine-palette { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    #routine-palette button { border-radius:50%; padding:0; width:38px; height:38px; }
+    #routine-palette button[aria-pressed="true"] { outline:2px solid currentColor; outline-offset:1px; }
     #quick-routines { margin:8px 0; padding-inline-start:22px; }
     #quick-routines li + li { margin-top:6px; }
     #quick-routines li > :last-child { margin-inline-start:8px; }
     #routine-regions { display:grid; gap:10px; margin:0; padding-left:24px; }
     #routine-regions li { padding:8px; border:1px solid var(--divider-color,#647382); border-radius:8px; }
     .routine-region-controls { display:flex; gap:4px; flex-wrap:wrap; margin:6px 0; }
+    .remembered-profile { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+    .remembered-profile + .remembered-profile { margin-top:6px; }
     details { margin-top:15px; }
     summary { cursor:pointer; }
     .result { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; margin-top:9px; }
@@ -399,7 +414,11 @@ template.innerHTML = `
     </dialog>
     <dialog id="confirm-dialog" aria-labelledby="confirm-title">
       <h3 id="confirm-title">Start cleaning?</h3><p id="confirm-text"></p>
-      <div class="actions"><button id="cancel">Cancel</button><button id="start" class="primary">Start cleaning</button></div>
+      <div class="actions">
+        <button id="cancel">Cancel</button>
+        <button id="customize-cleaning" hidden>Customize cleaning</button>
+        <button id="start" class="primary">Start cleaning</button>
+      </div>
     </dialog>
     <dialog id="map-backups-dialog" aria-labelledby="map-backups-title">
       <h3 id="map-backups-title">Map backups</h3>
@@ -496,13 +515,22 @@ template.innerHTML = `
     <dialog id="routine-dialog" aria-labelledby="routine-title">
       <h3 id="routine-title">Cleaning routines</h3>
       <form id="routine-form">
-        <label><span id="routine-list-label">Routine</span> <select id="routine-list"></select></label>
+        <label id="routine-picker"><span id="routine-list-label">Routine</span> <select id="routine-list"></select></label>
         <div id="quick-routine-fields">
           <button id="load-quick-routines" type="button">Recent and suggested routines</button>
           <p id="quick-routines-status" class="muted" role="status" hidden></p>
           <ul id="quick-routines" aria-label="Recent and suggested routines" hidden></ul>
         </div>
-        <label>Name <input id="routine-name" required maxlength="120" autocomplete="off"></label>
+        <label id="routine-name-label">Name <input id="routine-name" required maxlength="120" autocomplete="off"></label>
+        <fieldset id="routine-appearance" hidden>
+          <legend>Appearance</legend>
+          <div id="routine-appearance-controls">
+            <span id="routine-icon-preview" aria-hidden="true"></span>
+            <label>Icon <input id="routine-icon" maxlength="64" placeholder="🤖" autocomplete="off"></label>
+            <label>Color <input id="routine-color" type="color"></label>
+          </div>
+          <div id="routine-palette" aria-label="Routine color presets"></div>
+        </fieldset>
         <div id="schedule-fields" hidden>
           <label>Repeat <select id="schedule-frequency"><option value="weekly">Weekly</option><option value="once">Once</option></select></label>
           <label>Start time <input id="schedule-time" type="time"></label>
@@ -529,6 +557,7 @@ template.innerHTML = `
           <button id="copy-routine" type="button">Duplicate</button>
           <button id="use-routine-in-schedule" type="button" hidden>Use in schedule</button>
           <button id="remove-routine" type="button">Delete</button>
+          <button id="save-cleaning-as-routine" type="button" hidden>Save as routine</button>
           <button id="run-routine" type="button">Run saved routine</button>
           <button id="toggle-schedule" type="button" hidden>Enable</button>
           <button id="close-routines" type="button">Close</button>
@@ -959,6 +988,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.draw();
     };
     this.$("review").onclick = () => this.review();
+    this.$("customize-cleaning").onclick = () => this.customizeCleaning();
     this.$("cancel").onclick = () => this.dialog.close();
     this.$("start").onclick = () => this.submit();
     this.$("review-mapping").onclick = () => this.reviewMapping();
@@ -1002,7 +1032,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("point-cleaning-mode").onchange = (event) => this.setPointCleaningMode(event.target.value);
     this.$("place-point").onclick = () => this.placePoint();
     this.$("manage-routines").onclick = () => this.openRoutines();
-    this.$("manage-schedules").onclick = () => this.openRoutines(true);
+    this.$("manage-schedules").onclick = () => this.openRoutines({ schedule: true });
     this.$("clean-everywhere").onclick = () => this.reviewCleanEverywhere();
     this.$("open-map-backups").onclick = () => this.openMapBackups();
     this.$("close-map-backups").onclick = () => this.$("map-backups-dialog").close();
@@ -1178,6 +1208,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("estimate-routine").onclick = () => this.estimateRoutine();
     this.$("remove-routine").onclick = () => this.removeRoutine();
     this.$("run-routine").onclick = () => this.runRoutine();
+    this.$("save-cleaning-as-routine").onclick = () => this.saveCleaningAsRoutine();
     this.$("toggle-schedule").onclick = () => this.toggleSchedule();
     this.$("close-routines").onclick = () => this.routineDialog.close();
     this.$("routine-form").onsubmit = (event) => {
@@ -3227,7 +3258,26 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("confirm-text").textContent = point
       ? `${data.robot} will ${MODES[this.pointCleaningMode].toLowerCase()} around the marked point in ${point.name}.`
       : `${data.robot} will clean ${names.join(", ")}.`;
+    this.$("customize-cleaning").hidden = Boolean(point || !data.cleaning);
     this.dialog.showModal();
+  }
+
+  cleaningReviewIsCurrent(choice) {
+    const map = this.snapshot?.map;
+    return Boolean(map && choice.id === map.id && choice.version === map.version &&
+      choice.selectionId === (this.geometry?.selection_id ?? this.snapshot.inventory_id));
+  }
+
+  async customizeCleaning() {
+    const choice = this.confirmation;
+    if (!this.dialog.open || this.routineDialog.open || this.routineBusy || this.submitting ||
+        !this.snapshot?.cleaning || !choice?.regions?.length || choice.point ||
+        !this.cleaningReviewIsCurrent(choice)) return;
+    this.confirmation = null;
+    this.dialog.close();
+    await this.openRoutines({
+      selection: true, initialDraft: { regions: choice.regions.map((id) => ({ id })) },
+    });
   }
 
   reviewCleanEverywhere() {
@@ -3236,6 +3286,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.confirmation = { everywhere: true, entity: this.config.entity };
     this.$("confirm-text").textContent =
       `${this.snapshot.robot} will clean every reachable area using its next-cleaning preferences.`;
+    this.$("customize-cleaning").hidden = true;
     this.dialog.showModal();
   }
 
@@ -3245,8 +3296,7 @@ class RoombaHomeMapCard extends HTMLElement {
     if (choice.everywhere) {
       if (!this.dialog.open || !this.snapshot.can_clean_everywhere || choice.entity !== this.config.entity) return;
     } else if ((choice.point && (!this.pointAvailable || !this.pointModes.includes(choice.mode))) ||
-        choice.id !== this.snapshot.map?.id || choice.version !== this.snapshot.map?.version ||
-        choice.selectionId !== (this.geometry?.selection_id ?? this.snapshot.inventory_id)) return;
+        !this.cleaningReviewIsCurrent(choice)) return;
     this.submitting = true;
     this.confirmation = null;
     this.dialog.close();
@@ -3332,7 +3382,7 @@ class RoombaHomeMapCard extends HTMLElement {
     status.hidden = !messages.length;
   }
 
-  async openRoutines(scheduleEditor = false, initialDraft) {
+  async openRoutines({ schedule = false, selection = false, initialDraft } = {}) {
     if (!this.snapshot || !this.geometry || this.routineBusy ||
         this.routineDialog.open && !initialDraft) return;
     const entity = this.config.entity;
@@ -3340,18 +3390,20 @@ class RoombaHomeMapCard extends HTMLElement {
       ...this.snapshot.map,
       selectionId: this.geometry.selection_id ?? this.snapshot.inventory_id,
     };
-    this.scheduleEditor = scheduleEditor;
-    const furniture = scheduleEditor ? [] : this.geometry.furniture?.destinations ?? [];
+    this.scheduleEditor = schedule;
+    this.cleaningEditor = selection;
+    const furniture = schedule ? [] : this.geometry.furniture?.destinations ?? [];
     const areas = [...this.geometry.regions, ...furniture];
     this.routineAreas = new Map(areas.filter((area) => area.id)
       .map((area) => [area.id, area.name]));
     this.routines = [];
     this.quickRoutines = null;
-    this.routineBusy = true;
+    this.routineBusy = !selection;
     this.editRoutine("", initialDraft);
-    const kind = scheduleEditor ? "schedules" : "routines";
-    this.$("routine-status").textContent = `Loading ${kind}…`;
     if (!this.routineDialog.open) this.routineDialog.showModal();
+    if (selection) return;
+    const kind = schedule ? "schedules" : "routines";
+    this.$("routine-status").textContent = `Loading ${kind}…`;
     try {
       const result = await this.callAction(`list_cleaning_${kind}`, {}, entity);
       if (this.config.entity === entity) this.routines = result[kind];
@@ -3372,9 +3424,11 @@ class RoombaHomeMapCard extends HTMLElement {
     this.routineDraft = {
       saved,
       name: saved?.name ?? initialDraft?.name ?? "",
+      icon: saved?.icon,
+      color: saved?.color,
       regions: saved ? (canReplace ? settings.map((region) => ({ ...region })) : null)
         : initialDraft?.regions ?? [...selected].map((id) => ({ id })),
-      ordered: saved?.ordered !== false,
+      ordered: (saved ?? initialDraft)?.ordered !== false,
     };
     if (this.scheduleEditor) Object.assign(this.routineDraft, {
       frequency: saved?.frequency ?? "weekly", weekdays: [...(saved?.weekdays ?? [])], time: saved?.time ?? "",
@@ -3388,20 +3442,25 @@ class RoombaHomeMapCard extends HTMLElement {
     const busy = this.routineBusy;
     const locked = busy || saved?.editable === false;
     const schedule = Boolean(this.scheduleEditor);
-    this.$("routine-title").textContent = schedule ? "Cleaning schedules" : "Cleaning routines";
+    const selection = Boolean(this.cleaningEditor);
+    this.$("routine-title").textContent = selection ? "Cleaning preferences"
+      : schedule ? "Cleaning schedules" : "Cleaning routines";
+    this.$("routine-picker").hidden = selection;
     this.$("routine-list-label").textContent = schedule ? "Schedule" : "Routine";
-    this.$("quick-routine-fields").hidden = schedule;
+    this.$("quick-routine-fields").hidden = schedule || selection;
     const source = this.$("routine-list");
     source.replaceChildren(option("", schedule ? "New schedule" : "New routine"), ...this.routines
       .map((routine) => option(routine.id, schedule
         ? [routine.name, routine.time, routine.enabled ? "Enabled" : "Disabled"].filter(Boolean).join(" · ")
-        : routine.name)));
+        : [routine.icon, routine.name].filter(Boolean).join(" "))));
     source.value = saved?.id ?? "";
     source.disabled = busy;
     const input = this.$("routine-name");
     input.value = name;
-    input.disabled = locked;
-    input.required = !schedule || !saved;
+    input.disabled = locked || selection;
+    input.required = !selection && (!schedule || !saved);
+    this.$("routine-name-label").hidden = selection;
+    this.renderRoutineAppearance(locked, !selection && !schedule);
     this.renderScheduleTiming(locked);
     const estimate = this.$("routine-estimate");
     const minutes = saved?.estimate?.duration_minutes;
@@ -3427,24 +3486,73 @@ class RoombaHomeMapCard extends HTMLElement {
     add.replaceChildren(option("", "Choose an area"), ...remaining.map(([id, label]) => option(id, label)));
     this.$("add-routine-region-label").hidden = regions === null || locked || regions.length >= 32;
     add.disabled = !remaining.length;
+    this.$("copy-routine").hidden = selection;
     this.$("copy-routine").disabled = busy || !saved || !regions?.length;
     this.$("use-routine-in-schedule").hidden = !this.canUseRoutineInSchedule();
     const deleteButton = this.$("remove-routine");
+    deleteButton.hidden = selection;
     deleteButton.textContent = "Delete";
     deleteButton.disabled = locked || !saved;
     const runButton = this.$("run-routine");
     runButton.hidden = schedule;
-    runButton.textContent = saved ? "Run saved routine" : "Run draft";
+    runButton.className = selection ? "primary" : "";
+    runButton.textContent = this.routineRunLabel(saved);
     runButton.disabled = busy || !regions?.length || Boolean(saved && !saved.region_settings?.length);
     const toggle = this.$("toggle-schedule");
     toggle.hidden = !schedule || !saved;
     toggle.disabled = locked;
     toggle.textContent = saved?.enabled ? "Disable schedule" : "Enable schedule";
     const save = this.$("save-routine");
+    save.hidden = selection;
     save.textContent = schedule ? "Save schedule" : "Save routine";
-    save.disabled = locked || (!saved && !regions?.length);
+    save.disabled = selection || locked || (!saved && !regions?.length);
+    const saveAs = this.$("save-cleaning-as-routine");
+    saveAs.hidden = !selection;
+    saveAs.disabled = locked || !regions?.length || !this.routineFloorIsCurrent();
     this.renderRoutineEstimate();
     this.renderQuickRoutines();
+  }
+
+  renderRoutineAppearance(locked, visible) {
+    const appearance = this.$("routine-appearance");
+    appearance.hidden = !visible;
+    appearance.disabled = locked;
+    if (!visible) return;
+    const { routineDraft: draft } = this;
+    const icon = this.$("routine-icon");
+    const color = this.$("routine-color");
+    const badge = this.$("routine-icon-preview");
+    const palette = this.$("routine-palette");
+    icon.value = draft.icon ?? "";
+    color.value = (draft.color ?? ROUTINE_COLOR).toLowerCase();
+    const preview = () => {
+      badge.textContent = icon.value.trim() || ROUTINE_ICON;
+      badge.style.backgroundColor = color.value;
+      for (const swatch of palette.children) {
+        swatch.setAttribute("aria-pressed", swatch.value === color.value);
+      }
+    };
+    icon.oninput = () => {
+      draft.icon = icon.value.trim() || ROUTINE_ICON;
+      preview();
+    };
+    color.oninput = () => {
+      draft.color = color.value.toUpperCase();
+      preview();
+    };
+    palette.replaceChildren(...ROUTINE_PALETTE.map(([label, hex]) => {
+      const swatch = document.createElement("button");
+      swatch.type = "button";
+      swatch.value = hex.toLowerCase();
+      swatch.style.backgroundColor = hex;
+      swatch.setAttribute("aria-label", label);
+      swatch.onclick = () => {
+        color.value = swatch.value;
+        color.oninput();
+      };
+      return swatch;
+    }));
+    preview();
   }
 
   renderScheduleTiming(locked) {
@@ -3627,6 +3735,68 @@ class RoombaHomeMapCard extends HTMLElement {
     return this.routineFloorIsCurrent() ? this.snapshot.remembered_cleaning?.[region.id] : undefined;
   }
 
+  rememberedSettings(region, locked) {
+    const remembered = this.rememberedFor(region);
+    if (!remembered) return null;
+    const draft = this.routineDraft;
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = "Roomba's remembered settings";
+    details.append(summary);
+    if (remembered.last_mode) {
+      const last = document.createElement("p");
+      last.className = "muted";
+      last.textContent = `Last mode · ${MODES[remembered.last_mode]}`;
+      details.append(last);
+    }
+    const profiles = document.createElement("ul");
+    profiles.replaceChildren(...remembered.profiles.map((profile) => {
+      const line = document.createElement("li");
+      line.className = "remembered-profile";
+      const settings = profile.settings;
+      const values = Object.entries(SETTINGS).flatMap(([key, label]) => {
+        const value = settings[key];
+        if (value == null) return [];
+        const display = typeof value === "boolean" ? (value ? "On" : "Off") : value;
+        return [`${label} ${display}`];
+      });
+      const mode = MODES[settings.mode];
+      line.textContent = [mode, `Mode ${profile.mode_code}`,
+        PRESET_LABELS[profile.preset] ?? (profile.preset && historyLabel(profile.preset)),
+        profile.updated_at && historyTime(profile.updated_at), ...values].filter(Boolean).join(" · ");
+      if (profile.can_apply !== true) return line;
+      const use = document.createElement("button");
+      use.type = "button";
+      use.textContent = "Use these settings";
+      use.setAttribute("aria-label",
+        `Use ${mode} settings for ${this.routineAreas.get(region.id)}, mode ${profile.mode_code}`);
+      use.disabled = locked;
+      const reviewedSettings = JSON.stringify(settings);
+      use.onclick = () => {
+        if (locked || this.routineBusy || !this.routineDialog.open || this.routineDraft !== draft) return;
+        const index = draft.regions.indexOf(region);
+        if (index < 0) return;
+        const current = this.rememberedFor(region)?.profiles.find((item) =>
+          item.mode_code === profile.mode_code && item.can_apply === true);
+        const matches = current && JSON.stringify(current.settings) === reviewedSettings;
+        if (matches) Object.assign(region, current.settings);
+        this.renderRoutine();
+        const disclosure = this.$("routine-regions").children[index]?.querySelector("details");
+        if (disclosure) {
+          disclosure.open = true;
+          disclosure.querySelector("summary").focus();
+        }
+        this.$("routine-status").textContent = matches
+          ? "Copied Roomba's settings to this area."
+          : "The remembered settings changed. Review them again.";
+      };
+      line.append(use);
+      return line;
+    }));
+    details.append(profiles);
+    return details;
+  }
+
   canApplySmartPreset(region) {
     return this.snapshot?.cleaning?.supports_smart_presets === true &&
       this.routineMap && region.id.startsWith(`${this.routineMap.id}:rid:`);
@@ -3730,36 +3900,8 @@ class RoombaHomeMapCard extends HTMLElement {
       actions.append(button);
     }
     item.append(actions);
-    const remembered = this.rememberedFor(region);
-    if (remembered) {
-      const details = document.createElement("details");
-      const summary = document.createElement("summary");
-      summary.textContent = "Roomba's remembered settings";
-      details.append(summary);
-      if (remembered.last_mode) {
-        const last = document.createElement("p");
-        last.className = "muted";
-        last.textContent = `Last mode · ${MODES[remembered.last_mode]}`;
-        details.append(last);
-      }
-      const profiles = document.createElement("ul");
-      profiles.replaceChildren(...remembered.profiles.map((profile) => {
-        const line = document.createElement("li");
-        const settings = profile.settings;
-        const values = Object.entries(SETTINGS).flatMap(([key, label]) => {
-          const value = settings[key];
-          if (value == null) return [];
-          const display = typeof value === "boolean" ? (value ? "On" : "Off") : value;
-          return [`${label} ${display}`];
-        });
-        line.textContent = [MODES[settings.mode], `Mode ${profile.mode_code}`,
-          PRESET_LABELS[profile.preset] ?? (profile.preset && historyLabel(profile.preset)),
-          profile.updated_at && historyTime(profile.updated_at), ...values].filter(Boolean).join(" · ");
-        return line;
-      }));
-      details.append(profiles);
-      item.append(details);
-    }
+    const remembered = this.rememberedSettings(region, locked);
+    if (remembered) item.append(remembered);
     const capabilities = this.snapshot?.cleaning ?? {};
     const modes = (capabilities.modes ?? []).map((mode) => option(mode, MODES[mode]));
     const presetField = document.createElement("label");
@@ -3851,7 +3993,9 @@ class RoombaHomeMapCard extends HTMLElement {
   async useRoutineInSchedule() {
     if (!this.routineDialog.open || !this.canUseRoutineInSchedule()) return;
     const { name, regions } = this.routineDraft;
-    await this.openRoutines(true, { name, regions: regions.map((region) => ({ ...region })) });
+    await this.openRoutines({
+      schedule: true, initialDraft: { name, regions: regions.map((region) => ({ ...region })) },
+    });
     if (this.routineDialog.open && this.scheduleEditor) this.$("schedule-frequency").focus();
   }
 
@@ -3863,10 +4007,12 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   async saveRoutine() {
-    const { saved, name, regions } = this.routineDraft;
+    const { saved, name, regions, icon, color } = this.routineDraft;
     const ordered = this.routineDraft.ordered !== false;
-    if (this.routineBusy || saved?.editable === false || !name.trim()) return;
+    if (this.cleaningEditor || this.routineBusy || saved?.editable === false || !name.trim()) return;
     const data = { name: name.trim() };
+    if (icon && icon !== saved?.icon) data.icon = icon;
+    if (color && color !== saved?.color) data.color = color;
     if (!saved || (regions && (JSON.stringify(regions) !== JSON.stringify(saved.region_settings) ||
         ordered !== (saved.ordered !== false)))) {
       if (!regions?.length || !this.routineFloorIsCurrent()) {
@@ -3941,6 +4087,19 @@ class RoombaHomeMapCard extends HTMLElement {
     } else await this.mutateRoutine("remove_cleaning_routine", { routine_id: saved.id });
   }
 
+  async saveCleaningAsRoutine() {
+    const { regions, ordered } = this.routineDraft;
+    if (!this.routineDialog.open || !this.cleaningEditor || this.routineBusy ||
+        !regions?.length || !this.routineFloorIsCurrent()) return;
+    await this.openRoutines({ initialDraft: { regions: regions.map((region) => ({ ...region })), ordered } });
+    if (this.routineDialog.open && !this.cleaningEditor) this.$("routine-name").focus();
+  }
+
+  routineRunLabel(saved) {
+    if (this.cleaningEditor) return "Start cleaning";
+    return saved ? "Run saved routine" : "Run draft";
+  }
+
   async runRoutine() {
     const { saved } = this.routineDraft;
     const regions = saved?.region_settings ?? this.routineDraft.regions;
@@ -3949,8 +4108,8 @@ class RoombaHomeMapCard extends HTMLElement {
     const status = this.$("routine-status");
     if (button.disabled || this.routineBusy || !regions?.length) return;
     if (!this.routineFloorIsCurrent()) {
-      button.textContent = saved ? "Run saved routine" : "Run draft";
-      status.textContent = "Reopen routines to review the current floor plan.";
+      button.textContent = this.routineRunLabel(saved);
+      status.textContent = "Reopen the editor to review the current floor plan.";
       return;
     }
     const draftReview = saved ? null : JSON.stringify([regions, ordered]);
@@ -3959,8 +4118,9 @@ class RoombaHomeMapCard extends HTMLElement {
       this.routineRunReview = draftReview;
       const order = regions.map(({ id }) => this.routineAreas.get(id));
       const label = saved?.name ?? (this.routineDraft.name || "draft");
-      status.textContent = ordered ? `Start ${label}: ${order.join(" → ")}?` :
-        `Start ${label} in ${order.join(", ")}? Roomba will choose the order.`;
+      const start = this.cleaningEditor ? "Start cleaning" : `Start ${label}`;
+      status.textContent = ordered ? `${start}: ${order.join(" → ")}?` :
+        `${start} in ${order.join(", ")}? Roomba will choose the order.`;
       return;
     }
     const { id, version, selectionId } = this.routineMap ?? {};
@@ -3968,13 +4128,23 @@ class RoombaHomeMapCard extends HTMLElement {
     const data = saved ? { routine_id: saved.id }
       : { regions, floor: { map_id: id, version, inventory_id: selectionId } };
     if (!saved && !ordered) data.ordered = false;
+    const entity = this.config.entity;
     this.routineRunReview = null;
     this.routineBusy = true;
     this.renderRoutine();
     status.textContent = "Waiting for Roomba to start…";
     try {
-      await this._hass.callService("roomba_home", service, data, { entity_id: this.config.entity });
-      status.textContent = "Routine request accepted. Check the robot state.";
+      await this._hass.callService("roomba_home", service, data, { entity_id: entity });
+      const accepted = "Cleaning request accepted. Check the robot state.";
+      status.textContent = accepted;
+      if (this.cleaningEditor && this.config.entity === entity) {
+        if (this.routineDialog.open) this.routineDialog.close();
+        this.selected.clear();
+        this.operationMessage = accepted;
+        this.$("status").textContent = accepted;
+        this.updateSelection();
+        this.draw();
+      }
     } catch (error) {
       status.textContent = error?.message || "Roomba did not confirm the start.";
     } finally {

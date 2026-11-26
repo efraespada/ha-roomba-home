@@ -43,6 +43,7 @@ def test_area_defaults_preserve_both_combined_variants_and_choose_a_known_profil
     assert profiles[32]["settings"]["wetness_level"] == 2
     assert profiles[32]["updated_at"] == "2023-11-14T22:13:20+00:00"
     assert profiles[512]["settings"]["mode"] == "vacuum_then_mop"
+    assert all(profile["can_apply"] for profile in profiles.values())
 
 
 @pytest.mark.parametrize(
@@ -87,6 +88,7 @@ def test_equally_dated_combined_variants_stay_visible_without_an_inferred_prefer
     assert public["last_mode"] is None
     assert public["preferred"] == {}
     assert {item["mode_code"] for item in public["profiles"]} == {6, 32}
+    assert all(item["can_apply"] for item in public["profiles"])
 
 
 def test_one_dated_combined_variant_is_preferred_over_an_undated_variant():
@@ -101,6 +103,7 @@ def test_profiles_can_be_inspected_when_the_robot_no_longer_advertises_the_setti
     public = saved.action_response(CleaningCapabilities(frozenset({CleaningMode.VACUUM}), 4))
     assert len(public["profiles"]) == 5
     assert public["preferred"] == {}
+    assert not any(row["can_apply"] for row in public["profiles"])
 
 
 def test_updating_remembered_preferences_does_not_change_map_or_selection_identity():

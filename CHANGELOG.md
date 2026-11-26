@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.65.0
+
+- Customize saved routines with an emoji and a color. Editing appearance
+  preserves the cleaning plan, estimate, and display order.
+- Choose any compatible remembered cleaning profile by area, including
+  either of the combined vacuum-and-mop variants Roomba has reported.
+- Open one-off cleaning preferences from the map selection. Set the order
+  and profile for each area, then start cleaning or save the draft as a
+  named routine.
+
 ## 0.64.0
 
 - Inspect Roomba's remembered cleaning settings by area and reuse them in

@@ -44,6 +44,7 @@ from custom_components.roomba_home.core.models import CloudSession, relative_api
 from custom_components.roomba_home.core.room_edits import RoomEdit
 from custom_components.roomba_home.core.routines import (
     cleaning_routines,
+    routine_appearance,
     routine_command,
     routine_matches,
 )
@@ -1549,6 +1550,7 @@ def test_saved_routine_inventory_filters_foreign_and_malformed_records():
             }
         ],
         "editable": True,
+        "color": "#DAF6A1",
     }
     with pytest.raises(ProtocolError, match="duplicate"):
         cleaning_routines([primary, primary], ROUTINE_ROBOT)
@@ -1841,6 +1843,97 @@ async def test_favorite_create_reads_server_identity_and_an_exact_retry_is_read_
     assert sent["favorite_id"] != ROUTINE_ID
     assert sent["creation_timestamp"] == int(NOW.timestamp())
     assert sent["commanddefs"] == item["commanddefs"]
+
+
+@pytest.mark.parametrize(
+    "appearance",
+    [
+        {"icon": 3},
+        {"icon": " "},
+        {"icon": "🦊" * 33},
+        {"icon": "\u200d"},
+        {"icon": "🦊\n"},
+        {"color": 3},
+        {"color": "#123"},
+        {"color": "rgba(1,2,3,4)"},
+    ],
+)
+def test_invalid_routine_appearance_cannot_be_written_or_override_existing_list(appearance):
+    with pytest.raises(ValueError, match="routine (icon|color)"):
+        routine_appearance(appearance)
+    item = provider_routine(**appearance)
+    received = cleaning_routines([item], ROUTINE_ROBOT)[ROUTINE_ID].action_response()
+    assert received["id"] == ROUTINE_ID
+    assert not set(received) & set(appearance)
+
+
+def test_routine_appearance_accepts_multicodepoint_emoji_and_normalizes_hex():
+    regional_flag = "🏴\U000e0067\U000e0062\U000e007f"
+    for icon in ("🧑‍🔧", regional_flag):
+        appearance = {"icon": f" {icon} ", "color": "#cbcBfb"}
+        assert routine_appearance(appearance) == {"icon": icon, "color": "#CBCBFB"}
+
+
+async def test_favorite_creation_confirms_the_requested_appearance_and_retries_read_only():
+    old = provider_routine(icon="🤖")
+    created = provider_routine(
+        icon="😄",
+        color="#CBCBFB",
+        favorite_id="2" * 32,
+    )
+    http = FakeHttp(
+        login_responses()
+        + [
+            HttpResponse(200, [old]),
+            HttpResponse(200, {}),
+            HttpResponse(200, [old, created]),
+            HttpResponse(200, [old, created]),
+        ]
+    )
+    api = client(http)
+    appearance = {"icon": "😄", "color": "#cbcbfb"}
+    result = await api.create_cleaning_routine(
+        ROUTINE_ROBOT, "Example routine", ROUTINE_TARGET, **appearance
+    )
+    assert (result["id"], result["icon"], result["color"]) == ("2" * 32, "😄", "#CBCBFB")
+    assert (
+        await api.create_cleaning_routine(
+            ROUTINE_ROBOT, "Example routine", ROUTINE_TARGET, **appearance
+        )
+        == result
+    )
+    body = json.loads(http.calls[4][3])
+    assert (body["icon"], body["color"]) == ("😄", "#CBCBFB")
+    assert [call[0] for call in http.calls[3:]] == ["GET", "POST", "GET", "GET"]
+
+
+async def test_favorite_appearance_update_preserves_command_order_and_estimates():
+    old = provider_routine(icon="🤖", display_order=-20)
+    updated = old | {"icon": "🧹", "color": "#FDF4A9"}
+    http = FakeHttp(
+        login_responses()
+        + [
+            HttpResponse(200, [old]),
+            HttpResponse(200, {}),
+            HttpResponse(200, [old]),
+            HttpResponse(200, [updated]),
+            HttpResponse(200, [updated]),
+        ]
+    )
+    api = client(http)
+    with patch("custom_components.roomba_home.core.client.asyncio.sleep", new=AsyncMock()):
+        edited = await api.update_cleaning_routine(
+            ROUTINE_ROBOT, ROUTINE_ID, None, icon="🧹", color="#fdf4a9"
+        )
+    retry = await api.update_cleaning_routine(ROUTINE_ROBOT, ROUTINE_ID, None, color="#fdf4a9")
+    assert edited == retry
+    assert edited["icon"] == "🧹" and edited["color"] == "#FDF4A9"
+    body = json.loads(http.calls[4][3])
+    assert {key: body[key] for key in ("commanddefs", "display_order", "time_estimates")} == {
+        key: old[key] for key in ("commanddefs", "display_order", "time_estimates")
+    }
+    assert (body["icon"], body["color"]) == ("🧹", "#FDF4A9")
+    assert [call[0] for call in http.calls[3:]].count("PUT") == 1
 
 
 async def test_failed_or_ambiguous_favorite_creation_is_not_repeated():
