@@ -38,5 +38,17 @@
   "final_error_code": 0,
   "temporary_zone_removed": true,
   "original_default_settings_map_and_programs_preserved": true,
-  "other_robot_commands": 0
+  "other_robot_commands": 0,
+  "household_upgrade": {
+    "installed_release": "0.67.0",
+    "rollback_version": "0.66.0",
+    "package_checksum_verified": true,
+    "core_configuration_check_passed": true,
+    "core_restarted": true,
+    "dashboard_resource_matches_release": true,
+    "robots": 3,
+    "docks": 3,
+    "completed_zone_report_cleaning_seconds": 48,
+    "robot_commands": 0
+  }
 }

@@ -9,10 +9,12 @@ from .core.settings_protocol import DOCK_SETTING_OPTIONS, RobotSetting
 from .entity import RoombaEntity, discover_entities
 
 DOCK_SELECTS = {
+    "auto_empty_frequency": RobotSetting.AUTO_EVACUATION_AREA,
     "mop_wash_temperature": RobotSetting.PAD_WASH_TEMPERATURE,
     "mop_wash_frequency": RobotSetting.PAD_WASH_FREQUENCY,
     "mop_drying_duration": RobotSetting.PAD_DRY_DURATION,
 }
+CUSTOM_EMPTY_AREA = "custom_area"
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -67,7 +69,6 @@ class RoombaDockSelect(RoombaEntity, SelectEntity):
         self.setting = DOCK_SELECTS[key]
         self._codes = DOCK_SETTING_OPTIONS[self.setting]
         self._choices = {code: option for option, code in self._codes.items()}
-        self._attr_options = list(self._codes)
         self._attr_translation_key = key
 
     @property
@@ -75,13 +76,25 @@ class RoombaDockSelect(RoombaEntity, SelectEntity):
         return super().available and self.current_option is not None
 
     @property
+    def options(self):
+        options = list(self._codes)
+        if self.current_option == CUSTOM_EMPTY_AREA:
+            options.append(CUSTOM_EMPTY_AREA)
+        return options
+
+    @property
     def current_option(self):
         state = self.robot
         if state is None:
             return None
-        return self._choices.get(self.setting.observed_on(state.telemetry, state.capabilities))
+        code = self.setting.observed_on(state.telemetry, state.capabilities)
+        if code is not None and self.setting is RobotSetting.AUTO_EVACUATION_AREA:
+            return self._choices.get(code, CUSTOM_EMPTY_AREA)
+        return self._choices.get(code)
 
     async def async_select_option(self, option):
+        if option == CUSTOM_EMPTY_AREA and self.current_option == CUSTOM_EMPTY_AREA:
+            return
         if option not in self._codes:
             raise action_error("unsupported_robot_setting", "This dock option is not supported")
         await self.account.async_set_robot_setting(self.robot_id, self.setting, self._codes[option])

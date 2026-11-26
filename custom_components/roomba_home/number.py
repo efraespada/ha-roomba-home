@@ -5,6 +5,7 @@ from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfArea
 
 from .coordinator import action_error
 from .core.settings_protocol import (
+    AUTO_EVACUATION_AFTER_ROUTINE,
     AUTO_EVACUATION_MAX_AREA,
     AUTO_EVACUATION_MIN_AREA,
     MAX_VOICE_VOLUME,
@@ -46,7 +47,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         for field, setting in DEFAULT_LEVELS.items():
             if setting.observed(state.telemetry, state.capabilities.cleaning) is not None:
                 yield f"default_{field}", RoombaDefaultCleaningLevel
-        if _auto_evacuation_area(state) is not None:
+        if _auto_evacuation_frequency(state) is not None:
             yield "auto_evacuation_area", RoombaAutoEvacuationArea
         if (
             RobotSetting.VOICE_VOLUME.observed(state.telemetry, state.capabilities.cleaning)
@@ -123,7 +124,7 @@ class RoombaDefaultCleaningLevel(RoombaCleaningLevel):
         await self.account.async_set_robot_setting(self.robot_id, self.setting, level)
 
 
-def _auto_evacuation_area(state):
+def _auto_evacuation_frequency(state):
     return (
         AUTO_EVACUATION_AREA.observed_on(state.telemetry, state.capabilities)
         if state is not None
@@ -146,16 +147,21 @@ class RoombaAutoEvacuationArea(RoombaEntity, NumberEntity):
 
     @property
     def available(self):
-        return super().available and self.native_value is not None
+        return super().available and _auto_evacuation_frequency(self.robot) is not None
 
     @property
     def native_value(self):
-        return _auto_evacuation_area(self.robot)
+        frequency = _auto_evacuation_frequency(self.robot)
+        return None if frequency == AUTO_EVACUATION_AFTER_ROUTINE else frequency
 
     async def async_set_native_value(self, value):
         level = _integer_level(
-            value, round_converted=self.unit_of_measurement != self.native_unit_of_measurement
+            value,
+            round_converted=self.unit_of_measurement != self.native_unit_of_measurement,
+            error_key="unsupported_robot_setting",
         )
+        if not AUTO_EVACUATION_MIN_AREA <= level <= AUTO_EVACUATION_MAX_AREA:
+            raise action_error("unsupported_robot_setting", "This emptying area is not supported")
         await self.account.async_set_robot_setting(self.robot_id, AUTO_EVACUATION_AREA, level)
 
 

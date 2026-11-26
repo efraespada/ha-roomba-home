@@ -602,7 +602,27 @@ detergent. A recognized drying dock gates duration. Unknown values remain
 visible in raw telemetry without creating a writable control.
 [Anonymized dock settings trial](evidence/2026-11-25-dock-preferences.json)
 
-In 0.9.0 Boolean are confirmed by the same mechanism `twoPass` and `carpetBoost`. The capacity of the modality and information field enables each monitoring. The whole `autoevacFreq` represents an area in m² of 10 a 1000 When the robot uses a surface modality. Control requires `cap.autoevac=2` an empty base and a current value of that modality. The frequency code 0, 1, 2 and 4 preserve their meanings by mission or return to the dock and they are never interpreted as m². [Evidence of the three persistent adjustments](evidence/2026-11-23-persistent-cleaning-options.json)
+### Automatic dock emptying
+
+The Max 700 Combo reports the automatic emptying frequency as an integer
+in `rw-settings.autoevacFreq`. The native Android choices are `0` for
+after each routine, `25` for every 25 m², and `50` for every 50 m².
+Other integer thresholds from 10 through 1000 represent square meters.
+The integration requires `cap.autoevac=2`, a recognized emptying dock,
+and a current value matching one of these forms. Codes `1`, `2`, and
+`4` remain available as raw telemetry for other schemes.
+
+The selector and the area number write the same key to
+`rw-settings/update` as `state.desired.autoevacFreq`. Both require a
+connected robot with no active mission and confirm the exact matching
+integer in a fresh `state.reported` response. The raw frequency sensor
+retains the original value and its existing identity. The area number
+has no reported area in per-routine mode and can set a new threshold.
+[Android signed read-back](evidence/2026-11-26-auto-emptying-discovery.json)
+
+The Boolean preferences `twoPass` and `carpetBoost` also use confirmed
+writes to `rw-settings`, gated by their reported capabilities.
+[Persistent preference evidence](evidence/2026-11-23-persistent-cleaning-options.json)
 
 `resume` was checked after pausing a mission per room, returning run with earlier mode. Read
 `/v1/p2maps` with `robotId` and `visible=true` returned an active map with seven inputs to

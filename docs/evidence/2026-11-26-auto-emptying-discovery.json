@@ -1,0 +1,11 @@
+{
+  "date": "2026-11-26",
+  "tested_model": "Roomba Max 700 Combo",
+  "android_options": ["Every 25 square meters", "Every 50 square meters", "After each routine"],
+  "source": "rw-settings.autoevacFreq",
+  "native_readback": {"initial": 25, "after_each_routine": 0, "restored": 25},
+  "connected_and_docked_during_changes": true,
+  "missions_started": 0,
+  "final_error_code": 0,
+  "other_robot_commands": 0
+}
