@@ -79,6 +79,7 @@ trajectory contains observed positions and retains sequence gaps.
   Include the recorded end of the run and the reported codes for robot
   errors, bin emptying, mop washing, and refill. Preserve the distinction
   between an explicit dock error code of zero and an unavailable code.
+  Keep the reported evacuation count separate from the bin emptying stage.
 - MAP-08: Read the active floor revision's reported room cleaning scores and suggested cleaning settings.
 - MAP-09: Show directed mission destinations, declared order, requested modes, and reported destination outcomes with a completion count.
 - MAP-10: Estimate the remaining time for the applicable work in a directed mission using the provider's durations and verified live stage.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.71.1
+
+- Distinguish the recorded bin emptying count from the dock stage in
+  cleaning history. Roomba can report a stage with zero counted emptyings.
+
 ## 0.71.0
 
 - Show the recorded finish and preserve robot errors and dock operation

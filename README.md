@@ -10,8 +10,8 @@ uses Roomba's own cloud services for device data and control.
 ## Quick start
 
 The verified model is **Roomba Max 700 Combo (X185240)**, linked to a Roomba Home
-account. The 0.70.0 household upgrade verified three robots, their three
-docks, and the first-clean checklist in Robot help.
+account. The household checks verified three robots and their docks, the
+first-clean checklist, and the archived dock timeline in 0.71.0.
 [Capability matrix](docs/capabilities.md) · [Physical validation](docs/validation.md)
 
 1. In **HACS → Custom repositories**, add `efraespada/ha-roomba-home` as an

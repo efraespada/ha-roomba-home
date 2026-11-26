@@ -661,7 +661,7 @@ const ROUTE_LABELS = {
 const HISTORY_EVENT_LABELS = {
   start: "Started", pause: "Paused", travel: "Travelled", reloc: "Relocalized", room: "Room result",
   zone: "Zone result", charge: "Docked to charge", padWash: "Mop washing", refill: "Tank refill",
-  evac: "Bin emptying", error: "Error", finish: "Finished",
+  evac: "Bin emptying stage", error: "Error", finish: "Finished",
 };
 
 function pathFor(rings, xy) {
@@ -2450,7 +2450,7 @@ class RoombaHomeMapCard extends HTMLElement {
       ["Duration", units(mission.duration_minutes, "min")], ["Cleaned", units(mission.area_m2, "m²")],
       ["Active", units(report.active_minutes, "min")], ["Paused", units(report.pause_minutes, "min")],
       ["Charging", units(report.charge_minutes, "min")], ["Recharges", report.recharges],
-      ["Bin emptyings", report.evacuations], ["Error code", mission.error_code],
+      ["Recorded bin emptyings", report.evacuations], ["Error code", mission.error_code],
       ["Started at dock", report.started_at_dock == null ? null : (report.started_at_dock ? "Yes" : "No")],
       ["Initiated by", report.initiator === "rmtApp" ? "Remote app" : report.initiator],
       ["Target", mission.target && historyLabel(mission.target)],

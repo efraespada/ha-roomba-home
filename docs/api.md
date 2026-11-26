@@ -422,7 +422,9 @@ reported durations. Error events can include a positive `error_code`.
 The reported evacuation, mop wash, and refill entries can carry a
 `dock` object with `component`, `state_code`, and `error_code`. A null
 dock code represents an unavailable reading, and a dock error code of zero
-represents the explicit provider value. A `finish` entry uses a recorded
+represents the explicit provider value. Use the report's `evacuations`
+field for the counted cycles. An `evac` timeline stage can accompany a
+count of zero. A `finish` entry uses a recorded
 end event when present and otherwise uses the report's signed timestamp
 when there are other timeline events. A missing archive leaves the
 recorded numerical results accessible. Account credentials, raw IDs, commands, and URLs stay

@@ -1582,7 +1582,7 @@ test("the history panel opens the latest report and shows measurements when geom
       { type: "evac", timestamp: 1700000470, duration_seconds: 17, dock: { state_code: 301, error_code: 0 } },
       { type: "padWash", timestamp: 1700000488, dock: { state_code: null, error_code: 654 } },
       { type: "finish", timestamp: 1700000500 },
-    ], modes: {}, rooms: [], zones: [], plan }
+    ], evacuations: 0, modes: {}, rooms: [], zones: [], plan }
       : { missions: [mission] };
   } };
   await card.openMissionHistory();
@@ -1592,9 +1592,12 @@ test("the history panel opens the latest report and shows measurements when geom
   assert.equal(card.$("history-map-view").hidden, true);
   assert.equal(card.$("history-totals").textContent, "1 report · 2 min · 0.5 m²");
   assert.deepEqual(card.$("history-timeline").children.map((item) => item.textContent.split(" · ").slice(1)), [
-    ["Error 48"], ["Bin emptying", "17 s", "Dock state 301"], ["Mop washing", "Dock error 654"], ["Finished"],
+    ["Error 48"], ["Bin emptying stage", "17 s", "Dock state 301"], ["Mop washing", "Dock error 654"], ["Finished"],
   ]);
-  assert.ok(card.$("history-measurements").children.length);
+  const emptyings = card.$("history-measurements").children.find(
+    (field) => field.children[0].textContent === "Recorded bin emptyings",
+  );
+  assert.equal(emptyings.children[1].textContent, "0");
   assert.equal(planView.hidden, false);
   assert.equal(planView.querySelector("summary").textContent, "Requested order · 1 of 2 completed");
   assert.deepEqual(planView.querySelector("ol").children.map((item) =>

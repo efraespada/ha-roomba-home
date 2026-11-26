@@ -1,5 +1,20 @@
 # Roomba Home validation
 
+## Household installation of 0.71.0
+
+Home Assistant checked the 0.71.0 configuration before restarting Core and
+retained 0.70.0 as a rollback. The installed card matched the release
+bytes and Lovelace registered the 0.71.0 resource. The authenticated device
+registry showed three robots and three docks with one dock linked to each
+robot.
+
+The installed card opened a completed 6.50 m² report. Its timeline showed
+a 17-second bin emptying with dock state 301, followed by the end of the
+mission two seconds later. The authenticated response carried the
+explicit dock error code zero. An independent signed observation confirmed
+the robot was connected, docked, and reporting error code zero after the
+check. [Household evidence](evidence/2026-11-26-archived-dock-household.json)
+
 ## First-clean preparation
 
 In Android, the Max 700 Combo device page opens a separate Robot Help
@@ -165,6 +180,11 @@ cleaned areas were 6.50 m² and 6.04 m². Their evacuation events lasted
 Both events reported dock state 301 and error code zero. Android displayed
 bin emptying before the end of the matching 6.50 m² report. The active
 automatic emptying setting at the time of either mission is unknown.
+
+A follow-up signed read identified three further reports with the same
+evacuation state and error in the timeline and an evacuation count of zero.
+Two reports were canceled and one completed. The card labels this event
+as a stage and displays the reported count independently.
 
 The Home Assistant history command returned both evacuations, the matching
 end of each report, and separately recorded robot error codes 48 and 654
