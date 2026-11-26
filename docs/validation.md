@@ -11,6 +11,13 @@ the visible modal and the selected charging error. The card suite also
 checks that the catalog is read only once.
 [Regression tests](../tests/frontend/map-card.test.cjs)
 
+The household installation verified the published archive, passed
+`ha core check`, restarted Core, and retained a 0.69.0 rollback. The
+0.69.1 resource matched the released module. Chrome showed all three
+robots and docks. Reattaching the original R2-D2 card in place kept the
+dialog modal and preserved the selected charging article.
+[Household evidence](evidence/2026-11-26-robot-help-home-assistant.json)
+
 ## Version 0.69.0
 
 The release adds the Robot help panel and the response-only action.
@@ -94,7 +101,10 @@ room, restrictions and schedules after removal of the trial zone and
 routine. A new provider map archive contained changed border, detected
 furniture, wall, carpet and dock-pose data. The furniture came from robot
 detection and the feature counts matched. The private preflight archive
-was retained for comparison and version recovery.
+was retained. An independent read retrieved that earlier version byte for
+byte while the active version was different. Android displayed the map
+legend and timeline for an inspected older report. Reactivating the
+earlier provider revision remains open.
 [Anonymized trial and restoration evidence](evidence/2026-11-26-short-routine-auto-emptying.json)
 
 ## Version 0.67.0
