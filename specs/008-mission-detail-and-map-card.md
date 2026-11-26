@@ -228,6 +228,9 @@ and Roomba's room estimates. Subtract elapsed active room time when the
 stage and destination agree. Keep completed and skipped destinations out
 of the remaining sum. Omit the countdown during interrupted stages, on an
 expired report, or while any remaining destination lacks a verified estimate.
+Recalculate on each floor-plan read from existing verified stage times and
+saved durations. Reading the countdown requires no additional provider
+request and leaves the coordinator snapshot intact.
 
 The card may show each associated map. Live position and track require a
 verified map association. Select only supported rooms and saved zones. A

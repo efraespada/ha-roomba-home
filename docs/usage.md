@@ -433,8 +433,9 @@ actions:
 
 **Estimated cleaning time remaining** reports seconds for ongoing directed
 cleaning with a verified estimate for each remaining destination. The card
-rounds up to minutes and shows each available planned duration. The reading
-becomes unknown on pause, once the estimate is exhausted, or when the
+rounds up to minutes and shows each available planned duration. It refreshes
+the countdown between robot polls from the last verified room stage. The
+reading becomes unknown on pause, once the estimate is exhausted, or when the
 mission ends. [Timing and telemetry](telemetry.md#how-to-interpret-progress)
 
 Use the robot and dock problem event entities for new, changed, or cleared

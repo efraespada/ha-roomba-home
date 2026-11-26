@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Refresh the map's countdown between robot polls using the latest verified
+  room stage and the saved time estimate.
+
 ## 0.65.0
 
 - Customize saved routines with an emoji and a color. Editing appearance

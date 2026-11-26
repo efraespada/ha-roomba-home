@@ -38,6 +38,20 @@ def estimate_durations(plan: MissionPlan, reading: dict) -> tuple[int | None, ..
     )
 
 
+def remaining_plan_duration(
+    plan: dict, stage: str | None, stage_started: datetime | None, now: datetime
+) -> int | None:
+    """Apply the same countdown to a freshly projected or cached plan."""
+    destinations = plan["destinations"]
+    return remaining_duration(
+        tuple(item["status"] for item in destinations),
+        tuple(item.get("estimated_duration_seconds") for item in destinations),
+        stage,
+        stage_started,
+        now,
+    )
+
+
 def remaining_duration(
     destination_statuses: tuple[str, ...],
     durations: tuple[int | None, ...],

@@ -1510,8 +1510,8 @@ showed four room measurements from a fresh report. During a pause, the same
 mission returned a `pause` event and five room readings. The robot resumed
 that mission after the Home Assistant resume action. Both timeline replies
 had empty future event lists. An earlier capture verified position batches
-during targeted cleaning. Live countdown, coverage percentage, and room area
-units still require provider evidence.
+during targeted cleaning. A later trial matched the live countdown.
+Coverage percentage and room area units still require provider evidence.
 [Prior capture evidence](evidence/2026-11-24-live-progress.json)
 
 The sequential mission changed its reported cleaning mode from vacuuming
@@ -2122,6 +2122,28 @@ The robot reported a different internal revision for the same declared
 room identity. The command used the verified user revision throughout.
 After cancellation the robot returned to the dock with error code 0.
 [Sanitized timing evidence](evidence/2026-11-25-live-timing-and-position.json)
+
+A second trial used the published 0.65.0 integration in isolated Home
+Assistant. It started a Max 700 Combo vacuum mission for a reviewed room,
+with suction 1 and two passes requested. Android showed about 115 minutes
+at 63 and 81 seconds after start and 114 minutes at 98 seconds.
+Home Assistant held the signed 6,899-second estimate during relocation,
+then reported 6,824 seconds at 99 seconds, which rounds up to 114 minutes.
+It also received position and reconstructed coverage during the run.
+The signed history confirmed the requested room and settings after
+the robot returned to the dock with error code 0. The map, routines,
+and schedules matched the preflight values.
+
+The captured Android live-map response contained the topic announcement.
+The observed mission shadow reported area in square feet and supplied
+no explicit remaining-time or completion-percentage field. The dashboard
+now recalculates the countdown on each authenticated floor-plan read,
+using the cached signed estimate and the latest verified stage. The
+WebSocket test verifies that the estimate advances between polls, becomes
+unknown when the robot pauses, and expires with the timeline. A separate
+read with the updated integration verified the current map and cleared
+countdown after docking.
+[Sanitized live countdown trial](evidence/2026-11-26-live-countdown.json)
 
 ## Continuous position and cleaning coverage
 

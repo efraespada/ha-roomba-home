@@ -202,7 +202,7 @@ reload the dashboard. Use one card per robot.
   when Roomba supplies them. An unordered run shows **Selected destinations**.
   The card and **Estimated cleaning time remaining** sensor show an
   approximation when Roomba provides a matching estimate for each remaining
-  destination.
+  destination. The card refreshes the countdown between robot updates.
   [Live progress and automation example](docs/usage.md#telemetry-progress-and-problems)
 - **Skip current area** asks for confirmation while Roomba reports the
   current destination. The mission history shows the skipped area.

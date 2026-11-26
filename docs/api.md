@@ -1094,7 +1094,10 @@ The reading sums the durations of pending rooms and subtracts the reported
 time already spent in the active room. The estimate is hidden during stages
 with unverified timing and when a destination lacks a duration. The
 provider's timeline supplied stage times and area outcomes in the observed
-mission. The Android client also resolved its countdown locally.
+mission. Each floor-plan read recalculates the countdown from the verified
+stage and the cached durations, with no additional Roomba request. It
+stops when the correlated timeline expires. The Android client also
+resolved its countdown locally in the observed trials.
 [Physical timing and replay evidence](validation.md#estimated-time-during-a-directed-mission)
 
 ## Saved cleaning routines

@@ -95,7 +95,7 @@ from .core.map_snapshots import capture_snapshot, read_snapshot, with_backup_pro
 from .core.maps import SAVED_ZONE_IDS, AreaTarget, CleaningRegion, RegionKind, resolve_segments
 from .core.mission_map import read_mission_map
 from .core.mission_plan import present_mission_plan
-from .core.mission_time import estimate_durations, estimate_target, remaining_duration
+from .core.mission_time import estimate_durations, estimate_target, remaining_plan_duration
 from .core.models import AppProfile, LoginDetails
 from .core.mqtt import MqttProfile, MqttShadowReader, live_map_topic
 from .core.point_maps import (
@@ -1171,7 +1171,23 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             or report.plan.scope != (floor.map_id, floor.version_id)
         ):
             return None
-        return state.telemetry.get("live_timeline_plan")
+        plan = state.telemetry.get("live_timeline_plan")
+        if plan is None or "estimated_remaining_seconds" not in plan:
+            return plan
+        stage_started = self._stage_started_during_mission(report, self._live_mission(state), now)
+        return {
+            **plan,
+            "estimated_remaining_seconds": remaining_plan_duration(
+                plan, report.stage if state.phase == "run" else None, stage_started, now
+            ),
+        }
+
+    @staticmethod
+    def _stage_started_during_mission(report, started, now):
+        stage_started = report.stage_started_at
+        return (
+            stage_started if stage_started is not None and started <= stage_started <= now else None
+        )
 
     @staticmethod
     def _live_mission(state):
@@ -1245,9 +1261,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         zone_maps = await self._zone_label_maps(
             key, (*recent.zones, *recent.active_zones, *destinations)
         )
-        stage_started = recent.stage_started_at
-        if stage_started is not None and not started <= stage_started <= now:
-            stage_started = None
+        stage_started = self._stage_started_during_mission(recent, started, now)
         metrics = {
             "live_timeline_updated": recent.observed_at,
             "live_timeline_stage": recent.stage,
@@ -1280,9 +1294,8 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                         destination["estimated_duration_seconds"] = seconds
                 if all(seconds is not None for seconds in durations):
                     plan["estimated_duration_seconds"] = sum(durations)
-                remaining = remaining_duration(
-                    tuple(item["status"] for item in plan["destinations"]),
-                    durations,
+                remaining = remaining_plan_duration(
+                    plan,
                     recent.stage if state.phase == "run" else None,
                     stage_started,
                     now,
