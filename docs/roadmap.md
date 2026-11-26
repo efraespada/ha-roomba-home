@@ -63,12 +63,12 @@ the resulting floor and its destinations, before offering it in the card.
 
 ## Physical automatic dock emptying
 
-The Max 700 Combo's three Android choices and a custom area threshold
-were exercised through Home Assistant and confirmed through the signed
-settings response. Observe a completed routine with per-routine emptying
-enabled and match the dock activity and evacuation count to that mission.
-Separately observe a run that reaches a configured area threshold.
-[Setting validation](validation.md#automatic-dock-emptying-frequency)
+The Max 700 Combo's three Android choices and a custom threshold were
+confirmed through signed settings. A completed 0.65 m² routine with
+per-routine emptying enabled returned with zero reported evacuations.
+Observe the dock on a larger completed routine to determine its trigger
+conditions. Check the area mode separately when a run reaches its
+configured threshold. [Short routine and map comparison](validation.md#physical-emptying-after-a-short-routine)
 
 ## Android setup walkthrough
 

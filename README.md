@@ -10,8 +10,8 @@ uses Roomba's own cloud services for device data and control.
 ## Quick start
 
 The verified model is **Roomba Max 700 Combo (X185240)**, linked to a Roomba Home
-account. The 0.68.0 household upgrade verified three robots, their three
-docks, and the automatic emptying selector on the linked dock.
+account. The 0.69.0 household upgrade verified three robots, their three
+docks, and the Robot help manual and diagnostic lookup.
 [Capability matrix](docs/capabilities.md) · [Physical validation](docs/validation.md)
 
 1. In **HACS → Custom repositories**, add `efraespada/ha-roomba-home` as an
@@ -128,6 +128,10 @@ threshold. [Dock settings and automation example](docs/usage.md#dock-settings)
 
 ![Auto-empty frequency selector set to Every 25 m² on the installed Home Assistant dock](docs/screenshots/roomba-dock-auto-empty.png)
 
+## Robot help
+
+![Robot help panel isolated from the installed Home Assistant card with Charging error 101 selected](docs/screenshots/roomba-robot-help.png)
+
 ## Floor plan dashboard
 
 ![Roomba Home card with an interactive floor plan, live path, region selection, and per-room outcomes](docs/screenshots/roomba-map-live.png)
@@ -140,7 +144,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.69.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.69.1` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Enable Advanced Mode in your user
    profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
 3. Add a manual card with your robot's vacuum entity.

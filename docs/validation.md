@@ -1,5 +1,32 @@
 # Roomba Home validation
 
+## Robot help after moving a card
+
+A Chromium browser reproduced the modal losing its top-layer state when the
+open card moved between dashboard containers. The dialog retained its
+`open` attribute and the selected code while its visible modal was lost.
+The 0.69.1 card restores the native modal on reattachment and on an
+explicit reopen. The browser repeated the same move and retained both
+the visible modal and the selected charging error. The card suite also
+checks that the catalog is read only once.
+[Regression tests](../tests/frontend/map-card.test.cjs)
+
+## Version 0.69.0
+
+The release adds the Robot help panel and the response-only action.
+Validation passed 2,609 Python tests with 100% line and branch coverage,
+72 card tests, hassfest, Ruff, and the SDD and privacy checks. Both pull
+requests passed GitHub validation.
+
+The household installation verified the release archive checksum, kept
+a 0.68.0 rollback, passed `ha core check`, and restarted Core. The browser
+resource pointed to the exact 0.69.0 module. The authenticated integration
+page showed three robots and three docks. In Chrome, the authorized
+robot's panel presented the Spanish Android manual and produced the
+matching links for error 48, charging error 101 and start refusal 1.
+The screenshot isolates the rendered panel from the household dashboard.
+[Robot help validation](#robot-help-catalog) · [Panel screenshot](screenshots/roomba-robot-help.png)
+
 ## Version 0.68.0
 
 The release adds the automatic emptying selector and preserves the area
@@ -50,9 +77,25 @@ restored 25 m². Each signed settings
 read matched the Home Assistant state. At code 0, the number was available
 with an unknown area. The robot remained docked with error code 0. Its
 mission identity, other settings, floors, routines, and schedules matched
-the preflight reads. These checks establish setting changes. The physical
-dock cycle triggered by each setting remains to be observed.
+the preflight reads. These checks establish setting changes.
 [Home Assistant and Roomba evidence](evidence/2026-11-26-auto-emptying-home-assistant.json)
+
+### Physical emptying after a short routine
+
+The authorized robot completed a vacuum-only routine targeting a temporary
+0.72 m² zone and returned on its own. Throughout the run the signed
+settings reported frequency 0 and evacuation allowed. The mission history
+reported two minutes, 0.65 m² cleaned and zero evacuations. The sampled
+dock evacuation state stayed at 301. This records the result for one short
+routine. The conditions that trigger the physical emptying cycle remain open.
+
+Independent reads confirmed the original 25 m² setting, cleaning settings,
+room, restrictions and schedules after removal of the trial zone and
+routine. A new provider map archive contained changed border, detected
+furniture, wall, carpet and dock-pose data. The furniture came from robot
+detection and the feature counts matched. The private preflight archive
+was retained for comparison and version recovery.
+[Anonymized trial and restoration evidence](evidence/2026-11-26-short-routine-auto-emptying.json)
 
 ## Version 0.67.0
 

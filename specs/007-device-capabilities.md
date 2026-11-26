@@ -411,6 +411,8 @@ with API operations.
     diagnostic family. Validate overlapping codes, repeated entries,
     rejected links, stale robot state, and denied access. Compare the
     card response and action return with maps disabled.
+    Move the card to another dashboard container while help is open.
+    Restore the native modal and preserve the selected article.
 
 ## 17. Requirements traceability
 
