@@ -61,16 +61,11 @@ Verify each recovery operation independently on a disposable map, including
 the resulting floor and its destinations, before offering it in the card.
 [Map editor SDD](../specs/009-map-zone-editor.md)
 
-## Dock emptying after each routine
+## Physical automatic dock emptying
 
-The Max 700 Combo Android settings offer emptying after each routine,
-every 25 m², and every 50 m². Selecting the per-routine option wrote
-`autoevacFreq: 0` to the robot's settings. Selecting 25 m² restored
-`autoevacFreq: 25`. Both values were confirmed while the robot stayed
-docked. [Native read-back](evidence/2026-11-26-auto-emptying-discovery.json)
-
-Expose the per-routine mode without losing the existing area control.
-Verify that both Home Assistant controls read back the setting and can
-switch between the two modes. Treat the two Android area presets as
-shortcuts. Preserve supported custom thresholds already used by Home
-Assistant. Verify the dock's physical emptying behavior separately.
+The Max 700 Combo's three Android choices and a custom area threshold
+were exercised through Home Assistant and confirmed through the signed
+settings response. Observe a completed routine with per-routine emptying
+enabled and match the dock activity and evacuation count to that mission.
+Separately observe a run that reaches a configured area threshold.
+[Setting validation](validation.md#automatic-dock-emptying-frequency)

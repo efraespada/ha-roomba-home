@@ -8,7 +8,7 @@
 - Scope: A central discovery, robot co-ordination and advanced base with clear regions.
 - Related issues/PRs: Extension requested by the incumbent and local development.
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
-- Open decisions blocking readiness: Automatic recharge and resume, the effect of every regional setting, per-routine dock emptying, and the device setup and removal contracts.
+- Open decisions blocking readiness: Automatic recharge and resume, the effect of every regional setting, physical automatic emptying at the selected frequency, and the device setup and removal contracts.
 
 ## 1. Executive summary
 
@@ -43,7 +43,7 @@ established their meaning.
 |---|---|
 | Robot name, model, software version, last software update | Device and firmware entities present |
 | Robot serial in the About screen | Verified asset lookup and Home Assistant device metadata |
-| Automatic pad washing, emptying by area, voice language and volume, child and pet lock, locate, and reboot | Implemented device or dock controls. Per-routine emptying has a [verified native setting](../docs/roadmap.md#dock-emptying-after-each-routine) awaiting its Home Assistant control. |
+| Automatic pad washing, emptying by routine or area, voice language and volume, child and pet lock, locate, and reboot | Implemented device or dock controls. The emptying selector uses the three [confirmed Android choices](../docs/api.md#automatic-dock-emptying) and retains the area number for custom thresholds. |
 | Component use and remaining life, including maintenance resets | Implemented; three displayed hour values matched the API's remaining minutes |
 | Change Wi-Fi | App entry point observed; setup protocol and recovery require verification |
 | Factory reset and remove robot | App entry point observed; account removal, device reset, and recovery require verification |
@@ -95,6 +95,10 @@ becoming an indiscriminately false or zero.
 - CAP-19: Show part SKUs and verified market-scoped replacement and care
   links beside the signed robot and dock counters. Keep catalog references
   available if the counter read fails. Require read access to the linked robot.
+- CAP-20: Expose the native automatic emptying choices on the linked dock.
+  Preserve the existing area number, unit conversion, and raw code sensor.
+  Verify changes through the same signed settings shadow and require a
+  connected robot with no active mission and a recognized emptying dock.
 
 No endpoints, maps and empty states are invented with HA entities or capabilities. No
 physical errors are induced and no maps, accounts or data beyond the test have been
@@ -392,6 +396,11 @@ with API operations.
     shares its signed usage with the existing sensor, and the dust bag can
     show a link with its counter disabled. Check access denials, unavailable
     counters, and wrong-market or mismatched SKU links.
+20. Set per-routine emptying, then the 50 m² preset. Set per-routine
+    emptying again and write a custom area while the number displays an
+    unknown value. Restore the 25 m² preset. Confirm each signed frequency
+    and both entities' states, preserve their device association, and
+    verify that an unknown native scheme or missing dock blocks writes.
 
 ## 17. Requirements traceability
 
@@ -415,6 +424,7 @@ with API operations.
 | CAP-17 | Robot device registry serial number | [Android and API comparison](../docs/validation.md#robot-serial-number), [signed lookup tests](../tests/test_api_client.py), and [registry refresh tests](../tests/ha/test_telemetry_entities.py) |
 | CAP-18 | Schedule editor and typed Home Assistant actions | [Schedule API](../docs/api.md#cloud-schedule-frequency-and-ownership), [action tests](../tests/ha/test_schedules.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed trial](../docs/validation.md#schedule-editor-and-per-area-settings) |
 | CAP-19 | Maintenance view and part sensor attributes | [Catalog parser tests](../tests/test_maintenance.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [catalog validation](../docs/validation.md#maintenance-catalog-and-links) |
+| CAP-20 | Dock emptying selector and existing area number | [Native values](../docs/api.md#automatic-dock-emptying), [entity tests](../tests/ha/test_cleaning_controls.py), [write confirmation tests](../tests/ha/test_coordinator.py), and [signed trial](../docs/validation.md#automatic-dock-emptying-frequency) |
 
 CAP-09 includes floor plans, room labels, position, heading, trajectory,
 coverage, and estimates supported by Roomba. Enable the map option to expose

@@ -1,5 +1,23 @@
 # Roomba Home validation
 
+## Automatic dock emptying frequency
+
+On the Max 700 Combo, Android switched from 25 m² to **After each routine**
+and back. Independent signed settings reads confirmed `autoevacFreq` values
+of 0 and 25.
+[Android evidence](evidence/2026-11-26-auto-emptying-discovery.json)
+
+An authenticated Home Assistant session used the dock selector to switch
+the native code from `25` to `0`, then to `50`, and back to `0`.
+The area number then set a custom threshold of 37 m² and the selector
+restored 25 m². Each signed settings
+read matched the Home Assistant state. At code 0, the number was available
+with an unknown area. The robot remained docked with error code 0. Its
+mission identity, other settings, floors, routines, and schedules matched
+the preflight reads. These checks establish setting changes. The physical
+dock cycle triggered by each setting remains to be observed.
+[Home Assistant and Roomba evidence](evidence/2026-11-26-auto-emptying-home-assistant.json)
+
 ## Version 0.67.0
 
 The release adds accumulated cleaning time by destination, mapped carpet

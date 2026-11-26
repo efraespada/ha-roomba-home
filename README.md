@@ -38,7 +38,9 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   Skip the current destination when Roomba reports a supported mission.
   Adjust the robot's **Voice volume** and **Child and pet lock** from its
   device page. On the linked dock, configure mop wash temperature, wash
-  frequency, automatic solution dispensing, and drying duration.
+  frequency, automatic solution dispensing, drying duration, and when the
+  dock empties the robot's bin. Choose after each routine, every 25 or
+  50 m², or set a custom area threshold.
   [Robot settings](docs/usage.md#robot-settings) · [Dock settings](docs/usage.md#dock-settings)
 - **Room and zone cleaning.** Select regions and review the robot and
   destinations before sending a command. **Clean everywhere** starts a new
@@ -126,7 +128,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.67.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.68.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Enable Advanced Mode in your user
    profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
 3. Add a manual card with your robot's vacuum entity.

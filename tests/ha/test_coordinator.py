@@ -421,9 +421,12 @@ async def test_auto_evacuation_area_needs_matching_live_dock_capability(
     sender.write_robot_setting.assert_not_called()
 
 
-@pytest.mark.parametrize("observed", [4, 25])
-async def test_auto_evacuation_area_never_changes_a_different_frequency_scheme(
-    coordinator, mop_wire, observed
+@pytest.mark.parametrize(
+    ("observed", "requested", "allowed"),
+    [(4, 50, False), (4, 0, False), (25, 50, True), (25, 0, True), (0, 50, True)],
+)
+async def test_auto_evacuation_updates_recognized_frequency_schemes(
+    coordinator, mop_wire, observed, requested, allowed
 ):
     sender, reader = mop_wire
     state = coordinator.data["fixture-0"]
@@ -439,21 +442,23 @@ async def test_auto_evacuation_area_never_changes_a_different_frequency_scheme(
     sender.capabilities = cleaning
     reader.return_value.read.side_effect = [
         settings_reply({"autoevacFreq": observed}),
-        settings_reply({"autoevacFreq": 50}),
+        settings_reply({"autoevacFreq": requested}),
     ]
-    if observed == 4:
+    if not allowed:
         with pytest.raises(HomeAssistantError) as error:
             await coordinator.async_set_robot_setting(
-                "fixture-0", RobotSetting.AUTO_EVACUATION_AREA, 50
+                "fixture-0", RobotSetting.AUTO_EVACUATION_AREA, requested
             )
         assert error.value.translation_key == "robot_setting_unavailable"
         sender.write_robot_setting.assert_not_called()
     else:
         await coordinator.async_set_robot_setting(
-            "fixture-0", RobotSetting.AUTO_EVACUATION_AREA, 50
+            "fixture-0", RobotSetting.AUTO_EVACUATION_AREA, requested
         )
-        sender.write_robot_setting.assert_called_once_with(RobotSetting.AUTO_EVACUATION_AREA, 50)
-        assert coordinator.data["fixture-0"].telemetry["auto_evacuation_frequency"] == 50
+        sender.write_robot_setting.assert_called_once_with(
+            RobotSetting.AUTO_EVACUATION_AREA, requested
+        )
+        assert coordinator.data["fixture-0"].telemetry["auto_evacuation_frequency"] == requested
 
 
 async def test_default_suction_requires_matching_readback_from_the_robot(coordinator, mop_wire):

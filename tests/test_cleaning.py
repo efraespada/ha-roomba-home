@@ -68,6 +68,9 @@ def test_auto_evacuation_area_requires_confirmed_capability_scheme(code, area_su
 @pytest.mark.parametrize(
     ("value", "allowed"),
     [
+        (0, True),
+        (1, False),
+        (2, False),
         (9, False),
         (10, True),
         (50, True),
@@ -76,10 +79,11 @@ def test_auto_evacuation_area_requires_confirmed_capability_scheme(code, area_su
         ("50", False),
         (50.0, False),
         (True, False),
+        (False, False),
         (4, False),
     ],
 )
-def test_area_setting_validates_native_range_and_preserves_other_auto_empty_schemes(value, allowed):
+def test_emptying_setting_validates_routine_code_and_native_area_range(value, allowed):
     setting = RobotSetting.AUTO_EVACUATION_AREA
     caps = cleaning_capabilities({"autoevac": 2})
     assert setting.accepts(value, caps) is allowed
