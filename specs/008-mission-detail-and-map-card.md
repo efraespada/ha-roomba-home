@@ -76,6 +76,9 @@ trajectory contains observed positions and retains sequence gaps.
   the camera rotates. Indicate when a fresh position is on mapped carpet.
 - MAP-06: Show the reported center and mode of a current point-cleaning mission on the associated map revision.
 - MAP-07: Browse recent cleaning reports, including numerical results and archived coverage, trajectories, and timelines.
+  Include the recorded end of the run and the reported codes for robot
+  errors, bin emptying, mop washing, and refill. Preserve the distinction
+  between an explicit dock error code of zero and an unavailable code.
 - MAP-08: Read the active floor revision's reported room cleaning scores and suggested cleaning settings.
 - MAP-09: Show directed mission destinations, declared order, requested modes, and reported destination outcomes with a completion count.
 - MAP-10: Estimate the remaining time for the applicable work in a directed mission using the provider's durations and verified live stage.
@@ -366,6 +369,8 @@ features, physical results, and open scenarios.
    mission.
 9. Open a historical report after the current floor revision has changed.
    Verify that its timeline, area, and route match the archived mission.
+   Compare the reported bin emptying and finish order with Android. Verify
+   that a recorded fault is shown in the source event's namespace.
    Rotate the history view, then open a report with an unavailable map and
    verify its numerical measurements still appear.
 10. Complete localized mopping and simultaneous missions. Compare the live

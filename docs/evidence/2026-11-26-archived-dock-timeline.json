@@ -1,0 +1,26 @@
+{
+  "model": "Roomba Max 700 Combo",
+  "recorded_evacuations_in_completed_reports": [
+    {
+      "area_m2": 6.5,
+      "evacuations": 1,
+      "event_duration_seconds": 17,
+      "seconds_from_evacuation_end_to_finish": 2,
+      "dock_state_code": 301,
+      "dock_error_code": 0
+    },
+    {
+      "area_m2": 6.04,
+      "evacuations": 1,
+      "event_duration_seconds": 18,
+      "seconds_from_evacuation_end_to_finish": 2,
+      "dock_state_code": 301,
+      "dock_error_code": 0
+    }
+  ],
+  "android_displayed_evacuation_before_finish": true,
+  "automatic_emptying_setting_then": null,
+  "authenticated_home_assistant_history_verified": true,
+  "robot_error_codes_verified": [48, 654],
+  "robot_remained_docked_during_verification": true
+}

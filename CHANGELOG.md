@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.71.0
+
+- Show the recorded finish and preserve robot errors and dock operation
+  codes in the archived cleaning timeline.
+
 ## 0.70.0
 
 - Open a four-step first-clean checklist for the Roomba Max 700 Combo

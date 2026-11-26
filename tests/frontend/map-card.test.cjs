@@ -1577,7 +1577,12 @@ test("the history panel opens the latest report and shows measurements when geom
   const calls = [];
   card._hass = { callWS: async (request) => {
     calls.push(request);
-    return request.report_id ? { mission, geometry: null, map_index: 0, timeline: [], modes: {}, rooms: [], zones: [], plan }
+    return request.report_id ? { mission, geometry: null, map_index: 0, timeline: [
+      { type: "error", timestamp: 1700000100, error_code: 48 },
+      { type: "evac", timestamp: 1700000470, duration_seconds: 17, dock: { state_code: 301, error_code: 0 } },
+      { type: "padWash", timestamp: 1700000488, dock: { state_code: null, error_code: 654 } },
+      { type: "finish", timestamp: 1700000500 },
+    ], modes: {}, rooms: [], zones: [], plan }
       : { missions: [mission] };
   } };
   await card.openMissionHistory();
@@ -1586,6 +1591,9 @@ test("the history panel opens the latest report and shows measurements when geom
   assert.equal(card.$("history-no-map").hidden, false);
   assert.equal(card.$("history-map-view").hidden, true);
   assert.equal(card.$("history-totals").textContent, "1 report · 2 min · 0.5 m²");
+  assert.deepEqual(card.$("history-timeline").children.map((item) => item.textContent.split(" · ").slice(1)), [
+    ["Error 48"], ["Bin emptying", "17 s", "Dock state 301"], ["Mop washing", "Dock error 654"], ["Finished"],
+  ]);
   assert.ok(card.$("history-measurements").children.length);
   assert.equal(planView.hidden, false);
   assert.equal(planView.querySelector("summary").textContent, "Requested order · 1 of 2 completed");

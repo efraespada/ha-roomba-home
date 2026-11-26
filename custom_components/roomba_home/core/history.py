@@ -30,8 +30,14 @@ TIMELINE_EVENTS = frozenset(
         "refill",
         "evac",
         "error",
+        "fin",
     }
 )
+HISTORY_DOCK_EVENTS = {
+    "evac": ("evacuation", "state"),
+    "padWash": ("pad_wash", "pwState"),
+    "refill": ("refill", "frState"),
+}
 HISTORY_TARGETS = (
     "whole_map",
     *REGION_TARGETS.values(),
@@ -407,6 +413,20 @@ def _report_maps(row: dict) -> tuple[tuple[str, str], ...]:
     )
 
 
+def _report_event_details(item: dict, kind: str) -> dict:
+    if kind == "error":
+        code = integer(at(item, "error.value"))
+        return {"error_code": code} if code else {}
+    if (source := HISTORY_DOCK_EVENTS.get(kind)) is None:
+        return {}
+    component, state_key = source
+    state = integer(at(item, f"{kind}.{state_key}"))
+    error = integer(at(item, f"{kind}.error"))
+    if state is None and error is None:
+        return {}
+    return {"dock": {"component": component, "state_code": state, "error_code": error}}
+
+
 def _report_timeline(row: dict) -> tuple[dict, ...]:
     values = at(row, "timeline.finEvents")
     if not isinstance(values, list):
@@ -422,11 +442,14 @@ def _report_timeline(row: dict) -> tuple[dict, ...]:
             continue
         timeline.append(
             {
-                "type": kind,
+                "type": "finish" if kind == "fin" else kind,
                 "timestamp": start,
                 "duration_seconds": end - start if end and end >= start else None,
+                **_report_event_details(item, kind),
             }
         )
+    if timeline and all(event["type"] != "finish" for event in timeline):
+        timeline.append({"type": "finish", "timestamp": row["timestamp"], "duration_seconds": None})
     return tuple(sorted(timeline, key=lambda event: event["timestamp"]))
 
 
