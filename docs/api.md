@@ -785,6 +785,17 @@ Each event contains `p2mapId` and `p2mapvId` and can report `status`,
 native measurements and the newest observation per destination on that
 map revision.
 
+For a saved zone identified by the embedded mission command, `area` is
+the target area reported in whole square feet. For a completed pass,
+`totalArea` reports the area cleaned in that pass in square feet. The
+integration adds `target_area_m2` and `completed_passes_area_m2` to the
+existing area result. The second value sums the reported area of each
+distinct, confirmed pass before converting it to square metres. The latest
+completed observation wins when a pass index repeats. The sum requires a
+confirmed pass with index 0 and a non-negative measurement for every
+confirmed pass. A canceled pass cannot contribute to the sum.
+[Signed saved-zone comparison](validation.md#saved-zone-area-measurements)
+
 A finished mission's `cmd.regions` identifies saved zones (`zid`) and
 temporary targets (`tid`). When the command also links a temporary target
 to a furniture object through `id_multipolys[].metadata.furniture_id`, the
@@ -1122,7 +1133,7 @@ final room results from `finEvents`. The timestamp in the current event's
 between the verified mission start and observation time.
 Historical `timeline.finEvents` room records contain `p2mapId`, `p2mapvId`,
 `rid`, `area`, `totalArea`, `passCount`, and `status` where reported. The
-integration exposes the raw area values until a provider unit is confirmed.
+integration exposes the raw room area values until their unit is confirmed.
 The native point-cleaning view showed elapsed time. Live coverage, global
 percentage, and a remaining-time reading need further provider evidence.
 [Map and timeline evidence](evidence/2026-11-24-live-progress.json)

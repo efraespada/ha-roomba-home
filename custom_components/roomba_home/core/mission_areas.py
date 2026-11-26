@@ -27,6 +27,7 @@ class AreaResult:
     kind: str = "room"
     confirmed_completed_passes: int | None = None
     ended_at: int | None = None
+    completed_passes_sqft: int | None = None
 
 
 def command_region_kind(region: dict) -> str | None:

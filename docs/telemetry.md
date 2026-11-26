@@ -109,6 +109,10 @@ stage, final room results, and in-progress room measurements. The
 `zones` and `active_zones` attributes preserve the equivalent zone and
 furniture measurements. The **Zones and furniture in the last mission**
 sensor exposes completed-mission results separately as `zones`.
+For a signed saved-zone destination, `target_area_m2` reports Roomba's
+target size. `completed_passes_area_m2` sums the area measured in confirmed
+passes. Both are optional and use square metres. The raw fields `area`
+and `total_area` remain available in each reported result.
 Labels depend on map opt-in and the availability of the relevant revision.
 The integration requests a timeline at most once per 45 seconds for a mission
 and treats it as stale after 100 seconds. The timestamp, stage, and results

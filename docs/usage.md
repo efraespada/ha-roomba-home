@@ -144,6 +144,9 @@ review a deletion. Other objects retain their original provenance and
 geometry. [Furniture write protocol](api.md#furniture-edits)
 
 Open **Last mission by area** for the reported result, area, and pass count.
+For a saved zone, the card shows the reported target size and the area
+cleaned across confirmed passes in square metres. A second pass can make
+the cleaned area larger than the target size.
 The **Zones and furniture in the last mission** sensor counts the reported
 zone events. Its `zones` attribute includes the type, label when available,
 status, area, total area, and pass count of each destination. The existing

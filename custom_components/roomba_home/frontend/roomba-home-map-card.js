@@ -2742,7 +2742,10 @@ class RoombaHomeMapCard extends HTMLElement {
       const values = [];
       const passes = passSummary(area.confirmed_completed_passes, area.pass_count);
       if (passes !== null) values.push(passes);
-      if (area.area !== null) values.push(`Reported area ${area.area}${area.total_area !== null ? ` / ${area.total_area}` : ""}`);
+      if (area.target_area_m2 != null) values.push(`Target ${area.target_area_m2} m²`);
+      else if (area.area != null) values.push(`Reported area ${area.area}${area.total_area != null ? ` / ${area.total_area}` : ""}`);
+      if (area.completed_passes_area_m2 != null) values.push(`${area.completed_passes_area_m2} m² in completed passes`);
+      else if (area.target_area_m2 != null && area.total_area != null) values.push(`Provider total area ${area.total_area}`);
       metrics.className = "muted";
       metrics.textContent = values.join(" · ");
       row.append(name, status, metrics);
