@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.66.0
 
 - Refresh the map's countdown between robot polls using the latest verified
   room stage and the saved time estimate.
