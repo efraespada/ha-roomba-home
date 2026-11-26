@@ -1,5 +1,19 @@
 # Roomba Home validation
 
+## Household installation of 0.71.1
+
+Home Assistant verified the release archive and configuration, kept
+0.71.0 as a rollback, and restarted Core. Lovelace loaded the 0.71.1
+resource. The served module matched the release, and the authenticated
+device registry showed three robots with one linked dock each.
+
+The installed card opened a canceled report with 5.95 m² of recorded
+cleaning. It showed **Bin emptying stage** and dock state 301 before
+**Finished**. The separate **Recorded bin emptyings** measurement showed
+the explicit count of zero. The signed dock error code was zero. The
+household check used an archived report without sending robot commands.
+[Household evidence](evidence/2026-11-26-history-zero-emptyings-household.json)
+
 ## Household installation of 0.71.0
 
 Home Assistant checked the 0.71.0 configuration before restarting Core and
