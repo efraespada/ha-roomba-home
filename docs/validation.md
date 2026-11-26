@@ -200,7 +200,7 @@ same destination row showed the requested setting, reported pass count,
 and elapsed time at 358 and 900 pixels without overflowing.
 The elapsed value restarted when Roomba reported the second stage.
 Android continued to show accumulated minutes for the whole zone.
-Deriving that accumulated time from the full event sequence remains open.
+The accumulated timer was later reproduced from the full event sequence.
 
 The temporary zones were removed. The saved rooms, zone and policy
 layers, boundaries, routines, and schedules matched the baseline.
@@ -220,6 +220,33 @@ all three robots and their three dock devices. The dashboard resource was
 updated to the 0.66.0 URL. The installed card displayed two completed
 passes and the requested suction and pass settings for the real saved-zone
 report. The deployment verification sent no robot commands.
+
+### Accumulated destination cleaning time
+
+The completed two-pass zone report supplied the intervals 51–207 and
+208–366 seconds after mission start. Replaying the report through the
+live decoder recovered 70 seconds at the first Android sample and 220
+seconds during the second pass. Android showed two and four minutes at
+those samples. The signed history reports 314 accumulated seconds.
+
+A separate physical trial used one pass on a temporary saved zone. The
+robot reported the zone starting at second 29 and the pause starting at
+second 58. Android displayed one elapsed minute both early in the
+pause and 72 seconds after it began. The correlated live replay kept
+the cleaning clock at 29 seconds. The robot kept the original area
+timestamp after resume and closed the pause at second 147. The
+following live readings showed 46 and 59 elapsed cleaning seconds.
+The signed report closed the area at second 206 and recorded a second
+pause ahead of docking. Its accumulated cleaning time was 74 seconds.
+An authenticated isolated Home Assistant instance independently
+returned 314 and 74 seconds for the matching signed reports.
+Chrome replayed the live and completed rows at 358 and 900 pixels and
+verified the elapsed time, paused state, and confirmed pass count.
+
+The robot returned to the dock with error code zero. Read-back
+confirmed the original map geometry, saved programs, suction, and
+two-pass setting after the temporary zone was removed.
+[Anonymized timing evidence](evidence/2026-11-26-destination-elapsed.json)
 
 ## Historical map layers
 

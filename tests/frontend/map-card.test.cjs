@@ -2309,6 +2309,13 @@ test("live plans show real destination counts, preserve order and disappear when
     "Vacuum · In progress · 1:04 in current stage · Reported pass value 0 · 9 min planned");
   assert.equal(results.children[0].children[1].children[0].children[2].textContent,
     "Requested · Suction 3 · Two passes on · Carpet boost off");
+  card.renderMissionPlan({
+    ...plan, destinations: plan.destinations.map((destination) => destination.kind === "room"
+      ? { ...destination, status: "paused", cleaning_elapsed_seconds: 29, stage_elapsed_seconds: 117 }
+      : destination),
+  });
+  assert.equal(results.children[0].children[1].children[0].children[1].textContent,
+    "Vacuum · Paused · 0:29 cleaning");
   card.renderMissionPlan(null);
   assert.equal(view.hidden, true);
   assert.equal(results.children.length, 0);

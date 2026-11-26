@@ -452,3 +452,47 @@ def test_saved_zone_counts_completed_events_across_correlated_revisions(final_st
     assert all(
         result.confirmed_completed_passes is None for result in zone_results([first, second])
     )
+
+
+def test_archived_destination_duration_totals_passes_and_excludes_pauses():
+    start = 1700000000
+
+    def zone(begin, end, pass_number, status):
+        return {
+            "type": "zone",
+            "ts": start + begin,
+            "ets": start + end,
+            "zone": {
+                "p2mapId": "floor",
+                "p2mapvId": f"robot-{pass_number}",
+                "zid": "100",
+                "passCount": pass_number,
+                "status": status,
+            },
+        }
+
+    row = {
+        "robot_id": "fixture",
+        "timestamp": start + 424,
+        "startTime": start,
+        "done": "ok",
+        "cmd": {
+            "command": "start",
+            "p2map_id": "floor",
+            "user_p2mapv_id": "saved",
+            "regions": [{"type": "zid", "region_id": "100"}],
+        },
+        "timeline": {
+            "finEvents": [
+                zone(51, 207, 0, 1),
+                {"type": "pause", "ts": start + 70, "ets": start + 90},
+                zone(208, 366, 1, 0),
+            ]
+        },
+    }
+    (report,) = mission_reports([row], "fixture")
+    (destination,) = report.detail(())["plan"]["destinations"]
+    assert destination["cleaning_elapsed_seconds"] == 294
+    assert destination["confirmed_completed_passes"] == 2
+    assert destination["status"] == "finished"
+    assert "cleaning_elapsed_seconds" not in report.summary()

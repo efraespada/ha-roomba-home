@@ -56,9 +56,9 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   rooms and zones.
   Fresh timeline replies add the current stage, its reported start time,
   in-progress measurements, and the selected destinations with their
-  requested preferences and observed outcomes. The active destination
-  shows time in its current cleaning stage when Roomba supplies its start.
-  Saved zones show the number of passes confirmed by completion events.
+  requested preferences and observed outcomes. See each destination's
+  accumulated cleaning time across passes and pauses. Saved zones show
+  the number of passes confirmed by completion events.
   The live route distinguishes travel, vacuuming, and mopping, including
   simultaneous vacuuming and mopping. The latest reported route activity
   is available as a Home Assistant sensor. A continuous Roomba subscription
@@ -74,7 +74,7 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   timeline, and 3D floor plan. Hide travel, cleaning paths, or coverage
   independently and see zones and restrictions saved in the archived map.
   Directed reports include the requested order, preferences, and reported
-  outcome for each destination.
+  outcome and recorded cleaning time for each destination.
   [Cleaning history](docs/usage.md#cleaning-history)
 - **Room cleaning scores.** View Roomba's reported score, mission timestamps,
   and suggested settings for each matched room on the active floor.

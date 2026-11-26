@@ -86,11 +86,12 @@ trajectory contains observed positions and retains sequence gaps.
 - MAP-15: Show explicit requested settings and the reported pass count
   for each destination in the correlated live plan. Show time in the
   current cleaning stage when a valid timestamp identifies one active
-  destination. Expose confirmed saved-zone completions separately from
-  the provider's raw pass index.
+  destination. Accumulate confirmed cleaning intervals across passes
+  and hold the timer during a pause. Expose confirmed saved-zone
+  completions separately from the provider's raw pass index.
 - MAP-16: Show the ordered or unordered destinations originally requested
   in a directed cleaning report, including explicit settings and the final
-  outcome for each destination.
+  outcome and validated cleaning time for each destination.
 - MAP-17: Offer a confirmed untargeted start with next-cleaning preferences
   for an idle or docked robot, including before its first saved floor.
 - MAP-18: Support pinch-to-zoom and panning on live and recorded maps.
@@ -157,6 +158,12 @@ measurements from `event` separately from final results in `finEvents`.
 Compute elapsed seconds fresh for floor-plan reads during an active
 room or zone stage with one matching destination. Hide this time during a
 pause or travel and when the start time is missing or out of scope.
+Use the complete correlated area sequence for the destination's elapsed
+cleaning time. Merge overlapping area intervals and exclude overlapping
+recorded pauses, recharge, and pad washes. Freeze an open area at the
+pause timestamp and recover earlier passes when a viewer joins late.
+Use elapsed cleaning time for the directed-room countdown when available.
+Archived plans sum closed intervals from the same mission.
 Count distinct saved-zone pass indexes from completion events that
 correlate to the requested destination. Require an observed completed
 index zero before reporting a confirmed total. Preserve the raw index.
@@ -395,8 +402,8 @@ features, physical results, and open scenarios.
 | MAP-12 | [Physical obstacle comparison](../docs/validation.md#live-temporary-obstacles) | [Snapshot decoder tests](../tests/test_live_route.py), [coordinator tests](../tests/ha/test_live_map_entities.py), [authenticated subscription tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs). Household dashboard verification remains open. |
 | MAP-13 | [Confirmed floor associations from native missions](../docs/validation.md#multiple-saved-floors) | [Parser tests](../tests/test_live_maps.py), [coordinator tests](../tests/ha/test_live_map_entities.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [floor picker tests](../tests/frontend/map-card.test.cjs). An installed multi-floor cleaning trial remains open. |
 | MAP-14 | [Historical layer contract](../docs/api.md#archived-cleaning-reports) | [Archive tests](../tests/test_mission_map.py), [authenticated reports](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [historical layer validation](../docs/validation.md#historical-map-layers) |
-| MAP-15 | [Live destination preferences and timing](../docs/api.md#live-mission-destinations) | [Profile projection tests](../tests/test_mission_plan.py), [timing tests](../tests/test_mission_time.py), [authenticated plan tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [device evidence](../docs/validation.md#saved-zone-passes-and-live-stage-timing) |
-| MAP-16 | [Archived report contract](../docs/api.md#archived-cleaning-reports) | [Destination and pass-event tests](../tests/test_history.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), [signed report verification](../docs/validation.md#historical-destination-plans), and [completed saved-zone passes](../docs/validation.md#saved-zone-passes-and-live-stage-timing) |
+| MAP-15 | [Live destination preferences and timing](../docs/api.md#live-mission-destinations) | [Profile projection tests](../tests/test_mission_plan.py), [timing tests](../tests/test_mission_time.py), [authenticated plan tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [pause and pass evidence](../docs/validation.md#accumulated-destination-cleaning-time) |
+| MAP-16 | [Archived report contract](../docs/api.md#archived-cleaning-reports) | [Destination and pass-event tests](../tests/test_history.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), [signed report verification](../docs/validation.md#historical-destination-plans), and [recorded durations](../docs/validation.md#accumulated-destination-cleaning-time) |
 | MAP-17 | [Clean everywhere action](../docs/usage.md#clean-everywhere) | [Home Assistant control tests](../tests/ha/test_cleaning_controls.py), [card tests](../tests/frontend/map-card.test.cjs), and [scope validation](../docs/validation.md#whole-area-and-directed-cleaning-scope) |
 | MAP-18 | [Interactive floor plan](../docs/usage.md#interactive-floor-plan) and [cleaning history](../docs/usage.md#cleaning-history) | [Card tests](../tests/frontend/map-card.test.cjs) and [Chrome touch verification](../docs/validation.md#touch-navigation-for-floor-plans-and-reports) |
 

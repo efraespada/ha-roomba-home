@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Show each destination's accumulated cleaning time across passes and
+  resumes. Keep the timer steady during pauses and include the recorded
+  total in mission history.
+
 ## 0.66.0
 
 - Refresh the map's countdown between robot polls using the latest verified
