@@ -1,5 +1,13 @@
 # Roomba Home validation
 
+## Version 0.65.0
+
+The release adds one-off area cleaning preferences, explicit selection of
+compatible remembered profiles, and routine icon and color editing. A
+Max 700 Combo accepted the reviewed one-off room settings and returned to
+its dock. Signed reads confirmed both remembered combined profiles and
+the appearance changes in removable trial routines.
+
 ## Version 0.64.0
 
 The release adds remembered area profiles, a maintenance panel with official

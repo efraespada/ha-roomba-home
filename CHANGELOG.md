@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.65.0
+
 - Customize saved routines with an emoji and a color. Editing appearance
   preserves the cleaning plan, estimate, and display order.
 - Choose any compatible remembered cleaning profile by area, including
