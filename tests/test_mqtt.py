@@ -540,3 +540,14 @@ def test_timeline_read_waits_after_shadow_and_position_window(
         assert reports["fixture-robot"].stage == "zone"
     else:
         assert reports == {}
+
+
+def test_timeline_query_without_live_topic_reads_only_the_shadow():
+    broker = Broker()
+    reports = {}
+    (shadow,) = run_reader(broker).read(
+        ["ro-currentstate"], timeline_requests={"fixture-robot": 19}, timelines=reports
+    )
+    assert shadow.accepted and reports == {}
+    assert len(broker.published) == 1
+    assert broker.published[0][0].endswith("/get")
