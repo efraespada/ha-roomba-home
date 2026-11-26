@@ -1286,6 +1286,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             key, (*recent.zones, *recent.active_zones, *destinations)
         )
         stage_started = self._stage_started_during_mission(recent, started, now)
+        active_zone = recent.timed_destination(stage_started) if recent.stage == "zone" else None
         metrics = {
             "live_timeline_updated": recent.observed_at,
             "live_timeline_stage": recent.stage,
@@ -1295,7 +1296,9 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             "live_timeline_rooms": present_rooms(recent.rooms, maps),
             "live_timeline_active_rooms": present_rooms(recent.active_rooms, maps),
             "live_timeline_zones": present_zones(recent.zones, zone_maps),
-            "live_timeline_active_zones": present_zones(recent.active_zones, zone_maps),
+            "live_timeline_active_zones": present_zones(
+                recent.active_zones, zone_maps, active=active_zone
+            ),
         }
         if recent.plan is not None:
             active = {"room": recent.active_rooms, "zone": recent.active_zones}
@@ -1309,6 +1312,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 recent.travelling_to,
                 zone_maps,
                 paused=paused,
+                active_pass=active_zone,
             )
             metrics.update(
                 live_timeline_plan=plan,

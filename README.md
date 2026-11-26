@@ -64,7 +64,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   in-progress measurements, and the selected destinations with their
   requested preferences and observed outcomes. See each destination's
   accumulated cleaning time across passes and pauses. Saved zones show
-  the number of passes confirmed by completion events.
+  the current pass during cleaning and the number of passes confirmed
+  by completion events.
   Saved zones also show their reported target size and the area cleaned in
   those completed passes, both in square metres.
   The live route distinguishes travel, vacuuming, and mopping, including
@@ -162,7 +163,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.72.1` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.72.2` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)

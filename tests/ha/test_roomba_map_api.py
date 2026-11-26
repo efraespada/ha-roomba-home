@@ -1319,7 +1319,7 @@ async def test_floor_plan_totals_saved_zone_time_across_pauses_and_passes(
     ws = await hass_ws_client()
     message = 0
 
-    async def install_and_read(offset, active, final, *, phase="run"):
+    async def install_and_read(offset, active, final, *, phase="run", current_pass=None):
         nonlocal message
         clock = started + timedelta(seconds=offset)
         document = {
@@ -1342,20 +1342,33 @@ async def test_floor_plan_totals_saved_zone_time_across_pauses_and_passes(
                 {"id": message, "type": "roomba_home/floor_plan", "entity_id": ENTITY}
             )
             reply = await ws.receive_json()
-        return reply["result"]["live_plan"]["destinations"][0]
+        payload = reply["result"]
+        area = payload["live_plan"]["destinations"][0]
+        active_passes = [
+            item["current_pass_number"]
+            for item in payload["active_zones"]
+            if "current_pass_number" in item
+        ]
+        assert active_passes == ([] if current_pass is None else [current_pass])
+        assert area.get("current_pass_number") == current_pass
+        return area
 
-    assert (await install_and_read(45, [zone], []))["cleaning_elapsed_seconds"] == 16
+    assert (await install_and_read(45, [zone], [], current_pass=1))[
+        "cleaning_elapsed_seconds"
+    ] == 16
     paused = await install_and_read(133, [pause, zone], [], phase="stop")
     assert paused["status"] == "paused"
     assert paused["cleaning_elapsed_seconds"] == 29
     assert "stage_elapsed_seconds" not in paused
-    resumed = await install_and_read(171, [zone], [finished_pause])
+    resumed = await install_and_read(171, [zone], [finished_pause], current_pass=1)
     assert resumed["cleaning_elapsed_seconds"] == 53
     assert resumed["stage_elapsed_seconds"] == 142
-    later_pass = await install_and_read(230, [second_pass], [finished_pause, first_pass])
+    later_pass = await install_and_read(
+        230, [second_pass], [finished_pause, first_pass], current_pass=2
+    )
     assert later_pass["cleaning_elapsed_seconds"] == 111
     assert later_pass["stage_elapsed_seconds"] == 29
-    missing_first = await install_and_read(230, [second_pass], [])
+    missing_first = await install_and_read(230, [second_pass], [], current_pass=2)
     assert "cleaning_elapsed_seconds" not in missing_first
     assert missing_first["stage_elapsed_seconds"] == 29
     travel = {"type": "travel", "ts": stamp + 240}

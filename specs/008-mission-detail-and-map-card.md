@@ -180,6 +180,10 @@ Archived plans sum closed intervals from the same mission.
 Count distinct saved-zone pass indexes from completion events that
 correlate to the requested destination. Require an observed completed
 index zero before reporting a confirmed total. Preserve the raw index.
+During a verified zone stage, expose the current pass number for its
+single open saved-zone event. Number the passes starting at one and keep
+the completed count separate. Omit the current pass number when the
+stage, event, or pass index is unavailable or cannot be associated.
 Coverage requires a verified coordinate association and evidence of the
 layer's activity semantics. During a mission, maintain an authorized position
 subscription when possible. Draw each valid report on the matching floor and
