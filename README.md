@@ -10,8 +10,8 @@ uses Roomba's own cloud services for device data and control.
 ## Quick start
 
 The verified model is **Roomba Max 700 Combo (X185240)**, linked to a Roomba Home
-account. The 0.69.0 household upgrade verified three robots, their three
-docks, and the Robot help manual and diagnostic lookup.
+account. The 0.69.1 household upgrade verified three robots, their three
+docks, and the Robot help manual and diagnostic lookup after a layout change.
 [Capability matrix](docs/capabilities.md) · [Physical validation](docs/validation.md)
 
 1. In **HACS → Custom repositories**, add `efraespada/ha-roomba-home` as an
@@ -42,10 +42,10 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   dock empties the robot's bin. Choose after each routine, every 25 or
   50 m², or set a custom area threshold.
   [Robot settings](docs/usage.md#robot-settings) · [Dock settings](docs/usage.md#dock-settings)
-- **Robot help.** Open Roomba's owner’s manual and model-specific setup
-  guides from the card. Look up error, charging, and start-refusal codes
-  in separate groups and see linked articles for recognized current
-  problems. [Robot help and automation example](docs/usage.md#robot-help)
+- **Robot help.** Review the Max 700 Combo first-clean checklist and open
+  Roomba's owner’s manual and setup guides from the card. Look up error,
+  charging, and start-refusal codes and see linked articles for recognized
+  current problems. [Robot help and automation example](docs/usage.md#robot-help)
 - **Room and zone cleaning.** Select regions and review the robot and
   destinations before sending a command. **Clean everywhere** starts a new
   run across the robot's reachable area after confirmation. Zoom in to see

@@ -7,11 +7,22 @@ from custom_components.roomba_home.core.help_catalog import (
     MEDIA_HOST,
     current_help_articles,
     project_help_catalog,
+    setup_guide_for,
 )
 
 MEDIA = f"https://{MEDIA_HOST}"
 MANUAL = f"{MEDIA}/files/2025/OGs/NewSeries/Max700C/example.pdf"
 ARTICLE = f"{MEDIA}/web/es/10548.html"
+
+
+def test_setup_guide_only_applies_to_the_verified_model():
+    guide = setup_guide_for("x185240")
+    assert [step["id"] for step in guide["steps"]] == ["brushes", "water", "charge", "rooms"]
+    assert all(step["title"] and step["instructions"] for step in guide["steps"])
+    assert guide["reference_url"].endswith("/Knowledge/20503")
+    assert setup_guide_for("X185240") == guide
+    assert setup_guide_for("X185240-lookalike") is None
+    assert setup_guide_for("") is None
 
 
 def test_verified_catalog_projects_families_and_setup_links():

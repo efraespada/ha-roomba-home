@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.70.0
+
+- Open a four-step first-clean checklist for the Roomba Max 700 Combo
+  under **Robot help**. The card and the read-only help action include
+  the same instructions and link to the iRobot unboxing guide.
+
 ## 0.69.1
 
 - Keep Robot help visible with the selected article when Home Assistant

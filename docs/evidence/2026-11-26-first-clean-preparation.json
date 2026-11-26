@@ -1,0 +1,14 @@
+{
+  "model": "Roomba Max 700 Combo",
+  "native_steps_in_order": [
+    "brushes",
+    "water",
+    "charge",
+    "rooms"
+  ],
+  "public_catalog_guided_tour_pages": 0,
+  "authenticated_websocket_matches_response_action": true,
+  "available_with_maps_disabled": true,
+  "unboxing_guide_http_status": 200,
+  "robot_remained_docked": true
+}

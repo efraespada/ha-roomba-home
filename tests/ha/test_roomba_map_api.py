@@ -297,6 +297,8 @@ async def test_robot_help_requires_read_access_and_is_independent_of_maps(
     ):
         await socket.send_json(ROBOT_HELP)
         result = (await socket.receive_json())["result"]
+    guide = result.pop("setup_guide")
+    assert [step["id"] for step in guide["steps"]] == ["brushes", "water", "charge", "rooms"]
     assert result == {
         "robot": robot.name,
         **report,

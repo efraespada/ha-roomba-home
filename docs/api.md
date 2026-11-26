@@ -380,10 +380,18 @@ strips query strings and fragments before returning links.
 `roomba_home/robot_help` requires read access to the selected vacuum.
 `roomba_home.get_robot_help` exposes the same result as a Home Assistant
 action. Both return `manual_url`, `support_url`, `device_guides`,
-`articles` and `current_articles`. Active links use a fresh mission error
+`articles`, `current_articles`, and `setup_guide`. Active links use a fresh mission error
 with an unambiguous catalog family or a documented dock code. Start-refusal
 codes can be looked up explicitly in their own family.
 [Signed-state and public-catalog validation](validation.md#robot-help-catalog)
+
+The public catalog's `guidedTourPages` list was empty for the verified
+Max 700 Combo. For SKU `X185240`, the integration supplies its own
+English checklist after verifying the sequence in Android and in iRobot's
+public instructions. `setup_guide.steps` contains ordered objects with
+`id`, `title`, and `instructions`. `setup_guide.reference_url` points
+to the iRobot unboxing guide. An unverified model returns `setup_guide: null`.
+[iRobot unboxing guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20503)
 
 ### Archived cleaning reports
 

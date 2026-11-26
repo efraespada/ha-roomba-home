@@ -779,6 +779,12 @@ The lookup works with maps disabled and while the configured robot is
 offline. The displayed guides follow your Home Assistant language and
 the Roomba account country.
 
+On a Max 700 Combo, expand **Prepare for the first clean** for the four
+preparation steps shown in Roomba Home. Check the two side brushes, clean
+water tank, charge, and rooms. The checklist is in English and opens the
+manufacturer's unboxing guide for details. Opening the checklist sends
+no commands to the robot.
+
 ```yaml
 action: roomba_home.get_robot_help
 target:
@@ -790,6 +796,9 @@ Replace the example entity ID with the one from your device. Read the
 report at `robot_help['vacuum.example_robot']`. Each article contains
 `family`, `code` and `url`. Use `current_articles` in an automation to
 include a matching provider article with a robot problem notification.
+The report includes `setup_guide.steps` and `setup_guide.reference_url`
+for the verified Max 700 Combo model. Other models return a null
+`setup_guide`.
 [Provider contract](api.md#robot-help-catalog)
 
 ## Maintenance and replacement parts

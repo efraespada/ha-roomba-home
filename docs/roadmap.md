@@ -20,6 +20,13 @@ excludes newer ClearView robots such as the Max 700.
 [iRobot backup and retrieval](https://homesupport.irobot.com/articles/en_US/Knowledge/53000) ·
 [ClearView guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
 
+The older mission detail in the inspected Android build displays its map
+and timeline. The local SDK also contains a `revert_user_edits` command
+which takes a map identifier and has an empty command parameter object.
+The command has no archived revision selector. Its service behavior
+remains unverified.
+[Archived map investigation](validation.md#clearview-archive-recovery)
+
 1. **Capture and browse.** Available from the floor plan card. Save a
    verified snapshot on demand or automatically before a confirmed map
    edit or removal. Browse and export recorded floors independently of the
@@ -72,8 +79,9 @@ configured threshold. [Short routine and map comparison](validation.md#physical-
 
 ## Android setup walkthrough
 
-Android's separate Robot Help entry opened a walkthrough for preparing
-the robot, dock, and rooms for cleaning. Home Assistant offers the verified
-model manual and setup links in its **Robot help** panel. Trace the app's
-illustrated walkthrough to complete the matching in-app experience.
-[Help catalog validation](validation.md#robot-help-catalog)
+**First-clean preparation available in 0.70.0.** The Max 700 Combo's
+Robot Help walkthrough is available as a four-step checklist in the card,
+alongside the manual and support articles. Verify other models in the app
+before adding model-specific steps. Initial pairing, Wi-Fi changes, and
+factory reset require separate verification and remain open.
+[Robot help](usage.md#robot-help)

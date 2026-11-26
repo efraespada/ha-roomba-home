@@ -26,6 +26,8 @@
     "original_rooms_restrictions_settings_and_schedules_verified": true,
     "provider_geometry_changes": ["border", "robot_detected_furniture", "walls", "carpet", "dock_pose"],
     "provider_geometry_counts_match": true,
-    "private_baseline_archive_retained": true
+    "private_baseline_archive_retained": true,
+    "baseline_revision_remains_retrievable": true,
+    "retrieved_revision_matches_private_baseline_bytes": true
   }
 }

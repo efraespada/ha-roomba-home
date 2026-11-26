@@ -1,5 +1,23 @@
 # Roomba Home validation
 
+## First-clean preparation
+
+In Android, the Max 700 Combo device page opens a separate Robot Help
+walkthrough. The first two steps show the matching A and B side brush
+mounts and the clean water tank with its optional detergent reservoir.
+The lower section checks the robot charge and prepares the rooms. The
+Home Assistant checklist presents the same four steps in order and links
+to iRobot's unboxing guide. It uses English text and Home Assistant icons.
+[iRobot unboxing guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20503)
+
+An authenticated local Home Assistant instance linked only to the trial
+robot returned the same four steps from the WebSocket command and
+response action with maps disabled. The linked unboxing guide returned
+HTTP 200. The robot stayed docked. The full suite passed 2,610 Python
+tests with 100% statement and branch coverage, 74 card tests, and
+the official hassfest integration checks.
+[Anonymized evidence](evidence/2026-11-26-first-clean-preparation.json)
+
 ## Robot help after moving a card
 
 A Chromium browser reproduced the modal losing its top-layer state when the
@@ -10,6 +28,13 @@ explicit reopen. The browser repeated the same move and retained both
 the visible modal and the selected charging error. The card suite also
 checks that the catalog is read only once.
 [Regression tests](../tests/frontend/map-card.test.cjs)
+
+The household installation verified the published archive, passed
+`ha core check`, restarted Core, and retained a 0.69.0 rollback. The
+0.69.1 resource matched the released module. Chrome showed all three
+robots and docks. Reattaching the original R2-D2 card in place kept the
+dialog modal and preserved the selected charging article.
+[Household evidence](evidence/2026-11-26-robot-help-home-assistant.json)
 
 ## Version 0.69.0
 
@@ -94,8 +119,25 @@ room, restrictions and schedules after removal of the trial zone and
 routine. A new provider map archive contained changed border, detected
 furniture, wall, carpet and dock-pose data. The furniture came from robot
 detection and the feature counts matched. The private preflight archive
-was retained for comparison and version recovery.
+was retained. An independent read retrieved that earlier version byte for
+byte while the active version was different. Android displayed the map
+legend and timeline for an inspected older report. Reactivating the
+earlier provider revision remains open.
 [Anonymized trial and restoration evidence](evidence/2026-11-26-short-routine-auto-emptying.json)
+
+### ClearView archive recovery
+
+The Android Max 700 Combo report showed the original map legend, cleaning
+statistics, and timeline for an older mission. Its inspected detail view
+offered no action to activate that map. iRobot's support guide excludes
+this model from its current map save and retrieval workflow.
+[iRobot save and retrieval guide](https://homesupport.irobot.com/articles/en_US/Knowledge/53000)
+
+The inspected client SDK declares `revert_user_edits` for an identified
+map with an empty command parameter object. The declaration has no input
+for choosing a saved version. This investigation used read-only checks
+and left the active revision untouched. End-to-end reactivation of the
+original archived geometry remains open.
 
 ## Version 0.67.0
 
