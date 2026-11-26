@@ -329,7 +329,10 @@ async def _pause_for_return(
             return state
         if state.mission_identity != before.mission_identity:
             break
-        if pause.confirms(state) and state.docking is True:
+        # A short cleaning area can finish while the pause is in flight.
+        if state.docking is True and (
+            pause.confirms(state) or (state.activity == "idle" and state.mission_active is False)
+        ):
             return state
         if state.activity != "cleaning":
             break
@@ -387,7 +390,7 @@ async def execute_control(
             if plan.confirms(state):
                 port.report("confirmed")
                 return
-            if state.activity == "paused":
+            if state.activity in {"paused", "idle"}:
                 await port.send(plan.command, plan.profile)
         else:
             await port.send(plan.command, plan.profile)

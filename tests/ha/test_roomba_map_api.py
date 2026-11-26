@@ -1189,12 +1189,13 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     assert reply["destinations"][0]["requested_settings"] == {"suction_level": 3, "two_pass": False}
     assert reply["destinations"][0]["reported_pass_count"] == 0
     assert reply["destinations"][0]["stage_elapsed_seconds"] == 23
+    assert reply["destinations"][0]["cleaning_elapsed_seconds"] == 23
 
     later = now + timedelta(seconds=39)
     next_snapshot = await snapshot(later, 2)
     assert next_snapshot["estimated_remaining_seconds"] == 440
     assert next_snapshot["destinations"] == [
-        reply["destinations"][0] | {"stage_elapsed_seconds": 62}
+        reply["destinations"][0] | {"stage_elapsed_seconds": 62, "cleaning_elapsed_seconds": 62}
     ]
     assert reading.telemetry["live_timeline_plan"]["estimated_remaining_seconds"] == 479
     assert "stage_elapsed_seconds" not in reading.telemetry["live_timeline_plan"]["destinations"][0]
@@ -1219,6 +1220,85 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     assert partial["live_timeline_plan"]["destinations"][0]["estimated_duration_seconds"] == 502
     await configured._timeline_metrics(replace(state, cycle="none"), None, now)
     assert configured._live_estimates == {}
+
+
+async def test_floor_plan_totals_saved_zone_time_across_pauses_and_passes(
+    configured, hass_ws_client
+):
+    robot = "fixture-0"
+    started = datetime.now(UTC).replace(microsecond=0) - timedelta(minutes=6)
+    stamp = int(started.timestamp())
+    state = replace(
+        configured.data[robot],
+        phase="run",
+        cycle="clean",
+        telemetry=configured.data[robot].telemetry
+        | {"mission_started": started, "mission_number": 52},
+    )
+    command = {
+        "command": "start",
+        "p2map_id": MAP.map_id,
+        "user_p2mapv_id": MAP.version_id,
+        "regions": [{"type": "zid", "region_id": "zone-a"}],
+    }
+    zone = {
+        "type": "zone",
+        "ts": stamp + 29,
+        "zone": {"p2mapId": MAP.map_id, "p2mapvId": "robot-first", "zid": "zone-a", "passCount": 0},
+    }
+    pause = {"type": "pause", "ts": stamp + 58}
+    finished_pause = pause | {"ets": stamp + 147}
+    first_pass = zone | {"ets": stamp + 200, "zone": zone["zone"] | {"status": 1}}
+    second_pass = zone | {
+        "ts": stamp + 201,
+        "zone": zone["zone"] | {"p2mapvId": "robot-second", "passCount": 1},
+    }
+    ws = await hass_ws_client()
+    message = 0
+
+    async def install_and_read(offset, active, final, *, phase="run"):
+        nonlocal message
+        clock = started + timedelta(seconds=offset)
+        document = {
+            "timelineRequestId": 18,
+            "nMssn": 52,
+            "cmd": command,
+            "event": active,
+            "finEvents": final,
+        }
+        reading = replace(state, phase=phase)
+        report = mission_timeline(document, 18, 52, int(clock.timestamp()))
+        telemetry = await configured._timeline_metrics(reading, report, clock)
+        configured.async_set_updated_data(
+            {robot: replace(reading, telemetry=reading.telemetry | telemetry)}
+        )
+        message += 1
+        with patch("custom_components.roomba_home.map_api.datetime", wraps=datetime) as time_api:
+            time_api.now.return_value = clock
+            await ws.send_json(
+                {"id": message, "type": "roomba_home/floor_plan", "entity_id": ENTITY}
+            )
+            reply = await ws.receive_json()
+        return reply["result"]["live_plan"]["destinations"][0]
+
+    assert (await install_and_read(45, [zone], []))["cleaning_elapsed_seconds"] == 16
+    paused = await install_and_read(133, [pause, zone], [], phase="stop")
+    assert paused["status"] == "paused"
+    assert paused["cleaning_elapsed_seconds"] == 29
+    assert "stage_elapsed_seconds" not in paused
+    resumed = await install_and_read(171, [zone], [finished_pause])
+    assert resumed["cleaning_elapsed_seconds"] == 53
+    assert resumed["stage_elapsed_seconds"] == 142
+    later_pass = await install_and_read(230, [second_pass], [finished_pause, first_pass])
+    assert later_pass["cleaning_elapsed_seconds"] == 111
+    assert later_pass["stage_elapsed_seconds"] == 29
+    missing_first = await install_and_read(230, [second_pass], [])
+    assert "cleaning_elapsed_seconds" not in missing_first
+    assert missing_first["stage_elapsed_seconds"] == 29
+    travel = {"type": "travel", "ts": stamp + 240}
+    returning = await install_and_read(250, [travel], [finished_pause, first_pass])
+    assert returning["cleaning_elapsed_seconds"] == 82
+    assert "stage_elapsed_seconds" not in returning
 
 
 @pytest.mark.parametrize("failure", ["rate limit", "unavailable", "changed map"])
@@ -1421,18 +1501,26 @@ async def test_live_floor_is_resolved_and_pinned_across_multiple_saved_floors(
     assert selected["map"]["id"] == MAP.map_id
     assert selected["live"]["position"]["index"] == 10
     assert selected["current_room"] == "Office"
+    assert selected["on_mapped_carpet"] is False
     assert selected["active_rooms"] == [{"room": "Office"}]
     await socket.send_json(request | {"id": 2, "map_id": other.map_id})
     unselected = (await socket.receive_json())["result"]
     assert unselected["map"]["id"] == other.map_id
     assert unselected["live"] == {"trail": [], "position": None}
     assert unselected["current_room"] is None and unselected["active_rooms"] == []
+    assert unselected["on_mapped_carpet"] is None
     assert unselected["skip_review"] is None
     await socket.send_json(
         request | {"id": 3, "known_map_id": MAP.map_id, "known_version": MAP.version_id}
     )
     cached = (await socket.receive_json())["result"]
     assert cached["map"]["id"] == MAP.map_id and "geometry" not in cached
+    with patch("custom_components.roomba_home.map_api.datetime", wraps=datetime) as clock:
+        clock.now.return_value = now + timedelta(seconds=31)
+        await socket.send_json(request | {"id": 4})
+        expired = (await socket.receive_json())["result"]
+    assert expired["live"]["position"] is None
+    assert expired["current_room"] is None and expired["on_mapped_carpet"] is None
     watch = configured._map_watch(active)
     configured._receive_live_map_sample(
         replace(watch, map_version=(other.map_id, other.version_id)), replace(batch, index=11)
@@ -1451,7 +1539,7 @@ async def test_live_floor_is_resolved_and_pinned_across_multiple_saved_floors(
     configured.async_set_updated_data(idle)
     assert not configured._live_floor_pins
     await socket.send_json(
-        request | {"id": 4, "known_map_id": updated.map_id, "known_version": updated.version_id}
+        request | {"id": 5, "known_map_id": updated.map_id, "known_version": updated.version_id}
     )
     idle_view = (await socket.receive_json())["result"]
     assert idle_view["map"]["id"] == updated.map_id and "geometry" not in idle_view

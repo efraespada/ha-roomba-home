@@ -89,6 +89,7 @@ def present_mission_plan(
     maps: tuple[PersistentMap, ...],
     *,
     archived: bool = False,
+    paused: bool = False,
 ) -> dict:
     """Historical callers supply only map revisions linked to the archived mission."""
     names = {
@@ -98,9 +99,9 @@ def present_mission_plan(
         for region in floor.regions
         if region.name is not None
     }
-    results = {_destination_key(plan, area): area for area in final}
-    current = {_destination_key(plan, area): area for area in active}
-    en_route = _destination_key(plan, travelling) if travelling is not None else None
+    results = {destination_key(plan, area): area for area in final}
+    current = {destination_key(plan, area): area for area in active}
+    en_route = destination_key(plan, travelling) if travelling is not None else None
     missing = "unreported" if archived else "pending"
     destinations = []
     for destination in plan.destinations:
@@ -108,7 +109,7 @@ def present_mission_plan(
         finished = results.get(key)
         result = current.get(key, finished)
         if key in current:
-            status = "in_progress"
+            status = "paused" if paused else "in_progress"
         elif key == en_route:
             status = "traveling"
         else:
@@ -137,7 +138,7 @@ def present_mission_plan(
     }
 
 
-def _destination_key(plan: MissionPlan, area: AreaResult) -> tuple[str, tuple[str, str, str]]:
+def destination_key(plan: MissionPlan, area: AreaResult) -> tuple[str, tuple[str, str, str]]:
     map_id, revision, region = area.identity
     # A matched timeline can use the robot's internal revision for these events.
     if area.kind in {"room", "temporary_zone"} and map_id == plan.scope[0]:

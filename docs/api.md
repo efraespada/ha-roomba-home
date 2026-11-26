@@ -386,8 +386,9 @@ vacuum entity and the integration's map option. [ClearView map history](https://
 
 For a directed start, `plan` preserves the validated destination sequence,
 whether Roomba committed to that order, explicit regional preferences, and
-the final per-destination outcomes. A destination with no matched final
-event has status `unreported`. The report's overall outcome is independent
+the final per-destination outcomes and recorded cleaning duration. A
+destination with no matched final event has status `unreported`.
+The report's overall outcome is independent
 of the destination outcomes. A room or temporary target can report the
 robot's internal revision on the same floor during that mission.
 
@@ -403,6 +404,10 @@ map identifiers.
 The Max 700 persistent map archive includes optional layers alongside room
 polygons and furniture. The authenticated floor plan response provides usable
 layers from the associated revision in `geometry.presentation`.
+The response's `on_mapped_carpet` values come from the latest in-room position
+and the active revision's carpet polygons. The boolean is null without
+valid geometry, fresh position, or a matching active floor. False describes
+a mapped point outside the known carpet polygons.
 
 | Manifest type | GeoJSON data | Dashboard use |
 | --- | --- | --- |
@@ -1089,6 +1094,17 @@ destination in a matched `room` or `zone` stage while the robot is
 cleaning. It is calculated on each floor-plan read from that stage's
 reported start time. It is omitted when paused, travelling, or when the
 stage cannot be associated with one current destination.
+
+`cleaning_elapsed_seconds` measures time at that destination using
+the correlated area events' `ts` and `ets` values. The current area
+extends to the time of the floor-plan read or the reported start of a
+pause. Closed pause, charge, and pad-wash intervals that intersect the
+area are excluded. Overlaps between repeated area events are counted
+once. A late viewer can recover preceding passes from `finEvents`
+without additional requests. If a saved zone reports a later pass
+without its first pass interval, the total is withheld. Archived plans
+use the same calculation with closed events only. The directed-room
+countdown uses the accumulated cleaning time when available.
 
 A physical room-only vacuuming run reported `cleanMissionStatus.sqft`
 increasing from 0 to 21 during cleaning. Replays of the two-furniture

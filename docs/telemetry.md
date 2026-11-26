@@ -71,7 +71,12 @@ one labeled room. **Last live position update** is the timestamp supplied by
 Roomba. **Last live route activity** reports the latest recognized activity
 along the route, with states `traveling`, `vacuuming`, `mopping`, and
 `vacuum_mop`. A different configured cleaning mode can remain selected
-while the robot travels to or from an area. The live sensors and position
+while the robot travels to or from an area. **On mapped carpet** compares
+the latest position to Roomba's saved carpet polygons on that floor.
+It is unknown without a classified carpet layer or a position on the
+matched floor. This reading describes location relative to the saved
+map. The **Carpet boost** setting reports the configured preference.
+The live sensors and position
 marker expire at the provider deadline. An active mission's earlier route
 can remain until the mission ends. The image leaves gaps in the drawing
 when consecutive positions are unavailable. Home Assistant can record room

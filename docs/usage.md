@@ -404,6 +404,10 @@ robot reported along its latest fresh position. Use `mopping` or
 `vacuum_mop` as state conditions for an automation that needs to know
 whether the robot is using the mop. The entity reads as unknown when the
 position expires or the mission ends. [Route telemetry](telemetry.md)
+The **On mapped carpet** binary sensor and map label show when the
+latest position falls on a carpet recorded in the active floor plan.
+The sensor becomes unknown when the live position expires or the floor
+cannot be matched. [Map and carpet readings](telemetry.md)
 The **Last live mission timeline update** sensor exposes the reported
 `stage_started_at` timestamp for the current stage. This can anchor elapsed
 time for a selected cleaning area, including a localized point.
@@ -413,9 +417,12 @@ and shows how many have finished. **Planned order** appears when Roomba
 commits to an order. **Two passes on** describes the requested preference.
 **Completed passes** counts the completion events Roomba supplied for a
 saved zone. A row without confirmed passes can show **Reported pass
-value** from the current or most recent destination event. **In current
-stage** measures the time since Roomba started that cleaning stage.
-The value can restart when the robot begins a new stage.
+value** from the current or most recent destination event. The
+**cleaning** clock totals the time Roomba reported cleaning that
+destination, continues across passes, and holds steady during a pause.
+The same total appears in mission history when the report has timed area
+events. If Roomba only supplies the current stage's start, the live row
+shows **In current stage**.
 
 The **Completed destinations in the current mission**
 sensor can trigger an automation as soon as the first destination finishes.

@@ -46,5 +46,18 @@
   "provider_dock_marker_displacement_cm": 25.63,
   "returned_to_dock": true,
   "final_error_code": 0,
-  "other_robot_commands": 0
+  "other_robot_commands": 0,
+  "household_upgrade": {
+    "previous_version": "0.27.0",
+    "installed_release": "0.66.0",
+    "release_archive_checksum_verified": true,
+    "core_configuration_check_passed": true,
+    "core_restarted": true,
+    "rollback_manifest_preserved": true,
+    "served_card_matches_release": true,
+    "robots": 3,
+    "docks": 3,
+    "dashboard_displayed_confirmed_passes": 2,
+    "robot_commands": 0
+  }
 }

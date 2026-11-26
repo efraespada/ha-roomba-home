@@ -1703,7 +1703,8 @@ test("room publication keeps an open confirmation valid when the available targe
   const { card } = mockCard(0);
   const map = { id: "example", version: "version.43" };
   const geometry = { ...card.geometry, selection_id: "visible-rooms-and-zones" };
-  let reply = { map, robot: "Robot", maps: [], geometry, inventory_id: "published" };
+  let reply = { map, robot: "Robot", maps: [], geometry, inventory_id: "published",
+    current_room: "Office", on_mapped_carpet: true };
   const submissions = [];
   const dialog = { open: false, showModal() { this.open = true; }, close() { this.open = false; } };
   const elements = new Map([["confirm-dialog", dialog]]);
@@ -1732,6 +1733,7 @@ test("room publication keeps an open confirmation valid when the available targe
   card.selected.add(region.id);
   card.review();
   await card.refresh();
+  assert.equal(element("activity").textContent, "Current room · Office · On mapped carpet");
   assert.ok(dialog.open);
   assert.ok(card.selected.has(region.id));
   await card.submit();
@@ -1749,8 +1751,10 @@ test("room publication keeps an open confirmation valid when the available targe
     ...reply,
     inventory_id: "zone-removed",
     geometry: { ...geometry, selection_id: "updated-targets" },
+    on_mapped_carpet: null,
   };
   await card.refresh();
+  assert.equal(element("activity").textContent, "Current room · Office");
   assert.ok(!dialog.open);
   assert.equal(card.selected.size, 0);
   assert.equal(card.roomDraft, roomDraft);
@@ -2309,6 +2313,13 @@ test("live plans show real destination counts, preserve order and disappear when
     "Vacuum · In progress · 1:04 in current stage · Reported pass value 0 · 9 min planned");
   assert.equal(results.children[0].children[1].children[0].children[2].textContent,
     "Requested · Suction 3 · Two passes on · Carpet boost off");
+  card.renderMissionPlan({
+    ...plan, destinations: plan.destinations.map((destination) => destination.kind === "room"
+      ? { ...destination, status: "paused", cleaning_elapsed_seconds: 29, stage_elapsed_seconds: 117 }
+      : destination),
+  });
+  assert.equal(results.children[0].children[1].children[0].children[1].textContent,
+    "Vacuum · Paused · 0:29 cleaning");
   card.renderMissionPlan(null);
   assert.equal(view.hidden, true);
   assert.equal(results.children.length, 0);

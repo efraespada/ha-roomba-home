@@ -1,5 +1,14 @@
 # Roomba Home validation
 
+## Version 0.67.0
+
+The release adds accumulated cleaning time by destination, mapped carpet
+membership, and recovery when a short cleaning job finishes during a return
+request. Validation passed 2,571 Python tests with 100% line and branch
+coverage, 70 card tests, hassfest, and the SDD and privacy checks.
+[Timing validation](#accumulated-destination-cleaning-time) ·
+[Carpet and return validation](#carpet-boost-and-mapped-surface)
+
 ## Version 0.65.0
 
 The release adds one-off area cleaning preferences, explicit selection of
@@ -72,6 +81,33 @@ robot. Roomba reported active cleaning, pause, return, and arrival. The
 action returned `confirmed` at the dock with error code 0, and the
 provider read again found the original map and programs.
 [Anonymized return evidence](evidence/2026-11-26-return-during-cleaning.json)
+
+## Carpet boost and mapped surface
+
+The signed Max 700 Combo floor included a carpet polygon. An isolated
+Home Assistant instance created one temporary 0.72 m² saved zone within
+that polygon and requested vacuuming with suction level 1. Two missions
+used the same zone and changed only the requested carpet boost setting.
+Each run supplied two distinct vacuuming position samples on the mapped
+carpet. The map response and the **On mapped carpet** binary sensor
+classified those positions consistently. Each run also supplied positions
+outside the carpet. The active timeline and signed report preserved false
+in the first mission and true in the second. The observed current-state
+and mission shadows supplied no effective motor power measurement.
+
+The first zone finished as Home Assistant was requesting a pause ahead of
+return. The signed timeline recorded completed zone cleaning, automatic
+travel, then a pause. The robot stopped idle without an error and returned
+after a separate dock request. The regression test replays this transition.
+The return action now proceeds to dock when the same mission becomes idle
+and leaves a different or unverified mission untouched.
+
+The second trial ended with a return request after its readings were
+collected. Signed history contained the interrupted zone result. An
+independent read confirmed the robot at the dock with error code zero,
+the original suction, pass, and boost settings, and removal of the test
+zone. The map layers, routines, and schedules matched the original reads.
+[Anonymized trial evidence](evidence/2026-11-26-mapped-carpet.json)
 
 ## Whole-area and directed cleaning scope
 
@@ -200,7 +236,7 @@ same destination row showed the requested setting, reported pass count,
 and elapsed time at 358 and 900 pixels without overflowing.
 The elapsed value restarted when Roomba reported the second stage.
 Android continued to show accumulated minutes for the whole zone.
-Deriving that accumulated time from the full event sequence remains open.
+The accumulated timer was later reproduced from the full event sequence.
 
 The temporary zones were removed. The saved rooms, zone and policy
 layers, boundaries, routines, and schedules matched the baseline.
@@ -209,6 +245,44 @@ the natural run. Roomba updated robot-detected furniture identifiers
 and moved the dock marker by 25.63 cm in the map while learning from
 the run. The run added no user-saved furniture or cleaning regions.
 [Anonymized zone evidence](evidence/2026-11-26-saved-zone-passes.json)
+
+### Household 0.66.0 upgrade
+
+The 0.66.0 archive downloaded on the household instance matched the
+checksum calculated from the published release archive.
+The household deployment backed up 0.27.0, passed `ha core check`, and
+restarted Core. Home Assistant served the released map card and listed
+all three robots and their three dock devices. The dashboard resource was
+updated to the 0.66.0 URL. The installed card displayed two completed
+passes and the requested suction and pass settings for the real saved-zone
+report. The deployment verification sent no robot commands.
+
+### Accumulated destination cleaning time
+
+The completed two-pass zone report supplied the intervals 51–207 and
+208–366 seconds after mission start. Replaying the report through the
+live decoder recovered 70 seconds at the first Android sample and 220
+seconds during the second pass. Android showed two and four minutes at
+those samples. The signed history reports 314 accumulated seconds.
+
+A separate physical trial used one pass on a temporary saved zone. The
+robot reported the zone starting at second 29 and the pause starting at
+second 58. Android displayed one elapsed minute both early in the
+pause and 72 seconds after it began. The correlated live replay kept
+the cleaning clock at 29 seconds. The robot kept the original area
+timestamp after resume and closed the pause at second 147. The
+following live readings showed 46 and 59 elapsed cleaning seconds.
+The signed report closed the area at second 206 and recorded a second
+pause ahead of docking. Its accumulated cleaning time was 74 seconds.
+An authenticated isolated Home Assistant instance independently
+returned 314 and 74 seconds for the matching signed reports.
+Chrome replayed the live and completed rows at 358 and 900 pixels and
+verified the elapsed time, paused state, and confirmed pass count.
+
+The robot returned to the dock with error code zero. Read-back
+confirmed the original map geometry, saved programs, suction, and
+two-pass setting after the temporary zone was removed.
+[Anonymized timing evidence](evidence/2026-11-26-destination-elapsed.json)
 
 ## Historical map layers
 
