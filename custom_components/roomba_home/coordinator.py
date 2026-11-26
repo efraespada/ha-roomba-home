@@ -68,7 +68,7 @@ from .core.furniture_edits import (
     prepare_furniture_restore,
 )
 from .core.furniture_targets import furniture_regions
-from .core.help_catalog import current_help_articles
+from .core.help_catalog import current_help_articles, setup_guide_for
 from .core.history import (
     ended_mission_start,
     history_includes_mission,
@@ -2159,6 +2159,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         return {
             "robot": state.name,
             **catalog,
+            "setup_guide": setup_guide_for(state.sku),
             "current_articles": current_help_articles(catalog["articles"], problems),
         }
 

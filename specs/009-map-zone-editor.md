@@ -3,7 +3,7 @@
 - Status: Draft
 - Date: 2026-11-24
 - Catalog capability ID: map-zone-editor
-- Last verified: 2026-11-25
+- Last verified: 2026-11-26
 - Owners: ha-roomba-home maintainer
 - Scope: Preview and save floor settings, room names and boundaries, cleaning zones, restrictions, and furniture on an associated Roomba floor. Capture and browse private local backups.
 - Related issues/PRs: Follow-up to the interactive floor plan.
@@ -252,7 +252,10 @@ each confirmation to one program, its active floor, and the proposed ordered
 destinations and profiles. Later changes to surviving destinations prevent
 the recovery, and partial reads identify the unavailable program source.
 Complete floor recovery requires proof
-that Roomba restores the archive to its usable floor inventory.
+that Roomba restores the archive to its usable floor inventory. Reading
+the exact bytes of an inactive revision establishes archive availability.
+The inspected SDK action to revert user edits accepts no target revision.
+[ClearView archive investigation](../docs/validation.md#clearview-archive-recovery)
 
 Restriction recovery requires supported policy layers in the archived and
 active floor and the same boundary digest. Apply the stored outlines and

@@ -1,5 +1,23 @@
 # Roomba Home validation
 
+## First-clean preparation
+
+In Android, the Max 700 Combo device page opens a separate Robot Help
+walkthrough. The first two steps show the matching A and B side brush
+mounts and the clean water tank with its optional detergent reservoir.
+The lower section checks the robot charge and prepares the rooms. The
+Home Assistant checklist presents the same four steps in order and links
+to iRobot's unboxing guide. It uses English text and Home Assistant icons.
+[iRobot unboxing guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20503)
+
+An authenticated local Home Assistant instance linked only to the trial
+robot returned the same four steps from the WebSocket command and
+response action with maps disabled. The linked unboxing guide returned
+HTTP 200. The robot stayed docked. The full suite passed 2,610 Python
+tests with 100% statement and branch coverage, 74 card tests, and
+the official hassfest integration checks.
+[Anonymized evidence](evidence/2026-11-26-first-clean-preparation.json)
+
 ## Robot help after moving a card
 
 A Chromium browser reproduced the modal losing its top-layer state when the
@@ -106,6 +124,20 @@ byte while the active version was different. Android displayed the map
 legend and timeline for an inspected older report. Reactivating the
 earlier provider revision remains open.
 [Anonymized trial and restoration evidence](evidence/2026-11-26-short-routine-auto-emptying.json)
+
+### ClearView archive recovery
+
+The Android Max 700 Combo report showed the original map legend, cleaning
+statistics, and timeline for an older mission. Its inspected detail view
+offered no action to activate that map. iRobot's support guide excludes
+this model from its current map save and retrieval workflow.
+[iRobot save and retrieval guide](https://homesupport.irobot.com/articles/en_US/Knowledge/53000)
+
+The inspected client SDK declares `revert_user_edits` for an identified
+map with an empty command parameter object. The declaration has no input
+for choosing a saved version. This investigation used read-only checks
+and left the active revision untouched. End-to-end reactivation of the
+original archived geometry remains open.
 
 ## Version 0.67.0
 

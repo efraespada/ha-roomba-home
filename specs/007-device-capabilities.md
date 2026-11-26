@@ -48,7 +48,7 @@ model catalogs where applicable.
 | Change Wi-Fi | App entry point observed; setup protocol and recovery require verification |
 | Factory reset and remove robot | App entry point observed; account removal, device reset, and recovery require verification |
 | Part SKUs and replacement or care links | Validated model catalog projected on existing sensors and in the maintenance view |
-| General user guide and robot help | The card and an action expose the verified manual, setup links and diagnostic code lookup. Android also has an [illustrated setup walkthrough](../docs/roadmap.md#android-setup-walkthrough). |
+| General user guide and robot help | The card and an action expose the verified manual, setup links, diagnostic code lookup, and four-step Max 700 Combo preparation checklist. |
 
 [Android device settings comparison](../docs/validation.md#android-device-settings-comparison)
 
@@ -104,6 +104,10 @@ becoming an indiscriminately false or zero.
   families and link only documented current faults. Authorize card reads
   using the selected vacuum's read permissions and keep help usable when
   maps are disabled.
+- CAP-22: Present the four verified setup steps for the Max 700 Combo
+  inside Robot help and include them in its read response. Match the
+  Android order and link iRobot's instructions. Unknown models return
+  no checklist. Opening it has no device or account side effects.
 
 No endpoints, maps and empty states are invented with HA entities or capabilities. No
 physical errors are induced and no maps, accounts or data beyond the test have been
@@ -413,6 +417,10 @@ with API operations.
     card response and action return with maps disabled.
     Move the card to another dashboard container while help is open.
     Restore the native modal and preserve the selected article.
+22. Confirm that the Max 700 Combo checklist starts collapsed and expands
+    to show brush placement, filling the dock, charging, and preparing
+    the rooms in that order. Check that the read-only action and card
+    agree and that an unverified SKU omits the checklist.
 
 ## 17. Requirements traceability
 
@@ -438,6 +446,7 @@ with API operations.
 | CAP-19 | Maintenance view and part sensor attributes | [Catalog parser tests](../tests/test_maintenance.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [catalog validation](../docs/validation.md#maintenance-catalog-and-links) |
 | CAP-20 | Dock emptying selector and existing area number | [Native values](../docs/api.md#automatic-dock-emptying), [entity tests](../tests/ha/test_cleaning_controls.py), [write confirmation tests](../tests/ha/test_coordinator.py), and [signed trial](../docs/validation.md#automatic-dock-emptying-frequency) |
 | CAP-21 | Robot help panel and read action | [Catalog and article validation](../docs/validation.md#robot-help-catalog), [protocol tests](../tests/test_help_catalog.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [panel tests](../tests/frontend/map-card.test.cjs) |
+| CAP-22 | Max 700 Combo first-clean checklist | [Android comparison](../docs/validation.md#first-clean-preparation), [model tests](../tests/test_help_catalog.py), [action tests](../tests/ha/test_cleaning_controls.py), and [panel tests](../tests/frontend/map-card.test.cjs) |
 
 CAP-09 includes floor plans, room labels, position, heading, trajectory,
 coverage, and estimates supported by Roomba. Enable the map option to expose

@@ -305,7 +305,14 @@ async def test_robot_help_is_a_response_only_action_that_never_commands_the_robo
         blocking=True,
         return_response=True,
     )
-    assert result["vacuum.robot_0"] == {"robot": robot.name, **catalog, "current_articles": []}
+    report = result["vacuum.robot_0"]
+    guide = report.pop("setup_guide")
+    assert [step["id"] for step in guide["steps"]] == ["brushes", "water", "charge", "rooms"]
+    assert report == {
+        "robot": robot.name,
+        **catalog,
+        "current_articles": [],
+    }
     loaded.client.robot_help.assert_awaited_once_with(robot.sku, hass.config.language)
     loaded.async_command.assert_not_awaited()
 
