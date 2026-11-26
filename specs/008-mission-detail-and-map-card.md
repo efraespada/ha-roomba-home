@@ -165,6 +165,9 @@ number. Display the provider's start time for its recognized current stage
 when the timestamp belongs to the active mission. Query and report correlation prevents
 stale replies from changing current telemetry. Preserve in-progress area
 measurements from `event` separately from final results in `finEvents`.
+Collect explicitly requested timelines independently of shadow completion
+and position sampling. Keep accepted state when a timeline reaches the
+shared MQTT deadline without a matched reply.
 Compute elapsed seconds fresh for floor-plan reads during an active
 room or zone stage with one matching destination. Hide this time during a
 pause or travel and when the start time is missing or out of scope.

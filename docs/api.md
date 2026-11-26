@@ -1126,7 +1126,10 @@ anchor. Direct positions retain priority and drive position expiry.
 The active timeline uses `mission/timeline/request` with integer
 `timelineRequestId` and replies on `mission/timeline/report`. Start and
 relocation events were confirmed for the current mission. The reader matches
-the reply nonce and `nMssn` and discards retained or malformed replies. It
+the reply nonce and `nMssn` and discards retained or malformed replies. An
+explicit timeline request can finish after the state shadow and position
+sample. The reader waits for the matched reply within the existing MQTT
+deadline and keeps accepted state if the timeline is unavailable. It
 projects a recognized stage and in-progress room readings from `event` and
 final room results from `finEvents`. The timestamp in the current event's
 `ts` becomes `stage_started_at` on the live timeline sensor when it falls

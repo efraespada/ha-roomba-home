@@ -211,6 +211,7 @@ class MqttShadowReader:
                 if report is not None:
                     with received:
                         reports[robot_id] = report
+                        received.notify_all()
                 return
             identity = expected.get(message.topic)
             if identity is None:
@@ -298,6 +299,11 @@ class MqttShadowReader:
                             recent.append(item)
                         positions[robot_id] = list(reversed(recent))
                 if timelines is not None:
+                    if report_topics and not failed:
+                        received.wait_for(
+                            lambda: len(reports) == len(report_topics),
+                            timeout=deadline - time.monotonic(),
+                        )
                     timelines.update(reports)
                 if raw_routes is not None:
                     raw_routes.update(references)
