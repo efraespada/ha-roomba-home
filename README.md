@@ -137,7 +137,12 @@ threshold. [Dock settings and automation example](docs/usage.md#dock-settings)
 ![Installed Home Assistant report excerpt showing a bin emptying stage with zero recorded emptyings](docs/screenshots/roomba-history-emptying.png)
 
 Open **Cleaning history** on the floor plan card to inspect the reported
-outcome, measurements, and timeline. [History controls](docs/usage.md#cleaning-history)
+outcome, measurements, and timeline. Expand **Results by area** to
+see the reported target size and the area measured in completed passes for
+a saved zone. In a verified two-pass vacuum run, Roomba reported a 2.51 m²
+target, 2.69 m² across the passes, and a separate mission total of 2.79 m².
+[History controls](docs/usage.md#cleaning-history) ·
+[Two-pass trial](docs/validation.md#saved-zone-area-measurements)
 
 ## Robot help
 

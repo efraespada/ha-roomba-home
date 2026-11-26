@@ -37,5 +37,31 @@
     "target_area_sqft": 27,
     "prior_completed_pass_sqft": 36,
     "canceled_pass_total_area": -36
+  },
+  "controlled_home_assistant_mission": {
+    "scope": "single saved zone on a disposable floor",
+    "action": "roomba_home.clean_regions",
+    "requested_mode": "vacuum",
+    "requested_passes": 2,
+    "rectangle_m2": 2.56,
+    "outcome": "completed",
+    "duration_minutes": 3,
+    "reported_target_area_sqft": 27,
+    "completed_passes_sqft": [15, 14],
+    "mission_cleaned_sqft": 30,
+    "live_zone_measurement_available": false,
+    "authenticated_home_assistant_results": {
+      "target_area_m2": 2.51,
+      "completed_passes_area_m2": 2.69,
+      "mission_area_m2": 2.79,
+      "confirmed_completed_passes": 2,
+      "previous_archived_reports_checked": 3
+    },
+    "restoration": {
+      "disposable_floor_removed": true,
+      "original_floor_and_programs_verified": true,
+      "original_settings_verified": true,
+      "robot_docked": true
+    }
   }
 }
