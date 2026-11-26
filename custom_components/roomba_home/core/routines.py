@@ -18,6 +18,7 @@ FAVORITES_PATH = "/v1/user/favorites"
 APP_EDITION = {"app_edition": "1"}
 ROUTINE_ID = re.compile(r"[0-9a-fA-F]{32}")
 ROUTINE_ITEM_PATH = re.compile(rf"{FAVORITES_PATH}/{ROUTINE_ID.pattern}")
+ROUTINE_ORDER_PATH = re.compile(rf"{ROUTINE_ITEM_PATH.pattern}/order")
 _ROUTINE_COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 _ROUTINE_COMMAND_FIELDS = {
     "robot_id",
@@ -82,6 +83,11 @@ class CleaningRoutine:
     def command(self) -> dict:
         return self.payload["commanddefs"][0]
 
+    @property
+    def display_order(self) -> int | None:
+        order = self.payload.get("display_order")
+        return order if type(order) is int else None
+
     def action_response(self) -> dict:
         map_id = self.command.get("p2map_id")
         regions = self.command.get("regions")
@@ -122,6 +128,8 @@ class CleaningRoutine:
             result["ordered"] = False
         if (estimate := _routine_estimate(self.payload.get("time_estimates"))) is not None:
             result["estimate"] = estimate
+        if self.display_order is not None:
+            result["display_order"] = self.display_order
         return result
 
 
@@ -261,7 +269,17 @@ def cleaning_routines(document: object, robot_id: str) -> dict[str, CleaningRout
         if identifier in result:
             raise ProtocolError("Roomba returned a duplicate routine identifier.")
         result[identifier] = CleaningRoutine(identifier, name, item)
-    return result
+    return dict(
+        sorted(
+            result.items(),
+            key=lambda item: (item[1].display_order is None, item[1].display_order or 0),
+        )
+    )
+
+
+def ranked_routine_ids(rows: dict[str, CleaningRoutine]) -> tuple[str, ...] | None:
+    ranks = {row.display_order for row in rows.values()}
+    return tuple(rows) if None not in ranks and len(ranks) == len(rows) else None
 
 
 def routine_command(robot_id: str, target: AreaTarget, timestamp: int = 0) -> dict:

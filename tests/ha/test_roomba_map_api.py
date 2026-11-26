@@ -2418,6 +2418,39 @@ async def test_quick_list_with_a_changed_floor_or_expired_session_returns_no_dra
     assert error.value.translation_key == "map_unavailable"
 
 
+async def test_routine_reorder_service_returns_the_verified_list_and_detects_stale_order(
+    hass, configured, hass_owner_user
+):
+    first, second = "1" * 32, "2" * 32
+    rows = [{"id": second, "display_order": 0}, {"id": first, "display_order": 1}]
+    reorder = configured.client.reorder_cleaning_routine = AsyncMock(return_value=rows)
+    data = {"entity_id": ENTITY, "routine_id": second, "anchor_id": first, "position": "before"}
+    context = Context(user_id=hass_owner_user.id)
+    result = await hass.services.async_call(
+        DOMAIN,
+        "reorder_cleaning_routine",
+        data,
+        blocking=True,
+        return_response=True,
+        context=context,
+    )
+    assert result[ENTITY] == {"routines": rows}
+    reorder.assert_awaited_once_with("fixture-0", second, first, "before", expected_order=None)
+    reorder.side_effect = ProgramSelectionChanged
+    with pytest.raises(HomeAssistantError) as error:
+        await hass.services.async_call(
+            DOMAIN,
+            "reorder_cleaning_routine",
+            data | {"expected_order": [first, second]},
+            blocking=True,
+            context=context,
+        )
+    assert error.value.translation_key == "routine_order_changed"
+    reorder.assert_awaited_with(
+        "fixture-0", second, first, "before", expected_order=[first, second]
+    )
+
+
 async def test_routine_actions_resolve_furniture_and_run_in_saved_order(
     hass, hass_ws_client, configured, picea_archive, furniture_feature, hass_owner_user
 ):

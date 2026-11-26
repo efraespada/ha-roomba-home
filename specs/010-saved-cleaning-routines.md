@@ -89,6 +89,9 @@ calendar trigger and may carry an independent copy of a routine.
   copy them into a new named routine.
 - ROUTINE-17: Read and edit a saved routine's icon and color independently
   of its cleaning plan and estimate. Copy its appearance when duplicating.
+- ROUTINE-18: Display native list ranks and move an editable routine before
+  or after another saved routine for the same robot. Preserve the individual
+  routine commands and reject a stale displayed order before publishing.
 - Saving, updating, and removing a routine leave the robot's movement state alone.
 - The supported edition 1 favorites each address one robot. Multi-robot
   favorite commands require separate protocol evidence.
@@ -319,6 +322,10 @@ saved routines and scheduled cleaning independently identifiable.
     verify both values in the signed read. Preserve the command and metadata
     on an appearance-only edit. Verify that duplication copies the appearance
     and that the native default remains readable.
+16. Change the list position of two saved routines for the same robot.
+    Verify both directions, the unchanged cleaning commands, and the
+    confirmed order in the signed list. Reject a stale review and preserve
+    the open draft when the move succeeds.
 
 ## 17. Requirements traceability
 
@@ -340,6 +347,7 @@ saved routines and scheduled cleaning independently identifiable.
 | ROUTINE-15 | [Remembered profiles](../custom_components/roomba_home/core/area_preferences.py) | [Parser tests](../tests/test_area_preferences.py), [floor projection tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed routine trial](../docs/validation.md#remembered-area-cleaning-preferences) |
 | ROUTINE-16 | [Floor plan card](../custom_components/roomba_home/frontend/roomba-home-map-card.js) and [reviewed start](../custom_components/roomba_home/vacuum.py) | [Card tests](../tests/frontend/map-card.test.cjs) and [one-off trial](../docs/validation.md#one-off-area-cleaning) |
 | ROUTINE-17 | [Favorite appearance](../custom_components/roomba_home/core/routines.py) | [Client tests](../tests/test_api_client.py), [action tests](../tests/ha/test_schedules.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed round trip](../docs/validation.md#routine-appearance) |
+| ROUTINE-18 | [Native list order protocol](../docs/api.md#saved-cleaning-routines) | [Client tests](../tests/test_api_client.py), [action tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed order trial](../docs/validation.md#saved-routine-display-order) |
 
 ## 18. Implementation sequence
 

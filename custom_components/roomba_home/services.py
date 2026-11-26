@@ -329,6 +329,22 @@ def async_setup_services(hass):
     service.async_register_platform_entity_service(
         hass,
         DOMAIN,
+        "reorder_cleaning_routine",
+        entity_domain=VACUUM_DOMAIN,
+        schema={
+            vol.Required("routine_id"): SAVED_ROUTINE_ID,
+            vol.Required("anchor_id"): SAVED_ROUTINE_ID,
+            vol.Required("position"): vol.In(("before", "after")),
+            vol.Optional("expected_order"): vol.All(
+                [SAVED_ROUTINE_ID], vol.Length(min=2), vol.Unique()
+            ),
+        },
+        func="async_reorder_cleaning_routine",
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
         "run_cleaning_routine",
         entity_domain=VACUUM_DOMAIN,
         required_features=[VacuumEntityFeature.CLEAN_AREA],

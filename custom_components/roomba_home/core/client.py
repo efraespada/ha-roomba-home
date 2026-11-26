@@ -40,8 +40,10 @@ from .routines import (
     APP_EDITION,
     FAVORITES_PATH,
     ROUTINE_ITEM_PATH,
+    ROUTINE_ORDER_PATH,
     cleaning_routines,
     new_routine,
+    ranked_routine_ids,
     routine_appearance,
     routine_command,
     routine_matches,
@@ -228,6 +230,8 @@ class RoombaClient:
         if method not in {"GET", "POST"} and not (
             method in {"PUT", "DELETE"}
             and (SCHEDULE_ITEM_PATH.fullmatch(path) or ROUTINE_ITEM_PATH.fullmatch(path))
+            or method == "PUT"
+            and ROUTINE_ORDER_PATH.fullmatch(path)
         ):
             raise ValueError("This method is not supported for the requested API path.")
         session = await self.ensure_session()
@@ -628,6 +632,45 @@ class RoombaClient:
 
         await self._confirm_write(self._favorite_documents, removed, RoutineUpdateUnconfirmed)
         return {"id": routine_id, "removed": True}
+
+    async def reorder_cleaning_routine(
+        self, robot_id, routine_id, anchor_id, position, *, expected_order=None
+    ) -> list[dict]:
+        rows = await self._associated_routines(robot_id)
+        current = ranked_routine_ids(rows)
+        if (
+            current is None
+            or (routine := rows.get(routine_id)) is None
+            or routine.payload.get("default")
+            or anchor_id not in rows
+            or anchor_id == routine_id
+            or position not in {"before", "after"}
+        ):
+            raise RoutineNotEditable("Select two distinct routines with a verified display order.")
+        if expected_order is not None and tuple(expected_order) != current:
+            raise ProgramSelectionChanged
+        reordered = [identity for identity in current if identity != routine_id]
+        index = reordered.index(anchor_id) + (position == "after")
+        reordered.insert(index, routine_id)
+        requested = tuple(reordered)
+        if requested == current:
+            return [row.action_response() for row in rows.values()]
+
+        await self._mutate_cloud_object(
+            "PUT",
+            f"{FAVORITES_PATH}/{routine_id}/order",
+            params=APP_EDITION | {f"insert_{position}": anchor_id},
+            allow_empty=True,
+        )
+
+        def match(updated):
+            if ranked_routine_ids(updated) != requested or any(
+                updated[identity].command != original.command for identity, original in rows.items()
+            ):
+                return None
+            return [row.action_response() for row in updated.values()]
+
+        return await self._confirm_routine(robot_id, match)
 
     async def _confirm_routine(self, robot_id, match):
         async def read():

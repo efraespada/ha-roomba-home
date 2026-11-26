@@ -1,5 +1,27 @@
 # Roomba Home validation
 
+## Saved routine display order
+
+The native order endpoint moved two temporary Max 700 Combo routines
+before and after one another. Both requests returned HTTP 200. Confirming
+reads showed the requested relative order when sorted by `display_order`.
+The response array alone did not reflect the display ranks. The signed
+read-back retained every cleaning command and the relative order of the
+original six routines.
+
+The temporary routines were removed without starting a mission. A separate
+signed read verified the original list, names, settings, and order.
+Roomba reassigned the numeric display ranks and both internal modification
+timestamps for the six original records. Those were the only changed
+fields.
+
+An authenticated Home Assistant connection returned the two original
+R2-D2 routines in their ranked order. The reorder action returned that
+same list for a position already in effect and rejected a stale reviewed
+order. A signed comparison found the collection unchanged after these
+Home Assistant calls. R2-D2 remained docked.
+[Anonymized routine order trial](evidence/2026-11-26-routine-display-order.json)
+
 ## Live saved-zone passes
 
 Home Assistant started a two-pass vacuum run in a 9.92 m² test rectangle
@@ -15,7 +37,9 @@ through the authenticated floor-plan command and the live timeline
 sensor. The plan showed **Pass 2** and one completed pass. The target
 was 9.85 m² and the confirmed pass measured 5.76 m². A signed duration
 request on this disposable floor returned HTTP 404 with both the empty
-zone selector and the saved-zone selector.
+zone selector and the saved-zone selector. A later positive control on the
+usual floor returned 36 profile estimates for a known room. That floor had
+no saved zones at the time of the read.
 
 Roomba returned 65 matching timelines for 66 requests. The final live
 completion measured 63 ft² for the second pass. The signed archive
