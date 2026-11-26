@@ -247,7 +247,8 @@ preferences and start the same vacuum entity.
 | Next two passes and next carpet boost | Request the corresponding settings when supported |
 | Suction, default mop wetness, SmartScrub, two passes, and carpet boost | Write the robot's default while idle and confirm it with a later read |
 | Reset next cleaning preferences | Clears the local preference and restores the default mode without moving the robot |
-| Area for automatic emptying | Sets the dock area threshold in m² when that capability is reported |
+| Auto-empty frequency | Selects after each routine, every 25 m², or every 50 m² on the linked dock |
+| Auto-empty area | Sets a custom area threshold on the linked dock |
 | Empty bin | Requests manual emptying at a compatible dock |
 
 Next-cleaning preferences stay local to Home Assistant and survive reloads.
@@ -727,6 +728,8 @@ Open the robot's linked dock device and find these configuration entities.
 
 | Entity | Choices |
 | --- | --- |
+| Auto-empty frequency | After each routine, Every 25 m², or Every 50 m² |
+| Auto-empty area | 10–1000 m², with Home Assistant unit conversion |
 | Mop wash temperature | Room temperature, Hot, Very hot |
 | Mop wash frequency | Standard washes before and after cleaning. Medium adds washes during refills. High also washes between rooms. |
 | Automatic cleaning solution | Enable or disable the dock's automatic StayClean dispensing |
@@ -735,6 +738,22 @@ Open the robot's linked dock device and find these configuration entities.
 Choose a setting while the robot is connected and idle or docked. Home
 Assistant confirms the new value from Roomba. Use the separate dock buttons
 to run a wash or dry cycle. [Max 700 firmware notes](https://homesupport.irobot.com/articles/en_US/Knowledge/70550)
+
+The area entity keeps its existing ID and shows an unknown value when
+**After each routine** is active. Setting an area switches back to emptying
+by area. When a verified threshold differs from both presets, the selector
+shows **Custom area**. Set the threshold on the number entity.
+
+For example, set emptying after each routine on your linked dock. Replace
+the example entity ID with the one from the dock's device page.
+
+```yaml
+action: select.select_option
+target:
+  entity_id: select.example_dock_auto_empty_frequency
+data:
+  option: after_each_routine
+```
 
 ```yaml
 actions:

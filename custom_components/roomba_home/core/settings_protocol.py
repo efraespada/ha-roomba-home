@@ -6,6 +6,7 @@ from .capabilities import DeviceCapabilities
 from .cleaning import CleaningCapabilities
 from .telemetry import convert
 
+AUTO_EVACUATION_AFTER_ROUTINE = 0
 AUTO_EVACUATION_MIN_AREA = 10
 AUTO_EVACUATION_MAX_AREA = 1000
 MIN_VOICE_VOLUME = 0
@@ -39,16 +40,19 @@ class RobotSetting(StrEnum):
             return convert("robot_name", value) is not None
         if self in (RobotSetting.CHILD_PET_LOCK, RobotSetting.AUTOMATIC_DETERGENT):
             return type(value) is bool
-        if options := DOCK_SETTING_OPTIONS.get(self):
-            return type(value) is int and value in options.values()
-        if option := _SWITCH_OPTIONS.get(self):
-            return type(value) is bool and capabilities.supports_option(option)
         if self is RobotSetting.AUTO_EVACUATION_AREA:
             return (
                 capabilities.auto_evacuation_area is True
                 and type(value) is int
-                and AUTO_EVACUATION_MIN_AREA <= value <= AUTO_EVACUATION_MAX_AREA
+                and (
+                    value == AUTO_EVACUATION_AFTER_ROUTINE
+                    or AUTO_EVACUATION_MIN_AREA <= value <= AUTO_EVACUATION_MAX_AREA
+                )
             )
+        if options := DOCK_SETTING_OPTIONS.get(self):
+            return type(value) is int and value in options.values()
+        if option := _SWITCH_OPTIONS.get(self):
+            return type(value) is bool and capabilities.supports_option(option)
         field = "suction_level" if self is RobotSetting.SUCTION else "wetness_level"
         return type(value) is int and 1 <= value <= capabilities.maximum_level(field)
 
@@ -91,6 +95,11 @@ class RobotSetting(StrEnum):
 
 
 DOCK_SETTING_OPTIONS = {
+    RobotSetting.AUTO_EVACUATION_AREA: {
+        "after_each_routine": AUTO_EVACUATION_AFTER_ROUTINE,
+        "every_25_m2": 25,
+        "every_50_m2": 50,
+    },
     RobotSetting.PAD_WASH_TEMPERATURE: {"room_temperature": 0, "hot": 1, "very_hot": 2},
     RobotSetting.PAD_WASH_FREQUENCY: {"standard": 100, "medium": 101, "high": 102},
     RobotSetting.PAD_DRY_DURATION: {"three_hours": 3, "four_hours": 4, "five_hours": 5},

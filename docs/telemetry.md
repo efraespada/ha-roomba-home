@@ -328,7 +328,7 @@ binary sensors. Code and level sensors retain the provider's scale. The
 | System: hours | h | `ro-stats` → `bbsys.hr` |
 | System: minutes | min | `ro-stats` → `bbsys.min` |
 | Configure volume | Informed Value | `rw-settings` → `audio.volume` |
-| automatic emptying | Informed Value | `rw-settings` → `autoevacFreq` |
+| Automatic evacuation frequency code | 0 after each routine, or threshold in m² for the verified Max 700 Combo scheme | `rw-settings` → `autoevacFreq` |
 | Carpet boost | bool | `rw-settings` → `carpetBoost` |
 | Children's registration | bool | `rw-settings` → `childLock` |
 | Green Loading | bool | `rw-settings` → `ecoCharge` |

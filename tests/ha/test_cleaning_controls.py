@@ -10,6 +10,7 @@ from homeassistant.components.button import ButtonDeviceClass
 from homeassistant.const import EntityCategory
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.roomba_home.button import RoombaResetProfile
@@ -734,11 +735,18 @@ async def test_auto_evacuation_area_belongs_to_its_dock_and_preserves_existing_s
 
     area = entity_id(hass, entry, "number", "auto_evacuation_area")
     code = entity_id(hass, entry, "sensor", "auto_evacuation_frequency")
+    frequency = entity_id(hass, entry, "select", "auto_empty_frequency")
     dock_id = registry.async_get(area).device_id
     robot_id = registry.async_get("vacuum.robot_0").device_id
     assert registry.async_get(code).device_id == robot_id
     assert dr.async_get(hass).async_get(dock_id).parent_device_id == robot_id
     assert registry.async_get(area).entity_category == EntityCategory.CONFIG
+    assert registry.async_get(frequency).device_id == dock_id
+    assert registry.async_get(frequency).entity_category == EntityCategory.CONFIG
+    assert entity_id(hass, entry, "select", "auto_empty_frequency", "fixture-1") is None
+    assert hass.states.get(frequency).state == "every_25_m2"
+    native_options = ["after_each_routine", "every_25_m2", "every_50_m2"]
+    assert hass.states.get(frequency).attributes["options"] == native_options
     number = hass.states.get(area)
     assert float(number.state) == 25 and number.attributes["unit_of_measurement"] == "m²"
     assert number.attributes["min"] == 10 and number.attributes["max"] == 1000
@@ -766,6 +774,57 @@ async def test_auto_evacuation_area_belongs_to_its_dock_and_preserves_existing_s
     )
     registry.async_update_entity_options(area, "number", {"unit_of_measurement": "m²"})
     await hass.async_block_till_done()
+    coordinator.async_set_robot_setting.reset_mock()
+
+    for choice, requested in zip(native_options, (0, 25, 50), strict=True):
+        await hass.services.async_call(
+            "select", "select_option", {"entity_id": frequency, "option": choice}, blocking=True
+        )
+        assert coordinator.async_set_robot_setting.await_args.args == (
+            robot,
+            RobotSetting.AUTO_EVACUATION_AREA,
+            requested,
+        )
+    coordinator.async_set_robot_setting.reset_mock()
+    for reported, selected in ((0, "after_each_routine"), (37, "custom_area")):
+        updated = replace(
+            robot_states[robot], telemetry={**telemetry, "auto_evacuation_frequency": reported}
+        )
+        coordinator.async_set_updated_data({**robot_states, robot: updated})
+        await hass.async_block_till_done()
+        assert hass.states.get(frequency).state == selected
+        assert hass.states.get(frequency).attributes["options"] == (
+            native_options if reported == 0 else [*native_options, "custom_area"]
+        )
+        if reported == 0:
+            assert hass.states.get(area).state == "unknown"
+            assert hass.states.get(code).state == "0"
+            await hass.services.async_call(
+                "number", "set_value", {"entity_id": area, "value": 37}, blocking=True
+            )
+            coordinator.async_set_robot_setting.assert_awaited_once_with(
+                robot, RobotSetting.AUTO_EVACUATION_AREA, 37
+            )
+        else:
+            assert float(hass.states.get(area).state) == 37
+            await hass.services.async_call(
+                "select",
+                "select_option",
+                {"entity_id": frequency, "option": "custom_area"},
+                blocking=True,
+            )
+            assert coordinator.async_set_robot_setting.await_count == 1
+
+    (number_platform,) = (
+        platform
+        for platform in entity_platform.async_get_platforms(hass, DOMAIN)
+        if platform.domain == "number"
+    )
+    with pytest.raises(HomeAssistantError) as error:
+        await number_platform.entities[area].async_set_native_value(0)
+    assert error.value.translation_key == "unsupported_robot_setting"
+    assert coordinator.async_set_robot_setting.await_count == 1
+
     for unavailable in (
         replace(robot_states[robot], capabilities=replace(device, dock=DockCapabilities())),
         replace(robot_states[robot], telemetry={**telemetry, "auto_evacuation_frequency": 4}),
@@ -773,9 +832,11 @@ async def test_auto_evacuation_area_belongs_to_its_dock_and_preserves_existing_s
         coordinator.async_set_updated_data({**robot_states, robot: unavailable})
         await hass.async_block_till_done()
         assert hass.states.get(area).state == "unavailable"
+        assert hass.states.get(frequency).state == "unavailable"
     coordinator.async_set_updated_data(robot_states)
     await hass.async_block_till_done()
     assert entity_id(hass, entry, "number", "auto_evacuation_area") == area
+    assert entity_id(hass, entry, "select", "auto_empty_frequency") == frequency
     assert float(hass.states.get(area).state) == 25
 
 

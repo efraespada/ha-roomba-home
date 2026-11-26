@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.68.0
+
+- Choose automatic dock emptying after each routine, every 25 m², or
+  every 50 m². The existing area control also supports custom thresholds,
+  including when per-routine emptying is selected.
+
 ## 0.67.0
 
 - Show each destination's accumulated cleaning time across passes and

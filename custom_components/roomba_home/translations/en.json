@@ -585,6 +585,15 @@
       }
     },
     "select": {
+      "auto_empty_frequency": {
+        "name": "Auto-empty frequency",
+        "state": {
+          "after_each_routine": "After each routine",
+          "every_25_m2": "Every 25 m²",
+          "every_50_m2": "Every 50 m²",
+          "custom_area": "Custom area"
+        }
+      },
       "voice_language": {
         "name": "Voice language",
         "state": {

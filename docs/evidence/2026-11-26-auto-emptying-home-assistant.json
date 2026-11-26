@@ -1,0 +1,41 @@
+{
+  "model": "Roomba Max 700 Combo (X185240)",
+  "source": "Authenticated isolated Home Assistant and independent signed Roomba settings",
+  "transitions": [
+    {
+      "option": "after_each_routine",
+      "signed_frequency": 0,
+      "area_state": "unknown",
+      "authenticated_action": "select.select_option"
+    },
+    {
+      "option": "every_50_m2",
+      "signed_frequency": 50,
+      "area_state": "50",
+      "authenticated_action": "select.select_option"
+    },
+    {
+      "option": "after_each_routine",
+      "signed_frequency": 0,
+      "area_state": "unknown",
+      "authenticated_action": "select.select_option"
+    },
+    {
+      "option": "custom_area",
+      "signed_frequency": 37,
+      "area_state": "37",
+      "authenticated_action": "number.set_value"
+    },
+    {
+      "option": "every_25_m2",
+      "signed_frequency": 25,
+      "area_state": "25",
+      "authenticated_action": "select.select_option"
+    }
+  ],
+  "original_frequency_restored": 25,
+  "docked_and_error_free": true,
+  "missions_unchanged": true,
+  "other_settings_unchanged": true,
+  "maps_routines_and_schedules_unchanged": true
+}
