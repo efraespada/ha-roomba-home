@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from custom_components.roomba_home.core import mqtt
 from custom_components.roomba_home.core.errors import ProtocolError
 from custom_components.roomba_home.core.live_maps import PositionBatch
 from custom_components.roomba_home.core.models import CloudSession
@@ -494,3 +495,48 @@ def test_timeline_read_uses_current_mission_and_ignores_invalid_reports():
     assert replies[0].accepted
     assert reports[robot].mission_number == 19
     assert reports[robot].stage == "start"
+
+
+@pytest.mark.parametrize("deliver_report", [True, False])
+@pytest.mark.parametrize("sample_positions", [True, False])
+def test_timeline_read_waits_after_shadow_and_position_window(
+    monkeypatch, deliver_report, sample_positions
+):
+    monkeypatch.setattr(mqtt, "POSITION_SAMPLE_SECONDS", 0.01)
+    prefix = "fixture-irbt/things/fixture-robot"
+    request_topic = f"{prefix}/mission/timeline/request"
+
+    class DelayedTimelineBroker(Broker):
+        timer = None
+
+        def publish(self, topic, body, **kwargs):
+            if topic != request_topic:
+                return super().publish(topic, body, **kwargs)
+            if deliver_report:
+                document = json.loads(body) | {"nMssn": 19, "event": [{"type": "zone", "ts": 5}]}
+                message = SimpleNamespace(
+                    topic=f"{prefix}/mission/timeline/report", payload=json.dumps(document).encode()
+                )
+                self.timer = threading.Timer(0.03, self.on_message, args=(self, None, message))
+                self.timer.start()
+            return SimpleNamespace(rc=0)
+
+        def loop_stop(self):
+            if self.timer is not None:
+                self.timer.join()
+            super().loop_stop()
+
+    broker = DelayedTimelineBroker()
+    reports = {}
+    (shadow,) = run_reader(broker, timeout=0.25).read(
+        ["ro-currentstate"],
+        live_topics={LIVE_TOPIC: "fixture-robot"},
+        positions={} if sample_positions else None,
+        timeline_requests={"fixture-robot": 19},
+        timelines=reports,
+    )
+    assert shadow.accepted and broker.closed and broker.stopped
+    if deliver_report:
+        assert reports["fixture-robot"].stage == "zone"
+    else:
+        assert reports == {}
