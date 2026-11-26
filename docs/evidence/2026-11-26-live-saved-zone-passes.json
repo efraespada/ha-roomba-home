@@ -81,7 +81,14 @@
     "confirmed_completed_passes": 1,
     "target_area_m2": 9.85,
     "completed_passes_area_m2": 5.76,
-    "robot_commands_sent_for_readback": 0
+    "robot_commands_sent_for_readback": 0,
+    "archived_readback": {
+      "target_area_m2": 9.85,
+      "completed_passes_area_m2": 11.61,
+      "confirmed_completed_passes": 2,
+      "mission_area_m2": 11.71,
+      "active_pass_cleared_after_docking": true
+    }
   },
   "whole_mission_shadow_near_end": [
     {

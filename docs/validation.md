@@ -23,6 +23,9 @@ confirmed both pass measurements and a separate 126 ft² mission total.
 The current mission shadow had reported 125 ft² near the end of cleaning.
 Home Assistant removed the disposable floor after docking. Signed reads
 confirmed the original floor revision, geometry, programs, and settings.
+The authenticated history command then returned 9.85 m² for the target,
+11.61 m² for two completed passes, and 11.71 m² for the mission.
+The active pass cleared after docking.
 [Anonymized live and archived evidence](evidence/2026-11-26-live-saved-zone-passes.json)
 
 ## Saved-zone area measurements
