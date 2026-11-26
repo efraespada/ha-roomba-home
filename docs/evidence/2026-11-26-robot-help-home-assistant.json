@@ -38,5 +38,17 @@
       "manual_edition": "en-US"
     }
   ],
-  "robot_remained_docked": true
+  "robot_remained_docked": true,
+  "household_release": {
+    "version": "0.69.0",
+    "release_archive_verified": true,
+    "previous_version_rollback_verified": true,
+    "core_check_passed": true,
+    "core_restarted": true,
+    "robots": 3,
+    "docks": 3,
+    "spanish_manual_link_verified_in_chrome": true,
+    "all_three_diagnostic_families_verified_in_chrome": true,
+    "screenshot_isolates_the_installed_rendered_panel": true
+  }
 }

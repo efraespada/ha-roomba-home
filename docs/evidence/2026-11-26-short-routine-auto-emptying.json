@@ -1,0 +1,31 @@
+{
+  "model": "Roomba Max 700 Combo (X185240)",
+  "home_assistant_action": "roomba_home.run_cleaning_routine",
+  "configuration": {
+    "verified_auto_empty_frequency": 0,
+    "provider_reported_evacuation_allowed": true,
+    "enabled_schedule_count": 0,
+    "temporary_area_m2": 0.72
+  },
+  "live": {
+    "activities": ["cleaning", "returning", "docked"],
+    "observed_evacuation_states": [301]
+  },
+  "signed_mission": {
+    "outcome": "completed",
+    "duration_minutes": 2,
+    "cleaned_area_m2": 0.65,
+    "evacuations": 0
+  },
+  "restoration": {
+    "docked": true,
+    "error_code": 0,
+    "auto_empty_frequency_m2": 25,
+    "temporary_zone_removed": true,
+    "temporary_routine_removed": true,
+    "original_rooms_restrictions_settings_and_schedules_verified": true,
+    "provider_geometry_changes": ["border", "robot_detected_furniture", "walls", "carpet", "dock_pose"],
+    "provider_geometry_counts_match": true,
+    "private_baseline_archive_retained": true
+  }
+}
