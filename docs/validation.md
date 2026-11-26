@@ -18,6 +18,15 @@ tests with 100% statement and branch coverage, 74 card tests, and
 the official hassfest integration checks.
 [Anonymized evidence](evidence/2026-11-26-first-clean-preparation.json)
 
+### Wi-Fi settings entry
+
+The Max 700 Combo's Android device settings opened the Wi-Fi settings page
+with a separate reconnect control. Leaving that page without starting
+reconnection preserved the signed connection state. The robot was still
+docked, ready, and at 100% charge with error code zero. Reconnection and
+pairing remain separate validation scenarios.
+[iRobot reconnection guide](https://homesupport.irobot.com/articles/en_US/Knowledge/10503)
+
 ## Robot help after moving a card
 
 A Chromium browser reproduced the modal losing its top-layer state when the

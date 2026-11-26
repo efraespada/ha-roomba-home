@@ -85,3 +85,14 @@ alongside the manual and support articles. Verify other models in the app
 before adding model-specific steps. Initial pairing, Wi-Fi changes, and
 factory reset require separate verification and remain open.
 [Robot help](usage.md#robot-help)
+
+Android exposes **Reconnect or change Wi-Fi** on the Max 700 Combo's
+Wi-Fi settings screen. iRobot documents a credential step for reconnecting
+and Bluetooth for initial setup. A reconnect validation must establish
+that the robot returns online with its existing association, floors, and
+programs. A factory reset through the app removes the robot from the
+account, and iRobot documents no map save option for that workflow on
+this model. Test reset and removal on a disposable robot or account with
+explicit authorization for the data loss.
+[iRobot pairing and reconnection](https://homesupport.irobot.com/articles/en_US/Knowledge/10503) ·
+[iRobot reset behavior](https://homesupport.irobot.com/articles/en_US/Knowledge/9047)
