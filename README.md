@@ -12,7 +12,7 @@ uses Roomba's own cloud services for device data and control.
 The verified model is **Roomba Max 700 Combo (X185240)**, linked to a Roomba Home
 account. The household checks verified three robots and their docks, the
 first-clean checklist, and the archived dock timeline and emptying counts.
-[Capability matrix](docs/capabilities.md) · [Physical validation](docs/validation.md)
+[Capability matrix](docs/capabilities.md) · [Household verification](docs/validation.md#household-installation-of-0712)
 
 1. In **HACS → Custom repositories**, add `efraespada/ha-roomba-home` as an
    **Integration** and download the latest release. The installation guide
@@ -129,6 +129,13 @@ emptying frequency. Use **Auto-empty area** when you want a custom
 threshold. [Dock settings and automation example](docs/usage.md#dock-settings)
 
 ![Auto-empty frequency selector set to Every 25 m² on the installed Home Assistant dock](docs/screenshots/roomba-dock-auto-empty.png)
+
+## Cleaning history
+
+![Installed Home Assistant report excerpt showing a bin emptying stage with zero recorded emptyings](docs/screenshots/roomba-history-emptying.png)
+
+Open **Cleaning history** on the floor plan card to inspect the reported
+outcome, measurements, and timeline. [History controls](docs/usage.md#cleaning-history)
 
 ## Robot help
 

@@ -1,5 +1,20 @@
 # Roomba Home validation
 
+## Household installation of 0.71.2
+
+The 81 component files in the published archive matched the release tag.
+Home Assistant passed its configuration check, retained 0.71.1 for
+rollback, and restarted Core. The remote connection temporarily stopped
+completing TLS after the restart and recovered before verification.
+
+The authenticated frontend reported integration version 0.71.2 and the
+matching Lovelace module. The served module matched the release bytes.
+The device registry showed three robots with one distinct linked dock each.
+The R2-D2 card showed a **Bin emptying stage** alongside **Recorded bin
+emptyings** of zero in the signed archived report. The household check
+used read-only actions. [Household evidence](evidence/2026-11-26-household-0712.json)
+[Component capture](screenshots/roomba-history-emptying.png)
+
 ## Household installation of 0.71.1
 
 Home Assistant verified the release archive and configuration, kept
