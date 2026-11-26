@@ -1,0 +1,32 @@
+{
+  "tested_model": "Roomba Max 700 Combo",
+  "date": "2026-11-26",
+  "tested_home_assistant_integration": "0.65.0",
+  "requested_room_profile": {
+    "mode": "vacuum",
+    "suction_level": 1,
+    "two_pass": true
+  },
+  "signed_estimate_seconds": 6899,
+  "android_display": [
+    {"seconds_after_mission_start": 63, "estimated_minutes": 115},
+    {"seconds_after_mission_start": 81, "estimated_minutes": 115},
+    {"seconds_after_mission_start": 98, "estimated_minutes": 114}
+  ],
+  "authenticated_home_assistant_floor_plan": [
+    {"seconds_after_mission_start": 17, "stage": "relocation", "remaining_seconds": 6899},
+    {"seconds_after_mission_start": 44, "stage": "relocation", "remaining_seconds": 6899},
+    {"seconds_after_mission_start": 72, "stage": "room", "remaining_seconds": 6850},
+    {"seconds_after_mission_start": 99, "stage": "room", "remaining_seconds": 6824},
+    {"seconds_after_mission_start": 125, "stage": "room", "remaining_seconds": 6797}
+  ],
+  "position_and_coverage_observed": true,
+  "explicit_mission_shadow_eta_or_progress_percent_fields_observed": false,
+  "live_map_announcement_fields": ["mqtt_topic"],
+  "signed_history_matched_requested_profile": true,
+  "returned_to_dock": true,
+  "final_error_code": 0,
+  "updated_integration_countdown_cleared_after_docking": true,
+  "original_map_routines_and_schedules_preserved": true,
+  "other_robot_commands": 0
+}

@@ -10,6 +10,7 @@ from custom_components.roomba_home.core.mission_time import (
     estimate_durations,
     estimate_target,
     remaining_duration,
+    with_live_area_elapsed,
 )
 
 NOW = datetime(2026, 11, 25, 12, tzinfo=UTC)
@@ -83,3 +84,34 @@ def test_countdown_waits_for_timed_work_and_a_verified_stage(
 ):
     stage_started = NOW - timedelta(seconds=offset) if offset is not None else None
     assert remaining_duration(statuses, durations, stage, stage_started, NOW) == expected
+
+
+@pytest.mark.parametrize(
+    ("stage", "offset", "statuses", "elapsed"),
+    [
+        ("room", 0, ("in_progress", "pending"), 0),
+        ("zone", 86, ("finished", "in_progress"), 86),
+        ("pause", 86, ("in_progress",), None),
+        ("zone", None, ("in_progress",), None),
+        ("zone", -1, ("in_progress",), None),
+        ("zone", 86, ("finished",), None),
+        ("zone", 86, ("in_progress", "in_progress"), None),
+    ],
+)
+def test_elapsed_stage_requires_one_current_destination(stage, offset, statuses, elapsed):
+    plan = {"destinations": [{"status": status} for status in statuses]}
+    started = NOW - timedelta(seconds=offset) if offset is not None else None
+    reading = with_live_area_elapsed(plan, stage, started, NOW)
+    assert all("stage_elapsed_seconds" not in row for row in plan["destinations"])
+    if elapsed is None:
+        assert reading is plan
+    else:
+        assert [
+            row["stage_elapsed_seconds"]
+            for row in reading["destinations"]
+            if "stage_elapsed_seconds" in row
+        ] == [elapsed]
+        assert (
+            reading["destinations"][statuses.index("in_progress")]["stage_elapsed_seconds"]
+            == elapsed
+        )

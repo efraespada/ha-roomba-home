@@ -155,7 +155,7 @@ timeline echoed both settings and reported zero passes during the active
 room stage. Its signed history later returned `done: ok` and a room event
 with status `5` (`user_ended`) and `passCount: 0` after a return-to-base
 request. This run verifies the request and reporting path. A natural second
-pass remains unverified.
+pass was outside the scope of this room trial.
 
 The robot returned to its dock with error code 0. The active floor revision,
 rooms, zones, restrictions, routines, and schedules matched the initial
@@ -170,6 +170,45 @@ checks verify those fields, preservation of false and zero, and handling of
 null parameter groups. The suite passed 2,465 Python tests with 100% line
 and branch coverage and 55 card tests.
 [Anonymized trial evidence](evidence/2026-11-25-requested-and-reported-passes.json)
+
+### Saved-zone passes and live stage timing
+
+Two isolated Home Assistant trials used a 2.56 m² saved zone on a
+Max 700 Combo with suction 1 and two passes requested. The official
+Android app displayed the requested passes and elapsed zone minutes.
+A return-to-base request ended the first trial during the second pass.
+The second trial completed after seven minutes and returned to the
+dock without a control command. Both trials ended at the dock with
+error code zero.
+
+For both trials, the signed history contained a first event with
+status `finished_with_more_passes` and raw `passCount: 0`. The
+second event used raw `passCount: 1` and reported `user_ended` in
+the cancelled trial and `finished` in the completed trial. The two
+passes used different robot revisions for the same saved zone. The
+integration correlates them against the requested floor and zone
+before counting the completion events. Authenticated Home Assistant
+history exposed two confirmed passes, the raw value of one, and the
+zone label from the archived map after the trial zone was deleted.
+
+The updated integration also returned time in the zone's current stage
+on authenticated floor-plan reads. At 118 seconds from mission start it
+reported 67 seconds in the cleaning stage. The Android view showed two
+minutes at 121 seconds from mission start. While the robot was relocating,
+the destination had no stage time. Isolated Chrome verified that the
+same destination row showed the requested setting, reported pass count,
+and elapsed time at 358 and 900 pixels without overflowing.
+The elapsed value restarted when Roomba reported the second stage.
+Android continued to show accumulated minutes for the whole zone.
+Deriving that accumulated time from the full event sequence remains open.
+
+The temporary zones were removed. The saved rooms, zone and policy
+layers, boundaries, routines, and schedules matched the baseline.
+Suction and the two-pass default matched the preflight values after
+the natural run. Roomba updated robot-detected furniture identifiers
+and moved the dock marker by 25.63 cm in the map while learning from
+the run. The run added no user-saved furniture or cleaning regions.
+[Anonymized zone evidence](evidence/2026-11-26-saved-zone-passes.json)
 
 ## Historical map layers
 
@@ -525,6 +564,12 @@ The updated suite passed 2,544 Python tests at 100% statement and branch
 coverage and 69 card tests.
 
 ## Routine draft estimates
+
+The captured Android favorite supplied an empty estimate array at creation.
+Two disposable integration favorites with the same reviewed room and
+combined profile returned an identical good-confidence estimate of 3,449
+seconds, one with that field omitted and one with an empty array. The
+signed read confirmed cleanup of both routines and preservation of the map.
 
 The signed estimate table returned 36 profile rows for the current room
 on a Max 700 Combo. A comparison across seven favorites captured from
@@ -1504,8 +1549,8 @@ showed four room measurements from a fresh report. During a pause, the same
 mission returned a `pause` event and five room readings. The robot resumed
 that mission after the Home Assistant resume action. Both timeline replies
 had empty future event lists. An earlier capture verified position batches
-during targeted cleaning. Live countdown, coverage percentage, and room area
-units still require provider evidence.
+during targeted cleaning. A later trial matched the live countdown.
+Coverage percentage and room area units still require provider evidence.
 [Prior capture evidence](evidence/2026-11-24-live-progress.json)
 
 The sequential mission changed its reported cleaning mode from vacuuming
@@ -2116,6 +2161,28 @@ The robot reported a different internal revision for the same declared
 room identity. The command used the verified user revision throughout.
 After cancellation the robot returned to the dock with error code 0.
 [Sanitized timing evidence](evidence/2026-11-25-live-timing-and-position.json)
+
+A second trial used the published 0.65.0 integration in isolated Home
+Assistant. It started a Max 700 Combo vacuum mission for a reviewed room,
+with suction 1 and two passes requested. Android showed about 115 minutes
+at 63 and 81 seconds after start and 114 minutes at 98 seconds.
+Home Assistant held the signed 6,899-second estimate during relocation,
+then reported 6,824 seconds at 99 seconds, which rounds up to 114 minutes.
+It also received position and reconstructed coverage during the run.
+The signed history confirmed the requested room and settings after
+the robot returned to the dock with error code 0. The map, routines,
+and schedules matched the preflight values.
+
+The captured Android live-map response contained the topic announcement.
+The observed mission shadow reported area in square feet and supplied
+no explicit remaining-time or completion-percentage field. The dashboard
+now recalculates the countdown on each authenticated floor-plan read,
+using the cached signed estimate and the latest verified stage. The
+WebSocket test verifies that the estimate advances between polls, becomes
+unknown when the robot pauses, and expires with the timeline. A separate
+read with the updated integration verified the current map and cleared
+countdown after docking.
+[Sanitized live countdown trial](evidence/2026-11-26-live-countdown.json)
 
 ## Continuous position and cleaning coverage
 

@@ -105,7 +105,8 @@ def present_mission_plan(
     destinations = []
     for destination in plan.destinations:
         key = destination.kind, destination.identity
-        result = current.get(key, results.get(key))
+        finished = results.get(key)
+        result = current.get(key, finished)
         if key in current:
             status = "in_progress"
         elif key == en_route:
@@ -125,6 +126,8 @@ def present_mission_plan(
                 row["requested_settings"] = settings
         if result is not None and result.pass_count is not None:
             row["reported_pass_count"] = result.pass_count
+        if finished is not None and finished.confirmed_completed_passes is not None:
+            row["confirmed_completed_passes"] = finished.confirmed_completed_passes
         destinations.append(row)
     return {
         "ordered": plan.ordered,

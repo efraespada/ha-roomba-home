@@ -264,7 +264,7 @@ adjustments, boundaries of sequential mode and without duplication recovery.
 | CLN-07 | Suite and CI | cover report 100 |
 | CLN-08 | Deployment and evidence | Fan domestic, modes and entities with icon |
 | CLN-09 | Command application and mission history | Both phases under the same mission identity, final history, and return to dock |
-| CLN-10 | [Live destination settings](008-mission-detail-and-map-card.md) | [Matched command, room history, and default restoration](../docs/validation.md#requested-settings-and-reported-passes). Natural completion remains open. |
+| CLN-10 | [Live destination settings](008-mission-detail-and-map-card.md) | [Matched room command and default restoration](../docs/validation.md#requested-settings-and-reported-passes) and [signed saved-zone completion verification](../docs/validation.md#saved-zone-passes-and-live-stage-timing). |
 
 ## 18. Implementation sequence
 
