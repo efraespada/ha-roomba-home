@@ -1,0 +1,22 @@
+{
+  "installed_version": "0.71.0",
+  "core_configuration_check_passed": true,
+  "core_restarted": true,
+  "rollback_version": "0.70.0",
+  "published_module_matches_served_bytes": true,
+  "registered_dashboard_resource_version": "0.71.0",
+  "registry_robot_count": 3,
+  "registry_dock_count": 3,
+  "distinct_robots_with_linked_dock": 3,
+  "verified_report": {
+    "area_m2": 6.5,
+    "reported_evacuations": 1,
+    "evacuation_duration_seconds": 17,
+    "dock_state_code": 301,
+    "dock_error_code": 0,
+    "seconds_from_evacuation_end_to_finish": 2,
+    "emptying_and_finish_visible_in_card": true
+  },
+  "robot_remained_docked": true,
+  "current_robot_error_code": 0
+}
