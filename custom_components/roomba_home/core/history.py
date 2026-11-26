@@ -202,7 +202,12 @@ def present_rooms(results: tuple[AreaResult, ...], maps: tuple[PersistentMap, ..
     return [{"room": names.get(room.identity), **_public_result(room)} for room in results]
 
 
-def present_zones(results: tuple[AreaResult, ...], maps: tuple[PersistentMap, ...]) -> list[dict]:
+def present_zones(
+    results: tuple[AreaResult, ...],
+    maps: tuple[PersistentMap, ...],
+    *,
+    active: AreaResult | None = None,
+) -> list[dict]:
     kinds = {RegionKind.ZONE: "saved_zone", RegionKind.FURNITURE: "furniture"}
     names = {
         (kinds[region.kind], (floor.map_id, floor.version_id, region.region_id)): region.name
@@ -215,9 +220,10 @@ def present_zones(results: tuple[AreaResult, ...], maps: tuple[PersistentMap, ..
         kind = area.kind
         if kind == "zone" and ("saved_zone", area.identity) in names:
             kind = "saved_zone"
-        zones.append(
-            {"kind": kind, "name": names.get((kind, area.identity)), **_public_result(area)}
-        )
+        row = {"kind": kind, "name": names.get((kind, area.identity)), **_public_result(area)}
+        if area is active and (current_pass := area.current_saved_zone_pass) is not None:
+            row["current_pass_number"] = current_pass
+        zones.append(row)
     return zones
 
 

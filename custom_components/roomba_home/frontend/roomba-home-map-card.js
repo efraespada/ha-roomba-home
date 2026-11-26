@@ -1010,8 +1010,10 @@ function showPresetChoices(select, keys, locked) {
   select.disabled = locked || !keys.length;
 }
 
-function passSummary(completed, reported) {
-  if (completed != null) return `Completed passes ${completed}`;
+function passSummary(completed, reported, current) {
+  const completedLabel = completed != null ? `Completed passes ${completed}` : null;
+  if (current != null) return [`Pass ${current}`, completedLabel].filter(Boolean).join(" · ");
+  if (completedLabel != null) return completedLabel;
   return reported != null ? `Reported pass value ${reported}` : null;
 }
 
@@ -2698,7 +2700,9 @@ class RoombaHomeMapCard extends HTMLElement {
       const stageTime = elapsed != null
         ? `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")} ${cleaning != null ? "cleaning" : "in current stage"}`
         : null;
-      const passes = passSummary(destination.confirmed_completed_passes, destination.reported_pass_count);
+      const passes = passSummary(
+        destination.confirmed_completed_passes, destination.reported_pass_count, destination.current_pass_number,
+      );
       status.textContent = [MODES[destination.mode], statuses[destination.status], stageTime, passes, planned]
         .filter(Boolean).join(" · ");
       row.append(name, status);
@@ -2740,7 +2744,7 @@ class RoombaHomeMapCard extends HTMLElement {
       status.textContent = area.status?.replaceAll("_", " ") ?? defaultStatus;
       const metrics = document.createElement("div");
       const values = [];
-      const passes = passSummary(area.confirmed_completed_passes, area.pass_count);
+      const passes = passSummary(area.confirmed_completed_passes, area.pass_count, area.current_pass_number);
       if (passes !== null) values.push(passes);
       if (area.target_area_m2 != null) values.push(`Target ${area.target_area_m2} m²`);
       else if (area.area != null) values.push(`Reported area ${area.area}${area.total_area != null ? ` / ${area.total_area}` : ""}`);

@@ -29,6 +29,13 @@ class AreaResult:
     ended_at: int | None = None
     completed_passes_sqft: int | None = None
 
+    @property
+    def current_saved_zone_pass(self) -> int | None:
+        """Convert an open saved-zone event's index to a display number."""
+        if self.kind == "saved_zone" and self.status is None and self.pass_count is not None:
+            return self.pass_count + 1
+        return None
+
 
 def command_region_kind(region: dict) -> str | None:
     kind = region.get("type", region.get("region_type"))

@@ -2415,6 +2415,11 @@ test("last mission results name furniture and keep separately reported zone metr
       ["Door", "Unknown outcome", "Target 0.65 m² · Provider total area 4"],
       ["Temporary zone 5", "Unknown outcome", ""],
     ]);
+    card.renderAreaResults("active", [
+      { kind: "saved_zone", name: "Entry", pass_count: 0, current_pass_number: 1, target_area_m2: 9.85 },
+    ], "In progress");
+    assert.deepEqual(rows.children[0].children.map((child) => child.textContent),
+      ["Entry", "In progress", "Pass 1 · Target 9.85 m²"]);
   } finally {
     sandbox.document.createElement = createElement;
   }
@@ -2467,6 +2472,12 @@ test("live plans show real destination counts, preserve order and disappear when
   });
   assert.equal(results.children[0].children[1].children[0].children[1].textContent,
     "Vacuum · Paused · 0:29 cleaning");
+  card.renderMissionPlan({ ...plan, destinations: [
+    { kind: "saved_zone", name: "Entry", status: "in_progress", current_pass_number: 2,
+      reported_pass_count: 1, confirmed_completed_passes: 1 },
+  ] });
+  assert.equal(results.children[0].children[0].children[0].children[1].textContent,
+    "In progress · Pass 2 · Completed passes 1");
   card.renderMissionPlan(null);
   assert.equal(view.hidden, true);
   assert.equal(results.children.length, 0);

@@ -64,7 +64,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   in-progress measurements, and the selected destinations with their
   requested preferences and observed outcomes. See each destination's
   accumulated cleaning time across passes and pauses. Saved zones show
-  the number of passes confirmed by completion events.
+  the current pass during cleaning and the number of passes confirmed
+  by completion events.
   Saved zones also show their reported target size and the area cleaned in
   those completed passes, both in square metres.
   The live route distinguishes travel, vacuuming, and mopping, including
@@ -86,7 +87,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   bin emptyings** shows Roomba's count separately from the dock stage.
   Directed reports include the requested order and preferences, plus the
   reported outcome and recorded cleaning time for each destination.
-  [Cleaning history](docs/usage.md#cleaning-history)
+  [Cleaning history](docs/usage.md#cleaning-history) ·
+  [Verified live pass example](docs/validation.md#live-saved-zone-passes)
 - **Room cleaning scores.** View Roomba's reported score, mission timestamps,
   and suggested settings for each matched room on the active floor.
   [Room cleaning scores](docs/usage.md#room-cleaning-scores)
@@ -162,7 +164,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.72.1` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.72.2` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)

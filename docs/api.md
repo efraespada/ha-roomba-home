@@ -1154,6 +1154,13 @@ counts as finished. A destination being revisited stays in progress
 until the latest pass finishes. Names are resolved from the associated
 revision and the public plan omits provider identifiers.
 
+For an open saved-zone event at the verified start of the current zone
+stage, `current_pass_number` is the reported zero-based `passCount` plus
+one. It appears in `active_zones` and the matching live plan destination.
+The raw index remains available through `pass_count` and
+`reported_pass_count`, respectively. The completed count comes from
+separate completion events and is preserved during a later pass.
+
 `requested_settings` contains recognized `suction_level`, `wetness_level`,
 `two_pass`, `smart_scrub`, and `carpet_boost` values from the matched
 command. A regional value takes precedence over a shared value. A null
