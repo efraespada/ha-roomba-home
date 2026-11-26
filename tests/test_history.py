@@ -52,9 +52,42 @@ def test_mission_reports_expose_only_owned_cleaning_records_and_exact_archive_re
     assert latest.summary()["duration_minutes"] == 8
     assert latest.summary()["area_m2"] == 9.29
     detail = latest.detail(())
-    assert [item["type"] for item in detail["timeline"]] == ["start", "padWash", "charge"]
-    assert [item["duration_seconds"] for item in detail["timeline"]] == [None, 10, None]
+    assert [item["type"] for item in detail["timeline"]] == ["start", "padWash", "charge", "finish"]
+    assert [item["duration_seconds"] for item in detail["timeline"]] == [None, 10, None, None]
+    assert detail["timeline"][-1]["timestamp"] == row["timestamp"]
     assert "private" not in repr(detail) and "not rendered" not in repr(detail)
+
+
+def test_history_keeps_typed_event_codes_and_prefers_a_reported_finish():
+    row = {
+        "robot_id": "fixture-a",
+        "timestamp": 1700000500,
+        "cmd": {"command": "start"},
+        "timeline": {
+            "finEvents": [
+                {"type": "error", "ts": 1700000100, "error": {"value": 48}},
+                {"type": "error", "ts": 1700000102, "error": {"value": True}},
+                {"type": "padWash", "ts": 1700000300, "padWash": {"pwState": 603, "error": 0}},
+                {"type": "refill", "ts": 1700000310, "refill": {"frState": 404, "error": "hidden"}},
+                {"type": "evac", "ts": 1700000470, "ets": 1700000487, "evac": {"state": 301}},
+                {"type": "evac", "ts": 1700000488, "evac": {"error": 350}},
+                {"type": "fin", "ts": 1700000498},
+            ]
+        },
+    }
+    (report,) = mission_reports([row], "fixture-a")
+    timeline = report.detail(())["timeline"]
+    assert [(event["type"], event.get("error_code"), event.get("dock")) for event in timeline] == [
+        ("error", 48, None),
+        ("error", None, None),
+        ("padWash", None, {"component": "pad_wash", "state_code": 603, "error_code": 0}),
+        ("refill", None, {"component": "refill", "state_code": 404, "error_code": None}),
+        ("evac", None, {"component": "evacuation", "state_code": 301, "error_code": None}),
+        ("evac", None, {"component": "evacuation", "state_code": None, "error_code": 350}),
+        ("finish", None, None),
+    ]
+    assert timeline[4]["duration_seconds"] == 17
+    assert timeline[-1]["timestamp"] == 1700000498
 
 
 def test_history_keeps_the_confirmed_origin_of_its_latest_record():

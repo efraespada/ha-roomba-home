@@ -80,6 +80,7 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   Browse recorded cleaning reports with the mission's own coverage, route,
   timeline, and 3D floor plan. Hide travel, cleaning paths, or coverage
   independently and see zones and restrictions saved in the archived map.
+  The timeline includes the end of the run and reported fault codes.
   Directed reports include the requested order and preferences, plus the
   reported outcome and recorded cleaning time for each destination.
   [Cleaning history](docs/usage.md#cleaning-history)

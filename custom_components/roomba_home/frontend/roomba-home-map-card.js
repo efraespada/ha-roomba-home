@@ -660,8 +660,8 @@ const ROUTE_LABELS = {
 };
 const HISTORY_EVENT_LABELS = {
   start: "Started", pause: "Paused", travel: "Travelled", reloc: "Relocalized", room: "Room result",
-  zone: "Zone result", charge: "Docked to charge", padWash: "Washed mop", refill: "Refilled tank",
-  evac: "Emptied bin", error: "Error",
+  zone: "Zone result", charge: "Docked to charge", padWash: "Mop washing", refill: "Tank refill",
+  evac: "Bin emptying", error: "Error", finish: "Finished",
 };
 
 function pathFor(rings, xy) {
@@ -2467,7 +2467,12 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("history-timeline").replaceChildren(...report.timeline.map((event) => {
       const line = document.createElement("li");
       const duration = units(event.duration_seconds, "s");
-      line.textContent = [historyTime(event.timestamp, true), HISTORY_EVENT_LABELS[event.type], duration].filter(Boolean).join(" · ");
+      const label = event.error_code ? `Error ${event.error_code}` : HISTORY_EVENT_LABELS[event.type];
+      const dockState = event.dock?.state_code;
+      const dockError = event.dock?.error_code;
+      line.textContent = [historyTime(event.timestamp, true), label, duration,
+        dockState == null ? null : `Dock state ${dockState}`,
+        dockError ? `Dock error ${dockError}` : null].filter(Boolean).join(" · ");
       return line;
     }));
     this.$("history-chronology").hidden = !report.timeline.length;
