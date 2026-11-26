@@ -1,5 +1,45 @@
 # Roomba Home validation
 
+## Version 0.64.0
+
+The release adds remembered area profiles, a maintenance panel with official
+iRobot replacement and care links, and touch navigation for floor plans and
+cleaning reports. The feature sections below record the Max 700 Combo and
+browser trials for each change.
+
+## Maintenance catalog and links
+
+The Android maintenance view for a Max 700 Combo opened the replacement
+filter's product page in a web view. The model's Spanish catalog returned
+five replacement SKUs and two washing-system guides. In browser-profile
+HTTP probes, iRobot's mobile product route redirected to the storefront.
+Each short Spanish shop URL built from the catalog SKU redirected to the
+corresponding official product page. The filter page matched the Android
+product title. [Official filter listing](https://www.irobot.es/es_ES/4849940.html)
+
+An isolated Home Assistant instance loaded the authorized robot with the
+map option disabled. Its authenticated WebSocket response contained seven
+parts, six signed counters, five replacement references, and two guides.
+The existing filter sensor matched the response. The dust bag included
+its shop reference with the usage counter disabled. Chrome rendered the
+anonymized report at 358 and 900 pixels and verified all seven links.
+[Anonymized catalog evidence](evidence/2026-11-26-maintenance-catalog.json)
+
+## Touch navigation for floor plans and reports
+
+Isolated Chrome sessions at 358 × 844 and 390 × 844 CSS pixels used
+browser-dispatched touch events with synthetic geometry. A one-finger
+swipe scrolled the dashboard across a fitted overhead map. A pinch
+changed the map zoom from 1 to 1.9 while the browser viewport stayed at
+scale 1.
+One finger panned the 3D floor at fit. The recorded 3D map responded to
+pinch, pan, and reset. None of the gestures selected a cleaning area.
+
+The card tests also cover a remaining finger after a pinch, arrow-key
+panning, cancellation, a changed map, and a stationary selection.
+[Card tests](../tests/frontend/map-card.test.cjs) ·
+[iRobot's 3D panning release notes](https://homesupport.irobot.com/articles/en_US/Knowledge/40500)
+
 ## Version 0.63.0
 
 The release candidate passed 2,500 Python tests with 100% line and
@@ -401,6 +441,32 @@ The suite passed 2,207 Python tests with 100% statement and branch coverage
 and 31 card tests. Hassfest and specification validation passed. The routine
 list, draft import, and start review rendered in isolated Chrome at 358 and
 900 pixels. Household installation and screenshots remain pending.
+
+## Remembered area cleaning preferences
+
+Roomba Home's release notes describe the Routine Builder remembering its
+last cleaning settings. In the Max 700 Combo trial, the signed map response
+contained twelve metadata records. The active archive matched one current
+room. Roomba returned vacuum, mop, and two combined profiles for that room,
+with vacuum as the last recorded mode. The Android room preview displayed
+combined cleaning when opened. The card shows the reported mode separately
+and lets the user explicitly choose which mode's settings to reuse.
+[Roomba Home release notes](https://homesupport.irobot.com/articles/en_US/Knowledge/40500)
+
+An isolated Home Assistant instance received the four profiles through the
+authenticated floor plan command and received them again without geometry
+when it requested the same map with the cached inventory identifier. Its
+standard routine action saved the chosen vacuum profile, with suction 1 and
+two passes. A separate signed account read confirmed the settings. The
+temporary routine was deleted and the original routines, floor, and
+remembered settings matched their preflight values. No movement command was sent.
+[Anonymized trial evidence](evidence/2026-11-26-remembered-area-preferences.json)
+
+Chrome opened the card's routine and schedule editors at 358 and 900 pixels
+using the redacted live profile response. In the routine editor, it exposed
+both combined variants, applied the vacuum settings to the draft, and
+issued only the routine and schedule list actions. The suite passed 2,544
+Python tests with 100% statement and branch coverage and 65 card tests.
 
 ## Routine draft estimates
 

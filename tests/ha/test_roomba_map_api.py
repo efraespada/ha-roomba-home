@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.auth.permissions.const import POLICY_READ
+from homeassistant.components.vacuum.const import DATA_COMPONENT
 from homeassistant.core import Context
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import entity_registry
@@ -14,6 +15,7 @@ from homeassistant.helpers import entity_registry
 from custom_components.roomba_home.const import CONF_SHOW_MAPS, DOMAIN
 from custom_components.roomba_home.coordinator import RoombaCoordinator
 from custom_components.roomba_home.core.actions import Command
+from custom_components.roomba_home.core.area_preferences import read_area_defaults
 from custom_components.roomba_home.core.capabilities import DigitalSpotCapability, SkipCapability
 from custom_components.roomba_home.core.capability_protocol import project_capabilities
 from custom_components.roomba_home.core.cleaning import (
@@ -67,6 +69,7 @@ CAPTURE_BACKUP = {
     "settings_id": MAP.settings_id,
 }
 HISTORY = {"id": 1, "type": "roomba_home/mission_history", "entity_id": ENTITY}
+MAINTENANCE = {"id": 1, "type": "roomba_home/maintenance", "entity_id": ENTITY}
 SCORES = {
     "id": 1,
     "type": "roomba_home/cleaning_scores",
@@ -202,6 +205,139 @@ async def test_history_reads_the_exact_archive_using_read_permission(
         configured.client.map_geometry.assert_awaited_once_with(MAP.map_id, "mission-revision")
         assert configured.maps_for_robot("fixture-0") == (MAP,)
         assert "mission-revision" not in repr(report)
+
+
+@pytest.mark.parametrize("counters_available", [True, False])
+async def test_maintenance_requires_only_read_access_and_works_without_maps(
+    configured, hass_ws_client, hass_admin_user, counters_available
+):
+    robot = configured.data["fixture-0"]
+    catalog = {
+        "147": {"part_sku": "4849916"},
+        "72": {
+            "part_sku": "4849940",
+            "replacement_url": "https://directory.irobotapi.com/v1/ecom/pdp-app/ES/4849940",
+        },
+    }
+    configured.show_maps = False
+    configured.last_update_success = counters_available
+    configured.data["fixture-0"] = replace(
+        robot,
+        telemetry={
+            "part_references": catalog,
+            "part_72_usage": 0,
+            "part_72_remaining": 10,
+            "part_72_count_type": "minutes",
+            "parts_available": True,
+        },
+        capabilities=replace(
+            robot.capabilities, dock=replace(robot.capabilities.dock, recognized=True)
+        ),
+    )
+    socket = await hass_ws_client()
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda entity, policy: entity == ENTITY and policy == POLICY_READ,
+    ):
+        await socket.send_json(MAINTENANCE)
+        report = (await socket.receive_json())["result"]
+    assert report["robot"] == robot.name
+    assert report["counters_available"] is counters_available
+    assert [part["part"] for part in report["parts"]] == ["filter", "dust_bag"]
+    assert report["parts"][0]["replacement_url"] == catalog["72"]["replacement_url"]
+    assert report["parts"][0]["usage"] == (0 if counters_available else None)
+    assert report["parts"][1]["usage"] is None and report["parts"][1]["dock"] is True
+    configured.client.map_geometry.assert_not_awaited()
+
+
+async def test_maintenance_rejects_denied_missing_or_unrelated_entities(
+    hass, configured, hass_ws_client, hass_admin_user
+):
+    socket = await hass_ws_client()
+    with patch.object(type(hass_admin_user.permissions), "check_entity", return_value=False):
+        await socket.send_json(MAINTENANCE)
+        assert (await socket.receive_json())["error"]["code"] == "unauthorized"
+    await socket.send_json(MAINTENANCE | {"id": 2, "entity_id": "vacuum.other"})
+    assert (await socket.receive_json())["error"]["code"] == "maintenance_unavailable"
+    with patch.dict(hass.data, {DATA_COMPONENT: None}):
+        await socket.send_json(MAINTENANCE | {"id": 3})
+        assert (await socket.receive_json())["error"]["code"] == "maintenance_unavailable"
+    configured.data = {}
+    await socket.send_json(MAINTENANCE | {"id": 4})
+    assert (await socket.receive_json())["error"]["code"] == "maintenance_unavailable"
+
+
+async def test_remembered_preferences_follow_verified_destinations_and_refresh_without_geometry(
+    configured,
+    hass_ws_client,
+    hass_admin_user,
+    picea_archive,
+):
+    def current_floor(level):
+        remembered = read_area_defaults(
+            {"last_operating_mode": 2, "operating_mode_defaults": {"2": {"suctionLevel": level}}}
+        )
+        return replace(
+            MAP,
+            regions=(
+                replace(MAP.regions[0], remembered=remembered),
+                replace(MAP.regions[1], remembered=remembered),
+                CleaningRegion(
+                    "former-room", RegionKind.ROOM, "Former room", remembered=remembered
+                ),
+            ),
+        )
+
+    robot = configured.data["fixture-0"]
+    configured.data["fixture-0"] = replace(
+        robot,
+        capabilities=replace(
+            robot.capabilities,
+            cleaning=CleaningCapabilities(frozenset({CleaningMode.VACUUM}), suction_levels=4),
+        ),
+    )
+    configured._maps["fixture-0"] = (current_floor(1),)
+    configured.client.map_geometry.return_value = picea_archive(
+        zones=[("zone-a", "Dining zone", [[3, 3], [6, 3], [6, 5], [3, 3]])]
+    )
+    socket = await hass_ws_client()
+    request = {"id": 1, "type": "roomba_home/floor_plan", "entity_id": ENTITY}
+
+    def verify(result, level):
+        preferences = result["remembered_cleaning"]
+        assert set(preferences) == {"map-a:rid:room-a", "map-a:zid:zone-a"}
+        for saved in preferences.values():
+            assert saved["last_mode"] == "vacuum"
+            assert saved["preferred"] == {"vacuum": 2}
+            assert saved["profiles"][0]["settings"] == {"mode": "vacuum", "suction_level": level}
+
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda _entity, permission: permission == POLICY_READ,
+    ):
+        await socket.send_json(request)
+        first = (await socket.receive_json())["result"]
+        verify(first, 1)
+        assert "geometry" in first
+
+        configured._maps["fixture-0"] = (current_floor(3),)
+        await socket.send_json(
+            request | {"id": 2, "known_map_id": "map-a", "known_version": "version.42"}
+        )
+        second = (await socket.receive_json())["result"]
+        verify(second, 3)
+        assert second["inventory_id"] == first["inventory_id"]
+        assert "geometry" not in second
+
+        with patch.object(configured, "async_floor_plan", return_value=None):
+            await socket.send_json(
+                request | {"id": 3, "known_map_id": "map-a", "known_version": "version.42"}
+            )
+            result = (await socket.receive_json())["result"]
+            assert "remembered_cleaning" not in result
+    configured.client.map_geometry.assert_awaited_once()
 
 
 @pytest.mark.parametrize("archive_available", [True, False])

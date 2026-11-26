@@ -75,12 +75,26 @@ their private values stay out of the repository
 | `/v1/{id}/missionhistory` | `app_id`, `maxAge`, `filterType`, `supportedDoneCodes` | History |
 | `/v1/robots/{id}/parts` | — | Consumables |
 
-The public parts catalog is
-`GET https://content-prod.iot.irobotapi.com/v2/es-es/ES/X185240/parts`.
-It maps part codes to names and indicates whether each counter is enabled.
+The public parts catalog is `GET /v2/{locale}/{market}/{sku}/parts` on
+`content-prod.iot.irobotapi.com`. The integration selects the account's
+country and the Home Assistant language. The catalog maps part codes to
+names, counter availability, replacement SKUs, and optional URLs.
 A separate signed read provides the robot's usage percentage `counter`,
 unit `count_type`, and quantities `count_used` and `count_remaining`.
 Negative `minutes_remaining` is treated as unavailable.
+
+The dashboard's `roomba_home/maintenance` WebSocket command takes the
+vacuum `entity_id` and requires entity read permission. It returns
+`robot`, `counters_available`, and a bounded `parts` list. Each row
+includes a part code, a normalized part name, dock association, and
+available counter values and type. Catalog references use the optional
+`part_sku`, `replacement_url`, and `maintenance_guide_url` fields. Validate
+the HTTPS catalog route for the configured market and matching SKU before
+publishing a replacement link. For Spain, iRobot's store resolves a short
+product URL built from that SKU. Other directory links retain the catalog
+locale and omit marketing parameters. Care guides use verified iRobot hosts
+and paths. Catalog references can remain available while signed counters
+are unavailable. The command reads the coordinator snapshot.
 
 The Android SDK resets a single maintenance counter with a signed
 `POST /v1/robots/{id}/parts` and `{"parts":[{"part_id":"72","counter":0}]}`.
@@ -1115,6 +1129,32 @@ order, and concrete preferences. For rooms and saved zones, `ordered: false`
 uses a timed command without the `ordered` field. Furniture destinations
 use the explicit order required by their observed protocol.
 [Multi-area favorite validation](validation.md#native-multi-area-favorites)
+
+### Remembered area cleaning preferences
+
+The signed `GET /v1/p2maps` response includes
+`rooms_metadata[].room_metadata.operating_mode_defaults`, keyed by numeric
+mode strings, and `last_operating_mode`. The Max 700 Combo supplied entries
+under 2 for vacuuming, 4 for mopping, and both 6 and 32 for combined cleaning.
+
+The `roomba_home/floor_plan` WebSocket response projects `remembered_cleaning`
+alongside geometry. It associates recognized preferences with a room or saved
+zone only after its identifier and kind match the active signed map archive.
+It can refresh these preferences independently when the card already has the
+geometry. The response retains each recognized variant's mode code, validated
+settings, supported preset label, and update timestamp when one is supplied.
+Retired room identifiers and temporary targets with no verified persistent
+destination stay out of the projection.
+
+For each compatible cleaning mode, the card can reuse the variant with the
+exact reported last mode code, the sole known variant, or the uniquely most
+recent dated variant. If multiple compatible variants remain ambiguous,
+the card shows them for inspection and leaves that mode's preset unavailable.
+Applying a preset copies settings into a draft. Saving the draft uses the
+existing routine or schedule action.
+[Remembered settings validation](validation.md#remembered-area-cleaning-preferences)
+
+### Saved routine estimates and cleaning defaults
 
 One `time_estimates` entry with `unit: minute` supplies the optional saved
 duration. The action returns the provider's precision and normalizes the

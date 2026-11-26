@@ -1,4 +1,4 @@
-"""Authenticated floor-plan snapshots for the optional dashboard card."""
+"""Authenticated floor plans and device views for the optional dashboard card."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,6 +20,7 @@ from .core.furniture_edits import FURNITURE_TYPES, can_edit_furniture, furniture
 from .core.furniture_targets import furniture_regions
 from .core.live_coverage import CELL_SIZE
 from .core.live_maps import POSITION_ACTIVITIES
+from .core.maintenance import maintenance_parts
 from .core.maps import RegionKind
 from .core.point_maps import with_archive_destinations
 from .core.restriction_edits import EDITABLE_RESTRICTIONS
@@ -40,6 +41,7 @@ async def async_setup_map_api(hass):
     websocket_api.async_register_command(hass, websocket_floor_plan)
     websocket_api.async_register_command(hass, websocket_live_positions)
     websocket_api.async_register_command(hass, websocket_mission_history)
+    websocket_api.async_register_command(hass, websocket_maintenance)
     websocket_api.async_register_command(hass, websocket_cleaning_scores)
     websocket_api.async_register_command(hass, websocket_edit_floor_settings)
     websocket_api.async_register_command(hass, websocket_remove_floor)
@@ -148,6 +150,16 @@ def map_geometry(floor, plan):
             for shape in plan.policy_shapes
         ]
     return geometry
+
+
+def remembered_cleaning(floor, plan, capabilities):
+    active = {(RegionKind.ROOM, room.region_id) for room in plan.rooms if room.visible}
+    active.update((RegionKind.ZONE, zone.region_id) for zone in plan.zone_outlines)
+    return {
+        region.segment_id(floor.map_id): region.remembered.action_response(capabilities)
+        for region in floor.regions
+        if region.remembered is not None and (region.kind, region.region_id) in active
+    }
 
 
 def _live_position(path, now):
@@ -352,6 +364,40 @@ async def websocket_mission_history(hass, connection, message):
 
 
 @websocket_api.websocket_command(
+    {"type": "roomba_home/maintenance", vol.Required("entity_id"): cv.entity_id}
+)
+@callback
+def websocket_maintenance(hass, connection, message):
+    entity_id = message["entity_id"]
+    if not connection.user.permissions.check_entity(entity_id, POLICY_READ):
+        connection.send_error(message["id"], websocket_api.ERR_UNAUTHORIZED, "Access denied.")
+        return
+    component = hass.data.get(DATA_COMPONENT)
+    vacuum = component.get_entity(entity_id) if component else None
+    if not isinstance(vacuum, RoombaVacuum) or vacuum.robot is None:
+        connection.send_error(
+            message["id"], "maintenance_unavailable", "Maintenance is unavailable."
+        )
+        return
+    state = vacuum.robot
+    counters_available = (
+        vacuum.account.last_update_success and state.telemetry.get("parts_available") is True
+    )
+    connection.send_result(
+        message["id"],
+        {
+            "robot": state.name,
+            "parts": maintenance_parts(
+                state.telemetry,
+                dock_recognized=state.capabilities.dock.recognized is True,
+                counters_available=counters_available,
+            ),
+            "counters_available": counters_available,
+        },
+    )
+
+
+@websocket_api.websocket_command(
     {
         vol.Required("type"): "roomba_home/floor_plan",
         vol.Required("entity_id"): cv.entity_id,
@@ -472,16 +518,26 @@ async def websocket_floor_plan(hass, connection, message):
         ),
         "active_point": live_point_geometry(account.live_point(robot_id, now), floor),
     }
-    if (known_id, message.get("known_version"), message.get("known_inventory", inventory_id)) != (
+    needs_geometry = (
+        known_id,
+        message.get("known_version"),
+        message.get("known_inventory", inventory_id),
+    ) != (
         floor.map_id,
         floor.version_id,
         inventory_id,
-    ):
+    )
+    if needs_geometry or any(region.remembered is not None for region in floor.regions):
         plan = await account.async_floor_plan(robot_id, floor)
-        if plan is None or floor not in account.maps_for_robot(robot_id):
+        current = next((item for item in account.maps_for_robot(robot_id) if item == floor), None)
+        if plan is not None and current is not None:
+            if needs_geometry:
+                response["geometry"] = map_geometry(current, plan)
+            if remembered := remembered_cleaning(current, plan, cleaning):
+                response["remembered_cleaning"] = remembered
+        elif needs_geometry:
             connection.send_error(message["id"], "map_unavailable", "Floor maps are unavailable.")
             return
-        response["geometry"] = map_geometry(floor, plan)
     connection.send_result(message["id"], response)
 
 

@@ -22,7 +22,11 @@ const sandbox = {
 };
 const source = readFileSync(resolve(__dirname,
   "../../custom_components/roomba_home/frontend/roomba-home-map-card.js"), "utf8");
-runInNewContext(`${source}\nglobalThis.card = RoombaHomeMapCard.prototype;\nglobalThis.drawMissionMap = drawMissionMap;`, sandbox);
+runInNewContext(`${source}
+globalThis.card = RoombaHomeMapCard.prototype;
+globalThis.drawMissionMap = drawMissionMap;
+globalThis.mapNavigation = { bindMapNavigation, WIDTH, HEIGHT };
+`, sandbox);
 
 const boundary = [[0, 0], [10, 0], [10, 4], [0, 4], [0, 0]];
 const region = { id: "example:rid:room-a", kind: "room", polygons: [[boundary]] };
@@ -88,6 +92,168 @@ function mockCard(orientation) {
 }
 
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-8, `${a} ≠ ${b}`);
+
+function navigationFixture({ panAtFit = false, elevated = false, maxZoom = 4 } = {}) {
+  const { bindMapNavigation, WIDTH, HEIGHT } = sandbox.mapNavigation;
+  const view = { map: {}, zoom: 1, pan: [0, 0], elevated };
+  const selections = [];
+  const listeners = new Map();
+  const canvas = {
+    getBoundingClientRect: () => ({ left: 10, top: 20, width: WIDTH / 2, height: HEIGHT / 2 }),
+    setPointerCapture() {},
+    addEventListener(type, handler, options) { listeners.set(type, { handler, options }); },
+  };
+  bindMapNavigation(canvas, {
+    viewport: () => view,
+    update: (zoom, pan) => Object.assign(view, { zoom, pan: [...pan] }),
+    select: (event) => selections.push(event.pointerId),
+    maxZoom,
+    panAtFit,
+  });
+  const pointer = (action, pointerId, x, y) =>
+    canvas[`onpointer${action}`]({ pointerId, button: 0, clientX: x + 10, clientY: y + 20 });
+  return { canvas, view, pointer, selections, listeners, WIDTH, HEIGHT };
+}
+
+test("a single touch can scroll the dashboard at fit without selecting a dragged floor area", () => {
+  const { pointer, view, selections, listeners } = navigationFixture();
+  pointer("down", 1, 30, 30);
+  pointer("move", 1, 75, 100);
+  pointer("up", 1, 75, 100);
+  assert.deepEqual(view.pan, [0, 0]);
+  assert.deepEqual(selections, []);
+
+  const { handler, options } = listeners.get("touchstart");
+  assert.equal(options.passive, false);
+  let prevented = 0;
+  const preventDefault = () => { prevented++; };
+  handler({ targetTouches: [{}], cancelable: true, preventDefault });
+  handler({ targetTouches: [{}, {}], cancelable: false, preventDefault });
+  handler({ targetTouches: [{}, {}], cancelable: true, preventDefault });
+  assert.equal(prevented, 1);
+
+  pointer("down", 2, 30, 30);
+  pointer("up", 2, 65, 30);
+  assert.deepEqual(selections, []);
+  pointer("down", 3, 31, 30);
+  pointer("up", 3, 32, 30);
+  assert.deepEqual(selections, [3]);
+});
+
+test("the 3D view pans at fit by drag or arrow keys without changing the zoom", () => {
+  const { canvas, pointer, view, selections } = navigationFixture({ elevated: true });
+  pointer("down", 1, 30, 30);
+  pointer("move", 1, 60, 50);
+  pointer("up", 1, 60, 50);
+  assert.deepEqual(view.pan, [60, 40]);
+  assert.deepEqual(selections, []);
+
+  let prevented = 0;
+  const preventDefault = () => { prevented++; };
+  canvas.onkeydown({ key: "ArrowUp", preventDefault });
+  canvas.onkeydown({ key: "ArrowDown", altKey: true, preventDefault });
+  assert.deepEqual(view.pan, [60, 88]);
+  assert.equal(view.zoom, 1);
+  assert.equal(prevented, 1);
+});
+
+test("a pinch follows the moving midpoint and a remaining finger continues panning", () => {
+  const { pointer, view, selections, WIDTH, HEIGHT } = navigationFixture();
+  pointer("down", 1, 100, 100);
+  pointer("down", 2, 200, 100);
+  pointer("move", 2, 300, 100);
+  const pinched = [WIDTH / 2 - 200, HEIGHT / 2 - 200];
+  assert.equal(view.zoom, 2);
+  assert.deepEqual(view.pan, pinched);
+
+  pointer("up", 2, 300, 100);
+  pointer("move", 1, 110, 108);
+  pointer("up", 1, 110, 108);
+  assert.deepEqual(view.pan, [pinched[0] + 20, pinched[1] + 16]);
+  assert.deepEqual(selections, []);
+});
+
+test("the report viewport keeps its drag at fit, bounds a pinch, and drops old-map pointers", () => {
+  const { canvas, pointer, view, selections, WIDTH, HEIGHT } =
+    navigationFixture({ panAtFit: true, maxZoom: 8 });
+  pointer("down", 1, 20, 20);
+  pointer("move", 1, 35, 40);
+  pointer("up", 1, 35, 40);
+  assert.deepEqual(view.pan, [30, 40]);
+
+  pointer("down", 1, 100, 100);
+  pointer("down", 2, 120, 100);
+  pointer("move", 2, 380, 100);
+  assert.equal(view.zoom, 8);
+  assert.ok(Math.abs(view.pan[0]) <= WIDTH * 4 && Math.abs(view.pan[1]) <= HEIGHT * 4);
+  canvas.onlostpointercapture({ pointerId: 2 });
+  view.map = {};
+  const previous = view.pan;
+  pointer("move", 1, 180, 125);
+  pointer("up", 1, 180, 125);
+  assert.equal(view.pan, previous);
+  assert.deepEqual(selections, []);
+});
+
+function maintenanceCard() {
+  const { card } = mockCard(0);
+  const dialog = card.$("maintenance-dialog");
+  dialog.open = false;
+  dialog.showModal = () => { dialog.open = true; };
+  dialog.close = () => { dialog.open = false; };
+  card.maintenanceSequence = 0;
+  card.config = { entity: "vacuum.example" };
+  return { card, dialog };
+}
+
+test("maintenance shows provider links, zero, and a dust bag with no counter", async () => {
+  const { card, dialog } = maintenanceCard();
+  const shop = "https://www.irobot.es/es_ES/4849916.html";
+  const guide = "https://prod-help-content.care.irobotapi.com/web/es/70517.html";
+  card._hass = {
+    callWS: async (request) => {
+      assert.deepEqual({ ...request }, { type: "roomba_home/maintenance", entity_id: "vacuum.example" });
+      return { robot: "Roomba", counters_available: true, parts: [
+        { part: "dust_bag", part_sku: "4849916", replacement_url: shop },
+        { part: "filter", usage: 0, remaining: 10, count_type: "minutes" },
+        { part: "dock_washing_system", maintenance_guide_url: guide },
+      ] };
+    },
+  };
+  await card.openMaintenance();
+  assert.equal(dialog.open, true);
+  assert.equal(card.$("maintenance-title").textContent, "Roomba maintenance");
+  assert.equal(card.$("maintenance-status").textContent, "");
+  const [bag, filter, washer] = card.$("maintenance-parts").children;
+  assert.deepEqual(bag.children.map(({ textContent }) => textContent), ["Dust bag", "Part 4849916", "iRobot shop"]);
+  const shopLink = bag.querySelector("a");
+  assert.equal(shopLink.href, shop);
+  assert.equal(shopLink.target, "_blank");
+  assert.equal(shopLink.rel, "noopener noreferrer");
+  assert.equal(shopLink["aria-label"], "iRobot shop for dust bag");
+  assert.equal(filter.querySelector("p").textContent, "0% used · 10 min remaining");
+  assert.equal(washer.querySelector("a").href, guide);
+});
+
+test("maintenance ignores a reply after closing and reopening on a different robot", async () => {
+  const { card, dialog } = maintenanceCard();
+  let complete;
+  card._hass = { callWS: () => new Promise((resolve) => { complete = resolve; }) };
+  const old = card.openMaintenance();
+  dialog.close();
+  card.config.entity = "vacuum.next";
+  card._hass.callWS = async () => ({ robot: "Other", parts: [], counters_available: false });
+  await card.openMaintenance();
+  complete({ robot: "Original", parts: [{ part: "filter" }], counters_available: true });
+  await old;
+  assert.equal(card.$("maintenance-title").textContent, "Other maintenance");
+  assert.equal(card.$("maintenance-status").textContent, "Roomba has no maintenance details for this robot.");
+  assert.deepEqual(card.$("maintenance-parts").children, []);
+  dialog.close();
+  card._hass.callWS = async () => { throw Error("Could not read Roomba"); };
+  await card.openMaintenance();
+  assert.equal(card.$("maintenance-status").textContent, "Could not read Roomba");
+});
 
 test("saved routines display the estimate from the selected provider record", () => {
   const { card } = mockCard(0);
@@ -166,6 +332,71 @@ function draftEstimateCard() {
   card.renderRoutine();
   return card;
 }
+
+test("a draft can inspect and apply a room's remembered settings for its chosen mode", async () => {
+  const card = draftEstimateCard();
+  card.snapshot.cleaning = {
+    default_mode: "vacuum_mop", modes: ["vacuum", "mop", "vacuum_mop"],
+    suction_level: 4, wetness_level: 3, two_pass: true, smart_scrub: true,
+  };
+  card.snapshot.remembered_cleaning = {
+    "room-a": {
+      last_mode: "vacuum",
+      preferred: { vacuum: 2, mop: 4, vacuum_mop: 6 },
+      profiles: [
+        { mode_code: 2, settings: { mode: "vacuum", suction_level: 1, two_pass: false } },
+        { mode_code: 4, settings: { mode: "mop", wetness_level: 2, smart_scrub: false } },
+        { mode_code: 6, settings: { mode: "vacuum_mop", suction_level: 1, wetness_level: 1 } },
+        { mode_code: 32, preset: "normal", updated_at: "2023-11-14T22:13:20+00:00",
+          settings: { mode: "vacuum_mop", suction_level: 3, wetness_level: 2 } },
+      ],
+    },
+  };
+  card.callAction = () => { throw Error("Changing a draft must not call an action"); };
+  card.renderRoutine();
+  const row = card.$("routine-regions").children[0];
+  const details = row.querySelector("details");
+  assert.equal(details.querySelector("p").textContent, "Last mode · Vacuum");
+  assert.deepEqual(details.querySelector("ul").children.length, 4);
+  assert.ok(details.querySelector("ul").children[3].textContent.includes("Mode 32 · Normal"));
+  const choice = row.querySelector("[data-routine-preset]");
+  assert.equal(choice.children[1].text, "Remembered by Roomba");
+  choice.value = "remembered";
+  await choice.onchange();
+  assert.deepEqual(card.routineDraft.regions[0], {
+    id: "room-a", mode: "mop", two_pass: false, wetness_level: 2, smart_scrub: false,
+  });
+  assert.deepEqual(card.routineDraft.regions[1], { id: "furniture-b", mode: "vacuum" });
+});
+
+test("applying remembered settings to all areas preserves order and checks the current revision", async () => {
+  const card = draftEstimateCard();
+  card.snapshot.cleaning = { default_mode: "vacuum_mop", modes: ["vacuum", "mop", "vacuum_mop"] };
+  card.routineAreas = new Map([["room-b", "Hall"], ["room-a", "Kitchen"]]);
+  card.routineDraft.regions = [{ id: "room-b" }, { id: "room-a" }];
+  card.routineDraft.ordered = true;
+  card.snapshot.remembered_cleaning = {
+    "room-a": { last_mode: "vacuum", preferred: { vacuum: 2 },
+      profiles: [{ mode_code: 2, settings: { mode: "vacuum", suction_level: 1 } }] },
+    "room-b": { last_mode: "mop", preferred: { mop: 4 },
+      profiles: [{ mode_code: 4, settings: { mode: "mop", wetness_level: 3 } }] },
+  };
+  card.renderRoutine();
+  const preset = card.$("routine-preset-all");
+  assert.equal(card.$("routine-preset-all-label").hidden, false);
+  card.snapshot.map.version = "changed";
+  preset.value = "remembered";
+  await preset.onchange();
+  assert.deepEqual(card.routineDraft.regions, [{ id: "room-b" }, { id: "room-a" }]);
+  assert.deepEqual({ ...card.routinePresetsFor(card.routineDraft.regions[0]) }, {});
+  card.snapshot.map.version = "v1";
+  await preset.onchange();
+  assert.deepEqual(card.routineDraft.regions, [
+    { id: "room-b", mode: "mop", wetness_level: 3 },
+    { id: "room-a", mode: "vacuum", suction_level: 1 },
+  ]);
+  assert.equal(card.routineDraft.ordered, true);
+});
 
 test("native automatic order survives editing, copying, and confirming a draft", async () => {
   const card = draftEstimateCard();

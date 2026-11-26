@@ -28,9 +28,16 @@ const SETTINGS = {
   smart_scrub: "SmartScrub",
   carpet_boost: "Carpet boost",
 };
-const PRESET_LABELS = { light: "Light", normal: "Normal", deep: "Deep", smart: "Smart recommendations" };
+const PRESET_LABELS = {
+  light: "Light", normal: "Normal", deep: "Deep", smart: "Smart recommendations",
+  remembered: "Remembered by Roomba",
+};
 const RESTRICTION_TYPES = { keep_out: "Keep-out zone", no_mop: "No-mop zone", wall: "Virtual wall" };
 const HISTORY_PATH_LAYERS = ["cleaning", "travel", "unclassified"];
+const MAINTENANCE_UNITS = {
+  minutes: "min", missions: "missions", combo_missions: "combo missions",
+  evacs: "emptying cycles", pad_washes_used: "wash cycles", sqft: "m²",
+};
 const PROGRAM_RECOVERY_STATUS = {
   missing_program: "Program deleted",
   unsupported_selection: "Current selection cannot be edited",
@@ -53,6 +60,8 @@ template.innerHTML = `
     .muted { color:var(--secondary-text-color,#a9b8c5); font-size:13px; }
     .scene { position:relative; isolation:isolate; background:#101e2a; }
     canvas { width:100%; height:auto; display:block; touch-action:pan-y; cursor:crosshair; }
+    [data-gesture-pan="true"] > canvas { touch-action:none; cursor:grab; }
+    canvas:focus-visible { outline:2px solid var(--primary-color,#54d2b7); outline-offset:-2px; }
     #live-marker { position:absolute; inset:0; pointer-events:none; }
     .zoom { position:absolute; right:10px; top:10px; display:grid; gap:4px; }
     button,select,input {
@@ -86,6 +95,12 @@ template.innerHTML = `
     #routine-dialog { width:min(34rem, calc(100vw - 3rem)); max-width:none; }
     #mission-history-dialog { width:min(55rem, calc(100vw - 3rem)); max-width:none; }
     #cleaning-scores-dialog { width:min(36rem, calc(100vw - 3rem)); max-width:none; }
+    #maintenance-dialog { width:min(28rem, calc(100vw - 3rem)); max-width:none; }
+    #maintenance-parts { list-style:none; padding:0; margin:12px 0; }
+    #maintenance-parts li { padding:10px 0; border-top:1px solid var(--divider-color,#647382); }
+    #maintenance-parts p { margin:4px 0; }
+    #maintenance-parts a { color:var(--link-text-color,#8ae0d5); display:inline-block; margin-inline-end:12px; }
+    #maintenance-status:empty { display:none; }
     #scores-rooms section { border-top:1px solid var(--divider-color,#647382); margin:12px 0; padding-top:10px; }
     #mission-history-dialog select { max-width:100%; }
     #history-map { background:#101e2a; cursor:grab; touch-action:none; }
@@ -130,9 +145,11 @@ template.innerHTML = `
       </div>
       <select id="maps" aria-label="Floor plan" hidden></select>
       <button id="open-mission-history">Cleaning history</button>
+      <button id="open-maintenance">Maintenance</button>
     </header>
     <div id="scene" class="scene">
-      <canvas width="${WIDTH}" height="${HEIGHT}" aria-label="Floor plan. Use the controls below to select with the keyboard."></canvas>
+      <canvas width="${WIDTH}" height="${HEIGHT}" tabindex="0"
+        aria-label="Floor plan. Use arrow keys to pan the zoomed or 3D map. Select areas using the controls below."></canvas>
       <canvas id="live-marker" width="${WIDTH}" height="${HEIGHT}" aria-hidden="true"></canvas>
       <div class="zoom">
         <button id="zoom-in" aria-label="Zoom in">+</button>
@@ -341,6 +358,12 @@ template.innerHTML = `
       <div id="scores-rooms"></div>
       <div class="actions"><button id="close-cleaning-scores">Close</button></div>
     </dialog>
+    <dialog id="maintenance-dialog" aria-labelledby="maintenance-title">
+      <h3 id="maintenance-title">Maintenance</h3>
+      <p id="maintenance-status" class="muted" role="status"></p>
+      <ul id="maintenance-parts"></ul>
+      <div class="actions"><button id="close-maintenance">Close</button></div>
+    </dialog>
     <dialog id="mission-history-dialog" aria-labelledby="mission-history-title">
       <h3 id="mission-history-title">Recent cleaning reports</h3>
       <p id="history-status" class="muted" role="status"></p>
@@ -350,7 +373,8 @@ template.innerHTML = `
         <dl id="history-measurements" class="measurements"></dl>
         <label id="history-map-selector" hidden>Mission map <select id="history-map-index"></select></label>
         <section id="history-map-view" aria-label="Mission map" hidden>
-          <canvas id="history-map" width="${WIDTH}" height="${HEIGHT}" aria-label="Recorded floor, coverage and robot route"></canvas>
+          <canvas id="history-map" width="${WIDTH}" height="${HEIGHT}" tabindex="0"
+            aria-label="Recorded floor, coverage and robot route. Use arrow keys to pan."></canvas>
           <div class="map-actions">
             <button id="history-zoom-in" aria-label="Zoom in on recorded map">+</button>
             <button id="history-zoom-out" aria-label="Zoom out of recorded map">−</button>
@@ -589,6 +613,104 @@ function mapBounds(points) {
     [Infinity, Infinity, -Infinity, -Infinity]);
 }
 
+function boundedMapPan([x, y], zoom) {
+  const limit = (value, size) => Math.max(-size * zoom / 2, Math.min(size * zoom / 2, value));
+  return [limit(x, WIDTH), limit(y, HEIGHT)];
+}
+
+function bindMapNavigation(canvas, { viewport, update, select, maxZoom, panAtFit = false }) {
+  const pointers = new Map();
+  let anchor;
+  let dragged = false;
+  const canPan = (view) => view.elevated || view.zoom > 1 || panAtFit;
+  const point = (event, { left, top, width, height }) => {
+    if (!width || !height) return null;
+    return [(event.clientX - left) * WIDTH / width, (event.clientY - top) * HEIGHT / height];
+  };
+  const traveled = (dx, dy, { width, height }) => Math.hypot(dx * width / WIDTH, dy * height / HEIGHT);
+  const frame = () => {
+    const [first, second] = pointers.values();
+    if (!second) return { center: first, distance: 0 };
+    return {
+      center: first.map((value, axis) => (value + second[axis]) / 2),
+      distance: Math.hypot(first[0] - second[0], first[1] - second[1]),
+    };
+  };
+  const anchorViewport = (view) => ({ ...frame(), ...view });
+  const stillOnMap = (view) => view && anchor && view.map === anchor.map;
+
+  canvas.onpointerdown = (event) => {
+    const view = viewport();
+    const current = point(event, canvas.getBoundingClientRect());
+    if (event.button !== 0 || !view || !current || pointers.size >= 2) return;
+    if (pointers.size && !stillOnMap(view)) pointers.clear();
+    dragged = pointers.size > 0;
+    pointers.set(event.pointerId, current);
+    canvas.setPointerCapture(event.pointerId);
+    anchor = anchorViewport(view);
+  };
+  canvas.onpointermove = (event) => {
+    if (!pointers.has(event.pointerId)) return;
+    const view = viewport();
+    const bounds = canvas.getBoundingClientRect();
+    const current = point(event, bounds);
+    if (!current || !stillOnMap(view)) return;
+    pointers.set(event.pointerId, current);
+    const { center, distance } = frame();
+    const [dx, dy] = center.map((value, axis) => value - anchor.center[axis]);
+    if (!dragged && traveled(dx, dy, bounds) < 5) return;
+    dragged = true;
+    if (pointers.size === 1) {
+      if (canPan(view)) {
+        update(view.zoom, boundedMapPan([anchor.pan[0] + dx, anchor.pan[1] + dy], view.zoom));
+      }
+      return;
+    }
+    const zoom = Math.max(1, Math.min(maxZoom, anchor.zoom * distance / Math.max(1, anchor.distance)));
+    const scale = zoom / anchor.zoom;
+    const pan = anchor.pan.map((value, axis) => {
+      const origin = (axis === 0 ? WIDTH : HEIGHT) / 2;
+      return center[axis] - origin - (anchor.center[axis] - origin - value) * scale;
+    });
+    update(zoom, boundedMapPan(pan, zoom));
+  };
+  const finishPointer = (event, allowSelect) => {
+    if (!pointers.delete(event.pointerId)) return;
+    const view = viewport();
+    if (select && allowSelect && !dragged && stillOnMap(view)) {
+      const bounds = canvas.getBoundingClientRect();
+      const current = point(event, bounds);
+      if (current && traveled(current[0] - anchor.center[0], current[1] - anchor.center[1], bounds) < 5) {
+        select(event);
+      }
+    }
+    if (pointers.size && stillOnMap(view)) anchor = anchorViewport(view);
+    else {
+      pointers.clear();
+      anchor = null;
+    }
+  };
+  canvas.onpointerup = (event) => finishPointer(event, true);
+  canvas.onpointercancel = canvas.onlostpointercapture = (event) => finishPointer(event, false);
+  const arrows = new Map([
+    ["ArrowLeft", [48, 0]], ["ArrowRight", [-48, 0]],
+    ["ArrowUp", [0, 48]], ["ArrowDown", [0, -48]],
+  ]);
+  canvas.onkeydown = (event) => {
+    const view = viewport();
+    const direction = arrows.get(event.key);
+    if (!direction || !view || !canPan(view) || event.altKey || event.ctrlKey || event.metaKey) return;
+    event.preventDefault();
+    update(view.zoom, boundedMapPan(view.pan.map((value, index) => value + direction[index]), view.zoom));
+  };
+  // Intercept a map pinch without blocking a one-finger dashboard scroll at fit.
+  for (const type of ["touchstart", "touchmove"]) {
+    canvas.addEventListener(type, (event) => {
+      if (event.targetTouches.length > 1 && event.cancelable) event.preventDefault();
+    }, { passive: false });
+  }
+}
+
 function roomBounds(room) {
   return mapBounds(room.polygons.flatMap(([outer]) => outer));
 }
@@ -816,6 +938,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.orbit = 0;
     this.sequence = 0;
     this.scoreSequence = 0;
+    this.maintenanceSequence = 0;
     this.$("maps").onchange = (event) => {
       this.closeLiveSubscription();
       this.removalDraft = null;
@@ -840,6 +963,8 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("start").onclick = () => this.submit();
     this.$("review-mapping").onclick = () => this.reviewMapping();
     this.$("open-mission-history").onclick = () => this.openMissionHistory();
+    this.$("open-maintenance").onclick = () => this.openMaintenance();
+    this.$("close-maintenance").onclick = () => this.$("maintenance-dialog").close();
     this.$("open-cleaning-scores").onclick = () => this.openCleaningScores();
     this.$("close-cleaning-scores").onclick = () => this.$("cleaning-scores-dialog").close();
     this.$("close-mission-history").onclick = () => this.$("mission-history-dialog").close();
@@ -862,12 +987,15 @@ class RoombaHomeMapCard extends HTMLElement {
       this.drawHistoryMap();
     };
     this.historySequence = 0;
-    this.$("history-map").onpointerdown = (event) => {
-      event.currentTarget.setPointerCapture(event.pointerId);
-      this.historyPointer = [event.clientX, event.clientY];
-    };
-    this.$("history-map").onpointermove = (event) => this.panHistoryMap(event);
-    this.$("history-map").onpointerup = this.$("history-map").onpointercancel = () => { this.historyPointer = null; };
+    bindMapNavigation(this.$("history-map"), {
+      viewport: () => this.historyReport?.geometry && { ...this.historyView, map: this.historyReport.geometry },
+      update: (zoom, pan) => {
+        Object.assign(this.historyView, { zoom, pan });
+        this.drawHistoryMap();
+      },
+      maxZoom: 8,
+      panAtFit: true,
+    });
     this.$("cancel-mapping").onclick = () => this.$("mapping-dialog").close();
     this.$("start-mapping").onclick = () => this.startMapping();
     this.$("point-mode").onclick = () => this.togglePointMode();
@@ -1057,15 +1185,18 @@ class RoombaHomeMapCard extends HTMLElement {
       if (this.scheduleEditor) this.saveSchedule();
       else this.saveRoutine();
     };
-    this.canvas.onpointerdown = (event) => {
-      this.pointer = { x: event.clientX, y: event.clientY, pan: [...this.pan], moving: false };
-    };
-    this.canvas.onpointermove = (event) => this.panMap(event);
-    this.canvas.onpointerup = (event) => {
-      if (this.pointer && !this.pointer.moving) this.pick(event);
-      this.pointer = null;
-    };
-    this.canvas.onpointercancel = () => { this.pointer = null; };
+    bindMapNavigation(this.canvas, {
+      viewport: () => this.geometry && {
+        map: this.geometry, zoom: this.zoom, pan: this.pan, elevated: this.showElevation,
+      },
+      update: (zoom, pan) => {
+        this.zoom = zoom;
+        this.pan = pan;
+        this.draw();
+      },
+      select: (event) => this.pick(event),
+      maxZoom: 4,
+    });
   }
 
   $(id) { return this.shadowRoot.getElementById(id); }
@@ -1111,6 +1242,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.closeLiveSubscription();
     if (this.routineDialog.open) this.routineDialog.close();
     if (this.$("mission-history-dialog").open) this.$("mission-history-dialog").close();
+    if (this.$("maintenance-dialog").open) this.$("maintenance-dialog").close();
     if (this.$("map-backups-dialog").open) this.$("map-backups-dialog").close();
     if (this.$("cleaning-scores-dialog").open) this.$("cleaning-scores-dialog").close();
     if (this.$("mapping-dialog").open) this.$("mapping-dialog").close();
@@ -1516,6 +1648,64 @@ class RoombaHomeMapCard extends HTMLElement {
       status.textContent = "";
     } catch (error) {
       if (current()) status.textContent = error?.message || "Room cleaning scores are unavailable.";
+    }
+  }
+
+  async openMaintenance() {
+    if (!this.config || !this._hass) return;
+    const { entity } = this.config;
+    const dialog = this.$("maintenance-dialog");
+    if (dialog.open) return;
+    const title = this.$("maintenance-title");
+    const status = this.$("maintenance-status");
+    const list = this.$("maintenance-parts");
+    const sequence = ++this.maintenanceSequence;
+    const current = () => dialog.open && sequence === this.maintenanceSequence &&
+      entity === this.config.entity;
+
+    title.textContent = "Maintenance";
+    status.textContent = "Loading maintenance…";
+    list.replaceChildren();
+    dialog.showModal();
+    try {
+      const report = await this._hass.callWS({ type: "roomba_home/maintenance", entity_id: entity });
+      if (!current()) return;
+      title.textContent = report.robot ? `${report.robot} maintenance` : "Maintenance";
+      list.replaceChildren(...report.parts.map((part) => {
+        const row = document.createElement("li");
+        const name = document.createElement("strong");
+        name.textContent = historyLabel(part.part);
+        row.append(name);
+        const details = [
+          part.usage == null ? null : `${part.usage}% used`,
+          part.remaining == null ? null : `${part.remaining} ${MAINTENANCE_UNITS[part.count_type]} remaining`,
+          part.part_sku ? `Part ${part.part_sku}` : null,
+        ].filter(Boolean);
+        if (details.length) {
+          const description = document.createElement("p");
+          description.className = "muted";
+          description.textContent = details.join(" · ");
+          row.append(description);
+        }
+        for (const [label, url] of [
+          ["iRobot shop", part.replacement_url], ["Maintenance guide", part.maintenance_guide_url],
+        ]) {
+          if (!url) continue;
+          const link = document.createElement("a");
+          link.href = url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = label;
+          link.setAttribute("aria-label", `${label} for ${name.textContent.toLowerCase()}`);
+          row.append(link);
+        }
+        return row;
+      }));
+      status.textContent = report.parts.length
+        ? (report.counters_available ? "" : "Roomba's usage counters are unavailable.")
+        : "Roomba has no maintenance details for this robot.";
+    } catch (error) {
+      if (current()) status.textContent = error?.message || "Maintenance is unavailable.";
     }
   }
 
@@ -2092,6 +2282,7 @@ class RoombaHomeMapCard extends HTMLElement {
     const geometry = this.historyReport?.geometry;
     if (!geometry) return;
     const view = this.historyView;
+    this.$("history-map-view").dataset.gesturePan = String(view.elevated || view.zoom > 1);
     this.$("history-3d").hidden = !geometry.walls.length && !geometry.furniture.length;
     this.$("history-3d").setAttribute("aria-pressed", view.elevated);
     this.$("history-orbit").hidden = !view.elevated;
@@ -2136,16 +2327,6 @@ class RoombaHomeMapCard extends HTMLElement {
 
   changeHistoryView(factor) {
     this.historyView.zoom = Math.min(8, Math.max(1, this.historyView.zoom * factor));
-    this.drawHistoryMap();
-  }
-
-  panHistoryMap(event) {
-    if (!this.historyPointer) return;
-    const view = this.historyView;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    view.pan[0] += (event.clientX - this.historyPointer[0]) * WIDTH / bounds.width;
-    view.pan[1] += (event.clientY - this.historyPointer[1]) * HEIGHT / bounds.height;
-    this.historyPointer = [event.clientX, event.clientY];
     this.drawHistoryMap();
   }
 
@@ -3434,7 +3615,16 @@ class RoombaHomeMapCard extends HTMLElement {
 
   routinePresetsFor(region) {
     const cleaning = this.snapshot?.cleaning;
-    return cleaning?.presets?.[region.mode ?? cleaning.default_mode] ?? {};
+    const presets = cleaning?.presets?.[region.mode ?? cleaning.default_mode] ?? {};
+    const remembered = this.rememberedFor(region);
+    const mode = region.mode ?? remembered?.last_mode ?? cleaning?.default_mode;
+    const code = remembered?.preferred[mode];
+    const saved = remembered?.profiles.find((profile) => profile.mode_code === code);
+    return saved ? { ...presets, remembered: saved.settings } : presets;
+  }
+
+  rememberedFor(region) {
+    return this.routineFloorIsCurrent() ? this.snapshot.remembered_cleaning?.[region.id] : undefined;
   }
 
   canApplySmartPreset(region) {
@@ -3505,7 +3695,9 @@ class RoombaHomeMapCard extends HTMLElement {
         select.value = "";
         await this.applySmartPresets(regions);
       } else {
-        regions.forEach((region, index) => Object.assign(region, recipes[index][key]));
+        const current = regions.map((region) => this.routinePresetsFor(region));
+        if (!current.every((choices) => Object.hasOwn(choices, key))) return;
+        regions.forEach((region, index) => Object.assign(region, current[index][key]));
         this.renderRoutine();
       }
       select.focus();
@@ -3538,6 +3730,36 @@ class RoombaHomeMapCard extends HTMLElement {
       actions.append(button);
     }
     item.append(actions);
+    const remembered = this.rememberedFor(region);
+    if (remembered) {
+      const details = document.createElement("details");
+      const summary = document.createElement("summary");
+      summary.textContent = "Roomba's remembered settings";
+      details.append(summary);
+      if (remembered.last_mode) {
+        const last = document.createElement("p");
+        last.className = "muted";
+        last.textContent = `Last mode · ${MODES[remembered.last_mode]}`;
+        details.append(last);
+      }
+      const profiles = document.createElement("ul");
+      profiles.replaceChildren(...remembered.profiles.map((profile) => {
+        const line = document.createElement("li");
+        const settings = profile.settings;
+        const values = Object.entries(SETTINGS).flatMap(([key, label]) => {
+          const value = settings[key];
+          if (value == null) return [];
+          const display = typeof value === "boolean" ? (value ? "On" : "Off") : value;
+          return [`${label} ${display}`];
+        });
+        line.textContent = [MODES[settings.mode], `Mode ${profile.mode_code}`,
+          PRESET_LABELS[profile.preset] ?? (profile.preset && historyLabel(profile.preset)),
+          profile.updated_at && historyTime(profile.updated_at), ...values].filter(Boolean).join(" · ");
+        return line;
+      }));
+      details.append(profiles);
+      item.append(details);
+    }
     const capabilities = this.snapshot?.cleaning ?? {};
     const modes = (capabilities.modes ?? []).map((mode) => option(mode, MODES[mode]));
     const presetField = document.createElement("label");
@@ -3795,21 +4017,6 @@ class RoombaHomeMapCard extends HTMLElement {
     this.setZoom(1);
   }
 
-  panMap(event) {
-    if (!this.pointer || this.zoom === 1) return;
-    const dx = event.clientX - this.pointer.x;
-    const dy = event.clientY - this.pointer.y;
-    if (!this.pointer.moving && Math.hypot(dx, dy) < 5) return;
-    this.pointer.moving = true;
-    const bounds = this.canvas.getBoundingClientRect();
-    const limit = (pan, extent) => Math.min(extent * this.zoom / 2, Math.max(-extent * this.zoom / 2, pan));
-    this.pan = [
-      limit(this.pointer.pan[0] + dx * WIDTH / bounds.width, WIDTH),
-      limit(this.pointer.pan[1] + dy * HEIGHT / bounds.height, HEIGHT),
-    ];
-    this.draw();
-  }
-
   placePoint() {
     const id = this.$("point-room").value;
     const room = this.pointRooms.find((area) => area.id === id);
@@ -3944,7 +4151,8 @@ class RoombaHomeMapCard extends HTMLElement {
   draw() {
     this.liveMarkerProjection = null;
     this.markerCtx?.clearRect(0, 0, WIDTH, HEIGHT);
-    this.$("scene").hidden = !this.geometry;
+    const scene = this.$("scene");
+    scene.hidden = !this.geometry;
     const ctx = this.ctx;
     ctx.fillStyle = "#101e2a";
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -3958,6 +4166,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.screenPoint = null;
     const { walls: floorWalls = [], carpets = [], docks = [] } = this.geometry?.presentation ?? {};
     const elevated = this.showElevation;
+    scene.dataset.gesturePan = String(elevated || this.zoom > 1);
     const view = this.$("show-3d");
     view.hidden = !this.hasWalls;
     view.disabled = this.editingMap;

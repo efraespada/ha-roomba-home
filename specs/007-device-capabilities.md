@@ -3,7 +3,7 @@
 - Status: Draft
 - Date: 2026-11-23
 - Catalog capability ID: device-capabilities
-- Last verified: 2026-11-25
+- Last verified: 2026-11-26
 - Owners: ha-roomba-home maintainer
 - Scope: A central discovery, robot co-ordination and advanced base with clear regions.
 - Related issues/PRs: Extension requested by the incumbent and local development.
@@ -47,7 +47,8 @@ established their meaning.
 | Component use and remaining life, including maintenance resets | Implemented; three displayed hour values matched the API's remaining minutes |
 | Change Wi-Fi | App entry point observed; setup protocol and recovery require verification |
 | Factory reset and remove robot | App entry point observed; account removal, device reset, and recovery require verification |
-| User guide, robot help, and purchase links | App entry points observed; destination links require separate verification |
+| Part SKUs and replacement or care links | Validated model catalog projected on existing sensors and in the maintenance view |
+| General user guide and robot help | App entry points observed; destination links require separate verification |
 
 [Android device settings comparison](../docs/validation.md#android-device-settings-comparison)
 
@@ -91,6 +92,9 @@ becoming an indiscriminately false or zero.
 - CAP-18: Manage weekly and one-time schedules from the floor plan. Show
   the recognized destination order and per-area settings and let the owner
   change either independently of timing and activation.
+- CAP-19: Show part SKUs and verified market-scoped replacement and care
+  links beside the signed robot and dock counters. Keep catalog references
+  available if the counter read fails. Require read access to the linked robot.
 
 No endpoints, maps and empty states are invented with HA entities or capabilities. No
 physical errors are induced and no maps, accounts or data beyond the test have been
@@ -383,6 +387,11 @@ with API operations.
     and selected code. Verify replacement of the previous download and
     preservation of factory voices. Exercise a mismatched deployment,
     reported firmware error, and timeout with fixtures.
+19. Open the maintenance view for a Max 700 Combo before enabling maps.
+    Verify that replacement references match the model catalog, the filter
+    shares its signed usage with the existing sensor, and the dust bag can
+    show a link with its counter disabled. Check access denials, unavailable
+    counters, and wrong-market or mismatched SKU links.
 
 ## 17. Requirements traceability
 
@@ -405,6 +414,7 @@ with API operations.
 | CAP-16 | Firmware timestamp sensor and catalog status action | [Device validation](../docs/validation.md#robot-software-status), [catalog tests](../tests/test_api_client.py), and [Home Assistant action tests](../tests/ha/test_cleaning_controls.py) |
 | CAP-17 | Robot device registry serial number | [Android and API comparison](../docs/validation.md#robot-serial-number), [signed lookup tests](../tests/test_api_client.py), and [registry refresh tests](../tests/ha/test_telemetry_entities.py) |
 | CAP-18 | Schedule editor and typed Home Assistant actions | [Schedule API](../docs/api.md#cloud-schedule-frequency-and-ownership), [action tests](../tests/ha/test_schedules.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed trial](../docs/validation.md#schedule-editor-and-per-area-settings) |
+| CAP-19 | Maintenance view and part sensor attributes | [Catalog parser tests](../tests/test_maintenance.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [catalog validation](../docs/validation.md#maintenance-catalog-and-links) |
 
 CAP-09 includes floor plans, room labels, position, heading, trajectory,
 coverage, and estimates supported by Roomba. Enable the map option to expose

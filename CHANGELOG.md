@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.64.0
+
+- Inspect Roomba's remembered cleaning settings by area and reuse them in
+  routine or schedule drafts.
+- Show iRobot part references, shop links, and care guides alongside robot
+  and dock consumable readings.
+- Pan 3D floor plans and recorded maps with touch, mouse, or arrow keys.
+  Pinch to zoom the map on touch screens.
+
 ## 0.63.0
 
 - Pause an active Max 700 Combo cleaning before returning to the dock.

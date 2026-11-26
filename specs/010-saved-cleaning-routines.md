@@ -82,6 +82,8 @@ calendar trigger and may carry an independent copy of a routine.
   saved zones, including after editing or duplicating a favorite.
 - ROUTINE-14: Copy an ordered selection of rooms and saved zones into a
   schedule draft, preserving the sequence and each destination's settings.
+- ROUTINE-15: Inspect Roomba's remembered settings for current rooms and
+  saved zones and copy a compatible mode profile into an ordered draft.
 - Saving, updating, and removing a routine leave the robot's movement state alone.
 - The supported edition 1 favorites each address one robot. Multi-robot
   favorite commands require separate protocol evidence.
@@ -188,6 +190,15 @@ Keep the settings of other areas. Discard delayed replies when the reviewed
 floor, effective mode, or draft changes. Use existing save and run flows
 with the concrete per-area preferences.
 
+Project remembered mode settings separately from floor geometry. Verify each
+room or saved zone against the active signed archive. Keep distinct wire
+variants visible and prefer the exact reported last mode code, the only
+compatible variant, or the uniquely latest dated variant. Use the draft's
+explicit mode when available and otherwise the reported area's last mode or
+the next-cleaning mode. Copy only available compatible settings and preserve
+destination order. Reject application on a stale draft floor. Existing
+routine and schedule actions own persistence and confirmation.
+
 Read the table for the current floor and confirm its revision both before
 and after the read. Resolve the draft preferences through the same validation
 as a routine save. Use the reported robot defaults for settings left to
@@ -266,6 +277,12 @@ saved routines and scheduled cleaning independently identifiable.
 12. Copy a compatible routine selection into a schedule. Verify the order,
     profiles, and unchanged source routine. Set the timing, save, and confirm
     the schedule is disabled.
+13. Open a floor with two variants for the same mode and inspect both.
+    Apply remembered settings to areas with distinct modes, retain their
+    order, and verify that a stale floor cannot change the draft. On a
+    supported robot, save one reviewed profile to a temporary routine, check
+    it on a signed read-back, remove the routine, and confirm the original
+    favorites and floor.
 
 ## 17. Requirements traceability
 
@@ -284,6 +301,7 @@ saved routines and scheduled cleaning independently identifiable.
 | ROUTINE-12 | [Signed room recommendations](../docs/validation.md#smart-routine-recommendations) | [Projection tests](../tests/test_routine_presets.py), [authenticated score tests](../tests/ha/test_roomba_map_api.py), and [draft tests](../tests/frontend/map-card.test.cjs) |
 | ROUTINE-13 | [Native favorite formats](../docs/api.md#saved-cleaning-routines) | [Parser tests](../tests/test_api_client.py), [Home Assistant actions](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed favorite trial](../docs/validation.md#native-multi-area-favorites) |
 | ROUTINE-14 | [Schedule editor](../docs/usage.md#cleaning-schedules) | [Card tests](../tests/frontend/map-card.test.cjs) and [signed copy trial](../docs/validation.md#copying-a-routine-into-a-schedule) |
+| ROUTINE-15 | [Remembered profiles](../custom_components/roomba_home/core/area_preferences.py) | [Parser tests](../tests/test_area_preferences.py), [floor projection tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed routine trial](../docs/validation.md#remembered-area-cleaning-preferences) |
 
 ## 18. Implementation sequence
 

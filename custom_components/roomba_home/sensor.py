@@ -314,5 +314,6 @@ class RoombaMetricSensor(RoombaEntity, SensorEntity):
             return {
                 "count_type": values.get(f"part_{part}_count_type"),
                 "category": values.get(f"part_{part}_category"),
+                **values.get("part_references", {}).get(part, {}),
             }
         return {}
