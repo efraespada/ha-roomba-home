@@ -386,6 +386,8 @@ sequence:
 Select options use the stable values `vacuum`, `mop`, `vacuum_mop`, and
 `vacuum_then_mop`. Use the options supported by the selected robot.
 
+### Command confirmation
+
 After a command, the integration checks state every five seconds for up to 40
 seconds, or 120 seconds for return to the dock. The `last_command_result`
 attribute and last-command sensor report `pending`, `submitted`,
