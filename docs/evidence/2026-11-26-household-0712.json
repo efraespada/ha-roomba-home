@@ -1,0 +1,15 @@
+{
+  "model": "Roomba Max 700 Combo (X185240)",
+  "published_archive_component_files_verified": 81,
+  "core_configuration_check_passed": true,
+  "core_restart_completed": true,
+  "previous_release_retained_for_rollback": "0.71.1",
+  "authenticated_manifest_version": "0.71.2",
+  "lovelace_module_matches_installed_version": true,
+  "served_module_matches_release_bytes": true,
+  "robot_count": 3,
+  "linked_dock_count": 3,
+  "every_dock_has_a_distinct_linked_robot": true,
+  "history_zero_emptying_regression_verified": true,
+  "robot_commands_sent_for_verification": 0
+}
