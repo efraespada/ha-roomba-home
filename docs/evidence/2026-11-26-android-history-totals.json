@@ -1,0 +1,20 @@
+{
+  "model": "Roomba Max 700 Combo (X185240)",
+  "signed_report_count": 33,
+  "visible_android_report_count": 29,
+  "paired_report_count": 29,
+  "match_fields": ["start_minute", "duration", "outcome"],
+  "android_reports_without_map": {"completed": 2},
+  "signed_reports_absent_from_android": {
+    "mapping_runs": 1,
+    "cleaning_without_map": {"canceled": 2, "stuck": 1}
+  },
+  "home_assistant_cleaning_report_count": 32,
+  "paired_report_totals": {
+    "signed_duration_minutes": 189,
+    "android_displayed_duration_hours": 3.1,
+    "android_displayed_area_m2": 123.3,
+    "sum_of_android_displayed_row_areas_m2": 123.0,
+    "signed_square_feet_converted_to_square_metres": 123.7
+  }
+}

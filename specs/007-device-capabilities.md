@@ -99,6 +99,8 @@ becoming an indiscriminately false or zero.
   Preserve the existing area number, unit conversion, and raw code sensor.
   Verify changes through the same signed settings shadow and require a
   connected robot with no active mission and a recognized emptying dock.
+  Use the mission report for the recorded emptying count. The configured
+  area and the mission's cleaned area alone cannot predict that count.
 - CAP-21: Offer the owner’s manual, verified help links and provider code
   lookup by model, interface language and country. Separate provider error
   families and link only documented current faults. Authorize card reads
@@ -444,7 +446,7 @@ with API operations.
 | CAP-17 | Robot device registry serial number | [Android and API comparison](../docs/validation.md#robot-serial-number), [signed lookup tests](../tests/test_api_client.py), and [registry refresh tests](../tests/ha/test_telemetry_entities.py) |
 | CAP-18 | Schedule editor and typed Home Assistant actions | [Schedule API](../docs/api.md#cloud-schedule-frequency-and-ownership), [action tests](../tests/ha/test_schedules.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed trial](../docs/validation.md#schedule-editor-and-per-area-settings) |
 | CAP-19 | Maintenance view and part sensor attributes | [Catalog parser tests](../tests/test_maintenance.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [catalog validation](../docs/validation.md#maintenance-catalog-and-links) |
-| CAP-20 | Dock emptying selector and existing area number | [Native values](../docs/api.md#automatic-dock-emptying), [entity tests](../tests/ha/test_cleaning_controls.py), [write confirmation tests](../tests/ha/test_coordinator.py), and [signed trial](../docs/validation.md#automatic-dock-emptying-frequency) |
+| CAP-20 | Dock emptying selector and existing area number | [Native values](../docs/api.md#automatic-dock-emptying), [entity tests](../tests/ha/test_cleaning_controls.py), [write confirmation tests](../tests/ha/test_coordinator.py), [signed setting trial](../docs/validation.md#automatic-dock-emptying-frequency), and [physical comparison](../docs/validation.md#saved-routine-dock-frequency-comparison) |
 | CAP-21 | Robot help panel and read action | [Catalog and article validation](../docs/validation.md#robot-help-catalog), [protocol tests](../tests/test_help_catalog.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [panel tests](../tests/frontend/map-card.test.cjs) |
 | CAP-22 | Max 700 Combo first-clean checklist | [Android comparison](../docs/validation.md#first-clean-preparation), [model tests](../tests/test_help_catalog.py), [action tests](../tests/ha/test_cleaning_controls.py), and [panel tests](../tests/frontend/map-card.test.cjs) |
 

@@ -181,13 +181,14 @@ revision. [Cleaning score API](api.md#room-cleaning-score-reads)
 
 Open **Cleaning history** in the floor plan card. Select a report to see the
 recorded duration, area, outcome, available per-mode measurements, and
-timeline. The list includes recent cleaning records with missing maps, so
-the count can exceed the map-backed history displayed in Roomba Home.
+timeline. The list can include signed cleaning reports with no map that
+Roomba Home omits. Its totals use the measurements on the reports it lists.
 Expand **Timeline** to see the order and times of recorded actions, including
 the bin emptying stage and the end of the run. **Recorded bin emptyings**
 shows the count reported by Roomba, which can be zero even when the timeline
 contains that stage. The card identifies reported robot errors and lists
 dock state and fault codes beside the relevant operation.
+[Android comparison](validation.md#android-history-list-and-totals)
 
 Pinch, drag, or use the map controls to inspect the original report. The
 arrow keys pan the recorded map when it has focus. The legend identifies

@@ -1,0 +1,48 @@
+{
+  "model": "Roomba Max 700 Combo (X185240)",
+  "home_assistant_action": "roomba_home.run_cleaning_routine",
+  "comparison_setup": {
+    "same_disposable_floor_and_saved_zone_verified": true,
+    "target_area_m2": 9.92,
+    "mode": "vacuum",
+    "suction_level": 2,
+    "two_pass": true
+  },
+  "signed_missions": [
+    {
+      "frequency": 0,
+      "observed_frequency_during_cleaning": true,
+      "outcome": "completed",
+      "cleaned_area_m2": 12.45,
+      "duration_minutes": 18,
+      "active_minutes": 17,
+      "recorded_bin_emptyings": 1,
+      "evacuation_stage": {"duration_seconds": 18, "dock_state": 301, "dock_error": 0}
+    },
+    {
+      "frequency": 25,
+      "observed_frequency_before_and_after_cleaning": true,
+      "outcome": "completed",
+      "cleaned_area_m2": 12.36,
+      "duration_minutes": 21,
+      "active_minutes": 20,
+      "recorded_bin_emptyings": 1,
+      "evacuation_stage": {"duration_seconds": 18, "dock_state": 301, "dock_error": 0}
+    }
+  ],
+  "observation": {
+    "first_run_recovered_after_dns_interruption": true,
+    "second_run_matched_by_signed_mission_identity_after_action_confirmation_failed": true,
+    "motor_active_state_captured": false,
+    "threshold_trigger_established": false
+  },
+  "restoration": {
+    "temporary_routine_removed": true,
+    "temporary_floor_removed": true,
+    "original_floor_revision_and_decoded_layers_unchanged": true,
+    "original_routines_and_schedules_unchanged": true,
+    "original_auto_empty_frequency_m2": 25,
+    "docked": true,
+    "robot_error": 0
+  }
+}
