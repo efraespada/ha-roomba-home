@@ -498,6 +498,19 @@ both combined variants, applied the vacuum settings to the draft, and
 issued only the routine and schedule list actions. The suite passed 2,544
 Python tests with 100% statement and branch coverage and 65 card tests.
 
+A second trial selected both combined variants separately. The signed
+read-backed routines retained suction and liquid levels of 1 and 1 for
+the profile recorded under mode 6, and 3 and 2 for the profile recorded
+under mode 32. The temporary routines were removed, and the map, defaults,
+and original favorites matched their preflight values. The trial sent no
+movement command.
+
+At both viewport widths, the one-off editor copied each profile on
+request, kept its settings visible, and required a new review when a
+reported profile changed. Copying either profile left the draft unsaved.
+The updated suite passed 2,544 Python tests at 100% statement and branch
+coverage and 69 card tests.
+
 ## Routine draft estimates
 
 The signed estimate table returned 36 profile rows for the current room

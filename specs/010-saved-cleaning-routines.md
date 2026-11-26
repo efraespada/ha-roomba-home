@@ -83,7 +83,7 @@ calendar trigger and may carry an independent copy of a routine.
 - ROUTINE-14: Copy an ordered selection of rooms and saved zones into a
   schedule draft, preserving the sequence and each destination's settings.
 - ROUTINE-15: Inspect Roomba's remembered settings for current rooms and
-  saved zones and copy a compatible mode profile into an ordered draft.
+  saved zones and copy any compatible recorded variant into an ordered draft.
 - ROUTINE-16: Open one-off cleaning preferences from a reviewed map selection.
   Preserve destination order and settings through start confirmation or
   copy them into a new named routine.
@@ -199,7 +199,10 @@ variants visible and prefer the exact reported last mode code, the only
 compatible variant, or the uniquely latest dated variant. Use the draft's
 explicit mode when available and otherwise the reported area's last mode or
 the next-cleaning mode. Copy only available compatible settings and preserve
-destination order. Reject application on a stale draft floor. Existing
+destination order. Each compatible profile also has an explicit apply action,
+including when two profiles tie for the automatic choice. Recheck its
+recorded settings and capabilities before copying. Reject application on
+a stale draft floor. Existing
 routine and schedule actions own persistence and confirmation.
 
 Read the table for the current floor and confirm its revision both before
@@ -294,7 +297,8 @@ saved routines and scheduled cleaning independently identifiable.
     order, and verify that a stale floor cannot change the draft. On a
     supported robot, save one reviewed profile to a temporary routine, check
     it on a signed read-back, remove the routine, and confirm the original
-    favorites and floor.
+    favorites and floor. Apply both compatible variants separately and
+    verify that each retains its distinct settings after saving.
 14. Open one-off cleaning from a map selection and change two destination
     profiles. Confirm the submitted profile and order, including a changed
     setting after the first confirmation. Reject a stale map. Independently

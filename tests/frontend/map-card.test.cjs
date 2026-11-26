@@ -505,6 +505,53 @@ test("applying remembered settings to all areas preserves order and checks the c
   assert.equal(card.routineDraft.ordered, true);
 });
 
+test("choose either remembered variant even when Roomba has no preferred one", () => {
+  const card = draftEstimateCard();
+  card.callAction = () => { throw Error("Copying a profile must only edit the draft"); };
+  card.snapshot.cleaning = {
+    default_mode: "vacuum_mop", modes: ["vacuum", "mop", "vacuum_mop"],
+    suction_level: 4, wetness_level: 3, two_pass: true,
+  };
+  const reported = card.snapshot.remembered_cleaning = {
+    "room-a": { last_mode: null, preferred: {}, profiles: [
+      { mode_code: 6, can_apply: true, settings: {
+        mode: "vacuum_mop", suction_level: 1, wetness_level: 1,
+      } },
+      { mode_code: 32, can_apply: true, settings: {
+        mode: "vacuum_mop", suction_level: 3, wetness_level: 2,
+      } },
+      { mode_code: 512, can_apply: false, settings: { mode: "vacuum_then_mop", suction_level: 4 } },
+    ] },
+  };
+  const currentDetails = () => card.$("routine-regions").children[0].querySelector("details");
+  const rows = () => currentDetails().querySelector("ul").children;
+  const button = (index) => rows()[index].querySelector("button");
+  card.renderRoutine();
+  assert.match(rows()[2].textContent, /Mode 512/);
+  assert.equal(button(2), undefined);
+  button(1).onclick();
+  assert.deepEqual(card.routineDraft.regions[0], {
+    id: "room-a", mode: "vacuum_mop", two_pass: false, suction_level: 3, wetness_level: 2,
+  });
+  assert.equal(currentDetails().open, true);
+  assert.equal(currentDetails().querySelector("summary").focused, true);
+  assert.match(card.$("routine-status").textContent, /Copied/);
+  button(0).onclick();
+  assert.equal(card.routineDraft.regions[0].suction_level, 1);
+  assert.deepEqual(card.routineDraft.regions[1], { id: "furniture-b", mode: "vacuum" });
+
+  const stale = button(1);
+  reported["room-a"].profiles[1].settings.suction_level = 4;
+  stale.onclick();
+  assert.equal(card.routineDraft.regions[0].suction_level, 1);
+  assert.match(card.$("routine-status").textContent, /changed/);
+  const previousFloor = button(1);
+  card.snapshot.map.version = "elsewhere";
+  previousFloor.onclick();
+  assert.equal(card.routineDraft.regions[0].suction_level, 1);
+  assert.equal(currentDetails(), undefined);
+});
+
 test("native automatic order survives editing, copying, and confirming a draft", async () => {
   const card = draftEstimateCard();
   const saved = {

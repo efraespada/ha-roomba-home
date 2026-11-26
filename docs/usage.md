@@ -927,6 +927,12 @@ mode when Roomba supplied no last mode. For example, leave the entry hall's
 mode unset to reuse its last vacuum settings and explicitly choose **Mop**
 for the kitchen to reuse its saved mopping settings.
 
+Choose **Use these settings** next to an individual compatible profile to
+copy the variant you reviewed. On the verified Max 700 Combo, two
+combined profiles held suction and liquid levels of 1 and 1 or 3 and 2.
+An individual choice can change the area's mode and copies the settings
+Roomba reported. The other destinations keep their order and preferences.
+
 **Apply preset to all areas** keeps their order and applies each eligible
 area's own settings. Review and adjust the draft before saving. The same
 controls are available in schedule drafts for eligible rooms and saved zones.

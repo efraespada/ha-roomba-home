@@ -19,7 +19,7 @@ class RememberedProfile:
     preset: str | None
     updated_at: datetime | None
 
-    def action_response(self) -> dict:
+    def action_response(self, *, can_apply: bool) -> dict:
         return {
             "mode_code": self.code,
             "settings": {
@@ -27,6 +27,7 @@ class RememberedProfile:
             },
             "preset": self.preset,
             "updated_at": self.updated_at.isoformat() if self.updated_at is not None else None,
+            "can_apply": can_apply,
         }
 
 
@@ -37,12 +38,15 @@ class AreaDefaults:
 
     def action_response(self, capabilities: CleaningCapabilities) -> dict:
         compatible = {}
+        profiles = []
         for saved in self.profiles:
             try:
                 saved.profile.validate(capabilities)
             except ValueError:
-                continue
-            compatible.setdefault(saved.profile.mode, []).append(saved)
+                profiles.append(saved.action_response(can_apply=False))
+            else:
+                compatible.setdefault(saved.profile.mode, []).append(saved)
+                profiles.append(saved.action_response(can_apply=True))
         last_mode = requested_region_mode(self.last_mode_code)
         preferred = {}
         for mode, candidates in compatible.items():
@@ -51,7 +55,7 @@ class AreaDefaults:
         return {
             "last_mode": last_mode,
             "last_mode_code": self.last_mode_code,
-            "profiles": [saved.action_response() for saved in self.profiles],
+            "profiles": profiles,
             "preferred": preferred,
         }
 

@@ -123,6 +123,8 @@ template.innerHTML = `
     #routine-regions { display:grid; gap:10px; margin:0; padding-left:24px; }
     #routine-regions li { padding:8px; border:1px solid var(--divider-color,#647382); border-radius:8px; }
     .routine-region-controls { display:flex; gap:4px; flex-wrap:wrap; margin:6px 0; }
+    .remembered-profile { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+    .remembered-profile + .remembered-profile { margin-top:6px; }
     details { margin-top:15px; }
     summary { cursor:pointer; }
     .result { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; margin-top:9px; }
@@ -3666,6 +3668,68 @@ class RoombaHomeMapCard extends HTMLElement {
     return this.routineFloorIsCurrent() ? this.snapshot.remembered_cleaning?.[region.id] : undefined;
   }
 
+  rememberedSettings(region, locked) {
+    const remembered = this.rememberedFor(region);
+    if (!remembered) return null;
+    const draft = this.routineDraft;
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = "Roomba's remembered settings";
+    details.append(summary);
+    if (remembered.last_mode) {
+      const last = document.createElement("p");
+      last.className = "muted";
+      last.textContent = `Last mode · ${MODES[remembered.last_mode]}`;
+      details.append(last);
+    }
+    const profiles = document.createElement("ul");
+    profiles.replaceChildren(...remembered.profiles.map((profile) => {
+      const line = document.createElement("li");
+      line.className = "remembered-profile";
+      const settings = profile.settings;
+      const values = Object.entries(SETTINGS).flatMap(([key, label]) => {
+        const value = settings[key];
+        if (value == null) return [];
+        const display = typeof value === "boolean" ? (value ? "On" : "Off") : value;
+        return [`${label} ${display}`];
+      });
+      const mode = MODES[settings.mode];
+      line.textContent = [mode, `Mode ${profile.mode_code}`,
+        PRESET_LABELS[profile.preset] ?? (profile.preset && historyLabel(profile.preset)),
+        profile.updated_at && historyTime(profile.updated_at), ...values].filter(Boolean).join(" · ");
+      if (profile.can_apply !== true) return line;
+      const use = document.createElement("button");
+      use.type = "button";
+      use.textContent = "Use these settings";
+      use.setAttribute("aria-label",
+        `Use ${mode} settings for ${this.routineAreas.get(region.id)}, mode ${profile.mode_code}`);
+      use.disabled = locked;
+      const reviewedSettings = JSON.stringify(settings);
+      use.onclick = () => {
+        if (locked || this.routineBusy || !this.routineDialog.open || this.routineDraft !== draft) return;
+        const index = draft.regions.indexOf(region);
+        if (index < 0) return;
+        const current = this.rememberedFor(region)?.profiles.find((item) =>
+          item.mode_code === profile.mode_code && item.can_apply === true);
+        const matches = current && JSON.stringify(current.settings) === reviewedSettings;
+        if (matches) Object.assign(region, current.settings);
+        this.renderRoutine();
+        const disclosure = this.$("routine-regions").children[index]?.querySelector("details");
+        if (disclosure) {
+          disclosure.open = true;
+          disclosure.querySelector("summary").focus();
+        }
+        this.$("routine-status").textContent = matches
+          ? "Copied Roomba's settings to this area."
+          : "The remembered settings changed. Review them again.";
+      };
+      line.append(use);
+      return line;
+    }));
+    details.append(profiles);
+    return details;
+  }
+
   canApplySmartPreset(region) {
     return this.snapshot?.cleaning?.supports_smart_presets === true &&
       this.routineMap && region.id.startsWith(`${this.routineMap.id}:rid:`);
@@ -3769,36 +3833,8 @@ class RoombaHomeMapCard extends HTMLElement {
       actions.append(button);
     }
     item.append(actions);
-    const remembered = this.rememberedFor(region);
-    if (remembered) {
-      const details = document.createElement("details");
-      const summary = document.createElement("summary");
-      summary.textContent = "Roomba's remembered settings";
-      details.append(summary);
-      if (remembered.last_mode) {
-        const last = document.createElement("p");
-        last.className = "muted";
-        last.textContent = `Last mode · ${MODES[remembered.last_mode]}`;
-        details.append(last);
-      }
-      const profiles = document.createElement("ul");
-      profiles.replaceChildren(...remembered.profiles.map((profile) => {
-        const line = document.createElement("li");
-        const settings = profile.settings;
-        const values = Object.entries(SETTINGS).flatMap(([key, label]) => {
-          const value = settings[key];
-          if (value == null) return [];
-          const display = typeof value === "boolean" ? (value ? "On" : "Off") : value;
-          return [`${label} ${display}`];
-        });
-        line.textContent = [MODES[settings.mode], `Mode ${profile.mode_code}`,
-          PRESET_LABELS[profile.preset] ?? (profile.preset && historyLabel(profile.preset)),
-          profile.updated_at && historyTime(profile.updated_at), ...values].filter(Boolean).join(" · ");
-        return line;
-      }));
-      details.append(profiles);
-      item.append(details);
-    }
+    const remembered = this.rememberedSettings(region, locked);
+    if (remembered) item.append(remembered);
     const capabilities = this.snapshot?.cleaning ?? {};
     const modes = (capabilities.modes ?? []).map((mode) => option(mode, MODES[mode]));
     const presetField = document.createElement("label");

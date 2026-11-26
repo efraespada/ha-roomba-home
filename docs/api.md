@@ -1143,15 +1143,19 @@ zone only after its identifier and kind match the active signed map archive.
 It can refresh these preferences independently when the card already has the
 geometry. The response retains each recognized variant's mode code, validated
 settings, supported preset label, and update timestamp when one is supplied.
+Each profile's `can_apply` indicates whether its mode and settings are
+compatible with the robot's current capabilities.
 Retired room identifiers and temporary targets with no verified persistent
 destination stay out of the projection.
 
 For each compatible cleaning mode, the card can reuse the variant with the
 exact reported last mode code, the sole known variant, or the uniquely most
 recent dated variant. If multiple compatible variants remain ambiguous,
-the card shows them for inspection and leaves that mode's preset unavailable.
-Applying a preset copies settings into a draft. Saving the draft uses the
-existing routine or schedule action.
+the card leaves the automatic preset for that mode unavailable and lets
+the user pick a verified variant explicitly. The selection copies the
+typed settings into the draft and verifies the same profile is still
+current. The card displays the original wire mode alongside those settings.
+Saving uses the existing routine or schedule action.
 [Remembered settings validation](validation.md#remembered-area-cleaning-preferences)
 
 ### Saved routine estimates and cleaning defaults

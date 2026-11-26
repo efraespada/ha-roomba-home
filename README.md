@@ -83,8 +83,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   available. Apply Light, Normal, or Deep to a single
   destination or the entire selection on the supported Max 700 Combo.
   Apply Roomba's **Smart recommendations** to each eligible room, or apply
-  them across an ordered draft. Inspect and reuse Roomba's remembered
-  settings for each area on the current map. Preview the duration before
+  them across an ordered draft. Inspect and reuse individual variants of
+  Roomba's remembered settings for each area. Preview the duration before
   saving. Edit supported routines created in Roomba Home. Load recent and
   suggested routines and run a reviewed draft. Use **Manage schedules** on the floor
   card to manage weekly and one-time cleanings, including the order, mode,
@@ -310,6 +310,8 @@ data:
 Choose **Manage routines** to save the ordered destinations and their profiles.
 Open an area's remembered settings, then choose **Remembered by Roomba** under
 **Cleaning preset** to copy the compatible settings into the draft.
+To choose a specific variant, open **Roomba's remembered settings** and
+select **Use these settings** next to it.
 Use **List cleaning routines** to find the assigned routine ID.
 
 ```yaml
