@@ -73,9 +73,13 @@ the resulting floor and its destinations, before offering it in the card.
 The Max 700 Combo's three Android choices and a custom threshold were
 confirmed through signed settings. A completed 0.65 m² routine with
 per-routine emptying enabled returned with zero reported evacuations.
-Observe the dock on a larger completed routine to determine its trigger
+Two older reports confirm end-of-mission emptying after cleaning about
+6 m². The active dock preference for those reports is unknown. Observe
+the dock on a larger completed routine to determine its trigger
 conditions. Check the area mode separately when a run reaches its
-configured threshold. [Short routine and map comparison](validation.md#physical-emptying-after-a-short-routine)
+configured threshold.
+[Short routine and map comparison](validation.md#physical-emptying-after-a-short-routine) ·
+[Prior signed evacuations](validation.md#archived-bin-emptying-and-faults)
 
 ## Android setup walkthrough
 
@@ -85,3 +89,14 @@ alongside the manual and support articles. Verify other models in the app
 before adding model-specific steps. Initial pairing, Wi-Fi changes, and
 factory reset require separate verification and remain open.
 [Robot help](usage.md#robot-help)
+
+Android exposes **Reconnect or change Wi-Fi** on the Max 700 Combo's
+Wi-Fi settings screen. iRobot documents a credential step for reconnecting
+and Bluetooth for initial setup. A reconnect validation must establish
+that the robot returns online with its existing association, floors, and
+programs. A factory reset through the app removes the robot from the
+account, and iRobot documents no map save option for that workflow on
+this model. Test reset and removal on a disposable robot or account with
+explicit authorization for the data loss.
+[iRobot pairing and reconnection](https://homesupport.irobot.com/articles/en_US/Knowledge/10503) ·
+[iRobot reset behavior](https://homesupport.irobot.com/articles/en_US/Knowledge/9047)

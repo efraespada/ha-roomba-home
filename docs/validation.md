@@ -18,6 +18,15 @@ tests with 100% statement and branch coverage, 74 card tests, and
 the official hassfest integration checks.
 [Anonymized evidence](evidence/2026-11-26-first-clean-preparation.json)
 
+### Wi-Fi settings entry
+
+The Max 700 Combo's Android device settings opened the Wi-Fi settings page
+with a separate reconnect control. Leaving that page without starting
+reconnection preserved the signed connection state. The robot was still
+docked, ready, and at 100% charge with error code zero. Reconnection and
+pairing remain separate validation scenarios.
+[iRobot reconnection guide](https://homesupport.irobot.com/articles/en_US/Knowledge/10503)
+
 ## Robot help after moving a card
 
 A Chromium browser reproduced the modal losing its top-layer state when the
@@ -138,6 +147,22 @@ map with an empty command parameter object. The declaration has no input
 for choosing a saved version. This investigation used read-only checks
 and left the active revision untouched. End-to-end reactivation of the
 original archived geometry remains open.
+
+### Archived bin emptying and faults
+
+Two completed Max 700 Combo reports each recorded one bin emptying. Their
+cleaned areas were 6.50 m² and 6.04 m². Their evacuation events lasted
+17 and 18 seconds and ended two seconds before the signed report timestamp.
+Both events reported dock state 301 and error code zero. Android displayed
+bin emptying before the end of the matching 6.50 m² report. The active
+automatic emptying setting at the time of either mission is unknown.
+
+The Home Assistant history command returned both evacuations, the matching
+end of each report, and separately recorded robot error codes 48 and 654
+in an authenticated session linked to the Max 700 Combo. The robot stayed
+docked. Refill codes and an explicitly reported finish event were covered
+with protocol fixtures.
+[Anonymized evidence](evidence/2026-11-26-archived-dock-timeline.json)
 
 ## Version 0.67.0
 

@@ -418,8 +418,14 @@ Home Assistant's authenticated `roomba_home/mission_history` request
 accepts `entity_id`. Supplying a report's `report_id` and optional numeric
 `map_index` requests its detail and selected archive. The response contains
 typed drawing layers and the final timeline's event types, timestamps, and
-reported durations. An unavailable archive leaves the recorded numerical
-results accessible. Account credentials, raw IDs, commands, and URLs stay
+reported durations. Error events can include a positive `error_code`.
+The reported evacuation, mop wash, and refill entries can carry a
+`dock` object with `component`, `state_code`, and `error_code`. A null
+dock code represents an unavailable reading, and a dock error code of zero
+represents the explicit provider value. A `finish` entry uses a recorded
+end event when present and otherwise uses the report's signed timestamp
+when there are other timeline events. A missing archive leaves the
+recorded numerical results accessible. Account credentials, raw IDs, commands, and URLs stay
 out of the dashboard response. Access requires permission to read the
 vacuum entity and the integration's map option. [ClearView map history](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
 
