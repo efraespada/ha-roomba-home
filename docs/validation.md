@@ -21,6 +21,19 @@ reported zero `totalArea` even in missions that recorded cleaning, so
 this comparison establishes the contract for correlated saved zones.
 [Anonymized archive comparison](evidence/2026-11-26-saved-zone-area-measurements.json)
 
+An isolated Home Assistant instance sent a one-off vacuum order with two
+passes in a 2.56 m² zone on a disposable attic floor. The completed mission
+recorded a target of 27 ft² and pass measurements of 15 and 14 ft². Its
+mission-wide total was 30 ft². The authenticated history command returned
+2.51 m² for the reported target and 2.69 m² for completed passes alongside
+the separate mission total of 2.79 m². The same command returned the
+expected conversions for three previously archived reports.
+
+Signed reads after cleanup confirmed the original floor revision and
+geometry, routines, schedules, and robot settings. The robot was docked.
+A corroborating live zone reading was unavailable during this trial.
+[Signed trial and Home Assistant readback](evidence/2026-11-26-saved-zone-area-measurements.json)
+
 ## Household installation of 0.71.2
 
 The 81 component files in the published archive matched the release tag.
