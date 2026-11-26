@@ -890,6 +890,27 @@ The card shows the estimate saved by Roomba and its confidence when available.
 Saving changes and removing routines leave the robot idle. **Run saved
 routine** asks for confirmation and displays the saved order preference.
 
+Use **Appearance** when creating or editing a saved routine. Enter an
+emoji and choose a color from the seven Roomba Home presets or the color
+picker. The preview updates as you edit. An appearance-only save preserves
+the destinations, cleaning settings, and saved estimate. **Duplicate**
+copies the appearance along with the draft.
+
+To update an existing routine from an automation, use the ID from **List
+cleaning routines**.
+
+```yaml
+action: roomba_home.update_cleaning_routine
+target:
+  entity_id: vacuum.example_robot
+data:
+  routine_id: "0123456789abcdef0123456789abcdef"
+  icon: "🧹"
+  color: "#CBCBFB"
+```
+
+[Routine appearance validation](validation.md#routine-appearance)
+
 On a supported Max 700 Combo, use **Cleaning preset** to apply Light, Normal,
 or Deep to one destination. **Apply preset to all areas** applies the same
 preset to every destination, keeping each area's cleaning mode and the order

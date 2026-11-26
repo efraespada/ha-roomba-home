@@ -87,6 +87,8 @@ calendar trigger and may carry an independent copy of a routine.
 - ROUTINE-16: Open one-off cleaning preferences from a reviewed map selection.
   Preserve destination order and settings through start confirmation or
   copy them into a new named routine.
+- ROUTINE-17: Read and edit a saved routine's icon and color independently
+  of its cleaning plan and estimate. Copy its appearance when duplicating.
 - Saving, updating, and removing a routine leave the robot's movement state alone.
 - The supported edition 1 favorites each address one robot. Multi-robot
   favorite commands require separate protocol evidence.
@@ -229,6 +231,13 @@ to the map after acceptance. **Save as routine** copies the areas and order
 preference into the routine editor. A named save from that editor creates
 the favorite through the existing action.
 
+Allow a safe Unicode icon and normalized six-digit color for a named
+routine. Use the current robot's favorite record as the source of appearance,
+and show its preview before saving. A change to appearance preserves provider
+fields, including the cleaning command, estimate, and display order.
+Confirm the requested icon and color in the signed read before reporting
+success. Use the same match for retry detection.
+
 ## 11. Security, permissions, and privacy
 
 Require Home Assistant entity permissions and validate the selected robot's
@@ -304,6 +313,10 @@ saved routines and scheduled cleaning independently identifiable.
     setting after the first confirmation. Reject a stale map. Independently
     open **Save as routine**, preserve the order choice, and confirm that
     only a named save creates a favorite.
+15. Create a routine with a custom icon and color, update its appearance, and
+    verify both values in the signed read. Preserve the command and metadata
+    on an appearance-only edit. Verify that duplication copies the appearance
+    and that the native default remains readable.
 
 ## 17. Requirements traceability
 
@@ -324,6 +337,7 @@ saved routines and scheduled cleaning independently identifiable.
 | ROUTINE-14 | [Schedule editor](../docs/usage.md#cleaning-schedules) | [Card tests](../tests/frontend/map-card.test.cjs) and [signed copy trial](../docs/validation.md#copying-a-routine-into-a-schedule) |
 | ROUTINE-15 | [Remembered profiles](../custom_components/roomba_home/core/area_preferences.py) | [Parser tests](../tests/test_area_preferences.py), [floor projection tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed routine trial](../docs/validation.md#remembered-area-cleaning-preferences) |
 | ROUTINE-16 | [Floor plan card](../custom_components/roomba_home/frontend/roomba-home-map-card.js) and [reviewed start](../custom_components/roomba_home/vacuum.py) | [Card tests](../tests/frontend/map-card.test.cjs) and [one-off trial](../docs/validation.md#one-off-area-cleaning) |
+| ROUTINE-17 | [Favorite appearance](../custom_components/roomba_home/core/routines.py) | [Client tests](../tests/test_api_client.py), [action tests](../tests/ha/test_schedules.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed round trip](../docs/validation.md#routine-appearance) |
 
 ## 18. Implementation sequence
 

@@ -406,6 +406,7 @@ test("one-off preferences can become a named routine with their order choice int
   assert.equal(card.$("routine-title").textContent, "Cleaning routines");
   assert.equal(card.$("routine-name").focused, true);
   assert.equal(card.$("routine-name").required, true);
+  assert.equal(card.$("routine-appearance").hidden, false);
   assert.equal(card.routineDraft.ordered, false);
   assert.notEqual(card.routineDraft.regions[1], previous[1]);
   assert.deepEqual(requests.map(([command]) => command), ["list_cleaning_routines"]);
@@ -415,6 +416,51 @@ test("one-off preferences can become a named routine with their order choice int
     name: "Room preferences", ordered: false,
     regions: [{ id: "room-b" }, { id: "room-a", mode: "mop" }],
   }, card.config.entity]);
+});
+
+test("edit or duplicate a routine's icon and color without changing its cleaning plan", async () => {
+  const card = draftEstimateCard();
+  const original = {
+    id: "favorite", name: "Kitchen routine", editable: true,
+    icon: "😄", color: "#CBCBFB", region_settings: [{ id: "room-a", mode: "mop" }],
+  };
+  card.routines = [original];
+  const requests = [];
+  card.callAction = async (service, data) => {
+    requests.push([service, JSON.parse(JSON.stringify(data))]);
+    return { ...original, name: data.name, icon: data.icon ?? original.icon,
+      color: data.color ?? original.color };
+  };
+  card.editRoutine(original.id);
+  assert.match(card.$("routine-list").children[1].text, /😄 Kitchen routine/);
+  assert.equal(card.$("routine-icon-preview").textContent, "😄");
+  assert.equal(card.$("routine-icon-preview").style.backgroundColor, "#cbcbfb");
+  const palette = card.$("routine-palette").children;
+  assert.equal(palette.length, 7);
+  assert.equal(palette.find(button => button["aria-label"] === "Violet")["aria-pressed"], "true");
+  palette.find(button => button["aria-label"] === "Yellow").onclick();
+  const input = card.$("routine-icon");
+  input.value = "🧹";
+  input.oninput();
+  assert.equal(card.$("routine-icon-preview").textContent, "🧹");
+  assert.equal(card.$("routine-icon-preview").style.backgroundColor, "#fdf4a9");
+  await card.saveRoutine();
+  assert.deepEqual(requests[0], ["update_cleaning_routine", {
+    name: original.name, routine_id: original.id, icon: "🧹", color: "#FDF4A9",
+  }]);
+  card.copyRoutine();
+  await card.saveRoutine();
+  assert.deepEqual(requests[1], ["create_cleaning_routine", {
+    name: "Kitchen routine (copy)", regions: original.region_settings, icon: "🧹", color: "#FDF4A9",
+  }]);
+
+  card.cleaningEditor = true;
+  card.renderRoutine();
+  assert.equal(card.$("routine-appearance").hidden, true);
+  card.cleaningEditor = false;
+  card.scheduleEditor = true;
+  card.editRoutine(original.id);
+  assert.equal(card.$("routine-appearance").hidden, true);
 });
 
 test("a changed floor invalidates one-off reviews and whole-area cleaning keeps its own confirmation", async () => {

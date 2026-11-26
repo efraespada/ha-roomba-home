@@ -318,6 +318,12 @@ create_cleaning_routine:
     ordered:
       selector:
         boolean:
+    icon:
+      selector:
+        text:
+    color:
+      selector:
+        text:
 update_cleaning_routine:
   target:
     entity:
@@ -337,6 +343,12 @@ update_cleaning_routine:
     ordered:
       selector:
         boolean:
+    icon:
+      selector:
+        text:
+    color:
+      selector:
+        text:
 remove_cleaning_routine:
   target:
     entity:

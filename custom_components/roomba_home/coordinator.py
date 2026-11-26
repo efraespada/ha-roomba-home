@@ -2360,15 +2360,17 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         async with self._routine_transaction(robot_id):
             return {"routines": await self.client.list_cleaning_routines(robot_id)}
 
-    async def async_create_cleaning_routine(self, robot_id, name, selections, *, ordered=True):
+    async def async_create_cleaning_routine(
+        self, robot_id, name, selections, *, ordered=True, **appearance
+    ):
         async with self._routine_transaction(robot_id) as state:
             target = await self._profiled_map_target(robot_id, state, selections)
             return await self.client.create_cleaning_routine(
-                robot_id, name, replace(target, ordered=ordered)
+                robot_id, name, replace(target, ordered=ordered), **appearance
             )
 
     async def async_update_cleaning_routine(
-        self, robot_id, routine_id, name, selections, *, ordered=None
+        self, robot_id, routine_id, name, selections, *, ordered=None, **appearance
     ):
         async with self._routine_transaction(robot_id) as state:
             target = None
@@ -2377,9 +2379,11 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 target = replace(target, ordered=ordered is not False)
             elif ordered is not None:
                 raise ValueError("Provide regions to change the cleaning order.")
-            if target is None and name is None:
-                raise ValueError("Provide a new routine name or region selection.")
-            return await self.client.update_cleaning_routine(robot_id, routine_id, name, target)
+            if target is None and name is None and not appearance:
+                raise ValueError("Provide a new routine name, region selection, icon, or color.")
+            return await self.client.update_cleaning_routine(
+                robot_id, routine_id, name, target, **appearance
+            )
 
     async def async_remove_cleaning_routine(self, robot_id, routine_id):
         async with self._routine_transaction(robot_id):

@@ -18,6 +18,7 @@ FAVORITES_PATH = "/v1/user/favorites"
 APP_EDITION = {"app_edition": "1"}
 ROUTINE_ID = re.compile(r"[0-9a-fA-F]{32}")
 ROUTINE_ITEM_PATH = re.compile(rf"{FAVORITES_PATH}/{ROUTINE_ID.pattern}")
+_ROUTINE_COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 _ROUTINE_COMMAND_FIELDS = {
     "robot_id",
     "command",
@@ -36,6 +37,39 @@ def routine_name(value: str) -> str:
     if not isinstance(value, str) or not value.isprintable() or not 1 <= len(value.strip()) <= 120:
         raise ValueError("Use a printable routine name up to 120 characters.")
     return value.strip()
+
+
+def _routine_icon(value: str) -> str:
+    if (
+        not isinstance(value, str)
+        or not 1 <= len(value.strip()) <= 32
+        or not any(char.isprintable() and not char.isspace() for char in value)
+        or any(
+            not char.isprintable() and char != "\u200d" and not "\U000e0020" <= char <= "\U000e007f"
+            for char in value
+        )
+    ):
+        raise ValueError("Use a printable routine icon up to 32 characters.")
+    return value.strip()
+
+
+def _routine_color(value: str) -> str:
+    if not isinstance(value, str) or _ROUTINE_COLOR.fullmatch(value) is None:
+        raise ValueError("Use a six-digit hexadecimal routine color, such as #CBCBFB.")
+    return value.upper()
+
+
+def routine_appearance(values: dict, *, skip_invalid: bool = False) -> dict[str, str]:
+    appearance = {}
+    for key, normalize in (("icon", _routine_icon), ("color", _routine_color)):
+        if (value := values.get(key)) is None:
+            continue
+        try:
+            appearance[key] = normalize(value)
+        except ValueError:
+            if not skip_invalid:
+                raise
+    return appearance
 
 
 @dataclass(frozen=True, repr=False)
@@ -78,6 +112,7 @@ class CleaningRoutine:
             "regions": [identifier for identifier, _ in recognized],
             "region_settings": settings,
             "editable": not self.payload.get("default"),
+            **routine_appearance(self.payload, skip_invalid=True),
         }
         if (
             settings is not None
@@ -259,12 +294,13 @@ def routine_command(robot_id: str, target: AreaTarget, timestamp: int = 0) -> di
     return {**command, "time": timestamp, "initiator": "rmtApp", "params": {}}
 
 
-def new_routine(name: str, command: dict, timestamp: int) -> dict:
+def new_routine(name: str, command: dict, timestamp: int, appearance: dict | None = None) -> dict:
     return {
         "favorite_id": uuid4().hex,
         "name": routine_name(name),
         "icon": "🤖",
         "color": "#DAF6A1",
+        **(appearance or {}),
         "creation_timestamp": timestamp,
         "last_modified": timestamp,
         "last_user_modified": timestamp,
@@ -273,11 +309,20 @@ def new_routine(name: str, command: dict, timestamp: int) -> dict:
 
 
 def routine_matches(
-    routine: CleaningRoutine, name: str, command: dict, *, regenerated: bool = False
+    routine: CleaningRoutine,
+    name: str,
+    command: dict,
+    *,
+    regenerated: bool = False,
+    appearance: dict[str, str] | None = None,
 ) -> bool:
     ignore_time = regenerated and "time" in command
     if regenerated and ("ordered" in routine.command) != ("ordered" in command):
         return False
+    if appearance:
+        recorded = routine_appearance(routine.payload, skip_invalid=True)
+        if any(recorded.get(field) != value for field, value in appearance.items()):
+            return False
     return routine.name == name and all(
         (ignore_time and key == "time") or routine.command.get(key) == value
         for key, value in command.items()

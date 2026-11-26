@@ -460,6 +460,10 @@ async def test_routine_actions_use_the_same_associated_robot_and_never_start_it(
     assert (
         account.client.update_cleaning_routine.await_args.args[-1].profiles[0].suction_level is None
     )
+    await action("update_cleaning_routine", routine_id=routine["id"], icon="😄", color="#CBCBFB")
+    account.client.update_cleaning_routine.assert_awaited_with(
+        robot, routine["id"], None, None, icon="😄", color="#CBCBFB"
+    )
     assert (await action("remove_cleaning_routine", routine_id=routine["id"]))[
         "vacuum.robot_0"
     ] == {"removed": True}

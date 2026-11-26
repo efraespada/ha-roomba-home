@@ -573,9 +573,11 @@ The response matched the active floor revision.
 On the attic robot, Android saved a temporary favorite with **Smart**
 selected. That record contained concrete suction and liquid level 2 for
 its room. A signed read for the same floor revision recommended level 1
-for both. The captured favorite supplied concrete region parameters.
-The integration exposes the signed preferences in its recommendation
-preset. [iRobot Smart routine guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
+for both. A repeat captured the successful Android write itself and
+confirmed it already carried the level 2 regional parameters.
+The command contained no field identifying Smart. The integration's
+recommendation preset uses the signed room score preferences.
+[iRobot Smart routine guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
 
 The integration read the attic recommendations through its production
 coordinator and saved a temporary ordered routine with a furniture
@@ -586,6 +588,27 @@ Both temporary favorites were removed. The final signed reads matched
 the preflight favorites and floor revision.
 [Recommendation tests](../tests/test_routine_presets.py) ·
 [Draft tests](../tests/frontend/map-card.test.cjs)
+
+## Routine appearance
+
+The Android favorite editor offered seven colors and an emoji picker.
+On a Max 700 Combo, its edition 1 favorites request stored a smile emoji
+and `#CBCBFB`. Proxyman recorded HTTP 201, and an independent signed
+read confirmed both fields and the reviewed destination. The trial then
+removed the temporary routine.
+
+In isolated Home Assistant, **Create a cleaning routine** stored the same
+appearance. **Update a cleaning routine** changed it to a joined emoji
+with `#FDF4A9`. A signed read confirmed the new values with the same
+command, creation timestamp, and other routine metadata. The temporary
+routine was removed. A separate update confirmed that the color picker
+could store `#4466AA`, outside the seven presets. The original active routines and floor were
+preserved, and the trials sent zero movement commands.
+
+Chrome verified the icon preview, seven swatches, appearance-only update,
+and duplication on 358 and 900 pixel viewports. The suite passed 2,555
+Python tests with 100% statement and branch coverage and 70 card tests.
+[Anonymized trial evidence](evidence/2026-11-26-routine-appearance.json)
 
 ## Native single-area routines
 

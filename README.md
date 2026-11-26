@@ -78,7 +78,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   [Room cleaning scores](docs/usage.md#room-cleaning-scores)
 - **Routines and schedules.** List, create, edit, duplicate, and remove supported
   cleaning routines from the floor plan. Set the order and cleaning profile
-  for each room, zone, or supported furniture target. Let Roomba choose the
+  for each room, zone, or supported furniture target. Choose a routine's
+  icon and color when creating or editing it. Let Roomba choose the
   order for rooms and saved zones and see its saved duration estimate when
   available. Apply Light, Normal, or Deep to a single
   destination or the entire selection on the supported Max 700 Combo.
@@ -308,6 +309,7 @@ data:
 ### Run a saved routine
 
 Choose **Manage routines** to save the ordered destinations and their profiles.
+Use **Appearance** to pick a color and enter an emoji for the saved routine.
 Open an area's remembered settings, then choose **Remembered by Roomba** under
 **Cleaning preset** to copy the compatible settings into the draft.
 To choose a specific variant, open **Roomba's remembered settings** and

@@ -1112,6 +1112,15 @@ parameters. A rename preserves unmodified provider fields. Replacing regions
 invalidates the former time estimates. A full collection read confirms changes.
 [Saved routines SDD](../specs/010-saved-cleaning-routines.md)
 
+Native favorites store the visible emoji in `icon` and the background in
+`color`. Create and update actions accept the fields independently, and the
+routine list returns valid recorded values. The integration accepts a
+printable Unicode icon, including joined emoji, and normalizes six-digit
+hexadecimal colors to uppercase. A signed appearance edit changes only
+the supplied style fields and preserves the original command and other
+provider metadata. The confirmation read must match the
+requested appearance. [Routine appearance validation](validation.md#routine-appearance)
+
 Native formats include an ordered `start` with `select_all: false` and a
 Normal or Replay tag, plus timestamped commands from `initiator: rmtApp`.
 Roomba sends the concrete settings in each region. A verified timed variant
@@ -1189,6 +1198,10 @@ preset. It applies the returned settings to eligible rooms in place
 while retaining each area's mode and order. It discards a response if
 the reviewed floor or draft changes during the read. Saving uses the
 existing ordered routine write with concrete settings.
+In the captured Android Smart favorite, the request itself carried concrete
+combined mode parameters and the server retained them. The selected Smart
+label was absent from the request. The signed score recommendation remained a
+separate source of settings.
 [Physical validation](validation.md#smart-routine-recommendations)
 
 ### Recent and suggested floor routines

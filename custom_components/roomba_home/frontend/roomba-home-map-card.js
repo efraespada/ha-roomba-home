@@ -32,6 +32,12 @@ const PRESET_LABELS = {
   light: "Light", normal: "Normal", deep: "Deep", smart: "Smart recommendations",
   remembered: "Remembered by Roomba",
 };
+const ROUTINE_ICON = "🤖";
+const ROUTINE_COLOR = "#DAF6A1";
+const ROUTINE_PALETTE = [
+  ["Pink", "#F2D2DE"], ["Peach", "#FBE7CE"], ["Yellow", "#FDF4A9"], ["Green", "#DEF5A9"],
+  ["Sky blue", "#D9EEF5"], ["Blue", "#D2E2FA"], ["Violet", "#CBCBFB"],
+];
 const RESTRICTION_TYPES = { keep_out: "Keep-out zone", no_mop: "No-mop zone", wall: "Virtual wall" };
 const HISTORY_PATH_LAYERS = ["cleaning", "travel", "unclassified"];
 const MAINTENANCE_UNITS = {
@@ -117,6 +123,13 @@ template.innerHTML = `
     #schedule-fields { display:grid; gap:8px; }
     #schedule-days .actions { justify-content:flex-start; margin-top:0; }
     #routine-list { flex:1; min-width:0; }
+    #routine-appearance-controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+    #routine-icon { width:8rem; max-width:100%; }
+    #routine-icon-preview { display:grid; place-items:center; width:38px; height:38px;
+      color:#15151b; border-radius:8px; font-size:22px; overflow:hidden; }
+    #routine-palette { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    #routine-palette button { border-radius:50%; padding:0; width:38px; height:38px; }
+    #routine-palette button[aria-pressed="true"] { outline:2px solid currentColor; outline-offset:1px; }
     #quick-routines { margin:8px 0; padding-inline-start:22px; }
     #quick-routines li + li { margin-top:6px; }
     #quick-routines li > :last-child { margin-inline-start:8px; }
@@ -509,6 +522,15 @@ template.innerHTML = `
           <ul id="quick-routines" aria-label="Recent and suggested routines" hidden></ul>
         </div>
         <label id="routine-name-label">Name <input id="routine-name" required maxlength="120" autocomplete="off"></label>
+        <fieldset id="routine-appearance" hidden>
+          <legend>Appearance</legend>
+          <div id="routine-appearance-controls">
+            <span id="routine-icon-preview" aria-hidden="true"></span>
+            <label>Icon <input id="routine-icon" maxlength="64" placeholder="🤖" autocomplete="off"></label>
+            <label>Color <input id="routine-color" type="color"></label>
+          </div>
+          <div id="routine-palette" aria-label="Routine color presets"></div>
+        </fieldset>
         <div id="schedule-fields" hidden>
           <label>Repeat <select id="schedule-frequency"><option value="weekly">Weekly</option><option value="once">Once</option></select></label>
           <label>Start time <input id="schedule-time" type="time"></label>
@@ -3402,6 +3424,8 @@ class RoombaHomeMapCard extends HTMLElement {
     this.routineDraft = {
       saved,
       name: saved?.name ?? initialDraft?.name ?? "",
+      icon: saved?.icon,
+      color: saved?.color,
       regions: saved ? (canReplace ? settings.map((region) => ({ ...region })) : null)
         : initialDraft?.regions ?? [...selected].map((id) => ({ id })),
       ordered: (saved ?? initialDraft)?.ordered !== false,
@@ -3428,7 +3452,7 @@ class RoombaHomeMapCard extends HTMLElement {
     source.replaceChildren(option("", schedule ? "New schedule" : "New routine"), ...this.routines
       .map((routine) => option(routine.id, schedule
         ? [routine.name, routine.time, routine.enabled ? "Enabled" : "Disabled"].filter(Boolean).join(" · ")
-        : routine.name)));
+        : [routine.icon, routine.name].filter(Boolean).join(" "))));
     source.value = saved?.id ?? "";
     source.disabled = busy;
     const input = this.$("routine-name");
@@ -3436,6 +3460,7 @@ class RoombaHomeMapCard extends HTMLElement {
     input.disabled = locked || selection;
     input.required = !selection && (!schedule || !saved);
     this.$("routine-name-label").hidden = selection;
+    this.renderRoutineAppearance(locked, !selection && !schedule);
     this.renderScheduleTiming(locked);
     const estimate = this.$("routine-estimate");
     const minutes = saved?.estimate?.duration_minutes;
@@ -3486,6 +3511,48 @@ class RoombaHomeMapCard extends HTMLElement {
     saveAs.disabled = locked || !regions?.length || !this.routineFloorIsCurrent();
     this.renderRoutineEstimate();
     this.renderQuickRoutines();
+  }
+
+  renderRoutineAppearance(locked, visible) {
+    const appearance = this.$("routine-appearance");
+    appearance.hidden = !visible;
+    appearance.disabled = locked;
+    if (!visible) return;
+    const { routineDraft: draft } = this;
+    const icon = this.$("routine-icon");
+    const color = this.$("routine-color");
+    const badge = this.$("routine-icon-preview");
+    const palette = this.$("routine-palette");
+    icon.value = draft.icon ?? "";
+    color.value = (draft.color ?? ROUTINE_COLOR).toLowerCase();
+    const preview = () => {
+      badge.textContent = icon.value.trim() || ROUTINE_ICON;
+      badge.style.backgroundColor = color.value;
+      for (const swatch of palette.children) {
+        swatch.setAttribute("aria-pressed", swatch.value === color.value);
+      }
+    };
+    icon.oninput = () => {
+      draft.icon = icon.value.trim() || ROUTINE_ICON;
+      preview();
+    };
+    color.oninput = () => {
+      draft.color = color.value.toUpperCase();
+      preview();
+    };
+    palette.replaceChildren(...ROUTINE_PALETTE.map(([label, hex]) => {
+      const swatch = document.createElement("button");
+      swatch.type = "button";
+      swatch.value = hex.toLowerCase();
+      swatch.style.backgroundColor = hex;
+      swatch.setAttribute("aria-label", label);
+      swatch.onclick = () => {
+        color.value = swatch.value;
+        color.oninput();
+      };
+      return swatch;
+    }));
+    preview();
   }
 
   renderScheduleTiming(locked) {
@@ -3940,10 +4007,12 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   async saveRoutine() {
-    const { saved, name, regions } = this.routineDraft;
+    const { saved, name, regions, icon, color } = this.routineDraft;
     const ordered = this.routineDraft.ordered !== false;
     if (this.cleaningEditor || this.routineBusy || saved?.editable === false || !name.trim()) return;
     const data = { name: name.trim() };
+    if (icon && icon !== saved?.icon) data.icon = icon;
+    if (color && color !== saved?.color) data.color = color;
     if (!saved || (regions && (JSON.stringify(regions) !== JSON.stringify(saved.region_settings) ||
         ordered !== (saved.ordered !== false)))) {
       if (!regions?.length || !this.routineFloorIsCurrent()) {

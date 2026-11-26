@@ -41,6 +41,7 @@ from .routines import (
     ROUTINE_ITEM_PATH,
     cleaning_routines,
     new_routine,
+    routine_appearance,
     routine_command,
     routine_matches,
     routine_name,
@@ -505,16 +506,19 @@ class RoombaClient:
         rows = await self._associated_routines(robot_id)
         return [row.action_response() for row in rows.values()]
 
-    async def create_cleaning_routine(self, robot_id: str, name: str, target: AreaTarget) -> dict:
+    async def create_cleaning_routine(
+        self, robot_id: str, name: str, target: AreaTarget, *, icon=None, color=None
+    ) -> dict:
         stamp = int(self.clock().timestamp())
         command = routine_command(robot_id, target, stamp)
         name = routine_name(name)
+        appearance = routine_appearance({"icon": icon, "color": color})
 
         def match(rows):
             candidates = [
                 row
                 for row in rows.values()
-                if routine_matches(row, name, command, regenerated=True)
+                if routine_matches(row, name, command, regenerated=True, appearance=appearance)
             ]
             if len(candidates) > 1:
                 raise RoutineNotEditable("Several saved routines match this request.")
@@ -527,7 +531,7 @@ class RoombaClient:
             "POST",
             FAVORITES_PATH,
             params=APP_EDITION,
-            data=new_routine(name, command, stamp),
+            data=new_routine(name, command, stamp, appearance),
         )
         created = await self._confirm_routine(robot_id, match)
         return created.action_response()
@@ -539,8 +543,17 @@ class RoombaClient:
         return row
 
     async def update_cleaning_routine(
-        self, robot_id, routine_id, name, target=None, *, expected_selection=None
+        self,
+        robot_id,
+        routine_id,
+        name,
+        target=None,
+        *,
+        expected_selection=None,
+        icon=None,
+        color=None,
     ) -> dict:
+        appearance = routine_appearance({"icon": icon, "color": color})
         row = await self._editable_routine(robot_id, routine_id)
         if (
             expected_selection is not None
@@ -551,13 +564,14 @@ class RoombaClient:
         stamp = int(self.clock().timestamp())
         command = row.command if target is None else routine_command(robot_id, target, stamp)
         regenerated = target is not None
-        if routine_matches(row, name, command, regenerated=regenerated):
+        if routine_matches(row, name, command, regenerated=regenerated, appearance=appearance):
             return row.action_response()
         payload = dict(row.payload)
         payload.pop("app_edition", None)
         payload.update(
             name=name, commanddefs=[command], last_modified=stamp, last_user_modified=stamp
         )
+        payload.update(appearance)
         if target is not None:
             payload.pop("time_estimates", None)
         await self._mutate_cloud_object(
@@ -568,7 +582,10 @@ class RoombaClient:
             updated = rows.get(row.identity)
             return (
                 updated
-                if updated and routine_matches(updated, name, command, regenerated=regenerated)
+                if updated
+                and routine_matches(
+                    updated, name, command, regenerated=regenerated, appearance=appearance
+                )
                 else None
             )
 

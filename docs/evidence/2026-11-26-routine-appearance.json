@@ -1,0 +1,41 @@
+{
+  "tested_model": "Roomba Max 700 Combo",
+  "date": "2026-11-26",
+  "android_favorite": {
+    "preset_selected_in_editor": "smart",
+    "write_status": 201,
+    "icon": "😄",
+    "color": "#CBCBFB",
+    "appearance_matched_signed_read": true,
+    "requested_profile": {
+      "mode": "vacuum_mop",
+      "suction_level": 2,
+      "wetness_level": 2,
+      "smart_scrub": false,
+      "two_pass": false
+    },
+    "signed_room_recommendation": {
+      "mode": "vacuum_mop",
+      "suction_level": 1,
+      "wetness_level": 1
+    },
+    "smart_specific_value_in_saved_command": false
+  },
+  "isolated_home_assistant": {
+    "created_appearance": {"icon": "😄", "color": "#CBCBFB"},
+    "updated_appearance": {"icon": "🧑‍🔧", "color": "#FDF4A9"},
+    "custom_color_outside_presets_confirmed": "#4466AA",
+    "signed_read_confirmed_both_values": true,
+    "original_command_and_metadata_preserved_on_appearance_edit": true
+  },
+  "isolated_chrome": {
+    "viewport_widths_px": [358, 900],
+    "seven_color_presets_visible": true,
+    "copied_appearance_and_cleaning_settings": true
+  },
+  "cleanup": {
+    "temporary_routines_removed": 3,
+    "original_routines_and_floor_preserved": true,
+    "movement_commands": 0
+  }
+}
