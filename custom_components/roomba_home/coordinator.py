@@ -71,6 +71,7 @@ from .core.furniture_edits import (
 from .core.furniture_targets import furniture_regions
 from .core.help_catalog import current_help_articles, setup_guide_for
 from .core.history import (
+    DEFAULT_HISTORY_DAYS,
     ended_mission_start,
     history_includes_mission,
     present_rooms,
@@ -1999,13 +2000,22 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             return found
 
     async def async_mission_history(
-        self, robot_id, report_id=None, map_index=0, *, include_short_canceled=False
+        self,
+        robot_id,
+        report_id=None,
+        map_index=0,
+        *,
+        include_short_canceled=False,
+        history_days=DEFAULT_HISTORY_DAYS,
     ):
         async with self._io_lock:
             if self._closed or not self.show_maps or robot_id not in self.selected:
                 raise action_error("history_unavailable", "Cleaning history is unavailable")
             reports = await self._read_map_action(
-                self.client.mission_reports, robot_id, include_short_canceled=include_short_canceled
+                self.client.mission_reports,
+                robot_id,
+                include_short_canceled=include_short_canceled,
+                history_days=history_days,
             )
             if report_id is None:
                 return {"missions": [report.summary() for report in reports]}

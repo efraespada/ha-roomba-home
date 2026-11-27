@@ -20,6 +20,7 @@ from .core.errors import AuthenticationError
 from .core.floor_settings import MAX_INITIAL_FLOOR_NAME_LENGTH, floor_name_limit
 from .core.furniture_edits import FURNITURE_TYPES, can_edit_furniture, furniture_pose
 from .core.furniture_targets import furniture_regions
+from .core.history import DEFAULT_HISTORY_DAYS, HISTORY_WINDOWS
 from .core.live_coverage import CELL_SIZE
 from .core.live_maps import POSITION_ACTIVITIES
 from .core.maintenance import maintenance_parts
@@ -378,6 +379,9 @@ async def _send_floor_details(hass, connection, message, method, **options):
         vol.Optional("report_id"): vol.All(str, vol.Match(r"[a-f0-9]{64}\Z")),
         vol.Optional("map_index", default=0): vol.All(int, vol.Range(min=0)),
         vol.Optional("include_short_canceled", default=False): bool,
+        vol.Optional("history_days", default=DEFAULT_HISTORY_DAYS): vol.All(
+            int, vol.In(HISTORY_WINDOWS)
+        ),
     }
 )
 @websocket_api.async_response
@@ -399,6 +403,7 @@ async def websocket_mission_history(hass, connection, message):
             message.get("report_id"),
             message["map_index"],
             include_short_canceled=message["include_short_canceled"],
+            history_days=message["history_days"],
         )
     except AuthenticationError:
         connection.send_error(message["id"], "history_unavailable", "Authentication is required.")

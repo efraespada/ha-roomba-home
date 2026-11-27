@@ -5,6 +5,7 @@ const MAX_LIVE_POINTS = 2048;
 const MAX_LIVE_TRANSITION_SECONDS = 6;
 const MAX_LIVE_TRANSITION_MS = 1800;
 const MAX_CLEANING_AREAS = 32;
+const DEFAULT_HISTORY_DAYS = 10;
 const WALL_HEIGHT = 2.2;
 const OBLIQUE_PITCH = 0.55;
 const segmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter() : null;
@@ -128,6 +129,9 @@ template.innerHTML = `
     .divider-coordinates input { min-width:0; width:100%; box-sizing:border-box; }
     #impact-list { padding-left:22px; }
     .legend { gap:14px; margin:0 0 14px; }
+    .history-filters { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin:0 0 14px; }
+    .history-filters label { display:inline-flex; align-items:center; gap:8px; min-height:34px; }
+    .history-filters input[type=checkbox] { min-height:0; margin:0; }
     #coverage-vacuum { accent-color:#59adff; }
     #coverage-mop { accent-color:#4ed9ad; }
     #live-obstacles { accent-color:#ffad55; }
@@ -478,7 +482,11 @@ template.innerHTML = `
     <dialog id="mission-history-dialog" aria-labelledby="mission-history-title">
       <h3 id="mission-history-title">Recent cleaning reports</h3>
       <div id="history-summary">
-        <div class="legend">
+        <div class="history-filters">
+          <label>Period <select id="history-days">
+            <option value="10">Last 10 days</option>
+            <option value="30">Last 30 days</option>
+          </select></label>
           <label><input id="history-include-short-canceled" type="checkbox"> Include short canceled runs</label>
         </div>
         <p id="history-status" class="muted" role="status"></p>
@@ -1153,7 +1161,9 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("close-cleaning-scores").onclick = () => this.$("cleaning-scores-dialog").close();
     this.$("close-mission-history").onclick = () => this.$("mission-history-dialog").close();
     this.$("mission-history-dialog").onclose = () => { this.historySequence++; };
-    this.$("history-include-short-canceled").onchange = () => this.refreshMissionHistory(this.$("history-mission").value);
+    for (const id of ["history-days", "history-include-short-canceled"]) {
+      this.$(id).onchange = () => this.refreshMissionHistory(this.$("history-mission").value);
+    }
     this.$("history-mission").onchange = (event) => this.loadMissionReport(event.target.value, 0);
     this.$("history-map-index").onchange = (event) => this.loadMissionReport(this.historyReport.mission.id, Number(event.target.value));
     this.$("history-zoom-in").onclick = () => this.changeHistoryView(1.25);
@@ -2542,16 +2552,19 @@ class RoombaHomeMapCard extends HTMLElement {
 
   async openMissionHistory() {
     if (!this.config || !this._hass) return;
+    this.$("history-days").value = String(DEFAULT_HISTORY_DAYS);
     this.$("history-include-short-canceled").checked = false;
     this.$("mission-history-dialog").showModal();
     return this.refreshMissionHistory();
   }
 
   missionHistoryRequest(options = {}) {
+    const days = Number(this.$("history-days").value || DEFAULT_HISTORY_DAYS);
     return this._hass.callWS({
       type: "roomba_home/mission_history",
       entity_id: this.config.entity,
       ...(this.$("history-include-short-canceled").checked ? { include_short_canceled: true } : {}),
+      ...(days !== DEFAULT_HISTORY_DAYS ? { history_days: days } : {}),
       ...options,
     });
   }

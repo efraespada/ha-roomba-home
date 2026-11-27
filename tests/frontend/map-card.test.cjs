@@ -2021,6 +2021,67 @@ test("history discards an expanded list that arrives after the filter is turned 
   assert.equal(calls.length, 3);
 });
 
+test("history keeps the selected period and cancellation filter when opening an older map", async () => {
+  const { card } = mockCard(0);
+  const recent = { id: "recent", finished_at: "2026-11-27T17:00:00Z", duration_minutes: 1 };
+  const older = { id: "older", finished_at: "2026-11-12T17:00:00Z", duration_minutes: 4 };
+  const extra = { id: "extra", finished_at: "2026-11-12T16:00:00Z", outcome: "cancelled" };
+  const period = card.$("history-days");
+  const checkbox = card.$("history-include-short-canceled");
+  const picker = card.$("history-mission");
+  card.$("mission-history-dialog").showModal = function () { this.open = true; };
+  card.config = { entity: "vacuum.example" };
+  card.historySequence = 0;
+  card.renderMissionReport = () => {};
+  let resolvePrevious;
+  let waitForMonth = false;
+  const calls = [];
+  card._hass = { async callWS(request) {
+    calls.push(request);
+    const rows = request.history_days === 30 ? [recent, older] : [recent];
+    if (request.include_short_canceled && request.history_days === 30) rows.push(extra);
+    if (waitForMonth && request.history_days === 30 && !request.report_id) {
+      waitForMonth = false;
+      return new Promise((resolve) => { resolvePrevious = () => resolve({ missions: rows }); });
+    }
+    return request.report_id
+      ? { mission: rows.find(({ id }) => id === request.report_id), map_index: request.map_index }
+      : { missions: rows };
+  } };
+
+  period.value = "30";
+  await card.openMissionHistory();
+  assert.equal(period.value, "10");
+  assert.equal(calls[0].history_days, undefined);
+
+  period.value = "30";
+  await card.refreshMissionHistory(picker.value);
+  assert.equal(picker.value, recent.id);
+  assert.equal(card.$("history-totals").textContent, "2 reports · 5 min");
+  await card.loadMissionReport(older.id, 1);
+  assert.equal(calls.at(-1).history_days, 30);
+  assert.equal(calls.at(-1).map_index, 1);
+  assert.equal(card.historyReport.mission.id, older.id);
+
+  checkbox.checked = true;
+  await card.refreshMissionHistory(older.id);
+  assert.equal(picker.value, older.id);
+  assert.equal(calls.at(-1).history_days, 30);
+  assert.equal(calls.at(-1).include_short_canceled, true);
+  assert.equal(card.$("history-totals").textContent, "3 reports · 5 min");
+
+  waitForMonth = true;
+  const previous = card.refreshMissionHistory(older.id);
+  period.value = "10";
+  await card.refreshMissionHistory(older.id);
+  resolvePrevious();
+  await previous;
+  assert.equal(picker.value, recent.id);
+  assert.equal(card.historyReport.mission.id, recent.id);
+  assert.equal(calls.at(-1).history_days, undefined);
+  assert.equal(calls.at(-1).include_short_canceled, true);
+});
+
 test("selecting a different mission discards an older archive response", async () => {
   const { card } = mockCard(0);
   card.config = { entity: "vacuum.example" };

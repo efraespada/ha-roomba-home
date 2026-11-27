@@ -942,6 +942,30 @@ async def test_mission_history_cannot_target_an_unassociated_robot():
     assert len(http.calls) == 3
 
 
+@pytest.mark.parametrize("include_short_canceled", [False, True])
+async def test_30_day_reports_use_the_selected_filter_and_signed_period(include_short_canceled):
+    http = FakeHttp(login_responses() + [HttpResponse(200, [])])
+    c = client(http)
+    assert (
+        await c.mission_reports(
+            "robot-fixture", history_days=30, include_short_canceled=include_short_canceled
+        )
+        == ()
+    )
+    method, url, headers, body = http.calls[-1]
+    assert (method, body) == ("GET", None)
+    assert "/v1/robot-fixture/missionhistory?" in url
+    expected = {
+        "app_id": [c.profile.app_id],
+        "maxAge": ["30"],
+        "supportedDoneCodes": ["dndEnd,returnHomeEnd"],
+    }
+    if not include_short_canceled:
+        expected["filterType"] = ["omit_quickly_canceled_not_scheduled"]
+    assert parse_qs(url.split("?")[1]) == expected
+    assert headers["Authorization"].startswith("AWS4-HMAC-SHA256")
+
+
 async def test_time_estimates_use_the_signed_map_query_with_empty_region_and_zone():
     http = FakeHttp(
         login_responses()

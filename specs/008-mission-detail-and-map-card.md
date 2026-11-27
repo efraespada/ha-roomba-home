@@ -137,7 +137,8 @@ trajectory contains observed positions and retains sequence gaps.
   query. Default to ten days. Use the selected period for both the list
   and report detail and combine it with the short-cancellation option.
   A window describes the request period. Display the reports Roomba
-  returns within the selected scope.
+  returns within the selected scope. Preserve the report selection when
+  it is present in the new list and discard results from an earlier request.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -471,7 +472,7 @@ features, physical results, and open scenarios.
 | MAP-19 | [Current mission WebSocket projection](../docs/api.md#current-mission-readout) | [Authenticated snapshot tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [physical trial](../docs/validation.md#current-mission-readout) |
 | MAP-20 | [Reviewed mission controls](../docs/api.md#reviewed-mission-controls) | [Control policy tests](../tests/test_application.py), [Home Assistant action tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [household trial](../docs/validation.md#reviewed-mission-controls) |
 | MAP-21 | [Archived report contract](../docs/api.md#archived-cleaning-reports) and [signed history comparison](../docs/validation.md#expanded-cleaning-history) | [Signed query tests](../tests/test_api_client.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), [list selection and race tests](../tests/frontend/map-card.test.cjs), and [household verification](../docs/validation.md#expanded-cleaning-history) |
-| MAP-22 | [Signed history window comparison](../docs/validation.md#expanded-cleaning-history) | The 30-day query returned nine additional older reports. The period selector is planned. |
+| MAP-22 | [Signed history window comparison](../docs/validation.md#cleaning-history-periods) and [archive contract](../docs/api.md#archived-cleaning-reports) | [Signed request tests](../tests/test_api_client.py), [list and detail tests](../tests/ha/test_roomba_map_api.py), and [period and filter tests](../tests/frontend/map-card.test.cjs) |
 
 ## 18. Implementation sequence
 

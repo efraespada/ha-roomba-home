@@ -15,6 +15,8 @@ from .state import RobotState
 from .telemetry import CLEANING_CYCLES, at, convert, integer
 
 OUTCOMES = {"ok": "completed", "cncl": "cancelled", "inc": "incomplete", "stuck": "stuck"}
+DEFAULT_HISTORY_DAYS = 10
+HISTORY_WINDOWS = (DEFAULT_HISTORY_DAYS, 30)
 MODES = {"vac": "vacuum", "mop": "mop", "vacmop": "vacuum_mop"}
 HISTORY_COMMANDS = ("start", "spot", "point_clean")
 TIMELINE_EVENTS = frozenset(

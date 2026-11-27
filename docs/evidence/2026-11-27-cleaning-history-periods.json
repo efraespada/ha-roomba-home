@@ -1,0 +1,14 @@
+{
+  "model": "X185240",
+  "signed_report_counts": {
+    "10_days": {"standard": 18, "include_short_canceled": 26},
+    "30_days": {"standard": 27, "include_short_canceled": 35}
+  },
+  "standard_reports_older_than_ten_days": 9,
+  "older_archive_example": {
+    "age_in_whole_days": 15,
+    "positive_cleaned_area": true,
+    "recorded_route": true,
+    "coverage": true
+  }
+}

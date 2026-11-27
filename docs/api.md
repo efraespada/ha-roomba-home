@@ -436,15 +436,15 @@ to the iRobot unboxing guide. An unverified model returns `setup_guide: null`.
 The signed mission history resource returns cleaning records and their
 original `p2maps` references. Each reference has a `p2map_id` and `p2mapv_id`.
 The card lists `start`, `spot`, and `point_clean` records associated with
-the selected robot. It uses the app's ten-day query and keeps summaries
+the selected robot. It defaults to the app's ten-day query and keeps summaries
 for records without map references. Each report is represented by an
 opaque selection key scoped to the robot.
 
-Set `include_short_canceled: true` on `roomba_home/mission_history` to omit
-only `filterType` from the signed list query. The age, outcome parameters,
-association checks, and report projection stay the same. Send the option
-with detail and map-index requests for reports discovered in the expanded
-list. Periodic history sensors continue to use the standard query.
+Set `history_days` to `10` or `30` on `roomba_home/mission_history` to
+select the signed `maxAge` period. Set `include_short_canceled: true` to
+omit `filterType` in either period. Use the same options for the list,
+report detail, and map-index requests. Periodic history sensors use the
+standard ten-day query.
 
 Selecting a report resolves the key against the current signed mission
 list and fetches its referenced archive through
