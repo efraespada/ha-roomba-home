@@ -60,6 +60,9 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   elapsed time, connectivity timestamp, and recent position. The last
   mission includes outcomes, area values, and pass counts for reported
   rooms and zones.
+  A long final return stays pending while Roomba reports travel to the dock
+  and any later pad wash. Home Assistant confirms only after the robot is
+  docked and the mission has ended. [Command results](docs/usage.md#command-confirmation)
   Fresh timeline replies add the current stage, its reported start time,
   in-progress measurements, and the selected destinations with their
   requested preferences and observed outcomes. See each destination's
@@ -197,7 +200,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.87.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.87.1` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)

@@ -107,7 +107,9 @@ The integration reads the robot every five seconds after dispatch. The
 confirmation window is 40 seconds for start, pause, and cancel, and 120
 seconds for arrival at the dock after sending `dock`. A successful refresh
 with missing robot state leaves the command pending within that window.
-A timeout leaves it unconfirmed without republishing. Starting a paused
+A confirmed same-mission final return can continue on regular account reads
+past the initial window. A timeout without qualifying progress leaves it
+unconfirmed without republishing. Starting a paused
 robot resumes its current mission. Battery and error have separate sensors.
 Phase, cycle, and result also appear on the vacuum entity.
 [Command validation SDD](004-command-validation.md)

@@ -41,6 +41,7 @@ from .core.application import (
     ControlError,
     ControlState,
     PreparationConfirmation,
+    ReturnConfirmation,
     execute_control,
     mission_commands,
     skip_review,
@@ -211,7 +212,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         self._command_refresh_task = None
         self._closed = False
         self.command_status = {}
-        self._preparations = {}
+        self._deferred_commands: dict[str, PreparationConfirmation | ReturnConfirmation] = {}
         self._command_tasks = set()
         self._sleep = asyncio.sleep
         self._clock = monotonic
@@ -1862,20 +1863,20 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             name: sum(state.telemetry.get(f"{name}_available") is True for state in result.values())
             for name in ("details", "parts", "maps", "history", "schedules")
         }
-        self._reconcile_preparations(result)
+        self._reconcile_deferred_commands(result)
         return result
 
-    def _reconcile_preparations(self, robots):
-        for robot_id, confirmation in tuple(self._preparations.items()):
+    def _reconcile_deferred_commands(self, robots):
+        for robot_id, confirmation in tuple(self._deferred_commands.items()):
             state = robots.get(robot_id)
             outcome = confirmation.result(control_snapshot(state) if state else None, self._clock())
             if outcome is not None:
                 self.command_status[robot_id] = outcome
-                del self._preparations[robot_id]
+                del self._deferred_commands[robot_id]
 
     def _notify_status(self, robot_id, value):
         if value != "submitted":
-            self._preparations.pop(robot_id, None)
+            self._deferred_commands.pop(robot_id, None)
         self.command_status[robot_id] = value
         self.async_update_listeners()
 
@@ -2869,7 +2870,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             await asyncio.gather(*tasks, return_exceptions=True)
         # Executor operations finish and close their own MQTT clients in finally.
         async with self._io_lock:
-            self._preparations.clear()
+            self._deferred_commands.clear()
             if self._cancel_live_expiration is not None:
                 self._cancel_live_expiration()
                 self._cancel_live_expiration = None
@@ -2946,13 +2947,18 @@ class RobotControlAdapter:
         self.coordinator._notify_status(self.robot_id, status)
 
     def defer_preparation(self, plan, state):
-        self.coordinator._preparations.setdefault(
+        if isinstance(self.coordinator._deferred_commands.get(self.robot_id), ReturnConfirmation):
+            return
+        self.coordinator._deferred_commands.setdefault(
             self.robot_id,
             PreparationConfirmation(
                 plan, state.mission_identity, self.clock() + PREPARATION_CONFIRMATION_SECONDS
             ),
         )
         self.report("submitted")
+
+    def defer_return(self, confirmation: ReturnConfirmation) -> None:
+        self.coordinator._deferred_commands[self.robot_id] = confirmation
 
     async def wait(self, seconds):
         await self.coordinator._sleep(seconds)
@@ -2995,6 +3001,7 @@ def control_snapshot(state, timeline=None):
         mapping_supported=state.capabilities.persistent_maps is True,
         mapping=state.mapping is True,
         pause_before_return=state.sku == SUPPORTED_SKU,
+        ending_return=state.phase in {"hmUsrDock", "hmPostMsn"},
     )
 
 

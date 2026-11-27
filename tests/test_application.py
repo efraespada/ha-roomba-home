@@ -12,6 +12,7 @@ from custom_components.roomba_home.core.application import (
     ControlPlan,
     ControlState,
     PreparationConfirmation,
+    ReturnConfirmation,
     SkipAreaEvent,
     SkipObservation,
     execute_control,
@@ -48,6 +49,7 @@ class Port:
         self.sent = []
         self.statuses = []
         self.preparations = []
+        self.return_confirmation = None
         self.send_error = send_error
         self.read_error = read_error
 
@@ -69,6 +71,9 @@ class Port:
     def defer_preparation(self, plan, state):
         self.preparations.append((plan, state))
         self.report("submitted")
+
+    def defer_return(self, confirmation):
+        self.return_confirmation = confirmation
 
     async def wait(self, seconds):
         self.now += seconds
@@ -399,7 +404,7 @@ async def test_return_waits_for_pause_and_reports_success_only_at_the_dock():
 
 async def test_return_allows_same_mission_wash_to_finish_beyond_the_normal_window():
     paused = replace(MOP_RETURN, activity="paused")
-    returning = replace(MOP_RETURN, activity="returning")
+    returning = replace(MOP_RETURN, activity="returning", ending_return=True)
     port = Port(MOP_RETURN, paused, returning, *([RETURN_WASHING] * 54), BASE)
 
     await execute_control(port, Command.DOCK, CleaningProfile(), reviewed_mission=MISSION_IDENTITY)
@@ -407,6 +412,86 @@ async def test_return_allows_same_mission_wash_to_finish_beyond_the_normal_windo
     assert port.sent == [(Command.PAUSE, None), (Command.DOCK, None)]
     assert port.statuses == ["pending", "confirmed"]
     assert port.now == 285
+
+
+FINAL_RETURN_TRAVEL = replace(RETURN_TRAVEL, ending_return=True)
+
+
+async def test_late_return_and_wash_confirm_only_from_fresh_same_mission_state():
+    paused = replace(MOP_RETURN, activity="paused")
+    returning = replace(FINAL_RETURN_TRAVEL, mode=CleaningMode.MOP)
+    port = Port(MOP_RETURN, paused, returning)
+
+    await execute_control(port, Command.DOCK, CleaningProfile(), reviewed_mission=MISSION_IDENTITY)
+
+    assert port.now == 125
+    assert port.statuses == ["pending"]
+    assert port.sent == [(Command.PAUSE, None), (Command.DOCK, None)]
+    pending = port.return_confirmation
+    assert pending.result(returning, 333) is None
+    assert pending.expires_at == 370
+    assert pending.result(RETURN_WASHING, 336) is None
+    assert pending.expires_at == 636
+    assert pending.result(RETURN_WASHING, 400) is None
+    assert pending.expires_at == 636
+    assert pending.result(BASE, 571) == "confirmed"
+
+
+@pytest.mark.parametrize(
+    ("before", "observed"),
+    [
+        (replace(RETURN_PAUSED, pause_before_return=False), FINAL_RETURN_TRAVEL),
+        (replace(RETURN_PAUSED, mission_identity=None), FINAL_RETURN_TRAVEL),
+        (RETURN_PAUSED, replace(FINAL_RETURN_TRAVEL, mission_identity=(11, MISSION_IDENTITY[1]))),
+        (RETURN_PAUSED, replace(FINAL_RETURN_TRAVEL, mission_active=None)),
+        (RETURN_PAUSED, replace(FINAL_RETURN_TRAVEL, activity="paused")),
+        (RETURN_PAUSED, RETURN_TRAVEL),
+    ],
+)
+async def test_only_final_travel_of_the_same_mission_extends_the_normal_wait(before, observed):
+    port = Port(before, observed)
+    with pytest.raises(ControlError, match="command_unconfirmed"):
+        await execute_control(port, Command.DOCK, CleaningProfile())
+    assert port.now == 120
+    assert port.sent == [(Command.DOCK, None)]
+    assert port.return_confirmation is None
+
+
+@pytest.mark.parametrize("remain_active", [False, True], ids=["unload", "slow_refresh"])
+async def test_a_return_is_not_deferred_after_unload_or_an_exhausted_deadline(remain_active):
+    class InterruptedPort(Port):
+        async def refresh(self):
+            state = await super().refresh()
+            if self.now >= 120:
+                self.active = remain_active
+                self.now = 400
+                return replace(state, connected=None)
+            return state
+
+    port = InterruptedPort(RETURN_PAUSED, FINAL_RETURN_TRAVEL)
+    with pytest.raises(ControlError, match="command_unconfirmed"):
+        await execute_control(port, Command.DOCK, CleaningProfile())
+    assert port.return_confirmation is None
+    assert port.sent == [(Command.DOCK, None)]
+
+
+@pytest.mark.parametrize(
+    ("state", "now", "expected"),
+    [
+        (None, 200, None),
+        (replace(RETURN_TRAVEL, connected=None), 200, None),
+        (replace(RETURN_TRAVEL, connected=False), 200, "unconfirmed"),
+        (replace(RETURN_TRAVEL, activity="error"), 200, "unconfirmed"),
+        (replace(BASE, mission_identity=(11, MISSION_IDENTITY[1])), 200, "unconfirmed"),
+        (replace(RETURN_WASHING, dock=DockSnapshot(pad_wash=602, fault=517)), 200, None),
+        (RETURN_TRAVEL, 360, "unconfirmed"),
+    ],
+)
+def test_deferred_return_handles_missing_reads_faults_and_expiry(state, now, expected):
+    pending = ReturnConfirmation(ControlPlan(Command.DOCK), MISSION_IDENTITY, 360)
+    assert pending.result(state, now) == expected
+    assert pending.expires_at == 360
+    assert not pending.washing
 
 
 @pytest.mark.parametrize(

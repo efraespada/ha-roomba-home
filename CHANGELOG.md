@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.87.1
+
+- Keep a Max 700 Combo return pending after Roomba reports final travel for
+  the same mission. A sustained return can finish through a later pad wash
+  while the robot remains available for commands such as cancellation.
+
 ## 0.87.0
 
 - Renew the Roomba live-map announcement during opt-in active missions.

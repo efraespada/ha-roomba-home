@@ -32,5 +32,15 @@
   },
   "return_result_during_travel": "command_unconfirmed",
   "post_return_dock_wash_observed": true,
+  "return_recorder_events": [
+    {"seconds_after_request": 9, "last_command_result": "pending"},
+    {"seconds_after_request": 23, "vacuum_activity": "paused"},
+    {"seconds_after_request": 38, "vacuum_activity": "returning"},
+    {"seconds_after_request": 147, "last_command_result": "unconfirmed"},
+    {"seconds_after_request": 336, "pad_wash_state": 602},
+    {"seconds_after_request": 571, "vacuum_activity": "docked", "pad_wash_state": 601}
+  ],
+  "signed_report_cleaned_area_m2": 6.69,
+  "signed_report_outcome": "canceled_by_user",
   "standalone_candidate_physical_test_verified": false
 }
