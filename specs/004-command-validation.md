@@ -63,6 +63,8 @@ Return sends the robot to its dock. Pause preserves the current mission.
 - **CMD-07** On the Max 700 Combo, a return during active cleaning MUST
   wait for the same mission to pause before publishing `dock`. If the
   robot starts returning on its own, observe arrival without publishing `dock`.
+  A confirmed final journey for that mission MAY extend the arrival wait
+  on regular account reads. Intermediate recharging MUST keep the normal window.
 - **CMD-08** After dispatch, a successful account refresh that omits the
   connection state MAY be followed by another read. Preserve the existing
   deadline and one publish per command. A missing state cannot confirm an action.
@@ -100,11 +102,16 @@ The Max 700 Combo return flow observes the same active mission after
 while the pause is pending, a reported return or arrival can confirm the
 operation without further publication. A new active pad wash within the
 same mission grants up to five minutes from the first wash observation.
-The robot or dock reporting a fault or a different mission ends this
-additional wait. Confirmation still requires a docked robot with an
-ended mission. The wash can extend the deadline once.
+Confirmed final travel grants up to six minutes from the first travel
+observation. A return still traveling after the normal 120-second service
+window is tracked on the shared account poll and releases the per-robot
+command lock. The first matching wash may replace the travel deadline
+once. A robot fault, a wash fault, an explicit disconnection, or a different
+mission ends the extended wait. Confirmation requires a docked robot with
+an ended mission. A new dispatched command replaces the deferred result.
 [Return trial](../docs/validation.md#return-during-active-cleaning) ·
-[Mop-only return confirmation on 0.86.1](../docs/validation.md#physical-confirmation-on-0861)
+[Mop-only return confirmation on 0.86.1](../docs/validation.md#physical-confirmation-on-0861) ·
+[Long return before washing](../docs/validation.md#side-by-side-live-mopping)
 
 ## 7. User-facing configuration
 
