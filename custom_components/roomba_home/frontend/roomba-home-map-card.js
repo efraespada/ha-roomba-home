@@ -102,9 +102,11 @@ template.innerHTML = `
     .zoom button { min-width:36px; }
     .floor-routine-controls { display:flex; flex-wrap:wrap; align-items:flex-start; gap:8px; margin:0 16px 12px; }
     .floor-routine-controls:not(:has(> :not([hidden]))) { display:none; }
+    #floor-shortcuts { margin:0; max-width:100%; }
     #floor-shortcuts[open] { flex-basis:100%; }
     #floor-shortcuts summary { cursor:pointer; padding:7px 0; }
     #floor-shortcut-list { display:flex; flex-wrap:wrap; gap:7px; list-style:none; padding:0; margin:8px 0; }
+    #floor-shortcut-list li, #floor-shortcut-list button { max-width:100%; }
     #floor-shortcut-list button { text-align:start; overflow-wrap:anywhere; }
     #floor-shortcut-status { margin:8px 0; }
     #regions,#furniture-cleaning-areas,.legend { display:flex; gap:7px; flex-wrap:wrap; }
