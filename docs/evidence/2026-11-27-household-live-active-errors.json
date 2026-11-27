@@ -17,7 +17,13 @@
   "settled_cycle": "none",
   "settled_error": 48,
   "candidate_projected_settled_error": true,
+  "household_active_error_version": "0.83.0",
+  "household_error_visible_after_mission": true,
+  "household_remote_error_visible": true,
   "archive_target_matched": true,
   "archive_outcome": "inc",
+  "archive_error": 48,
+  "archive_timeline_errors": [48],
+  "archived_map_count": 0,
   "archive_reported_cleaned_area_zero": true
 }
