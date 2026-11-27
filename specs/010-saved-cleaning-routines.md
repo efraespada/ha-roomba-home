@@ -231,7 +231,11 @@ revalidate its map review and profiles through the usual command path.
 
 Offer **Customize cleaning** for a current reviewed area selection.
 Initialize an unsaved draft in selection order and reuse the typed per-area
-controls, presets, and estimate. Editing the draft uses no favorite write.
+controls, presets, and estimate. Add remaining rooms in map order while
+preserving the current order, other destination types, and configured area
+profiles. Removing all rooms keeps zones and furniture. Enforce the
+destination limit and active floor review before applying bulk selection.
+Editing the draft uses no favorite write.
 Recheck the active floor, area inventory, and exact settings at start
 confirmation. Dispatch through `roomba_home.run_cleaning_draft` and return
 to the map after acceptance. **Save as routine** copies the areas and order

@@ -168,7 +168,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.75.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.76.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
@@ -227,6 +227,9 @@ reload the dashboard. Use one card per robot.
 - **Show furniture** displays saved and detected objects. In **Edit
   furniture**, choose **Chair**, place its center, enter its width and
   depth, and check the rotation preview before saving.
+- **Select all rooms** adds the rooms on the displayed floor. Pick a
+  supported furniture object on the map or open **Furniture destinations**.
+  **Deselect all rooms** keeps the selected furniture and zones.
 - **Customize cleaning** opens a one-off draft from **Review selection**.
   Set each area's mode and preferences, check the order, then confirm the
   start. **Save as routine** carries the same draft to the routine editor.
