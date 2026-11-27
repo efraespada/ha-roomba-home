@@ -13,5 +13,8 @@
   "authenticated_home_assistant_returns_requested_geometry": true,
   "authenticated_home_assistant_control_returns_archived_trajectory": true,
   "verified_chrome_viewport_widths": [358, 900],
+  "installed_home_assistant_version": "0.84.0",
+  "installed_requested_floor_label_and_footprint_verified": true,
+  "installed_control_archive_retained_route_and_coverage": true,
   "roomba_commands_sent": 0
 }
