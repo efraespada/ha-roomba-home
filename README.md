@@ -149,6 +149,9 @@ threshold. [Dock settings and automation example](docs/usage.md#dock-settings)
 Open **Cleaning history** on the floor plan card to inspect the reported
 outcome, measurements, and timeline. Turn on **Include short canceled
 runs** for reports Roomba leaves out of its usual history list.
+
+![Expanded-history checkbox selected on the installed Home Assistant card](docs/screenshots/roomba-expanded-history-filter.png)
+
 Expand **Results by area** to
 see the reported target size and the area measured in completed passes for
 a saved zone. In a verified two-pass vacuum run, Roomba reported a 2.51 m²

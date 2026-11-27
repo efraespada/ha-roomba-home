@@ -44,6 +44,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-recommended-rooms-key.png": (
         "8b57e6761f893c4e0f571a1cdc614c0350e85285264dc329876681f16c8aa319"
     ),
+    "docs/screenshots/roomba-expanded-history-filter.png": (
+        "008a0bea894f4bf1cc0e754b91e71219e8553cfbebc1e924f470d7e93b61ace3"
+    ),
     "docs/screenshots/roomba-room-editor.jpg": (
         "db26543768c3549e2406489e02ea8b65662ec16a7e4432ff8baee5856d7438cb"
     ),
