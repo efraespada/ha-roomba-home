@@ -634,7 +634,14 @@ Each estimate has `duration_seconds` and its reported profile. An empty list
 indicates that Roomba returned no usable estimate. Use the results to compare
 profiles before starting a mission.
 
-Compatible docks expose buttons to empty the bin, wash the mop, and dry it.
+Open **Dock controls** on the floor plan to view the linked dock's active
+operations and available buttons. Select **Wash mop and tray**, **Dry mop**,
+**Stop drying**, or **Empty bin**, then choose **Confirm**. The panel shows
+the result of the same button displayed on the dock's Home Assistant device
+page. Read access lets you see reported progress. Sending an action also
+requires control access to the robot and the corresponding dock button.
+Only supported actions appear. A temporarily unavailable action stays disabled.
+
 On the Max 700 Combo dock, **Wash mop** can interrupt active drying. The
 wash starts from the dock and the component state reports its progress.
 Use **Dry mop** to start drying again after a manual wash finishes.

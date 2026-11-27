@@ -8,14 +8,19 @@ from homeassistant.auth.permissions.const import POLICY_CONTROL, POLICY_READ
 from homeassistant.components import websocket_api
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.components.vacuum.const import DATA_COMPONENT
+from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry
 
-from .coordinator import control_snapshot, mission_review
+from .button import DOCK_BUTTONS
+from .const import DOMAIN
+from .coordinator import control_snapshot, dock_snapshot, mission_review
 from .core.capabilities import supports_point_clean
 from .core.cleaning import CleaningMode
 from .core.cleaning_protocol import reported_cleaning_mode
+from .core.dock import OPERATIONS
 from .core.errors import AuthenticationError
 from .core.floor_settings import MAX_INITIAL_FLOOR_NAME_LENGTH, floor_name_limit
 from .core.furniture_edits import FURNITURE_TYPES, can_edit_furniture, furniture_pose
@@ -33,6 +38,7 @@ from .core.routine_presets import routine_presets, supports_routine_presets
 from .core.state import RobotState
 from .core.telemetry import CLEANING_CYCLES
 from .core.zone_edits import zone_corners
+from .entity import entity_unique_id
 from .vacuum import RoombaVacuum
 
 CARD_URL = "/roomba_home/roomba-home-map-card.js"
@@ -50,6 +56,34 @@ def current_mission(state: RobotState, now: datetime) -> dict | None:
         "cleaned_area_m2": state.telemetry.get("mission_area"),
         "error_code": state.error or None,
     }
+
+
+def _dock_controls(hass, vacuum, state, permissions, can_control):
+    dock = dock_snapshot(state)
+    registry = entity_registry.async_get(hass)
+    entry_unique_id = vacuum.account.config_entry.unique_id
+    controls = {}
+    for key, command in DOCK_BUTTONS.items():
+        operation = OPERATIONS[command]
+        if not dock.supports(operation):
+            continue
+        button_id = None
+        if can_control:
+            unique_id = entity_unique_id(entry_unique_id, vacuum.robot_id, key)
+            entity_id = registry.async_get_entity_id("button", DOMAIN, unique_id)
+            button = hass.states.get(entity_id) if entity_id is not None else None
+            if (
+                button is not None
+                and button.state != STATE_UNAVAILABLE
+                and permissions.check_entity(entity_id, POLICY_CONTROL)
+            ):
+                button_id = entity_id
+        controls[key] = {
+            "entity_id": button_id,
+            "active": state.connected is True
+            and dock.status(operation) in operation.running_states,
+        }
+    return controls
 
 
 async def async_setup_map_api(hass):
@@ -524,6 +558,7 @@ async def websocket_floor_plan(hass, connection, message):
     now = datetime.now(UTC)
     mission = current_mission(state, now)
     controls = mission_review(robot_id, control_snapshot(state)) if can_control else None
+    dock_controls = _dock_controls(hass, vacuum, state, connection.user.permissions, can_control)
     errors = active_device_errors(state)
     if not maps:
         connection.send_result(
@@ -535,6 +570,7 @@ async def websocket_floor_plan(hass, connection, message):
                 "mapping": mapping,
                 "current_mission": mission,
                 "mission_controls": controls,
+                "dock_controls": dock_controls,
                 "active_errors": errors,
                 "can_clean_everywhere": can_clean_everywhere,
             },
@@ -562,6 +598,7 @@ async def websocket_floor_plan(hass, connection, message):
         "mapping": mapping,
         "current_mission": mission,
         "mission_controls": controls,
+        "dock_controls": dock_controls,
         "active_errors": errors,
         "map": {"id": floor.map_id, "version": floor.version_id},
         "inventory_id": inventory_id,

@@ -3051,6 +3051,24 @@ configuration. The trial canceled there without supplying credentials
 or clearing the connection.
 [Device capability specification](../specs/007-device-capabilities.md)
 
+### Dock controls on the floor plan
+
+Roomba Home 3.4.1 exposed **Dock controls** from both the floor plan and
+the device page on the Max 700 Combo. The panel offered mop-and-tray
+washing and bin emptying and showed drying in progress. This inspection
+opened the panel while the robot was docked and left the existing drying
+cycle running. The map legend and editor menus were also inspected.
+
+The Home Assistant panel uses the same registered buttons as the linked
+dock device page. Its test opens the panel data on a saved floor and
+before the first floor is saved, projects active drying from Roomba,
+rejects a button without control permission, follows an entity rename,
+and presses the linked wash button against a simulated robot. The card
+tests exercise a stale review, duplicate prevention, and a rejected
+command. A physical command from this new card panel remains unverified.
+[Dock usage](usage.md#dock-settings) ·
+[Dock controls SDD](../specs/008-mission-detail-and-map-card.md)
+
 ## Robot serial number
 
 The authenticated asset lookup returned a 21-character serial and the

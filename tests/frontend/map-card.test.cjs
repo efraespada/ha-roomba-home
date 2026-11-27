@@ -3142,6 +3142,80 @@ test("a pending mission command cannot be repeated and failures are visible", as
   assert.equal(elements.get("mission-control-status").textContent, "The current mission changed.");
 });
 
+test("dock controls show reported activity and require review for the exact linked button", async () => {
+  const { card } = mockCard(0);
+  const dialog = card.$("dock-controls-dialog");
+  dialog.showModal = () => { dialog.open = true; };
+  const calls = [];
+  card._hass = { async callService(...args) { calls.push(args); } };
+  card.refresh = async () => {};
+  card.snapshot.dock_controls = {
+    dry_mop: { active: true, entity_id: null },
+    stop_drying: { active: false, entity_id: "button.linked_stop_drying" },
+    wash_mop: { active: false, entity_id: "button.linked_wash" },
+    empty_bin: { active: false, entity_id: null },
+  };
+  card.updateDockControls();
+  assert.equal(card.$("open-dock-controls").hidden, false);
+  assert.equal(card.$("dock-dry_mop").textContent, "Dry mop · In progress");
+  assert.equal(card.$("dock-dry_mop").disabled, true);
+  assert.equal(card.$("dock-refill_tank").hidden, true);
+  assert.equal(card.$("dock-stop_drying").hidden, false);
+  card.openDockControls();
+  card.reviewDockAction("empty_bin");
+  assert.equal(card.$("dock-action-review").hidden, true);
+  card.reviewDockAction("wash_mop");
+  assert.equal(card.$("dock-action-review").hidden, false);
+  assert.equal(card.$("dock-action-prompt").textContent, "Wash mop and tray?");
+  assert.equal(card.$("back-dock-action").focused, true);
+  assert.equal(calls.length, 0);
+
+  card.snapshot.dock_controls.wash_mop.entity_id = "button.renamed_wash";
+  card.updateDockControls();
+  await card.confirmDockAction();
+  assert.equal(calls.length, 0);
+  assert.equal(card.$("dock-action-review").hidden, true);
+  assert.equal(card.$("dock-action-status").textContent, "This dock action is no longer available.");
+
+  card.reviewDockAction("wash_mop");
+  await card.confirmDockAction();
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].slice(0, 2), ["button", "press"]);
+  assert.equal(calls[0][3].entity_id, "button.renamed_wash");
+  assert.equal(card.$("dock-action-status").textContent, "Roomba confirmed the dock action.");
+  card.snapshot = null;
+  card.updateDockControls();
+  assert.equal(card.$("open-dock-controls").hidden, true);
+  assert.equal(card.$("dock-unavailable").hidden, false);
+});
+
+test("a dock request cannot be duplicated and an error remains visible in its own dialog", async () => {
+  const { card } = mockCard(0);
+  const dialog = card.$("dock-controls-dialog");
+  dialog.open = true;
+  let calls = 0;
+  let reject;
+  card.refresh = async () => {};
+  card._hass = {
+    callService() {
+      calls++;
+      return new Promise((_, failure) => { reject = failure; });
+    },
+  };
+  card.snapshot.dock_controls = { dry_mop: { active: false, entity_id: "button.dry" } };
+  card.reviewDockAction("dry_mop");
+  const pending = card.confirmDockAction();
+  assert.equal(card.$("dock-dry_mop").disabled, true);
+  assert.match(card.$("dock-action-status").textContent, /Waiting/);
+  card.reviewDockAction("dry_mop");
+  await card.confirmDockAction();
+  assert.equal(calls, 1);
+  reject(new Error("The dock is busy."));
+  await pending;
+  assert.equal(card.$("dock-action-status").textContent, "The dock is busy.");
+  assert.equal(card.$("dock-dry_mop").disabled, false);
+});
+
 test("last mission results name furniture and keep separately reported zone metrics", () => {
   const { card } = mockCard(0);
   const element = () => ({ children: [], append(...items) { this.children.push(...items); } });

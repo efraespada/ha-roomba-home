@@ -312,6 +312,18 @@ robot readings drive fault visibility, and each source retains its own
 code namespace.
 [Physical error comparison](validation.md#household-live-coverage-and-active-errors)
 
+### Manual dock controls on the floor plan
+
+`roomba_home/floor_plan` includes `dock_controls` for the robot's
+recognized dock. Each supported action has `active` from the reported
+component state and an `entity_id` only when the existing button is
+available and the caller can control both the robot and that button.
+The available keys are `wash_mop`, `dry_mop`, `stop_drying`, `empty_bin`,
+and `refill_tank`. The state is available before the first saved floor.
+The card uses Home Assistant's `button.press` after the user reviews the
+selected action. The existing button and application command policy check
+the current device state and observe the result from Roomba.
+
 ### Reviewed mission controls
 
 For a user with control permission, `roomba_home/floor_plan` returns

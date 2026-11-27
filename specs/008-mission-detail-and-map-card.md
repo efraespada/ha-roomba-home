@@ -159,6 +159,12 @@ trajectory contains observed positions and retains sequence gaps.
   report's exact revisions. Validate the originating robot, file digest,
   and manifest before displaying it. Use its original coordinate frame
   for saved positions only when the capture matches that same revision.
+- MAP-28: Give the map card a **Dock controls** panel based on the
+  robot's recognized dock capabilities and reported component states.
+  Offer a review before pressing the registered button for the selected
+  robot's linked dock. Require control access to both entities. Remove a
+  review if that button becomes unavailable or changes identity. Display
+  the running operation and the command result independently.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -527,6 +533,7 @@ features, physical results, and open scenarios.
 | MAP-25 | [Archived report contract](../docs/api.md#archived-cleaning-reports) | [Map parsing tests](../tests/test_mission_map.py), [authenticated report scope tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [unarchived report comparison](../docs/validation.md#requested-floor-in-an-unarchived-report) |
 | MAP-26 | [Local recording contract](../docs/api.md#local-route-recording) | [Private storage tests](../tests/ha/test_mission_route_store.py), [authenticated report and replay tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), [isolated archive replay](../docs/validation.md#local-route-recording-replay), and [household recording persistence](../docs/validation.md#household-vacuum-route-after-clearing-error-48) |
 | MAP-27 | [Archive and backup contract](../docs/api.md#archived-cleaning-reports) | [Private backup storage tests](../tests/ha/test_map_history.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed report comparison](../docs/validation.md#backed-up-floor-in-cleaning-history) |
+| MAP-28 | [Dock controls contract](../docs/api.md#manual-dock-controls-on-the-floor-plan) | [Native panel comparison](../docs/validation.md#dock-controls-on-the-floor-plan), [authenticated snapshot tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 
 ## 18. Implementation sequence
 
