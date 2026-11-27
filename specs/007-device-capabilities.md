@@ -44,6 +44,7 @@ model catalogs where applicable.
 | Robot name, model, software version, last software update | Device and firmware entities present |
 | Robot serial in the About screen | Verified asset lookup and Home Assistant device metadata |
 | Automatic pad washing, emptying by routine or area, voice language and volume, child and pet lock, locate, and reboot | Implemented device or dock controls. The emptying selector uses the three [confirmed Android choices](../docs/api.md#automatic-dock-emptying) and retains the area number for custom thresholds. |
+| Dock controls from the floor plan and robot page | The floor plan card opens controls for the same linked dock buttons and reports which operations are running. [Native panel comparison](../docs/validation.md#dock-controls-on-the-floor-plan) |
 | Component use and remaining life, including maintenance resets | Implemented; three displayed hour values matched the API's remaining minutes |
 | Change Wi-Fi | The Max 700 Combo app asks for confirmation before clearing its current Wi-Fi configuration. Provisioning and recovery require separate verification. |
 | Factory reset and remove robot | App entry point observed; account removal, device reset, and recovery require verification |
@@ -112,6 +113,9 @@ becoming an indiscriminately false or zero.
   inside Robot help and include them in its read response. Match the
   Android order and link iRobot's instructions. Unknown models return
   no checklist. Opening it has no device or account side effects.
+- CAP-23: Show supported manual dock actions and their observed activity in
+  the map card. Route confirmed actions through the existing linked Home
+  Assistant buttons and their normal safety checks and result handling.
 
 No endpoints, maps and empty states are invented with HA entities or capabilities. No
 physical errors are induced and no maps, accounts or data beyond the test have been
@@ -454,6 +458,7 @@ with API operations.
 | CAP-20 | Dock emptying selector and existing area number | [Native values](../docs/api.md#automatic-dock-emptying), [entity tests](../tests/ha/test_cleaning_controls.py), [write confirmation tests](../tests/ha/test_coordinator.py), [signed setting trial](../docs/validation.md#automatic-dock-emptying-frequency), and [physical comparison](../docs/validation.md#saved-routine-dock-frequency-comparison) |
 | CAP-21 | Robot help panel and read action | [Catalog and article validation](../docs/validation.md#robot-help-catalog), [protocol tests](../tests/test_help_catalog.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [panel tests](../tests/frontend/map-card.test.cjs) |
 | CAP-22 | Max 700 Combo first-clean checklist | [Android comparison](../docs/validation.md#first-clean-preparation), [model tests](../tests/test_help_catalog.py), [action tests](../tests/ha/test_cleaning_controls.py), and [panel tests](../tests/frontend/map-card.test.cjs) |
+| CAP-23 | Dock controls and state on the floor plan | [Native panel comparison](../docs/validation.md#dock-controls-on-the-floor-plan), [linked dock entity tests](../tests/ha/test_dock_and_history.py), and [map snapshot tests](../tests/ha/test_roomba_map_api.py) |
 
 CAP-09 includes floor plans, room labels, position, heading, trajectory,
 coverage, and estimates supported by Roomba. Enable the map option to expose

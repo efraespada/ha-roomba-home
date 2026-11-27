@@ -6,7 +6,7 @@ from math import floor, pi
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.auth.permissions.const import POLICY_READ
+from homeassistant.auth.permissions.const import POLICY_CONTROL, POLICY_READ
 from homeassistant.components.vacuum.const import DATA_COMPONENT
 from homeassistant.core import Context
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
@@ -16,7 +16,11 @@ from custom_components.roomba_home.const import CONF_SHOW_MAPS, DOMAIN
 from custom_components.roomba_home.coordinator import RobotControlAdapter, RoombaCoordinator
 from custom_components.roomba_home.core.actions import Command
 from custom_components.roomba_home.core.area_preferences import read_area_defaults
-from custom_components.roomba_home.core.capabilities import DigitalSpotCapability, SkipCapability
+from custom_components.roomba_home.core.capabilities import (
+    DigitalSpotCapability,
+    DockCapabilities,
+    SkipCapability,
+)
 from custom_components.roomba_home.core.capability_protocol import project_capabilities
 from custom_components.roomba_home.core.cleaning import (
     CleaningCapabilities,
@@ -1354,6 +1358,91 @@ async def test_mapping_status_is_available_before_the_first_saved_floor(
         await socket.send_json(request | {"id": 2})
         snapshot = (await socket.receive_json())["result"]
         assert snapshot["mapping"] == {"can_start": False, "activity": "paused"}
+
+
+async def test_dock_controls_use_the_linked_buttons_and_signed_component_status(
+    hass, entry, configured, hass_ws_client, hass_admin_user
+):
+    robot_id = "fixture-0"
+    robot = configured.data[robot_id]
+    docked = replace(
+        robot,
+        connected=True,
+        phase="charge",
+        cycle="none",
+        telemetry=robot.telemetry
+        | {
+            "evacuation_state": 301,
+            "pad_wash_state": 601,
+            "pad_dry_state": 702,
+            "detected_pad": "padPlate",
+            "dock_error": 0,
+        },
+        capabilities=replace(
+            robot.capabilities,
+            dock=DockCapabilities(recognized=True, evacuation=True, wash=True, dry=True),
+        ),
+    )
+    configured.async_set_updated_data({robot_id: docked})
+    await hass.async_block_till_done()
+    registry = entity_registry.async_get(hass)
+
+    def dock_button(key):
+        return registry.async_get_entity_id("button", DOMAIN, f"{entry.unique_id}_{robot_id}_{key}")
+
+    wash, stop, empty = (dock_button(key) for key in ("wash_mop", "stop_drying", "empty_bin"))
+    assert wash and stop and empty
+    socket = await hass_ws_client()
+    request = {"type": "roomba_home/floor_plan", "entity_id": ENTITY}
+
+    async def controls(request_id):
+        await socket.send_json(request | {"id": request_id})
+        return (await socket.receive_json())["result"]["dock_controls"]
+
+    expected = {
+        "wash_mop": {"active": False, "entity_id": wash},
+        "stop_drying": {"active": False, "entity_id": stop},
+        "dry_mop": {"active": True, "entity_id": None},
+        "empty_bin": {"active": False, "entity_id": None},
+    }
+    assert await controls(1) == expected
+
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda entity, policy: (
+            policy == POLICY_READ or (policy == POLICY_CONTROL and entity != wash)
+        ),
+    ):
+        assert await controls(2) == expected | {"wash_mop": {"active": False, "entity_id": None}}
+
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda _, policy: policy == POLICY_READ,
+    ):
+        assert await controls(3) == {
+            key: value | {"entity_id": None} for key, value in expected.items()
+        }
+
+    updated = registry.async_update_entity(wash, new_entity_id="button.renamed_matching_dock")
+    await hass.async_block_till_done()
+    configured._maps.clear()
+    replacement = await controls(4)
+    assert replacement == expected | {"wash_mop": {"active": False, "entity_id": updated.entity_id}}
+    with patch.object(configured, "async_command", new_callable=AsyncMock) as command:
+        await hass.services.async_call(
+            "button", "press", {"entity_id": replacement["wash_mop"]["entity_id"]}, blocking=True
+        )
+        command.assert_awaited_once_with(robot_id, Command.WASH_MOP)
+
+    registry.async_remove(updated.entity_id)
+    await hass.async_block_till_done()
+    assert (await controls(5))["wash_mop"] == {"active": False, "entity_id": None}
+
+    configured.async_set_updated_data({robot_id: replace(docked, connected=False)})
+    await hass.async_block_till_done()
+    assert await controls(6) == {key: {"active": False, "entity_id": None} for key in expected}
 
 
 async def test_current_mission_is_covered_before_the_first_saved_floor_and_without_an_itinerary(

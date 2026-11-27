@@ -8,6 +8,10 @@ from .const import DOMAIN
 from .robot_updates import RobotUpdates
 
 
+def entity_unique_id(entry_unique_id, robot_id, suffix):
+    return f"{entry_unique_id}_{robot_id}_{suffix}"
+
+
 def discover_entities(entry, async_add_entities, candidates):
     """Keep discovered entity identities when optional fields later disappear."""
     known = set()
@@ -37,7 +41,7 @@ class RoombaEntity(BaseCoordinatorEntity[RobotUpdates]):
         self._dock = dock
         entry = coordinator.config_entry
         identifier = f"{entry.unique_id}_{robot_id}"
-        self._attr_unique_id = f"{identifier}_{suffix}"
+        self._attr_unique_id = entity_unique_id(entry.unique_id, robot_id, suffix)
         state = coordinator.data[robot_id]
         robot_info = device_registry.DeviceInfo(
             identifiers={(DOMAIN, identifier)},
