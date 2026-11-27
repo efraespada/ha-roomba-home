@@ -2096,6 +2096,15 @@ test("a requested floor highlights its targets and keeps mission result layers h
   assert.equal(inputs[3].parentElement.hidden, false);
   assert.ok(paint.some((color) => color.endsWith("60")));
 
+  const traveling = { ...local, geometry: {
+    ...context, trajectories: [{ index: 1, points: [[1, 1], [2, 1]], modes: ["traveling"] }],
+  } };
+  card.historyReport = traveling;
+  card.renderMissionReport(traveling);
+  assert.match(card.$("history-map-source").textContent, /Live positions saved by Home Assistant/);
+  assert.equal(inputs[1].parentElement.hidden, false);
+  assert.equal(inputs[3].parentElement.hidden, true);
+
   const recorded = { ...report, geometry: archived, geometry_source: "mission_archive" };
   card.historyReport = recorded;
   card.renderMissionReport(recorded);

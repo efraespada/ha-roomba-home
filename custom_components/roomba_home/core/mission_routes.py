@@ -45,7 +45,7 @@ def captured_geometry(samples):
             path = [previous_point, point] if consecutive else [point]
             trajectories.append({"index": index, "modes": modes, "points": path})
         previous_index, previous_point = index, point
-    return {
-        "trajectories": trajectories,
-        "estimated_coverage": {"cell_size": CELL_SIZE, "rows": sorted(coverage.rows().items())},
-    }
+    result = {"trajectories": trajectories}
+    if rows := coverage.rows():
+        result["estimated_coverage"] = {"cell_size": CELL_SIZE, "rows": sorted(rows.items())}
+    return result

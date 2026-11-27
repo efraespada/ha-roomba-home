@@ -61,6 +61,9 @@ async def test_route_checkpoints_merge_and_reload_without_inventing_missing_posi
         2,
         3,
     }
+    assert captured_geometry(record["points"][:1]) == {
+        "trajectories": [geometry["trajectories"][0]]
+    }
     for owner, start, number, requested, archive in [
         ("different-robot", STARTED, 22, FLOOR, None),
         (ROBOT, STARTED + timedelta(seconds=1), 22, FLOOR, None),

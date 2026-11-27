@@ -534,8 +534,9 @@ explicit requested revision must match the captured revision, and a
 selected archive reference must match its floor ID. A report without a
 requested revision can use a single unambiguous capture. A readable
 matching base floor yields `geometry_source: local_capture` and indexed
-`trajectories`. Missing indices leave gaps. `estimated_coverage` includes
-`cell_size` and sparse `[row, runs]` tuples with `[start, end, mask]`
+`trajectories`. Missing indices leave gaps. When cleaning positions are
+available, `estimated_coverage` includes `cell_size` and sparse
+`[row, runs]` tuples with `[start, end, mask]`
 runs. Vacuuming has bit 1, mopping bit 2, and combined cleaning bit 3.
 The signed report retains its own area and timeline. Native capture
 identifiers are excluded from the WebSocket response.
