@@ -69,6 +69,7 @@ CAPTURE_BACKUP = {
     "settings_id": MAP.settings_id,
 }
 HISTORY = {"id": 1, "type": "roomba_home/mission_history", "entity_id": ENTITY}
+ROUTE_SETTINGS = {"id": 1, "type": "roomba_home/mission_route_settings", "entity_id": ENTITY}
 MAINTENANCE = {"id": 1, "type": "roomba_home/maintenance", "entity_id": ENTITY}
 ROBOT_HELP = {"id": 1, "type": "roomba_home/robot_help", "entity_id": ENTITY}
 SCORES = {
@@ -729,6 +730,136 @@ async def test_history_rejects_unauthorized_or_stale_requests_before_fetching_ge
     await socket.send_json(HISTORY | {"id": 4, "report_id": history_reports[0].key, "map_index": 1})
     assert (await socket.receive_json())["error"]["code"] == "report_not_found"
     configured.client.map_geometry.assert_not_awaited()
+
+
+async def test_route_settings_allow_readers_to_inspect_and_only_controllers_to_modify(
+    configured, hass_ws_client, hass_admin_user
+):
+    socket = await hass_ws_client()
+    with patch.object(
+        type(hass_admin_user.permissions), "check_entity", side_effect=lambda _, p: p == POLICY_READ
+    ):
+        await socket.send_json(ROUTE_SETTINGS)
+        assert (await socket.receive_json())["result"] == {
+            "enabled": False,
+            "count": 0,
+            "can_manage": False,
+        }
+        await socket.send_json(ROUTE_SETTINGS | {"id": 2, "enabled": True})
+        assert (await socket.receive_json())["error"]["code"] == "unauthorized"
+        await socket.send_json(ROUTE_SETTINGS | {"id": 3, "clear": True})
+        assert (await socket.receive_json())["error"]["code"] == "unauthorized"
+    await socket.send_json(ROUTE_SETTINGS | {"id": 4, "enabled": True})
+    assert (await socket.receive_json())["result"] == {
+        "enabled": True,
+        "count": 0,
+        "can_manage": True,
+    }
+    await socket.send_json(ROUTE_SETTINGS | {"id": 5, "enabled": False, "clear": True})
+    assert (await socket.receive_json())["result"] == {
+        "enabled": False,
+        "count": 0,
+        "can_manage": True,
+    }
+
+
+@pytest.mark.parametrize(
+    "source", ["requested", "whole_floor", "expired", "archive", "failed_store"]
+)
+async def test_live_positions_reach_only_the_matching_signed_report_after_idle(
+    configured, picea_archive, hass_ws_client, source
+):
+    key = "fixture-0"
+    now = datetime.now(UTC).replace(microsecond=0)
+    start = now - timedelta(seconds=12)
+    await configured._mission_routes.async_settings(key, enabled=True, now=start.timestamp() - 1)
+    state = replace(
+        configured.data[key],
+        phase="run",
+        cycle="clean",
+        telemetry={"mission_started": start, "mission_number": 27},
+    )
+    configured.data = {key: state}
+    stamp = int(now.timestamp())
+    early = PositionBatch(1, stamp, stamp + 30, (Position(1, 1, 0, 0), Position(1.2, 1, 0, 5)))
+    late = PositionBatch(6, stamp + 1, stamp + 31, (Position(3, 2, 0, 4), Position(3, 2.2, 0, 6)))
+    await configured._update_live_paths(configured.data, {key: [early]}, now)
+    await configured._update_live_paths(configured.data, {key: [late]}, now + timedelta(seconds=1))
+    idle = {key: replace(state, phase="charge", cycle="none")}
+    await configured._update_live_paths(idle, {}, now + timedelta(seconds=2))
+    assert configured.live_path(key) is None
+
+    command = {"command": "start"}
+    if source != "whole_floor":
+        command |= {"p2map_id": MAP.map_id, "user_p2mapv_id": MAP.version_id}
+    row = {
+        "robot_id": key,
+        "startTime": int(start.timestamp()),
+        "timestamp": stamp + 2,
+        "nMssn": 27,
+        "cmd": command,
+        "done": "inc",
+        "sqft": 0,
+    }
+    if source in {"archive", "expired"}:
+        row["p2maps"] = [{"p2map_id": MAP.map_id, "p2mapv_id": "official-archive"}]
+    (report,) = mission_reports([row], key)
+    configured.client.mission_reports = AsyncMock(return_value=(report,))
+    configured.client.map_geometry.reset_mock()
+    expected_calls = {
+        "archive": [(MAP.map_id, "official-archive")],
+        "expired": [(MAP.map_id, "official-archive"), (MAP.map_id, MAP.version_id)],
+    }.get(source, [(MAP.map_id, MAP.version_id)])
+    configured.client.map_geometry.side_effect = [
+        ApiError(404)
+        if version == "official-archive" and source == "expired"
+        else picea_archive(version=version)
+        for _, version in expected_calls
+    ]
+    socket = await hass_ws_client()
+    if source == "failed_store":
+        configured._mission_routes.async_lookup = AsyncMock(side_effect=ProtocolError("fixture"))
+    elif source == "archive":
+        configured._mission_routes.async_lookup = AsyncMock(
+            side_effect=AssertionError("Archive wins")
+        )
+    await socket.send_json(HISTORY | {"report_id": report.key})
+    detail = (await socket.receive_json())["result"]
+    assert detail["mission"]["area_m2"] == 0
+    assert [call.args for call in configured.client.map_geometry.await_args_list] == expected_calls
+    if source in {"requested", "whole_floor", "expired"}:
+        assert detail["geometry_source"] == "local_capture"
+        assert [row["index"] for row in detail["geometry"]["trajectories"]] == [1, 2, 6, 7]
+        assert detail["geometry"]["trajectories"][2]["points"] == [[3, 2]]
+        assert detail["geometry"]["coverage"] == []
+        assert detail["geometry"]["estimated_coverage"]["rows"]
+    else:
+        assert detail["geometry_source"] == (
+            "mission_archive" if source == "archive" else "requested_floor"
+        )
+        assert "estimated_coverage" not in detail["geometry"]
+    assert "mission_number" not in repr(detail) and "version.42" not in repr(detail)
+
+
+async def test_route_checkpoint_failures_and_stale_scope_leave_live_tracking_running(configured):
+    now = datetime.now(UTC)
+    robot = configured.data["fixture-0"]
+    stamp = int(now.timestamp())
+    path = MissionPath(
+        (MAP.map_id, MAP.version_id),
+        now,
+        PositionBatch(1, stamp, stamp + 30, (Position(1, 1, 0, 5),)),
+        (),
+    )
+    state = replace(robot, telemetry={"mission_started": now, "mission_number": 27})
+    checkpoint = AsyncMock(side_effect=OSError)
+    configured._mission_routes.async_checkpoint = checkpoint
+    await configured._checkpoint_mission_route(robot, path, now)
+    await configured._checkpoint_mission_route(state, path, now)
+    checkpoint.assert_not_awaited()
+    configured._record_live_coverage(robot.robot_id, path, enumerate(path.latest.positions))
+    await configured._checkpoint_mission_route(state, path, now)
+    checkpoint.assert_awaited_once()
 
 
 @pytest.mark.parametrize("missing", ["no_reference", "expired", "bad_archive"])

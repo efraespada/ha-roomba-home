@@ -83,3 +83,7 @@ class LiveCoverage:
             self._rows[row] = tuple(runs)
         self._dirty.clear()
         return self._rows
+
+    def samples(self):
+        """Return the bounded native indices used by the footprint estimator."""
+        return self._points

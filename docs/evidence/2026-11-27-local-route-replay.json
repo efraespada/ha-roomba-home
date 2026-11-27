@@ -1,0 +1,14 @@
+{
+  "model": "X185240",
+  "source": "signed archived trajectory replayed as position batches",
+  "replayed_batch_count": 13,
+  "archive_unavailability_simulated": true,
+  "injected_gaps_preserved": true,
+  "retained_after_store_reopen": true,
+  "signed_report_measurements_retained": true,
+  "coverage_uses_estimated_layer": true,
+  "official_archive_precedence": true,
+  "deleted_capture_not_returned": true,
+  "verified_chrome_viewport_widths": [358, 900],
+  "robot_commands_sent": 0
+}
