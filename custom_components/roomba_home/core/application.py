@@ -13,6 +13,7 @@ from .errors import AuthenticationError
 
 PREPARATION_CONFIRMATION_SECONDS = 300
 COMMAND_CONFIRMATION_SECONDS = {Command.DOCK: 120, Command.REBOOT: 180}
+DOCK_TRAVEL_CONFIRMATION_SECONDS = 360
 DOCK_WASH_CONFIRMATION_SECONDS = 300
 MISSION_COMMANDS = (Command.PAUSE, Command.RESUME, Command.CANCEL, Command.DOCK)
 
@@ -64,6 +65,7 @@ class ControlState:
     mapping: bool = False
     pause_before_return: bool = False
     refresh_failed: bool = False
+    ending_return: bool = False
 
 
 def _skip_error(state: ControlState) -> str | None:
@@ -172,11 +174,18 @@ class ControlPlan:
         return (
             self.command is Command.DOCK
             and not before.preparing_mop
+            and _is_return_wash(before.mission_identity, state)
+        )
+
+    def observes_return_travel(self, before: ControlState, state: ControlState) -> bool:
+        return (
+            self.command is Command.DOCK
+            and before.pause_before_return
             and before.mission_identity is not None
             and state.mission_identity == before.mission_identity
-            and state.preparing_mop
-            and state.dock.pad_wash in OPERATIONS[Command.WASH_MOP].running_states
-            and not state.dock.wet_cleaning_blocked
+            and state.mission_active is True
+            and state.activity == "returning"
+            and state.ending_return
         )
 
     def confirms(self, state: ControlState) -> bool:
@@ -222,6 +231,45 @@ class PreparationConfirmation:
         if state.mission_identity != self.mission_identity:
             return "unconfirmed"
         return "confirmed" if self.plan.confirms(state) else None
+
+
+def _is_return_wash(mission_identity: tuple[int, datetime] | None, state: ControlState) -> bool:
+    return (
+        mission_identity is not None
+        and state.mission_identity == mission_identity
+        and state.preparing_mop
+        and state.dock.pad_wash in OPERATIONS[Command.WASH_MOP].running_states
+        and not state.dock.wet_cleaning_blocked
+    )
+
+
+@dataclass
+class ReturnConfirmation:
+    plan: ControlPlan
+    mission_identity: tuple[int, datetime]
+    expires_at: float
+    washing: bool = False
+
+    def result(self, state: ControlState | None, now: float) -> str | None:
+        if now >= self.expires_at:
+            return "unconfirmed"
+        if state is None or state.connected is None:
+            return None
+        if (
+            state.connected is False
+            or state.activity == "error"
+            or state.mission_identity not in (None, self.mission_identity)
+        ):
+            return "unconfirmed"
+        if self.plan.confirms(state):
+            return "confirmed"
+        if self.washing:
+            if state.dock.wet_cleaning_blocked:
+                return "unconfirmed"
+        elif _is_return_wash(self.mission_identity, state):
+            self.washing = True
+            self.expires_at = now + DOCK_WASH_CONFIRMATION_SECONDS
+        return None
 
 
 def _check_mop_readiness(dock: DockSnapshot) -> None:
@@ -347,6 +395,8 @@ class ControlPort(Protocol):
 
     def defer_preparation(self, plan: ControlPlan, state: ControlState) -> None: ...
 
+    def defer_return(self, confirmation: ReturnConfirmation) -> None: ...
+
     async def wait(self, seconds: float) -> None: ...
 
     def clock(self) -> float: ...
@@ -446,7 +496,7 @@ async def execute_control(
             return
         deadline = port.clock() + COMMAND_CONFIRMATION_SECONDS.get(plan.command, 40)
         disconnected = False
-        return_wash_observed = False
+        return_confirmation = None
         while port.active and port.clock() < deadline:
             await port.wait(5)
             state = await port.refresh()
@@ -496,19 +546,31 @@ async def execute_control(
                     port.report("submitted")
                     return
                 continue
-            if plan.confirms(state):
+            if return_confirmation is None:
+                outcome = "confirmed" if plan.confirms(state) else None
+            else:
+                outcome = return_confirmation.result(state, port.clock())
+            if outcome == "confirmed":
                 port.report("confirmed")
                 return
-            if return_wash_observed:
-                if (
-                    state.activity == "error"
-                    or state.dock.wet_cleaning_blocked
-                    or state.mission_identity not in (None, before.mission_identity)
-                ):
-                    break
-            elif plan.observes_return_wash(before, state):
-                return_wash_observed = True
-                deadline = port.clock() + DOCK_WASH_CONFIRMATION_SECONDS
+            if outcome == "unconfirmed":
+                break
+            if return_confirmation is None:
+                if plan.observes_return_wash(before, state):
+                    return_confirmation = ReturnConfirmation(
+                        plan,
+                        before.mission_identity,
+                        port.clock() + DOCK_WASH_CONFIRMATION_SECONDS,
+                        washing=True,
+                    )
+                elif plan.observes_return_travel(before, state):
+                    return_confirmation = ReturnConfirmation(
+                        plan,
+                        before.mission_identity,
+                        port.clock() + DOCK_TRAVEL_CONFIRMATION_SECONDS,
+                    )
+            if return_confirmation is not None and return_confirmation.washing:
+                deadline = return_confirmation.expires_at
             if plan.observes_preparation(state):
                 if state.dock.wet_cleaning_blocked:
                     break
@@ -523,6 +585,15 @@ async def execute_control(
                 and not state.preparing_mop
             ):
                 port.report("submitted")
+                return
+        else:
+            if (
+                port.active
+                and return_confirmation is not None
+                and not return_confirmation.washing
+                and port.clock() < return_confirmation.expires_at
+            ):
+                port.defer_return(return_confirmation)
                 return
         raise ControlError("command_unconfirmed")
     except AuthenticationError, asyncio.CancelledError, ControlError:

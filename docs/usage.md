@@ -496,10 +496,15 @@ Select options use the stable values `vacuum`, `mop`, `vacuum_mop`, and
 ### Command confirmation
 
 After a command, the integration checks state every five seconds for up to 40
-seconds, or 120 seconds for return to the dock. If the same mission enters
-an active dock wash while the return is pending, Home Assistant can wait
-up to five minutes from the first confirmed wash reading. It reports
-success once Roomba is docked and the mission has ended. The `last_command_result`
+seconds, or 120 seconds for a return to the dock. If Roomba reports final
+travel for the same Max 700 Combo mission, a longer return stays pending
+in the background for up to six minutes from the first travel reading.
+You can cancel the mission during that background wait. If the same
+mission enters an active dock wash while the return is pending, Home
+Assistant can wait up to five minutes from the first confirmed wash reading.
+It reports success once Roomba is docked and the mission has ended. Use
+the command-result sensor when an automation needs to wait for the arrival.
+The `last_command_result`
 attribute and last-command sensor report `pending`, `submitted`,
 `confirmed`, or `unconfirmed`. Locate remains submitted after the broker
 acknowledges it. Mopping can remain submitted during preparation. A later read

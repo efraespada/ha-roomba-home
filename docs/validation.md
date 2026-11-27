@@ -19,9 +19,16 @@ Bringing Android back to the foreground produced new successful calls.
 The installed card's trail reached 148 points and position, mopping, and
 coverage updates resumed before the return request.
 
-The existing return confirmation window expired while Android still
-showed the robot traveling to the dock. The robot later reached the
-dock and started its pad wash.
+The Home Assistant recorder measured the return after the card submitted
+its command. At 38 seconds, the robot entered `returning`. The 0.86.1
+command sensor reported `unconfirmed` at 147 seconds while Android still
+showed the return. At 336 seconds, the dock reported wash code 602. At
+571 seconds, Roomba reported `docked` and the dock returned to wash code
+601. The signed report recorded 6.69 m² and an end requested by the user.
+The 0.87.1 core and Home Assistant service tests replay this late wash
+and arrival. A qualified long return continues on regular account reads,
+keeping the same robot available for a new cancellation command. The
+new return policy still needs a physical trial on 0.87.1.
 
 The same-mission comparison supports renewing the map announcement.
 It leaves open whether Android also resumes other connection activity

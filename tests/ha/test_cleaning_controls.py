@@ -198,6 +198,90 @@ async def test_return_to_base_pauses_the_supported_robot_before_docking(hass, lo
     assert elapsed == (wash_reads + 2) * 5
 
 
+@pytest.mark.parametrize(
+    ("phase", "next_action"),
+    [
+        ("hmUsrDock", "arrival"),
+        ("hmPostMsn", "cancel"),
+        ("hmMidMsn", "timeout"),
+        ("hmUsrChrg", "timeout"),
+    ],
+)
+async def test_long_return_uses_shared_state_and_releases_the_same_robot_for_cancellation(
+    hass, loaded, phase, next_action
+):
+    robot_id = "fixture-0"
+    robot = loaded.data[robot_id]
+    cleaning = replace(
+        robot,
+        phase="run",
+        cycle="clean",
+        mode=4,
+        connected=True,
+        capabilities=replace(robot.capabilities, docking=True),
+        telemetry={
+            **robot.telemetry,
+            "mission_number": 10,
+            "mission_started": datetime.fromtimestamp(100, UTC),
+        },
+    )
+    paused = replace(cleaning, phase="stop")
+    travel = replace(cleaning, phase=phase, cycle="dock")
+    wash = replace(
+        cleaning, phase="padWash", telemetry={**cleaning.telemetry, "pad_wash_state": 602}
+    )
+    docked = replace(cleaning, phase="charge", cycle="none")
+    states = [cleaning, paused, *([travel] * 24), travel, docked]
+    elapsed = 0
+
+    async def wait(seconds):
+        nonlocal elapsed
+        elapsed += seconds
+
+    with (
+        patch.object(RobotControlAdapter, "refresh", side_effect=map(control_snapshot, states)),
+        patch.object(RobotControlAdapter, "wait", side_effect=wait),
+        patch.object(loaded, "_clock", side_effect=lambda: elapsed),
+        patch.object(RobotControlAdapter, "send", autospec=True) as send,
+    ):
+        service_data = {"entity_id": "vacuum.robot_0"}
+        if next_action == "timeout":
+            with pytest.raises(HomeAssistantError):
+                await hass.services.async_call(
+                    "vacuum", "return_to_base", service_data, blocking=True
+                )
+            assert loaded.command_status[robot_id] == "unconfirmed"
+        else:
+            await hass.services.async_call("vacuum", "return_to_base", service_data, blocking=True)
+            assert loaded.command_status[robot_id] == "pending"
+            assert elapsed == 125
+            if next_action == "arrival":
+                elapsed = 336
+                loaded._reconcile_deferred_commands({robot_id: wash})
+                assert loaded.command_status[robot_id] == "pending"
+                # An idempotent start while the robot is washing does not replace its return.
+                with patch.object(
+                    RobotControlAdapter, "refresh", return_value=control_snapshot(wash)
+                ):
+                    await hass.services.async_call("vacuum", "start", service_data, blocking=True)
+                assert loaded.command_status[robot_id] == "pending"
+                elapsed = 571
+                loaded._reconcile_deferred_commands({robot_id: docked})
+            else:
+                await hass.services.async_call("vacuum", "stop", service_data, blocking=True)
+                assert loaded.command_status[robot_id] == "confirmed"
+                loaded._reconcile_deferred_commands({robot_id: replace(travel, phase="stuck")})
+            assert loaded.command_status[robot_id] == "confirmed"
+        assert not loaded._deferred_commands
+
+    expected = [Command.PAUSE, Command.DOCK]
+    if next_action == "cancel":
+        expected.append(Command.CANCEL)
+    assert [(call.args[0].robot_id, call.args[1]) for call in send.await_args_list] == [
+        (robot_id, command) for command in expected
+    ]
+
+
 async def test_maintenance_reset_action_requires_a_supported_part_and_confirmation(hass, loaded):
     loaded.async_reset_maintenance_counter = AsyncMock()
     target = {"entity_id": "vacuum.robot_0"}

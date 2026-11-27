@@ -847,15 +847,15 @@ async def test_mop_preparation_is_reconciled_in_the_shared_poll_without_another_
     with patch("custom_components.roomba_home.coordinator.MqttCommandSender") as sender:
         await reader.async_command("fixture-0", Command.VACUUM)
         assert reader.command_status["fixture-0"] == "submitted"
-        reader._reconcile_preparations({})
+        reader._reconcile_deferred_commands({})
         assert reader.command_status["fixture-0"] == "submitted"
-        watched = reader._preparations["fixture-0"]
+        watched = reader._deferred_commands["fixture-0"]
         await reader.async_command("fixture-0", Command.VACUUM)
-        assert reader._preparations["fixture-0"] is watched
+        assert reader._deferred_commands["fixture-0"] is watched
         mission.update(change)
         await reader.async_refresh()
         assert reader.command_status["fixture-0"] == expected
-        assert not reader._preparations
+        assert not reader._deferred_commands
         sender.return_value.send.assert_called_once()
 
 
