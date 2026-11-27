@@ -180,11 +180,12 @@ suggested settings for review. Return an empty list when the current
 revision has no scores. Discard a delayed reply when the card switches
 floors or revisions.
 
-Read the current native recommendation through the floor-scoped routine
-list. Highlight the rooms in its `CLEAN_DIRTY` command. Preserve the
-existing selection, describe the highlighted rooms in text, and clear the
-overlay on a floor, revision, or inventory change. A late response cannot
-restore a cleared layer. [Recommendation validation](../docs/validation.md#recommended-rooms-on-the-floor-plan)
+Read the current **Smart cleaning** recommendation through the floor-scoped
+routine list. Use the `CLEAN_DIRTY` command's room IDs as the only source
+for the map overlay. Shade those rooms in amber and show their names in
+text. Preserve the existing selection and clear the overlay on a floor,
+revision, or inventory change. Discard responses received after the layer
+was cleared. [Recommendation validation](../docs/validation.md#recommended-rooms-on-the-floor-plan)
 
 Position collection MUST retain bounded point counts, honor provider expiry,
 and stop on unload or mission change. Label travel, vacuuming, mopping, and

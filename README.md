@@ -92,7 +92,7 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
 - **Room cleaning scores.** View Roomba's reported score, mission timestamps,
   and suggested settings for each matched room on the active floor.
   Use **Recommended rooms** on the map to highlight the destinations
-  Roomba suggests for the next cleaning in amber. Opening the recommendation
+  Roomba selects for **Smart cleaning** in amber. Opening the recommendation
   from **Quick routines** highlights those rooms and loads their settings.
   [Room cleaning scores](docs/usage.md#room-cleaning-scores)
 

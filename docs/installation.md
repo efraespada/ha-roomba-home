@@ -86,6 +86,7 @@ isolated rollback, 0.1.0 restored the original twelve entities. Reinstalling
 | 0.15.0 | Preserved the three vacuum entities. A temporary card divided and merged a room, restored the original destination, and was removed. [Validation](validation.md#room-boundary-editor-validation-in-0150) |
 | 0.79.0 | Core configuration check and restart passed. The installed map card exercised all four reviewed mission controls on a physical robot. [Validation](validation.md#reviewed-mission-controls) |
 | 0.80.0 | Core configuration check and restart passed. The installed card showed the expanded signed history and opened the exact canceled mission's archive. [Validation](validation.md#expanded-cleaning-history) |
+| 0.81.0 | Core configuration check and restart passed. The installed card verified all four history filters and opened the same fifteen-day-old archive across both thirty-day filters. [Validation](validation.md#cleaning-history-periods) |
 
 ## Troubleshooting
 
