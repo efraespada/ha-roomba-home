@@ -13,6 +13,14 @@ with those destinations and distinct cleaning modes. An identical
 creation returned the same schedule ID. Updating the order and modes
 preserved the weekly schedule's timing and disabled state. Both entries
 were removed and the original schedule set matched the baseline.
+
+A separate one-time schedule started vacuuming around the selected
+furniture object 14 seconds after the configured start. The signed report
+matched the exact furniture link and recorded a positive cleaned area.
+After the bounded test, the robot returned to the dock with error code
+zero and recorded a canceled result. The temporary schedule was removed.
+The original schedule kept its ID, timing, activation, and command.
+Roomba changed its `created_time` metadata.
 [Anonymized schedule comparison](evidence/2026-11-27-furniture-scheduling.json)
 
 ## Saved routine display order

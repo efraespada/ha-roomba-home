@@ -22,5 +22,18 @@
     "timing_and_disabled_state_preserved": true,
     "temporary_schedules_removed": true,
     "original_robot_schedules_match_baseline": true
+  },
+  "one_time_physical_dispatch": {
+    "seconds_after_configured_start": 14,
+    "motion_started_after_enabling": true,
+    "signed_archive_matches_exact_furniture_link": true,
+    "vacuum_statistics_present": true,
+    "positive_cleaned_area": true,
+    "final_outcome": "cncl",
+    "returned_to_dock": true,
+    "robot_error_at_dock": 0,
+    "temporary_schedule_removed": true,
+    "original_schedule_ids_timing_and_commands_preserved": true,
+    "changed_original_option_fields": ["created_time"]
   }
 }

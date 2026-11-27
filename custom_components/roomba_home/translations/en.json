@@ -1051,7 +1051,7 @@
         },
         "regions": {
           "name": "Regions and preferences",
-          "description": "Ordered list of rooms or zones from one active map with optional settings."
+          "description": "Ordered rooms, saved zones, or furniture from one active map with optional settings."
         },
         "floor": {
           "name": "Reviewed floor",
@@ -1075,7 +1075,7 @@
     },
     "create_cleaning_schedule": {
       "name": "Create a cleaning schedule",
-      "description": "Save a disabled cleaning schedule for the selected robot and regions.",
+      "description": "Save a disabled cleaning schedule for the selected robot and destinations.",
       "fields": {
         "name": {
           "name": "Name",
@@ -1095,7 +1095,7 @@
         },
         "regions": {
           "name": "Regions and preferences",
-          "description": "Ordered list of rooms or zones from one active map with optional settings."
+          "description": "Ordered rooms, saved zones, or furniture from one active map with optional settings."
         },
         "floor": {
           "name": "Reviewed floor",

@@ -29,6 +29,7 @@ from custom_components.roomba_home.core.maps import (
     PersistentMap,
     RegionKind,
 )
+from custom_components.roomba_home.core.point_maps import FloorPlan, MapFurniture
 
 TEST_SCHEDULE = {
     "id": "fixture.group:fixture.item",
@@ -141,6 +142,30 @@ async def test_creating_a_schedule_uses_current_rooms_and_typed_profiles(hass, a
         ),
         frequency="weekly",
     )
+
+
+async def test_schedule_action_resolves_furniture_geometry_on_the_reviewed_floor(hass, account):
+    points = ((1, 1), (3, 1), (3, 2), (1, 2))
+    furniture = MapFurniture("table", "table/dining", "user", 0.0, points)
+    plan = FloorPlan((), furniture=(furniture,))
+    account.show_maps = True
+    furniture_id = f"{MAP.map_id}:furniture:{furniture.identifier}"
+    selection = [{"id": furniture_id, "mode": "vacuum", "suction_level": 2}, *CREATE["regions"]]
+    floor = {"map_id": MAP.map_id, "version": MAP.version_id, "inventory_id": MAP.selection_id}
+    with patch.object(account, "_floor_plan", AsyncMock(return_value=plan)):
+        await hass.services.async_call(
+            DOMAIN,
+            "create_cleaning_schedule",
+            CREATE | {"regions": selection, "floor": floor},
+            blocking=True,
+        )
+    forwarded = account.client.create_cleaning_schedule.await_args.args[-1]
+    assert [area.segment_id(MAP.map_id) for area in forwarded.regions] == [
+        furniture_id,
+        AREA.segment_id(MAP.map_id),
+    ]
+    assert len(forwarded.regions[0].outline) == 4
+    assert forwarded.profiles[0] == CleaningProfile(CleaningMode.VACUUM, suction_level=2)
 
 
 async def test_schedule_preferences_can_change_without_recomputing_start(hass, account):
