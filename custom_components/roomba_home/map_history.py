@@ -127,6 +127,19 @@ class MapHistory:
             _, _, group = await self._load(robot_id)
             return self._find(group, identity)
 
+    async def async_matching_revisions(self, robot_id, scopes):
+        """Return candidates in scope preference and backup order for one associated robot."""
+        async with self._lock:
+            _, _, group = await self._load(robot_id)
+            return tuple(
+                (scope, row)
+                for scope in scopes
+                for row in group["snapshots"]
+                if isinstance(row, dict)
+                and isinstance(floor := row.get("floor"), dict)
+                and (floor.get("map_id"), floor.get("version")) == scope
+            )
+
     async def async_modify(self, robot_id, identity, operation):
         async with self._lock:
             data, owner, group = await self._load(robot_id)

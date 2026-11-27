@@ -269,6 +269,13 @@ can show the original furniture destination and the separately reported
 0 m². The travel, cleaning path, and coverage controls appear with their
 archived layers. [Unarchived report validation](validation.md#requested-floor-in-an-unarchived-report)
 
+If Roomba no longer serves the exact revision, the card can open an
+existing **Map backup** saved for the same robot and revision. **Saved
+floor · From a local map backup** identifies this view. It shows the
+saved floor layout and any destination outlines verified for that
+revision. The signed report supplies its own result and timeline.
+[Backup controls](#local-map-backups)
+
 ### Local route recording
 
 In **Cleaning history**, expand **Local route recording** and choose
@@ -281,7 +288,10 @@ If the signed report has no readable mission map, the card can show a
 matching **Locally recorded route** on its base floor. **Estimated coverage**
 is reconstructed from observed vacuuming and mopping positions. The
 signed report remains the source of its outcome, cleaned area, and errors.
-Available original archives take precedence.
+Available original archives take precedence. When Home Assistant uses a
+map backup for the captured route, the caption identifies the local
+floor source as well. A backup of a different revision cannot be used as
+the background for the positions.
 
 The most recent 12 captures per robot are kept in private Home Assistant
 storage. Each keeps up to 32,768 positions. Disable recording to stop

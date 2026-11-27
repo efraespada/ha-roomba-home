@@ -672,7 +672,8 @@ async def test_history_uses_only_the_exact_requested_floor_for_missing_mission_m
 
 
 @pytest.mark.parametrize(
-    "fallback", ["available", "unavailable", "bad_revision", "same_revision", "other_floor"]
+    "fallback",
+    ["available", "backup", "unavailable", "bad_revision", "same_revision", "other_floor"],
 )
 async def test_history_checks_the_requested_revision_for_a_missing_destination_name(
     configured, picea_archive, fallback
@@ -700,15 +701,26 @@ async def test_history_checks_the_requested_revision_for_a_missing_destination_n
     archive = picea_archive(map_id=archived_floor, version=archive_revision, mutate=unnamed)
     second_read = {
         "available": picea_archive(version=requested_revision),
+        "backup": ApiError(404),
         "unavailable": ApiError(404),
         "bad_revision": picea_archive(version="wrong"),
     }
+    if fallback == "backup":
+        record, _ = capture_snapshot(
+            replace(MAP, version_id=requested_revision),
+            second_read["available"],
+            datetime.now(UTC),
+        )
+        await map_history(configured.hass, configured.config_entry.entry_id).async_capture(
+            "fixture-0", record
+        )
     configured.client.map_geometry.side_effect = [archive, second_read.get(fallback)]
     detail = await configured.async_mission_history("fixture-0", reports[0].key)
     assert detail["geometry"]["rooms"][0]["name"] is None
     target = detail["plan"]["destinations"][0]
-    assert target["name"] == ("Office" if fallback == "available" else None)
+    assert target["name"] == ("Office" if fallback in {"available", "backup"} else None)
     assert target["status"] == "unreported"
+    assert detail["geometry_source"] == "mission_archive" and "floor_source" not in detail
     calls = [(archived_floor, archive_revision)]
     if fallback in second_read:
         calls.append((MAP.map_id, requested_revision))
@@ -730,6 +742,80 @@ async def test_history_rejects_unauthorized_or_stale_requests_before_fetching_ge
     await socket.send_json(HISTORY | {"id": 4, "report_id": history_reports[0].key, "map_index": 1})
     assert (await socket.receive_json())["error"]["code"] == "report_not_found"
     configured.client.map_geometry.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "requested",
+        "same_revision",
+        "selected_floor",
+        "damaged_first",
+        "wrong_revision",
+        "other_robot",
+        "disk_error",
+    ],
+)
+async def test_history_mounts_only_verified_robot_backups_for_the_reviewed_revision(
+    configured, hass_ws_client, picea_archive, case
+):
+    key = "fixture-0"
+    now = datetime.now(UTC)
+    reviewed = "requested-revision"
+    archived = reviewed if case == "same_revision" else "signed-archive-revision"
+    command = {
+        "command": "start",
+        "p2map_id": MAP.map_id,
+        "user_p2mapv_id": reviewed,
+        "regions": [{"type": "rid", "region_id": "room-a"}],
+    }
+    selected_map = "signed-second-floor" if case == "selected_floor" else MAP.map_id
+    row = {"robot_id": key, "timestamp": 1700000500, "done": "inc", "sqft": 0, "cmd": command}
+    if case in {"same_revision", "selected_floor"}:
+        row["p2maps"] = [{"p2map_id": selected_map, "p2mapv_id": archived}]
+    (report,) = mission_reports([row], key)
+    configured.client.mission_reports = AsyncMock(return_value=(report,))
+    configured.client.map_geometry.side_effect = ApiError(404)
+    backup_map = replace(
+        MAP,
+        map_id=selected_map,
+        version_id=archived if case == "selected_floor" else reviewed,
+    )
+    if case == "wrong_revision":
+        backup_map = replace(backup_map, version_id="some-other-revision")
+    snapshot, _ = capture_snapshot(
+        backup_map, picea_archive(map_id=backup_map.map_id, version=backup_map.version_id), now
+    )
+    history = map_history(configured.hass, configured.config_entry.entry_id)
+    await history.async_capture("fixture-1" if case == "other_robot" else key, snapshot)
+    if case == "damaged_first":
+        await history.async_capture(key, {**snapshot, "id": "f" * 64, "archive": "bad data"})
+    if case == "disk_error":
+        history.async_matching_revisions = AsyncMock(side_effect=OSError("fixture"))
+    socket = await hass_ws_client()
+    await socket.send_json(HISTORY | {"report_id": report.key})
+    detail = (await socket.receive_json())["result"]
+    assert detail["mission"]["area_m2"] == 0
+    assert detail["mission"]["outcome"] == "incomplete"
+    if case in {"wrong_revision", "other_robot", "disk_error"}:
+        assert detail["geometry"] is None and detail["geometry_source"] is None
+        assert "floor_source" not in detail
+    else:
+        assert detail["floor_source"] == "local_backup"
+        assert detail["geometry_source"] == "backup_floor"
+        assert detail["geometry"]["rooms"][0]["name"] == "Office"
+        assert detail["geometry"]["trajectories"] == detail["geometry"]["coverage"] == []
+        assert bool(detail["geometry"]["requested_areas"]) == (case != "selected_floor")
+        assert detail["plan"]["destinations"][0]["name"] == (
+            None if case == "selected_floor" else "Office"
+        )
+    expected = (
+        (selected_map, archived)
+        if case in {"same_revision", "selected_floor"}
+        else (MAP.map_id, reviewed)
+    )
+    configured.client.map_geometry.assert_awaited_once_with(*expected)
+    assert reviewed not in repr(detail) and archived not in repr(detail)
 
 
 async def test_route_settings_allow_readers_to_inspect_and_only_controllers_to_modify(
@@ -764,7 +850,8 @@ async def test_route_settings_allow_readers_to_inspect_and_only_controllers_to_m
 
 
 @pytest.mark.parametrize(
-    "source", ["requested", "whole_floor", "expired", "archive", "failed_store"]
+    "source",
+    ["requested", "whole_floor", "expired", "archive", "failed_store", "backup", "other_revision"],
 )
 async def test_live_positions_reach_only_the_matching_signed_report_after_idle(
     configured, picea_archive, hass_ws_client, source
@@ -801,7 +888,7 @@ async def test_live_positions_reach_only_the_matching_signed_report_after_idle(
         "done": "inc",
         "sqft": 0,
     }
-    if source in {"archive", "expired"}:
+    if source in {"archive", "expired", "other_revision"}:
         row["p2maps"] = [{"p2map_id": MAP.map_id, "p2mapv_id": "official-archive"}]
     (report,) = mission_reports([row], key)
     configured.client.mission_reports = AsyncMock(return_value=(report,))
@@ -809,13 +896,24 @@ async def test_live_positions_reach_only_the_matching_signed_report_after_idle(
     expected_calls = {
         "archive": [(MAP.map_id, "official-archive")],
         "expired": [(MAP.map_id, "official-archive"), (MAP.map_id, MAP.version_id)],
+        "other_revision": [(MAP.map_id, "official-archive"), (MAP.map_id, MAP.version_id)],
     }.get(source, [(MAP.map_id, MAP.version_id)])
     configured.client.map_geometry.side_effect = [
         ApiError(404)
-        if version == "official-archive" and source == "expired"
+        if source in {"backup", "other_revision"}
+        or version == "official-archive"
+        and source == "expired"
         else picea_archive(version=version)
         for _, version in expected_calls
     ]
+    if source in {"backup", "other_revision"}:
+        revision = MAP.version_id if source == "backup" else "official-archive"
+        record, _ = capture_snapshot(
+            replace(MAP, version_id=revision), picea_archive(version=revision), now
+        )
+        await map_history(configured.hass, configured.config_entry.entry_id).async_capture(
+            key, record
+        )
     socket = await hass_ws_client()
     if source == "failed_store":
         configured._mission_routes.async_lookup = AsyncMock(side_effect=ProtocolError("fixture"))
@@ -827,17 +925,19 @@ async def test_live_positions_reach_only_the_matching_signed_report_after_idle(
     detail = (await socket.receive_json())["result"]
     assert detail["mission"]["area_m2"] == 0
     assert [call.args for call in configured.client.map_geometry.await_args_list] == expected_calls
-    if source in {"requested", "whole_floor", "expired"}:
+    if source in {"requested", "whole_floor", "expired", "backup"}:
         assert detail["geometry_source"] == "local_capture"
         assert [row["index"] for row in detail["geometry"]["trajectories"]] == [1, 2, 6, 7]
         assert detail["geometry"]["trajectories"][2]["points"] == [[3, 2]]
         assert detail["geometry"]["coverage"] == []
         assert detail["geometry"]["estimated_coverage"]["rows"]
     else:
-        assert detail["geometry_source"] == (
-            "mission_archive" if source == "archive" else "requested_floor"
-        )
+        expected = {"archive": "mission_archive", "other_revision": "backup_floor"}
+        assert detail["geometry_source"] == expected.get(source, "requested_floor")
         assert "estimated_coverage" not in detail["geometry"]
+    assert detail.get("floor_source") == (
+        "local_backup" if source in {"backup", "other_revision"} else None
+    )
     assert "mission_number" not in repr(detail) and "version.42" not in repr(detail)
 
 

@@ -58,6 +58,15 @@ async def test_corrupted_duplicate_is_repaired_and_pin_is_preserved(hass):
     assert await history.async_read(ROBOT, "1") == record(1, pinned=True)
 
 
+async def test_floor_revisions_are_matched_in_requested_scope_order(hass):
+    history = map_history(hass, "entry-revisions")
+    first, second = record(1), record(2)
+    group = {"automatic": False, "retention": 5, "snapshots": [second, {}, None, first]}
+    with patch.object(history._store, "async_load", AsyncMock(return_value={OWNER: group})):
+        matches = await history.async_matching_revisions(ROBOT, (("map-a", "1"), ("map-a", "2")))
+    assert matches == ((("map-a", "1"), first), (("map-a", "2"), second))
+
+
 @pytest.mark.parametrize(
     "bad_data",
     [

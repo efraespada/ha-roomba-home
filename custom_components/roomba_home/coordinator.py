@@ -96,7 +96,7 @@ from .core.map_programs import (
 )
 from .core.map_snapshots import capture_snapshot, read_snapshot, with_backup_programs
 from .core.maps import SAVED_ZONE_IDS, AreaTarget, CleaningRegion, RegionKind, resolve_segments
-from .core.mission_map import read_mission_map, read_requested_floor
+from .core.mission_map import read_backed_up_floor, read_mission_map, read_requested_floor
 from .core.mission_plan import present_mission_plan
 from .core.mission_routes import RouteCaptureKey, captured_geometry
 from .core.mission_time import (
@@ -2068,6 +2068,8 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         geometry_source = "mission_archive" if geometry is not None else None
         detail = report.detail(floors)
         requested = report.requested_scope
+        if scope is not None and requested is not None and requested[0] != scope[0]:
+            requested = None
         capture = None
         started = report.metrics.get("last_mission_started")
         if geometry is None and started is not None and report.mission_number is not None:
@@ -2083,27 +2085,45 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 _LOGGER.debug("Local Roomba mission route unavailable")
             if capture is not None and requested is None:
                 requested = tuple(capture["key"][2:])
-        if (
+        backup_floor = False
+        if geometry is None or (
             requested is not None
             and requested != scope
-            and (scope is None or requested[0] == scope[0])
-            and (
-                geometry is None
-                or report.plan is not None
-                and any(
-                    row["name"] is None and row["kind"] != "temporary_zone"
-                    for row in detail["plan"]["destinations"]
-                )
+            and report.plan is not None
+            and any(
+                row["name"] is None and row["kind"] != "temporary_zone"
+                for row in detail["plan"]["destinations"]
             )
         ):
+            context = await self._history_floor_context(
+                robot_id, report, requested, scope, need_geometry=geometry is None
+            )
+            if context is not None:
+                base, base_geometry, base_scope, local = context
+                detail = report.detail(floors, requested_floor=base)
+                if geometry is None:
+                    geometry = base_geometry
+                    backup_floor = local
+                    geometry_source = "backup_floor" if local else "requested_floor"
+                    if capture is not None and tuple(capture["key"][2:]) == base_scope:
+                        geometry.update(await self._executor(captured_geometry, capture["points"]))
+                        geometry_source = "local_capture"
+        return {
+            **detail,
+            "geometry": geometry,
+            "geometry_source": geometry_source,
+            **({"floor_source": "local_backup"} if backup_floor else {}),
+            "map_index": map_index,
+        }
+
+    async def _history_floor_context(self, robot_id, report, requested, archive, *, need_geometry):
+        if requested is not None and requested != archive:
             try:
                 async with self._io_lock:
-                    requested_archive = await self._read_map_action(
-                        self.client.map_geometry, *requested
-                    )
-                requested_floor, context = await self._executor(
+                    bundle = await self._read_map_action(self.client.map_geometry, *requested)
+                floor, geometry = await self._executor(
                     read_requested_floor,
-                    requested_archive,
+                    bundle,
                     *requested,
                     report.plan,
                     report.requested_footprints,
@@ -2111,18 +2131,28 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             except HomeAssistantError, AuthenticationError, ProtocolError:
                 pass
             else:
-                detail = report.detail(floors, requested_floor=requested_floor)
-                if geometry is None:
-                    geometry, geometry_source = context, "requested_floor"
-                    if capture is not None:
-                        geometry.update(await self._executor(captured_geometry, capture["points"]))
-                        geometry_source = "local_capture"
-        return {
-            **detail,
-            "geometry": geometry,
-            "geometry_source": geometry_source,
-            "map_index": map_index,
-        }
+                return floor, geometry, requested, False
+        scopes = tuple(
+            dict.fromkeys(
+                scope for scope in (requested, archive if need_geometry else None) if scope
+            )
+        )
+        if not scopes:
+            return None
+        history = map_history(self.hass, self.config_entry.entry_id)
+        try:
+            candidates = await history.async_matching_revisions(robot_id, scopes)
+        except OSError, ProtocolError:
+            return None
+        for scope, snapshot in candidates:
+            try:
+                floor, geometry = await self._executor(
+                    read_backed_up_floor, snapshot, scope, report.plan, report.requested_footprints
+                )
+            except ProtocolError:
+                continue
+            return floor, geometry, scope, True
+        return None
 
     async def _resolve_point(self, robot_id, region_id, x, y, reviewed_map, mops):
         async with self._io_lock:
