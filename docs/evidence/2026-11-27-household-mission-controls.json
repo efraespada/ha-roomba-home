@@ -1,0 +1,30 @@
+{
+  "release": "0.79.0",
+  "model": "X185240",
+  "core_configuration_check": "passed",
+  "released_module_matched_household": true,
+  "lovelace_resource_updated_and_browser_reloaded": true,
+  "reviewed_target_type": "furniture",
+  "commands_from_installed_card": ["pause", "resume", "stop", "dock"],
+  "paused_phase": "stop",
+  "paused_readout": {
+    "mode": "vacuum",
+    "elapsed_seconds": 141,
+    "reported_area_m2": 0
+  },
+  "resumed_phase": "run",
+  "positive_area_after_resume": true,
+  "readout_cleared_after_cancellation": true,
+  "return_available_in_idle_state": true,
+  "return_phase": "hmUsrDock",
+  "dock_confirmed_without_error": true,
+  "mission_controls_cleared_at_dock": true,
+  "exact_report_in_app_filtered_history": false,
+  "signed_history_without_filter": {
+    "exact_target": true,
+    "start_and_end_matched": true,
+    "outcome": "cancelled",
+    "vacuuming": true,
+    "positive_cleaned_area": true
+  }
+}
