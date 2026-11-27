@@ -13,6 +13,8 @@ Roomba reported error 48 during the return phase `hmPostMsn`. The
 robot subsequently reported `charge` and cycle `none` while error 48
 was still active. Its signed report matched the reviewed furniture
 target, recorded an incomplete outcome, and reported zero cleaned area.
+The report retained error 48 in its summary and timeline and had no
+archived map reference.
 The 0.82.0 card cleared both live overlays and the mission readout and
 left the current fault out of the floor plan once the mission ended.
 The coverage seen during the run was an estimate based on position
@@ -27,6 +29,13 @@ with no ongoing mission. Isolated Chrome at 358 and 900 pixels verified
 the display during return, after the mission ended, and after clearing
 the code. Household obstacle marker verification still requires a run
 with Roomba-reported detections.
+
+The household installation of 0.83.0 passed its Core configuration check
+and restart. The Lovelace resource and served module matched the release.
+The installed card showed **Mission error** and **48 · Path blocked**
+above the saved floor with no current mission. The other live controls
+were absent after the return. The remote dashboard showed the same fault
+and served the exact released module.
 [Anonymized trial](evidence/2026-11-27-household-live-active-errors.json) ·
 [iRobot Error 48 guidance](https://homesupport.irobot.com/articles/en_US/Knowledge/10548)
 
