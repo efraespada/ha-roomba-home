@@ -19,6 +19,12 @@ card's authenticated WebSocket. It returned the six-room requested floor
 and the exact furniture footprint, with no path or coverage. A completed
 control report returned its archived trajectory. Chrome at 358 and 900
 pixels verified the source label, legend, and archive layer controls.
+
+The installed 0.84.0 dashboard opened both reports from the standard
+thirty-day history. The incomplete report showed the requested floor
+label and target outline with no route or coverage controls. The
+completed report showed its original route and coverage controls. Both
+reports were read without sending robot commands.
 [Anonymized evidence](evidence/2026-11-27-unarchived-requested-floor.json) ·
 [Household failure trial](#household-live-coverage-and-active-errors) ·
 [iRobot archive documentation](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
@@ -94,6 +100,10 @@ destinations to the signed recommendation and the exact room preferences.
 Chrome at 358 and 900 pixels verified that the amber fill moves to the
 updated room when a response changes on the same revision, and that
 ordinary floor polls within the interval do not repeat the routine read.
+The household Core configuration check and restart passed. The dashboard
+served the exact 0.84.0 module and showed the five Android destinations
+before using the layer control. Hiding and restoring the layer kept the
+same five destinations. The trial sent no robot commands.
 [Anonymized native comparison](evidence/2026-11-27-automatic-smart-overlay.json) ·
 [Installed map legend](#recommended-rooms-on-the-floor-plan) ·
 [iRobot app release notes](https://homesupport.irobot.com/articles/en_US/Knowledge/40500)
