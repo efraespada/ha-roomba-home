@@ -20,6 +20,11 @@ The tests cover a missing destination plan, no saved floor, a pause,
 disconnect, missing readings, and a reported fault. Isolated Chrome at
 358 and 900 pixels showed the active measurements and cleared them at
 the end of the fixture mission.
+
+Home Assistant Core passed its configuration check and restarted with 0.78.0
+on the household instance. The served card matched the release byte for byte.
+After updating the Lovelace module URL to 0.78.0, the installed card showed
+the floor controls and kept the mission readout hidden while the robot was idle.
 [Anonymized trial](evidence/2026-11-27-current-mission-readout.json) ·
 [iRobot live map documentation](https://homesupport.irobot.com/articles/en_GB/Knowledge/20500)
 
@@ -76,7 +81,12 @@ The Home Assistant tests cover read permission, floor revision validation,
 and draft loading. The map discards results for a different floor or
 after the layer is turned off. Loading a recommendation preserves its
 automatic order, and starting still requires the usual confirmation.
+
+The household 0.78.0 card showed the same five recommended destinations on
+the verified floor. The capture includes only the map key.
 [Anonymized recommendation comparison](evidence/2026-11-27-recommended-rooms.json)
+
+![Amber Cleaning recommended map key in the installed Home Assistant card](screenshots/roomba-recommended-rooms-key.png)
 
 ## Scheduled furniture cleaning
 
