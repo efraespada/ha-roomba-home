@@ -117,14 +117,21 @@ confirmation by HA coordinator and doesn't automatically repeat an order
 
 ## Capture with an emulator
 
-Use a disposable emulator with Google Play and the official app. The authorized capture
-required a certificate of Proxyman entrusted by the emulator system. The SSL rules were
-limited to the domains of iRobot and Gigya. The native access worked with proxy HTTP and VPN
-Proxyman stopped. The Google Play session remained out of its intended capture.
+Use Proxyman to inspect the official Roomba Home app on a dedicated
+Android emulator. Keep SSL rules scoped to the service hosts under test
+and keep Google Play sign-in outside the capture. A cold stock boot can
+remove the temporary system trust that Proxyman needs for HTTPS. Verify
+an actual `GET /v1/p2maps` response in Proxyman before starting a live-map
+trial. A successful VPN connection confirms routing. The decoded map
+response confirms that the app trusts the proxy for that host.
+[Proxyman emulator setup](https://proxyman.com/docs/debug-devices/android-device/google-play-android-emulator-with-magisk) ·
+[Verified capture recovery](validation.md#physical-confirmation-on-0861)
 
-Do not publish HAR, APK and maps or account screenshots. The report only includes version,
-quantity and standard routes. To validate orders, register intention and message with an
-observed response to the transition. Retiring your robot again as secure or check its result
+Publish only sanitized routes, counts, and relative timing. Keep traffic
+archives, APKs, floor data, and account screenshots out of the repository.
+For a physical command, record the requested action and the provider's
+observed state transition. Verify the robot is back at its dock after the
+trial.
 
 ## Maintenance of SDDs
 
