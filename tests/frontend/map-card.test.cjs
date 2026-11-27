@@ -3057,12 +3057,38 @@ test("mission header shows reported totals and phase without a destination plan"
   card.renderCurrentMission({ phase: "padWash", activity: "cleaning" });
   assert.deepEqual(rows(), [["Phase", "Washing mop"]]);
   card.renderCurrentMission({ phase: "stuck", activity: "error", error_code: 48 });
-  assert.deepEqual(rows(), [["Phase", "Error 48"]]);
+  assert.deepEqual(rows(), [["Phase", "Needs attention"]]);
+  card.renderCurrentMission({ phase: "hmPostMsn", activity: "error", error_code: 48 });
+  assert.deepEqual(rows(), [["Phase", "Returning to dock"]]);
+  card.renderCurrentMission({ phase: "charge", activity: "error", error_code: 48 });
+  assert.deepEqual(rows(), [["Phase", "At dock"]]);
   card.renderCurrentMission({ activity: "error" });
   assert.deepEqual(rows(), [["Phase", "Needs attention"]]);
   card.renderCurrentMission(null);
   assert.equal(panel.hidden, true);
   assert.deepEqual(rows(), []);
+});
+
+test("active errors show their sources and stay visible independently of the mission readout", () => {
+  const { card } = mockCard(0);
+  const panel = card.$("active-errors");
+  const current = [
+    { source: "mission", code: 48, reason: "path_blocked" },
+    { source: "dock", code: 654, reason: "unknown_code" },
+    { source: "evacuation", code: 353, reason: "bag_full" },
+  ];
+  card.renderActiveErrors(current);
+  const rendered = panel.children;
+  assert.deepEqual(rendered.map(({ children }) => children.map(({ textContent }) => textContent)), [
+    ["Mission error", "48 · Path blocked"], ["Dock error", "654"], ["Emptying error", "353 · Bag full"],
+  ]);
+  card.renderActiveErrors(current.map((error) => ({ ...error })));
+  assert.equal(panel.children, rendered);
+  card.renderCurrentMission(null);
+  assert.equal(panel.hidden, false);
+  card.renderActiveErrors();
+  assert.equal(panel.hidden, true);
+  assert.deepEqual(panel.children, []);
 });
 
 test("live plans show real destination counts, preserve order and disappear when unavailable", () => {

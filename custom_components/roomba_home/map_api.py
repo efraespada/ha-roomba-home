@@ -26,6 +26,7 @@ from .core.live_maps import POSITION_ACTIVITIES
 from .core.maintenance import maintenance_parts
 from .core.maps import RegionKind
 from .core.point_maps import with_archive_destinations
+from .core.problems import active_device_errors
 from .core.restriction_edits import EDITABLE_RESTRICTIONS
 from .core.room_edits import MAX_ROOM_NAME_LENGTH, ROOM_TYPES
 from .core.routine_presets import routine_presets, supports_routine_presets
@@ -523,6 +524,7 @@ async def websocket_floor_plan(hass, connection, message):
     now = datetime.now(UTC)
     mission = current_mission(state, now)
     controls = mission_review(robot_id, control_snapshot(state)) if can_control else None
+    errors = active_device_errors(state)
     if not maps:
         connection.send_result(
             message["id"],
@@ -533,6 +535,7 @@ async def websocket_floor_plan(hass, connection, message):
                 "mapping": mapping,
                 "current_mission": mission,
                 "mission_controls": controls,
+                "active_errors": errors,
                 "can_clean_everywhere": can_clean_everywhere,
             },
         )
@@ -559,6 +562,7 @@ async def websocket_floor_plan(hass, connection, message):
         "mapping": mapping,
         "current_mission": mission,
         "mission_controls": controls,
+        "active_errors": errors,
         "map": {"id": floor.map_id, "version": floor.version_id},
         "inventory_id": inventory_id,
         "floor_settings": {

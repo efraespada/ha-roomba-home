@@ -58,6 +58,10 @@ const HELP_ARTICLE_LABELS = {
   charging_error: "Charging error",
   start_refusal: "Start refusal",
 };
+const DEVICE_ERROR_LABELS = {
+  mission: "Mission error", dock: "Dock error", evacuation: "Emptying error",
+  refill: "Refill error", pad_wash: "Mop wash error", pad_dry: "Mop dry error",
+};
 const HELP_GUIDE_LABELS = {
   wifi_setup: "Wi-Fi setup",
   wifi_reconnect: "Reconnect Wi-Fi",
@@ -167,6 +171,8 @@ template.innerHTML = `
     #history-status:empty, #scores-status:empty { display:none; }
     .measurements { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:8px; }
     .measurements dd { margin:0; font-weight:650; }
+    #active-errors { border-inline-start:3px solid var(--warning-color,#ffad55); margin:0 16px 12px;
+      padding:6px 10px; overflow-wrap:anywhere; }
     #history-timeline { padding-inline-start:22px; }
     #routine-dialog .actions { flex-wrap:wrap; margin-top:12px; }
     #map-backups-dialog .actions { flex-wrap:wrap; margin-top:8px; }
@@ -217,6 +223,7 @@ template.innerHTML = `
       <button id="open-maintenance">Maintenance</button>
       <button id="open-robot-help">Robot help</button>
     </header>
+    <dl id="active-errors" class="measurements" role="status" aria-label="Active errors" hidden></dl>
     <dl id="current-mission" class="measurements" aria-label="Current mission" hidden></dl>
     <div id="mission-controls" class="floor-routine-controls" role="group" aria-label="Mission controls" hidden>
       <button id="mission-pause" hidden>Pause mission</button>
@@ -1456,6 +1463,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.snapshot = null;
     this.recommendedRooms = null;
     this.recommendationsHidden = false;
+    this.renderActiveErrors();
     this.renderCurrentMission(null);
     this.missionControlMessage = "";
     this.updateMissionControls(null);
@@ -1489,6 +1497,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.closeLiveSubscription();
     this.timer = null;
     this.recommendedRooms = null;
+    this.renderActiveErrors();
     this.renderCurrentMission(null);
     this.updateMissionControls(null);
     this.invalidateFloorShortcuts();
@@ -1572,6 +1581,7 @@ class RoombaHomeMapCard extends HTMLElement {
         (data.mapping.activity === "paused" ? "Mapping paused" : "Mapping in progress") :
         [data.current_room ? `Current room · ${data.current_room}` : null,
           data.on_mapped_carpet === true ? "On mapped carpet" : null].filter(Boolean).join(" · ");
+      this.renderActiveErrors(data.active_errors);
       this.renderCurrentMission(data.current_mission);
       this.updateMissionControls(data.mission_controls);
       if (staleFloorDraft) {
@@ -1604,6 +1614,7 @@ class RoombaHomeMapCard extends HTMLElement {
       }
       this.clearSelection();
       this.renderAreas();
+      this.renderActiveErrors();
       this.renderCurrentMission(null);
       this.updateMissionControls(null);
       this.renderMissionPlan(null);
@@ -2848,14 +2859,27 @@ class RoombaHomeMapCard extends HTMLElement {
     }
   }
 
+  renderActiveErrors(errors = []) {
+    const view = this.$("active-errors");
+    const values = errors.map(({ source, code, reason }) => [DEVICE_ERROR_LABELS[source],
+      [code, reason && !["unknown_code", "provider_code"].includes(reason) ? historyLabel(reason) : null]
+        .filter((part) => part != null).join(" · "),
+    ]);
+    const signature = JSON.stringify(values);
+    if (view.dataset.errors === signature) return;
+    view.dataset.errors = signature;
+    view.hidden = values.length === 0;
+    renderMeasurements(view, values);
+  }
+
   renderCurrentMission(mission) {
     const view = this.$("current-mission");
-    const phaseLabels = { padWash: "Washing mop", refill: "Refilling tank", evac: "Emptying bin",
-      padDry: "Drying mop", mapupd: "Updating map" };
+    const phaseLabels = { charge: "At dock", hmUsrDock: "Returning to dock", hmUsrChrg: "Returning to dock",
+      hmPostMsn: "Returning to dock", hmMidMsn: "Returning to dock", padWash: "Washing mop", refill: "Refilling tank",
+      evac: "Emptying bin", padDry: "Drying mop", mapupd: "Updating map" };
     const activityLabels = { cleaning: "Cleaning", returning: "Returning to dock", docked: "At dock",
       paused: "Paused", error: "Needs attention" };
-    const phase = mission?.error_code ? `Error ${mission.error_code}`
-      : phaseLabels[mission?.phase] ?? activityLabels[mission?.activity];
+    const phase = phaseLabels[mission?.phase] ?? activityLabels[mission?.activity];
     const elapsed = mission?.elapsed_seconds;
     const area = mission?.cleaned_area_m2;
     const values = [

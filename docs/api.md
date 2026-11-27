@@ -293,6 +293,15 @@ the first saved floor or without a correlated destination timeline. Position,
 coverage, and destination overlays still follow the verified floor and
 mission association.
 
+The same snapshot carries `active_errors`, an array of current
+`{source, code, reason}` entries. The sources are `mission`, `dock`,
+`evacuation`, `refill`, `pad_wash`, and `pad_dry`. The projection reuses
+the fault observations behind the problem entities. A successful snapshot
+can report faults when `current_mission` and `map` are null. Connected
+robot readings drive fault visibility, and each source retains its own
+code namespace.
+[Physical error comparison](validation.md#household-live-coverage-and-active-errors)
+
 ### Reviewed mission controls
 
 For a user with control permission, `roomba_home/floor_plan` returns
