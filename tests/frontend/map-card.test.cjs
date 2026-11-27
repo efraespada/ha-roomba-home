@@ -1554,12 +1554,14 @@ test("quick routines retry a failed read and open automatic or point drafts", as
   assert.equal(card.pointMode, true);
   assert.equal(card.$("point-mode").focused, true);
   assert.equal(card.routineDialog.open, false);
+  card.recommendationsHidden = true;
   await recommendation.children[0].onclick();
   assert.equal(card.pointMode, false);
   assert.equal(card.routineDraft.ordered, false);
   assert.equal(card.$("routine-order").value, "automatic");
   assert.deepEqual([...card.selected], ["room-b"]);
   assert.deepEqual([...card.recommendedRooms.targets], ["room-b"]);
+  assert.equal(card.recommendationsHidden, false);
 });
 
 test("a selected recommended room keeps its amber fill and the selected outline", () => {
@@ -1596,7 +1598,7 @@ test("recommended room highlighting uses the exact provider targets and keeps th
       { kind: "recommended", target_ids: ["room-b", "zone-b", "other-room"] },
     ] };
   } };
-  await card.toggleRecommendedRooms();
+  await card.loadRecommendedRooms();
   assert.deepEqual([...card.renderRecommendedRooms()], ["room-b"]);
   assert.equal(card.$("recommended-rooms-status").textContent, "Cleaning recommended for Entryway.");
   assert.equal(card.$("recommended-rooms-key").hidden, false);
@@ -1612,7 +1614,7 @@ test("recommended rooms ignore stale replies and report an unavailable floor", a
   card.draw = () => card.renderRecommendedRooms();
   let resolve;
   card._hass = { callWS: () => new Promise((done) => { resolve = done; }) };
-  const pending = card.toggleRecommendedRooms();
+  const pending = card.loadRecommendedRooms();
   assert.equal(card.$("recommended-rooms-status").textContent, "Loading recommended rooms…");
   await card.toggleRecommendedRooms();
   resolve({ map_id: "fixture-map", version: "v1", routines: [{ kind: "recommended", target_ids: ["room-a"] }] });
@@ -1625,6 +1627,63 @@ test("recommended rooms ignore stale replies and report an unavailable floor", a
   card._hass.callWS = async () => ({ map_id: "fixture-map", version: "v1", routines: [] });
   await card.toggleRecommendedRooms();
   assert.match(card.$("recommended-rooms-status").textContent, /no recommended rooms/);
+});
+
+test("the floor view loads recommendations once per revision and remembers hiding the layer", async () => {
+  const { card, fills } = mockCard(0);
+  const map = { id: "example", version: "one" };
+  const geometry = card.geometry;
+  const reads = [];
+  let finishFirstRead;
+  Object.assign(card, {
+    isConnected: true,
+    config: { entity: "vacuum.example" },
+    sequence: 0,
+    geometry: null,
+    snapshot: null,
+    renderMissionPlan() {},
+    renderAreaResults() {},
+    _hass: { async callWS(query) {
+      if (query.type === "roomba_home/floor_plan") {
+        return { robot: "Example", map: { ...map }, maps: [{ ...map }], geometry, inventory_id: "fixture" };
+      }
+      assert.equal(query.type, "roomba_home/floor_routines");
+      reads.push([query.map_id, query.version]);
+      const result = { map_id: query.map_id, version: query.version,
+        routines: [{ kind: "recommended", target_ids: query.version === "one" ? [] : [region.id] }] };
+      if (query.version === "one") return new Promise((resolve) => {
+        finishFirstRead = () => resolve(result);
+      });
+      return result;
+    } },
+  });
+
+  await card.refresh();
+  assert.equal(card.$("recommended-rooms-status").textContent, "Loading recommended rooms…",
+    card.$("status").textContent);
+  await card.refresh();
+  assert.deepEqual(reads, [["example", "one"]]);
+
+  map.version = "two";
+  await card.refresh();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(reads, [["example", "one"], ["example", "two"]]);
+  assert.equal(card.$("recommended-rooms-key").hidden, false);
+  assert.ok(fills.some(([color, points]) => color === "#654727" && points?.length));
+  finishFirstRead();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual([...card.recommendedRooms.targets], [region.id]);
+
+  await card.toggleRecommendedRooms();
+  map.id = "other";
+  await card.refresh();
+  assert.equal(reads.length, 2);
+  assert.equal(card.$("show-recommended-rooms")["aria-pressed"], "false");
+  assert.equal(card.$("recommended-rooms-key").hidden, true);
+  await card.toggleRecommendedRooms();
+  assert.deepEqual(reads.at(-1), ["other", "two"]);
+  assert.equal(card.$("show-recommended-rooms")["aria-pressed"], "true");
+  assert.equal(card.$("recommended-rooms-key").hidden, false);
 });
 
 test("loading a native recommendation keeps automatic order and requires review before dispatch", async () => {
@@ -2401,6 +2460,9 @@ test("the floor picker follows the live floor and holds an explicit choice or dr
     renderMissionPlan() {},
     renderAreaResults() {},
     _hass: { callWS: async (query) => {
+      if (query.type === "roomba_home/floor_routines") {
+        return { map_id: query.map_id, version: query.version, routines: [] };
+      }
       queries.push(query);
       return reply(maps.find((map) => map.id === query.map_id) ?? upper);
     }},

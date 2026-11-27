@@ -1435,8 +1435,10 @@ A native `CLEAN_DIRTY` start has `params.clean_score_id` and a list of
 `{region_id, params}` entries. The exact current map resolves each ID to
 a room. The projection returns those IDs in `target_ids`, validates
 their profiles for `region_settings`, and leaves the native score ID
-private. The map highlights the reported targets and the editor loads
-supported settings with automatic order. Read routine suggestions through
+private. The card reads this suggestion when displaying a new floor
+revision, highlights the reported targets, and keeps it outside the floor
+poll. The editor loads supported settings with automatic order. Read
+routine suggestions through
 `roomba_home.list_map_routines` or the floor-scoped `roomba_home/floor_routines`
 WebSocket command, which requires read access to the selected vacuum.
 [Quick routines](usage.md#quick-routines-from-the-floor-plan) requests
