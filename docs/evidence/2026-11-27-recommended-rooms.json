@@ -10,5 +10,7 @@
   "supported_profiles": 5,
   "recommended_profile_modes": ["vacuum_mop"],
   "draft_preserves_automatic_order": true,
+  "household_0_81_0_recommended_room_count": 5,
+  "household_0_81_0_names_match_android": true,
   "robot_commands_sent": 0
 }

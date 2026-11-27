@@ -5,6 +5,7 @@
     "30_days": {"standard": 27, "include_short_canceled": 35}
   },
   "standard_reports_older_than_ten_days": 9,
+  "household_0_81_0_periods_verified": true,
   "older_archive_example": {
     "age_in_whole_days": 15,
     "positive_cleaned_area": true,
