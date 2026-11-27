@@ -28,6 +28,7 @@ from .const import (
     DETAIL_SECONDS,
     DOMAIN,
     HISTORY_SECONDS,
+    LIVE_MAP_RENEW_SECONDS,
     MAPS_SECONDS,
     PARTS_SECONDS,
     POLL_SECONDS,
@@ -1255,21 +1256,27 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 continue
             topic = live_map_topic(session, key)
             if not topic:
+                self._live_announcements.pop(key, None)
                 continue
-            mission, retry_at, authorized = self._live_announcements.get(key, (None, 0, False))
-            if mission != started or (not authorized and self._clock() >= retry_at):
+            scope = started, topic
+            previous, retry_at, authorized = self._live_announcements.get(key, (None, 0, False))
+            if previous != scope or self._clock() >= retry_at:
+                authorized = previous == scope and authorized
                 retry_at = self._clock() + POLL_SECONDS
                 try:
                     async with asyncio.timeout(3):
                         announced = await self.client.live_map_topic(key)
                 except RateLimited as error:
                     retry_at = max(retry_at, self._clock() + error.retry_after)
+                except AuthenticationError:
                     authorized = False
                 except RoombaError, OSError, TimeoutError:
-                    authorized = False
+                    pass
                 else:
                     authorized = announced == topic
-                self._live_announcements[key] = (started, retry_at, authorized)
+                    if authorized:
+                        retry_at = self._clock() + LIVE_MAP_RENEW_SECONDS
+                self._live_announcements[key] = (scope, retry_at, authorized)
             if authorized:
                 topics[key] = topic
         return topics

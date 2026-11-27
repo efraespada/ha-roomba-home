@@ -1,5 +1,37 @@
 # Roomba Home validation
 
+## Side-by-side live mopping
+
+The installed 0.86.1 card and Android displayed the same Max 700 Combo
+mop-only mission on one saved floor. Android drew a shaded path in the
+room containing the dock. In a pair of observations 44 seconds apart,
+the visible path extended. Home Assistant received
+mode-tagged mopping samples and displayed travel, mopping, and estimated
+coverage during the same interval.
+
+Proxyman decoded the app's `GET /v1/p2maps/livemap?rawOnly=true` calls.
+The response contained the expected `mqtt_topic`. After the live view
+opened, decoded requests recurred at roughly 49 to 58 seconds. The
+integration still received positions shortly after Android went into
+the background. It then kept a 141-point trail while the current
+position expired and the robot reported that it was still cleaning.
+Bringing Android back to the foreground produced new successful calls.
+The installed card's trail reached 148 points and position, mopping, and
+coverage updates resumed before the return request.
+
+The existing return confirmation window expired while Android still
+showed the robot traveling to the dock. The robot later reached the
+dock and started its pad wash.
+
+The same-mission comparison supports renewing the map announcement.
+It leaves open whether Android also resumes other connection activity
+that contributes to the recovery. The new coordinator tests
+verify the renewal schedule, rate limit handling, and mission and topic
+scope. The updated installation still needs a physical standalone run
+with Android kept in the background.
+[Anonymized paired evidence](evidence/2026-11-27-paired-live-mopping.json) ·
+[Installed live legend](screenshots/roomba-live-mopping.jpg)
+
 ## Household mop-only route and return
 
 The installed 0.86.0 card started one Max 700 Combo mop-only mission

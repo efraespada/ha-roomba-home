@@ -143,6 +143,15 @@ existing state and timeline polling continues on the main client. The
 stream never publishes robot commands. A watch is bound to the robot's
 current mission and one verified map revision.
 
+The account poll renews the signed `GET /v1/p2maps/livemap` request with
+`rawOnly=true` during a tracked mission. A verified announcement becomes
+due again after 45 seconds and is sent on the next poll. The scope uses
+the mission start and the expected robot topic. Authentication failure
+or a mismatched response clears that scope's authorization. A transient
+failure preserves the last verified topic for the same scope. A rate
+limit defers a retry through the provider's delay.
+[Native renewal comparison](validation.md#side-by-side-live-mopping)
+
 Position messages carry an index, timestamp, expiry, heading, and activity
 values. The transport and mission projection allow up to five seconds of
 provider clock skew. The authenticated `roomba_home/live_positions` WebSocket

@@ -10,7 +10,11 @@ from homeassistant.helpers import entity_registry
 
 from custom_components.roomba_home.const import CONF_SHOW_MAPS, DOMAIN
 from custom_components.roomba_home.coordinator import RoombaCoordinator
-from custom_components.roomba_home.core.errors import ProtocolError
+from custom_components.roomba_home.core.errors import (
+    AuthenticationError,
+    ProtocolError,
+    RateLimited,
+)
 from custom_components.roomba_home.core.history import AreaResult, present_zones
 from custom_components.roomba_home.core.live_maps import (
     MissionTimeline,
@@ -143,8 +147,6 @@ async def test_live_floor_image_and_room_are_private_opt_in_and_expire(
 async def test_live_map_only_uses_the_matching_topic_and_respects_retry_after(
     hass, entry, robot_states, cloud_session
 ):
-    from custom_components.roomba_home.core.errors import ProtocolError, RateLimited
-
     account = RoombaCoordinator(hass, entry)
     robot = robot_states["fixture-0"]
     now = 0.0
@@ -176,6 +178,61 @@ async def test_live_map_only_uses_the_matching_topic_and_respects_retry_after(
     assert await account._live_topics(cloud_session) == {
         robot.robot_id: "fixture-irbt/things/fixture-0/livemap/update"
     }
+
+
+async def test_live_map_renews_and_keeps_verified_topic_during_temporary_failure(
+    hass, entry, robot_states, cloud_session
+):
+    account = RoombaCoordinator(hass, entry)
+    robot_id = "fixture-0"
+    clock = 0
+    account._clock = lambda: clock
+    robot = replace(
+        robot_states[robot_id],
+        phase="run",
+        cycle="clean",
+        telemetry={"mission_started": datetime.now(UTC)},
+    )
+    account.data = {robot_id: robot}
+    account._maps = {robot_id: (MAP,)}
+    deployment = cloud_session.discovery["deployments"]["fixture"]
+    deployment["irbtTopics"] = "fixture-irbt"
+    topic = "fixture-irbt/things/fixture-0/livemap/update"
+    new_topic = "new-deployment/things/fixture-0/livemap/update"
+    account.client.live_map_topic = AsyncMock(
+        side_effect=[
+            topic,
+            topic,
+            RateLimited(90),
+            ProtocolError("temporarily unavailable"),
+            AuthenticationError(),
+            topic,
+            "foreign/topic",
+            new_topic,
+        ]
+    )
+    for moment, reads, accepted in (
+        (0, 1, True),
+        (44, 1, True),
+        (45, 2, True),
+        (90, 3, True),
+        (179, 3, True),
+        (180, 4, True),
+        (239, 4, True),
+        (240, 5, False),
+        (299, 5, False),
+        (300, 6, True),
+        (345, 7, False),
+    ):
+        clock = moment
+        assert await account._live_topics(cloud_session) == ({robot_id: topic} if accepted else {})
+        assert account.client.live_map_topic.await_count == reads
+
+    deployment["irbtTopics"] = "new-deployment"
+    assert await account._live_topics(cloud_session) == {robot_id: new_topic}
+    account.data = {robot_id: replace(robot, phase="charge", cycle="none")}
+    assert await account._live_topics(cloud_session) == {}
+    assert account.client.live_map_topic.await_count == 8
 
 
 @pytest.mark.parametrize("extra_floor", [False, True])
