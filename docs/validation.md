@@ -18,7 +18,16 @@ Isolated Chrome at 358 and 900 pixels verified actual amber pixels on the
 recommended room, the layer control and legend layout, an unchanged floor
 poll, and hiding across a floor change. Re-enabling the layer drew the
 second floor's own recommendation. The test issued zero robot commands.
+
+On the household instance, Core passed its configuration check, restarted,
+and served the exact 0.82.0 module. After the Lovelace resource update and
+dashboard reload, the card listed all five recommended rooms before the
+viewer used **Recommended rooms**. The control hid the layer and restored
+the same five rooms. The Android and installed room names matched exactly.
+The same default layer and module were verified through the household's
+remote Home Assistant dashboard.
 [Anonymized native comparison](evidence/2026-11-27-automatic-smart-overlay.json) ·
+[Installed map legend](#recommended-rooms-on-the-floor-plan) ·
 [iRobot app release notes](https://homesupport.irobot.com/articles/en_US/Knowledge/40500)
 
 ## Cleaning history periods
