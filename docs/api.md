@@ -155,7 +155,8 @@ plausible. A new sample arriving during the animation starts at the
 displayed position and finishes any remaining observed legs. Marker
 animation lasts at most 1.8 seconds per update and follows the browser's
 reduced-motion preference.
-[Physical stream evidence](validation.md#continuous-position-and-cleaning-coverage)
+[Physical stream evidence](validation.md#continuous-position-and-cleaning-coverage) ·
+[Mop-only trial with no positions during cleaning](validation.md#household-mop-only-route-and-return)
 
 ### Local map backup commands
 

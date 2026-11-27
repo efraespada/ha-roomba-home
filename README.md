@@ -165,6 +165,13 @@ matching floor revision is readable from Roomba or a **Map backup**.
 
 ![Installed Home Assistant card showing recording off and one saved route](docs/screenshots/roomba-local-route-recording.jpg)
 
+When Roomba includes a mission archive, the report can show its
+activity-tagged route and coverage. A mop-only household test verified
+the native mopping layer after the robot returned.
+[Mop-only validation](docs/validation.md#household-mop-only-route-and-return)
+
+![Native mopping legend in an archived Home Assistant report](docs/screenshots/roomba-archived-mopping.jpg)
+
 Expand **Results by area** to
 see the reported target size and the area measured in completed passes for
 a saved zone. In a verified two-pass vacuum run, Roomba reported a 2.51 m²
@@ -190,7 +197,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.86.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.86.1` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)

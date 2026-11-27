@@ -82,9 +82,13 @@ when the archive is unavailable. The signed report remains the source of
 its outcome, measurements, and archive. The tests cover persistent
 checkpoints, scope isolation, deletion, and archive precedence.
 A household vacuum-only run verified the live trajectory and the signed
-result. One local recording persisted after the Core restart. Verify
-a mop run through the same path to exercise the remaining physical mode.
-[Household vacuum trial](validation.md#household-vacuum-route-after-clearing-error-48)
+result. One local recording persisted after the Core restart. A later
+mop-only run showed its native route and coverage in the signed report.
+During cleaning, Home Assistant saw the area increase without receiving
+positions. Compare the Android live map and the Home Assistant position
+subscription during the same mop-only run to locate the gap.
+[Household vacuum trial](validation.md#household-vacuum-route-after-clearing-error-48) ·
+[Household mop-only trial](validation.md#household-mop-only-route-and-return)
 
 When the provider omits the exact base revision, an existing verified
 backup for that robot can supply the saved floor. The card identifies

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.86.1
+
+- Keep **Return to dock** pending when Roomba reports a new automatic
+  mop wash for the same mission. Confirm after charging with the mission
+  ended. Wait up to five minutes from the first wash observation.
+
 ## 0.81.0
 
 - Choose a ten- or thirty-day period in **Cleaning history**. Either

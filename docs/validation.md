@@ -1,5 +1,36 @@
 # Roomba Home validation
 
+## Household mop-only route and return
+
+The installed 0.86.0 card started one Max 700 Combo mop-only mission
+in the room containing the dock. The trial requested wetness 1 and
+one pass. After the initial pad wash, Roomba reported floor cleaning
+and a positive area. A fresh Home Assistant WebSocket subscription was
+accepted, and the inspected floor snapshots during cleaning contained
+zero trail points, no current position, and zero coverage rows. Reloading
+the card during cleaning gave the same result. One direct position
+arrived during the wash after the requested return, without a drawable
+mop segment or estimated coverage. Local recording kept a second route
+and was disabled again after the trial.
+
+The confirmation window expired while the post-return wash was active.
+The dock's Home Assistant state history recorded a new wash code 602
+about 82 seconds after the return request. Its next idle code 601 came
+268 seconds later. Roomba subsequently reported the robot docked. The signed
+report showed a canceled mop-only mission, 3:10 of cleaning for its one
+requested room, and 4.09 m². Its native archive displayed the mopping
+route and coverage in Home Assistant.
+
+Control policy and Home Assistant service tests replay a return followed
+by a same-mission dock wash that takes longer than the normal window.
+The new deadline applies once and the sequence publishes one pause and
+one dock command. It confirms at the idle dock. The tests cover unrelated
+washes, later missions, dock faults, and a wash that outlasts the extension.
+The change still needs a physical return test on the updated version.
+[Anonymized household evidence](evidence/2026-11-27-household-mop-return.json) ·
+[Installed archive legend](screenshots/roomba-archived-mopping.jpg) ·
+[iRobot Max 700 dock behavior](https://homesupport.irobot.com/articles/en_US/Knowledge/70501)
+
 ## Household vacuum route after clearing error 48
 
 A Max 700 Combo reported error 48 while connected and charging. A
