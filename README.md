@@ -95,6 +95,9 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   Roomba suggests for the next cleaning in amber. Opening the recommendation
   from **Quick routines** highlights those rooms and loads their settings.
   [Room cleaning scores](docs/usage.md#room-cleaning-scores)
+
+  ![Amber Cleaning recommended map key in Home Assistant](docs/screenshots/roomba-recommended-rooms-key.png)
+
 - **Routines and schedules.** List, create, edit, duplicate, and remove supported
   cleaning routines from the floor plan. Set the order and cleaning profile
   for each room, zone, or supported furniture target. Use **Move earlier**
