@@ -16,6 +16,20 @@ canceled report's furniture target and original archive. The same report
 key in the standard view returned `report_not_found`. Chrome exercised the
 default view, the expanded totals, report selection, and return to the
 default view at 358 and 900 pixels.
+
+The household 0.80.0 installation passed its configuration check and
+restarted Core. The served module matched the release. After updating the
+Lovelace resource and reloading the dashboard, the installed card displayed
+18 standard and 26 expanded reports. Selecting the exact earlier furniture
+run showed its canceled outcome, target name, saved map, recorded route,
+and coverage. The screenshot captures the selected checkbox from that
+installed dialog.
+
+Additional signed reads used the expanded query with `maxAge` set to 10,
+30, and 90. The 30-day response contained 35 reports, including nine older
+than ten days. The oldest was 28 whole days old. The 90-day response for
+the same robot contained the same count and oldest age. The installed
+history view uses the ten-day window.
 [Anonymized history comparison](evidence/2026-11-27-expanded-cleaning-history.json) ·
 [Mission control trial](#reviewed-mission-controls)
 

@@ -5,6 +5,13 @@
   "all_standard_report_keys_present": true,
   "additional_outcomes": {"cancelled": 8},
   "authenticated_home_assistant_report_scope_verified": true,
+  "household_0_80_0_report_scope_verified": true,
+  "signed_expanded_history_by_window": {
+    "10_days": {"reports": 26, "oldest_whole_days_ago": 5},
+    "30_days": {"reports": 35, "oldest_whole_days_ago": 28},
+    "90_days": {"reports": 35, "oldest_whole_days_ago": 28},
+    "additional_reports_older_than_ten_days": 9
+  },
   "reviewed_cancelled_report": {
     "exact_target_type": "furniture",
     "positive_cleaned_area": true,
