@@ -200,6 +200,7 @@ async def test_history_reads_the_exact_archive_using_read_permission(
         await socket.send_json(HISTORY | {"id": 2, "report_id": records[0]["id"]})
         report = (await socket.receive_json())["result"]
         assert report["geometry"]["rooms"]
+        assert report["geometry_source"] == "mission_archive"
         assert report["geometry"]["saved_zones"] == [[zone]]
         assert report["geometry"]["virtual_walls"] == [wall]
         assert report["mission"] == records[0]
@@ -588,7 +589,85 @@ async def test_history_keeps_the_requested_order_and_final_destination_results(
         ],
     }
     assert "requested-revision" not in repr(report) and "unvisited-region" not in repr(report)
-    configured.client.map_geometry.assert_awaited_once_with(MAP.map_id, revision)
+    expected_calls = [(MAP.map_id, revision)]
+    if not archive_available:
+        expected_calls.append((MAP.map_id, "requested-revision"))
+    assert [call.args for call in configured.client.map_geometry.await_args_list] == expected_calls
+
+
+@pytest.mark.parametrize(
+    "archive", ["unpublished", "expired", "other_floor", "same_scope", "invalid"]
+)
+async def test_history_uses_only_the_exact_requested_floor_for_missing_mission_maps(
+    configured, picea_archive, hass_ws_client, hass_admin_user, archive
+):
+    furniture = [[1, 1], [2, 1], [2, 2], [1, 2]]
+    zone = [[2, 2], [3, 2], [3, 3], [2, 3], [2, 2]]
+    command = {
+        "command": "start",
+        "p2map_id": MAP.map_id,
+        "user_p2mapv_id": "reviewed-floor",
+        "ordered": 1,
+        "regions": [
+            {"type": "rid", "region_id": "room-a"},
+            {"type": "zid", "region_id": "125"},
+            {"type": "tid", "region_id": "160"},
+        ],
+        "id_multipolys": [
+            {"id": "160", "metadata": {"furniture_id": "table"}, "poly": furniture},
+            {
+                "id": "161",
+                "metadata": {"furniture_id": "table"},
+                "poly": [[5, 5], [6, 5], [6, 6], [5, 6]],
+            },
+        ],
+    }
+    row = {
+        "robot_id": "fixture-0",
+        "timestamp": 1700000500,
+        "done": "inc",
+        "sqft": 0,
+        "cmd": command,
+    }
+    map_id = "other-floor" if archive == "other_floor" else MAP.map_id
+    revision = "reviewed-floor" if archive == "same_scope" else "recorded-run"
+    if archive != "unpublished":
+        row["p2maps"] = [{"p2map_id": map_id, "p2mapv_id": revision}]
+    (report,) = mission_reports([row], "fixture-0")
+    configured.client.mission_reports = AsyncMock(return_value=(report,))
+    configured.client.map_geometry.side_effect = [
+        *([] if archive == "unpublished" else [ApiError(404)]),
+        picea_archive(
+            version="wrong" if archive == "invalid" else "reviewed-floor",
+            zones=[("125", "Zone", zone)],
+        ),
+    ]
+    socket = await hass_ws_client()
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda _, policy: policy == POLICY_READ,
+    ):
+        await socket.send_json(HISTORY | {"report_id": report.key})
+        detail = (await socket.receive_json())["result"]
+    assert detail["mission"]["area_m2"] == 0
+    if archive in {"unpublished", "expired"}:
+        assert detail["geometry_source"] == "requested_floor"
+        assert detail["geometry"]["trajectories"] == detail["geometry"]["coverage"] == []
+        room, saved, footprint = detail["geometry"]["requested_areas"]
+        assert [room] == detail["geometry"]["rooms"][0]["polygons"]
+        assert saved == [zone] and footprint == [[*furniture, furniture[0]]]
+        assert [target["name"] for target in detail["plan"]["destinations"]][:2] == [
+            "Office",
+            "Zone",
+        ]
+    else:
+        assert detail["geometry"] is None and detail["geometry_source"] is None
+    calls = [] if archive == "unpublished" else [(map_id, revision)]
+    if archive in {"unpublished", "expired", "invalid"}:
+        calls.append((MAP.map_id, "reviewed-floor"))
+    assert [call.args for call in configured.client.map_geometry.await_args_list] == calls
+    assert "reviewed-floor" not in repr(detail)
 
 
 @pytest.mark.parametrize(

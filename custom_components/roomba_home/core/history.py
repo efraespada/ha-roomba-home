@@ -9,8 +9,9 @@ from .errors import ProtocolError
 from .furniture_targets import furniture_links
 from .maps import PersistentMap, RegionKind, map_identifier
 from .mission_areas import REGION_TARGETS, ROOM_STATUSES, AreaResult, command_region_kind
-from .mission_plan import MissionPlan, mission_plan, present_mission_plan
+from .mission_plan import MAX_DESTINATIONS, MissionPlan, mission_plan, present_mission_plan
 from .mission_time import MissionTiming, reported_interruptions, with_destination_elapsed
+from .point_maps import Polygon
 from .state import RobotState
 from .telemetry import CLEANING_CYCLES, at, convert, integer
 
@@ -370,6 +371,8 @@ class MissionReport:
     timeline: tuple[dict, ...]
     plan: MissionPlan | None = None
     destination_elapsed: tuple[int | None, ...] = ()
+    requested_scope: tuple[str, str] | None = None
+    requested_footprints: tuple[Polygon, ...] = ()
 
     def summary(self) -> dict:
         started = self.metrics.get("last_mission_started")
@@ -434,6 +437,21 @@ def _report_maps(row: dict) -> tuple[tuple[str, str], ...]:
     )
 
 
+def _requested_footprints(command: dict, plan: MissionPlan | None) -> tuple[Polygon, ...]:
+    shapes = command.get("id_multipolys")
+    if plan is None or not isinstance(shapes, list) or len(shapes) > MAX_DESTINATIONS:
+        return ()
+    links = furniture_links(shapes)
+    targets = {
+        region["region_id"] for region in command["regions"] if command_region_kind(region) == "tid"
+    }
+    return tuple(
+        (tuple(tuple(point) for point in (*shape["poly"], shape["poly"][0])),)
+        for shape in shapes
+        if links and shape["id"] in targets
+    )
+
+
 def _report_event_details(item: dict, kind: str) -> dict:
     if kind == "error":
         code = integer(at(item, "error.value"))
@@ -489,6 +507,7 @@ def mission_reports(response: object, robot_id: str) -> tuple[MissionReport, ...
         command = row.get("cmd")
         metrics = _mission_metrics(row)
         plan = mission_plan(command)
+        requested = command.get("p2map_id"), command.get("user_p2mapv_id")
         elapsed = (
             mission_timing(at(row, "timeline.finEvents"), command).elapsed(
                 plan, metrics.get("last_mission_started"), metrics["last_mission_finished"]
@@ -503,5 +522,7 @@ def mission_reports(response: object, robot_id: str) -> tuple[MissionReport, ...
             _report_timeline(row),
             plan,
             elapsed,
+            requested if all(map_identifier(item) for item in requested) else None,
+            _requested_footprints(command, plan),
         )
     return tuple(reports.values())

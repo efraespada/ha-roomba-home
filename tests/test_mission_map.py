@@ -3,7 +3,7 @@
 import pytest
 
 from custom_components.roomba_home.core.errors import ProtocolError
-from custom_components.roomba_home.core.mission_map import read_mission_map
+from custom_components.roomba_home.core.mission_map import read_mission_map, read_requested_floor
 
 
 def test_mission_history_geometry_keeps_mode_coverage_order_and_gaps(make_point_bundle):
@@ -53,5 +53,12 @@ def test_mission_history_geometry_keeps_mode_coverage_order_and_gaps(make_point_
     assert report["saved_zones"] == report["no_mop"] == ((((0, 0), (3, 0), (3, 3), (0, 0)),),)
     assert len(report["keep_out"][0]) == 2
     assert report["virtual_walls"] == (((1, 2), (3, 4)),)
+    requested_floor, context = read_requested_floor(bundle, "map-a", "version.42", None, ())
+    assert requested_floor == floor
+    for layer in ("rooms", "saved_zones", "keep_out", "no_mop", "virtual_walls"):
+        assert context[layer] == report[layer]
+    assert all(
+        not context[layer] for layer in ("coverage", "trajectories", "hazards", "temporary_zones")
+    )
     with pytest.raises(ProtocolError, match="active version"):
         read_mission_map(bundle, "map-a", "other-revision")
