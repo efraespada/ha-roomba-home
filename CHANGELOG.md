@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.79.0
+
+- Pause, resume, cancel, and return the current mission from the floor plan.
+  The card confirms cancellation and return, and each command is bound to
+  the mission shown when it was selected.
+
 ## 0.78.0
 
 - Show the current mission's reported phase, mode, elapsed time, and

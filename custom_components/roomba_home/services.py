@@ -7,6 +7,7 @@ from homeassistant.core import SupportsResponse
 from homeassistant.helpers import service
 
 from .const import DOMAIN
+from .core.application import MISSION_COMMANDS
 from .core.cleaning import CleaningMode
 from .core.point_maps import room_fraction
 from .core.routines import ROUTINE_ID
@@ -132,6 +133,17 @@ def async_setup_services(hass):
             vol.Required("language"): vol.All(str, vol.Match(r"[a-z]{2}(?:[-_][a-z]{2})?\Z")),
         },
         func="async_install_voice_language",
+    )
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        "control_current_mission",
+        entity_domain=VACUUM_DOMAIN,
+        schema={
+            vol.Required("command"): vol.In(tuple(command.value for command in MISSION_COMMANDS)),
+            vol.Required("review_id"): vol.All(str, vol.Match(r"[0-9a-f]{64}\Z")),
+        },
+        func="async_control_current_mission",
     )
     service.async_register_platform_entity_service(
         hass,

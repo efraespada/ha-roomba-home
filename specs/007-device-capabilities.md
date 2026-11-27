@@ -45,7 +45,7 @@ model catalogs where applicable.
 | Robot serial in the About screen | Verified asset lookup and Home Assistant device metadata |
 | Automatic pad washing, emptying by routine or area, voice language and volume, child and pet lock, locate, and reboot | Implemented device or dock controls. The emptying selector uses the three [confirmed Android choices](../docs/api.md#automatic-dock-emptying) and retains the area number for custom thresholds. |
 | Component use and remaining life, including maintenance resets | Implemented; three displayed hour values matched the API's remaining minutes |
-| Change Wi-Fi | App entry point observed; setup protocol and recovery require verification |
+| Change Wi-Fi | The Max 700 Combo app asks for confirmation before clearing its current Wi-Fi configuration. Provisioning and recovery require separate verification. |
 | Factory reset and remove robot | App entry point observed; account removal, device reset, and recovery require verification |
 | Part SKUs and replacement or care links | Validated model catalog projected on existing sensors and in the maintenance view |
 | General user guide and robot help | The card and an action expose the verified manual, setup links, diagnostic code lookup, and four-step Max 700 Combo preparation checklist. |

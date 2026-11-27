@@ -110,6 +110,11 @@ class RoombaVacuum(RoombaEntity, StateVacuumEntity):
     async def async_skip_current_area(self, review_id=None):
         await self.account.async_command(self.robot_id, Command.SKIP, reviewed_skip=review_id)
 
+    async def async_control_current_mission(self, command, review_id):
+        await self.account.async_command(
+            self.robot_id, Command(command), mission_review_id=review_id
+        )
+
     async def async_list_cleaning_regions(self):
         return {
             "regions": [

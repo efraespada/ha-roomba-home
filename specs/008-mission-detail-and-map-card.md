@@ -119,6 +119,13 @@ trajectory contains observed positions and retains sequence gaps.
   since start, and reported cleaned area above its floor plan. Keep the
   summary available without a saved floor or a correlated destination plan.
   Omit missing readings and clear the summary at mission end or disconnect.
+- MAP-20: Offer pause, explicit resume, cancellation, and return from the
+  floor plan to users with vacuum control permission. Bind the operation to
+  the reviewed mission and recheck the current phase before publishing.
+  Confirm cancellation and return in the card. Keep controls available to
+  an identifiable mapping run before the first floor has been saved. Offer
+  return after cancellation while Roomba reports an identifiable idle state
+  off the dock.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -450,6 +457,7 @@ features, physical results, and open scenarios.
 | MAP-17 | [Clean everywhere action](../docs/usage.md#clean-everywhere) | [Home Assistant control tests](../tests/ha/test_cleaning_controls.py), [card tests](../tests/frontend/map-card.test.cjs), and [scope validation](../docs/validation.md#whole-area-and-directed-cleaning-scope) |
 | MAP-18 | [Interactive floor plan](../docs/usage.md#interactive-floor-plan) and [cleaning history](../docs/usage.md#cleaning-history) | [Card tests](../tests/frontend/map-card.test.cjs) and [Chrome touch verification](../docs/validation.md#touch-navigation-for-floor-plans-and-reports) |
 | MAP-19 | [Current mission WebSocket projection](../docs/api.md#current-mission-readout) | [Authenticated snapshot tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [physical trial](../docs/validation.md#current-mission-readout) |
+| MAP-20 | [Reviewed mission controls](../docs/api.md#reviewed-mission-controls) | [Control policy tests](../tests/test_application.py), [Home Assistant action tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 
 ## 18. Implementation sequence
 

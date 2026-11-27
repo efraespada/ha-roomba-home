@@ -734,6 +734,9 @@
     "skip_requires_destination": {
       "message": "Skipping requires a current destination in the robot's live mission."
     },
+    "mission_changed": {
+      "message": "The current mission changed. Review its state before sending a command."
+    },
     "skip_destination_changed": {
       "message": "The current destination changed. Review it again before skipping."
     },
@@ -933,6 +936,20 @@
         "language": {
           "name": "Language code",
           "description": "Choose a lowercase code from the List robot voices action. An additional voice may replace the current download."
+        }
+      }
+    },
+    "control_current_mission": {
+      "name": "Control current mission",
+      "description": "Pause, resume, cancel, or return the reviewed mission to its dock.",
+      "fields": {
+        "command": {
+          "name": "Command",
+          "description": "Choose an operation offered for the current mission."
+        },
+        "review_id": {
+          "name": "Mission review",
+          "description": "The current mission review from the floor plan."
         }
       }
     },
