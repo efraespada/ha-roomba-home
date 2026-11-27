@@ -321,14 +321,17 @@ async def websocket_cleaning_scores(hass, connection, message):
         vol.Required("entity_id"): cv.entity_id,
         vol.Required("map_id"): IDENTIFIER,
         vol.Required("version"): IDENTIFIER,
+        vol.Optional("include_saved", default=False): bool,
     }
 )
 @websocket_api.async_response
 async def websocket_floor_routines(hass, connection, message):
-    await _send_floor_details(hass, connection, message, "async_list_map_routines")
+    await _send_floor_details(
+        hass, connection, message, "async_list_map_routines", include_saved=message["include_saved"]
+    )
 
 
-async def _send_floor_details(hass, connection, message, method):
+async def _send_floor_details(hass, connection, message, method, **options):
     entity_id = message["entity_id"]
     if not connection.user.permissions.check_entity(entity_id, POLICY_READ):
         connection.send_error(message["id"], websocket_api.ERR_UNAUTHORIZED, "Access denied.")
@@ -340,7 +343,7 @@ async def _send_floor_details(hass, connection, message, method):
         return
     try:
         response = await getattr(vacuum.account, method)(
-            vacuum.robot_id, message["map_id"], message["version"]
+            vacuum.robot_id, message["map_id"], message["version"], **options
         )
     except AuthenticationError:
         connection.send_error(message["id"], "map_unavailable", "Authentication is required.")

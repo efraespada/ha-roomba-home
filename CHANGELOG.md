@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.77.0
+
+- Open saved, recent, and recommended cleaning drafts from **Quick routines**
+  above the floor plan. Keep each area's settings and order for review.
+- Show **Recommended rooms** above the floor plan. Opening Roomba's
+  recommendation highlights its exact rooms in amber, even when selected.
+
 ## 0.76.0
 
 - Select or deselect all rooms on the floor plan and in cleaning drafts.

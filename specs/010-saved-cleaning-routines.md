@@ -93,6 +93,9 @@ calendar trigger and may carry an independent copy of a routine.
 - ROUTINE-18: Display native list ranks and move an editable routine before
   or after another saved routine for the same robot. Preserve the individual
   routine commands and reject a stale displayed order before publishing.
+- ROUTINE-19: Open compatible saved, recent, and suggested routine drafts
+  from the current floor plan. Highlight the provider's recommended rooms
+  and preserve both the recommendation fill and the selected outline.
 - Saving, updating, and removing a routine leave the robot's movement state alone.
 - The supported edition 1 favorites each address one robot. Multi-robot
   favorite commands require separate protocol evidence.
@@ -226,8 +229,13 @@ revision. Turn a compatible recent command into a draft with its ordered
 destinations and recognized preferences. Match furniture IDs and outlines on
 the current archive. Offer the clean-all, recommended rooms, and point
 suggestions from the provider. The recommended-room draft retains its
-room profiles and automatic order. Start a draft after confirmation and
-revalidate its map review and profiles through the usual command path.
+room profiles and automatic order. The floor shortcut list also reads saved
+favorites for the associated robot and current map. Validate the complete
+destination list and profiles, and retain the provider's favorite order.
+Discard in-flight results after scope changes. Open a shortcut in the
+one-off editor and keep the recommendation visible on the map. Start a draft
+after confirmation and revalidate its map review and profiles through the
+usual command path.
 
 Offer **Customize cleaning** for a current reviewed area selection.
 Initialize an unsaved draft in selection order and reuse the typed per-area
@@ -354,6 +362,7 @@ saved routines and scheduled cleaning independently identifiable.
 | ROUTINE-16 | [Floor plan card](../custom_components/roomba_home/frontend/roomba-home-map-card.js) and [reviewed start](../custom_components/roomba_home/vacuum.py) | [Card tests](../tests/frontend/map-card.test.cjs) and [one-off trial](../docs/validation.md#one-off-area-cleaning) |
 | ROUTINE-17 | [Favorite appearance](../custom_components/roomba_home/core/routines.py) | [Client tests](../tests/test_api_client.py), [action tests](../tests/ha/test_schedules.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed round trip](../docs/validation.md#routine-appearance) |
 | ROUTINE-18 | [Native list order protocol](../docs/api.md#saved-cleaning-routines) | [Client tests](../tests/test_api_client.py), [action tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed order trial](../docs/validation.md#saved-routine-display-order) |
+| ROUTINE-19 | [Quick routines](../docs/usage.md#quick-routines-from-the-floor-plan) | [Projection tests](../tests/test_quick_routines.py), [read permission tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [Android and signed comparison](../docs/validation.md#quick-routines-and-smart-recommendations-on-the-floor-plan) |
 
 ## 18. Implementation sequence
 

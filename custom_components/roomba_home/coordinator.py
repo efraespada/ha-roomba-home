@@ -1923,14 +1923,14 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         except ValueError:
             raise action_error("unsupported_areas", "Select areas on one current map") from None
 
-    async def _read_map_action(self, read, *args):
+    async def _read_map_action(self, read, *args, **kwargs):
         now = self._clock()
         if now < self._read_retry_until:
             raise action_error("robot_unavailable", "Waiting to retry Roomba Home")
         if now < self._maps_retry_until:
             raise action_error("map_rate_limited", "Roomba Home rate limited map requests")
         try:
-            return await read(*args)
+            return await read(*args, **kwargs)
         except AuthenticationError:
             raise
         except RateLimited as error:
@@ -1975,7 +1975,9 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 return {**scores, "smart_presets": presets}
             return scores
 
-    async def async_list_map_routines(self, robot_id, map_id=None, version=None):
+    async def async_list_map_routines(
+        self, robot_id, map_id=None, version=None, *, include_saved=False
+    ):
         async with self._io_lock:
             floor, plan = await self._readable_floor(robot_id, map_id, version)
             state = (self.data or {}).get(robot_id)
@@ -1984,7 +1986,11 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             mapped = with_archive_destinations(floor, plan)
             mapped = replace(mapped, regions=(*mapped.regions, *furniture_regions(plan)))
             found = await self._read_map_action(
-                self.client.map_quick_routines, robot_id, mapped, state.capabilities
+                self.client.map_quick_routines,
+                robot_id,
+                mapped,
+                state.capabilities,
+                include_saved=include_saved,
             )
             current = await self._read_map_action(self._read_maps, robot_id)
             if floor not in current:

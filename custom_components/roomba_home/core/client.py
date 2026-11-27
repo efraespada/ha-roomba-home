@@ -35,7 +35,7 @@ from .live_route import RawRouteReference
 from .map_programs import program_selection
 from .maps import AreaTarget, PersistentMap, map_identifier, parse_maps
 from .models import AppProfile, CloudSession, LoginDetails, relative_api_path, trusted_url
-from .quick_routines import QUICK_ROUTINE_LIMIT, read_quick_routines
+from .quick_routines import QUICK_ROUTINE_LIMIT, read_quick_routines, saved_quick_routines
 from .routines import (
     APP_EDITION,
     FAVORITES_PATH,
@@ -385,14 +385,18 @@ class RoombaClient:
         )
         return read_clean_scores(data, floor)
 
-    async def map_quick_routines(self, robot_id, floor, capabilities):
+    async def map_quick_routines(self, robot_id, floor, capabilities, *, include_saved=False):
         session = await self.ensure_session()
         if robot_id not in session.raw["robots"] or not map_identifier(floor.map_id):
             raise ProtocolError("Quick routines require an associated map.")
         data = await self.request(
             "GET", f"/v1/p2maps/{floor.map_id}/routines", params={"limit": QUICK_ROUTINE_LIMIT}
         )
-        return read_quick_routines(data, robot_id, floor, capabilities)
+        result = read_quick_routines(data, robot_id, floor, capabilities)
+        if include_saved:
+            routines = await self._associated_routines(robot_id)
+            result["saved"] = saved_quick_routines(routines.values(), floor, capabilities)
+        return result
 
     async def edit_map(self, map_id: str, edit: MapEdit) -> bytes | MapEditAcknowledgement:
         if not map_identifier(map_id):

@@ -8,15 +8,24 @@ from custom_components.roomba_home.core.capabilities import (
     DeviceCapabilities,
     DigitalSpotCapability,
 )
-from custom_components.roomba_home.core.cleaning import CleaningCapabilities, CleaningMode
+from custom_components.roomba_home.core.cleaning import (
+    CleaningCapabilities,
+    CleaningMode,
+    CleaningProfile,
+)
 from custom_components.roomba_home.core.errors import ProtocolError
 from custom_components.roomba_home.core.maps import (
+    AreaTarget,
     CleaningRegion,
     FurnitureRegion,
     PersistentMap,
     RegionKind,
 )
-from custom_components.roomba_home.core.quick_routines import read_quick_routines
+from custom_components.roomba_home.core.quick_routines import (
+    read_quick_routines,
+    saved_quick_routines,
+)
+from custom_components.roomba_home.core.routines import CleaningRoutine, routine_command
 
 ROOM = CleaningRegion("room-a", RegionKind.ROOM, "Example room")
 ZONE = CleaningRegion("zone-b", RegionKind.ZONE, "Example zone")
@@ -48,6 +57,75 @@ def row(kind="REPLAY", **values):
 
 def poly(points=OUTLINE):
     return {"id": "160", "metadata": {"furniture_id": "sofa-c"}, "poly": [list(p) for p in points]}
+
+
+def test_saved_shortcuts_preserve_rank_order_and_require_the_current_destinations_and_profiles():
+    target = AreaTarget(
+        FLOOR.map_id,
+        "previous-version",
+        (SOFA, ROOM),
+        (
+            CleaningProfile(CleaningMode.VACUUM, suction_level=2),
+            CleaningProfile(CleaningMode.MOP, wetness_level=3),
+        ),
+    )
+    command = routine_command(ROBOT, target, 1_800_000_000)
+
+    def favorite(name, details, rank):
+        return CleaningRoutine(
+            "1" * 32,
+            name,
+            {
+                "commanddefs": [details],
+                "icon": "🧹",
+                "color": "#112233",
+                "display_order": rank,
+            },
+        )
+
+    ordinary = routine_command(
+        ROBOT,
+        AreaTarget(
+            FLOOR.map_id,
+            FLOOR.version_id,
+            (ZONE,),
+            (CleaningProfile(CleaningMode.VACUUM),),
+        ),
+    )
+    moved = poly(tuple((x + 0.02, y) for x, y in OUTLINE))
+    assert saved_quick_routines(
+        [
+            favorite("Different floor", command | {"p2map_id": "elsewhere"}, 1),
+            favorite(
+                "Missing zone",
+                ordinary
+                | {
+                    "regions": [
+                        {"type": "zid", "region_id": "missing", "params": {"operatingMode": 2}}
+                    ]
+                },
+                2,
+            ),
+            favorite("Unknown command shape", ordinary | {"unknown": 1}, 3),
+            favorite("Changed furniture polygon", command | {"id_multipolys": [moved]}, 4),
+            favorite("Table then room", command, 5),
+            favorite("Saved zone", ordinary, 6),
+        ],
+        FLOOR,
+        CAPS,
+    ) == [
+        {"kind": "saved", **favorite("Table then room", command, 5).action_response()},
+        {"kind": "saved", **favorite("Saved zone", ordinary, 6).action_response()},
+    ]
+    selected = favorite("Table then room", command, 1)
+    vacuum_only = replace(
+        CAPS, cleaning=replace(CAPS.cleaning, modes=frozenset({CleaningMode.VACUUM}))
+    )
+    assert saved_quick_routines([selected], FLOOR, vacuum_only) == []
+    no_outline = replace(
+        FLOOR, regions=(CleaningRegion("sofa-c", RegionKind.FURNITURE, "Fixture"), ROOM)
+    )
+    assert saved_quick_routines([selected], no_outline, CAPS) == []
 
 
 def recommendation(**overrides):

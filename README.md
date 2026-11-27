@@ -92,7 +92,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
 - **Room cleaning scores.** View Roomba's reported score, mission timestamps,
   and suggested settings for each matched room on the active floor.
   Use **Recommended rooms** on the map to highlight the destinations
-  Roomba suggests for the next cleaning.
+  Roomba suggests for the next cleaning in amber. Opening the recommendation
+  from **Quick routines** highlights those rooms and loads their settings.
   [Room cleaning scores](docs/usage.md#room-cleaning-scores)
 - **Routines and schedules.** List, create, edit, duplicate, and remove supported
   cleaning routines from the floor plan. Set the order and cleaning profile
@@ -168,7 +169,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.76.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.77.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
@@ -234,6 +235,10 @@ reload the dashboard. Use one card per robot.
   Set each area's mode and preferences, check the order, then confirm the
   start. **Save as routine** carries the same draft to the routine editor.
   [One-off cleaning](docs/usage.md#customize-a-one-off-cleaning)
+- **Quick routines** opens saved, recent, and recommended routines from the
+  floor plan. Review the destinations, adjust their settings, and confirm
+  the start. The current saved routine stays available for later use.
+  [Quick routines](docs/usage.md#quick-routines-from-the-floor-plan)
 - **Manage routines** opens the saved routines list. Select areas on the map
   before opening it to prefill a new routine. Add furniture, rooms, or zones,
   set their individual cleaning preferences, and arrange them in order.

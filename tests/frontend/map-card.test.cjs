@@ -1454,6 +1454,129 @@ test("quick routines load reviewed settings as a new draft without creating a fa
   }, { entity_id: card.config.entity }]]);
 });
 
+test("the floor shortcuts open saved and recent plans with their reviewed area profiles", async () => {
+  const card = cleaningSelectionCard();
+  const panel = card.$("floor-shortcuts");
+  const furniture = card.geometry.furniture.destinations[0].id;
+  const regions = [{ id: furniture, mode: "vacuum", suction_level: 2 }, { id: "room-a", mode: "mop", wetness_level: 1 }];
+  const calls = [];
+  let reads = 0;
+  card._hass = {
+    async callWS(query) {
+      reads++;
+      assert.deepEqual(JSON.parse(JSON.stringify(query)), {
+        type: "roomba_home/floor_routines", entity_id: card.config.entity,
+        map_id: "fixture-map", version: "v1", include_saved: true,
+      });
+      return {
+        map_id: "fixture-map", version: "v1",
+        saved: [{ kind: "saved", name: "Table then kitchen", icon: "🧹", color: "#ABCDEF",
+          estimate: { duration_minutes: 10.2 }, region_settings: regions }],
+        routines: [{ kind: "recent", name: "Recent cleaning", region_settings: [{ id: "room-a", mode: "mop" }] },
+          { kind: "recent", name: "Stale region", region_settings: [{ id: "unknown" }] }],
+      };
+    },
+    async callService(...args) { calls.push(JSON.parse(JSON.stringify(args))); },
+  };
+  card.draw = () => {};
+  card.updateFloorShortcuts();
+  assert.equal(panel.hidden, false);
+  await card.loadFloorShortcuts();
+  assert.equal(reads, 0);
+  panel.open = true;
+  await card.loadFloorShortcuts();
+  await card.loadFloorShortcuts();
+  assert.equal(reads, 1);
+  const [saved, recent] = card.$("floor-shortcut-list").children;
+  assert.equal(card.$("floor-shortcut-list").children.length, 2);
+  assert.equal(saved.children[0].textContent, "🧹 Table then kitchen · 11 min");
+  assert.equal(saved.children[0].style.borderInlineStartColor, "#ABCDEF");
+  await saved.children[0].onclick();
+  assert.equal(card.routineDialog.open, true);
+  assert.equal(card.routineDraft.saved, undefined);
+  assert.deepEqual([...card.selected], [furniture, "room-a"]);
+  assert.deepEqual(JSON.parse(JSON.stringify(card.routineDraft.regions)), regions);
+  await card.runRoutine();
+  assert.match(card.$("routine-status").textContent, /Dining table → Kitchen/);
+  assert.equal(calls.length, 0);
+  await card.runRoutine();
+  assert.deepEqual(calls[0], ["roomba_home", "run_cleaning_draft", {
+    regions, floor: { map_id: "fixture-map", version: "v1", inventory_id: "inventory" },
+  }, { entity_id: card.config.entity }]);
+  await recent.children[0].onclick();
+  assert.deepEqual([...card.selected], ["room-a"]);
+  assert.equal(calls.length, 1);
+});
+
+test("a replaced floor inventory discards quick routines and stale buttons", async () => {
+  const card = cleaningSelectionCard();
+  const panel = card.$("floor-shortcuts");
+  panel.open = true;
+  const result = { map_id: "fixture-map", version: "v1", saved: [], routines: [
+    { name: "Clean the kitchen", region_settings: [{ id: "room-a" }] },
+  ] };
+  card._hass = { callWS: async () => result };
+  await card.loadFloorShortcuts();
+  const oldButton = card.$("floor-shortcut-list").children[0].children[0];
+  let resolve;
+  card._hass.callWS = () => new Promise((done) => { resolve = done; });
+  const loading = card.loadFloorShortcuts(true);
+  assert.equal(card.$("refresh-floor-shortcuts").disabled, true);
+  card.geometry.selection_id = "new-inventory";
+  card.updateFloorShortcuts();
+  resolve(result);
+  await loading;
+  assert.equal(panel.open, false);
+  assert.equal(card.$("floor-shortcut-list").hidden, true);
+  await oldButton.onclick();
+  assert.equal(card.routineDialog.open, false);
+});
+
+test("quick routines retry a failed read and open automatic or point drafts", async () => {
+  const card = cleaningSelectionCard();
+  const panel = card.$("floor-shortcuts");
+  panel.open = true;
+  card.draw = () => {};
+  card._hass = { callWS: async () => { throw new Error("Roomba throttled the read."); } };
+  await card.loadFloorShortcuts();
+  assert.equal(card.$("floor-shortcut-status").textContent, "Roomba throttled the read.");
+  assert.equal(card.$("refresh-floor-shortcuts").disabled, false);
+  Object.defineProperty(card, "pointAvailable", { value: true });
+  card.togglePointMode = () => { card.pointMode = !card.pointMode; };
+  card._hass.callWS = async () => ({ map_id: "fixture-map", version: "v1", saved: [], routines: [
+    { name: "Clean a point", choose_point: true },
+    { kind: "recommended", name: "Recommended rooms", target_ids: ["room-b"],
+      ordered: false, region_settings: [{ id: "room-b", mode: "vacuum" }] },
+  ] });
+  await card.loadFloorShortcuts(true);
+  const [point, recommendation] = card.$("floor-shortcut-list").children;
+  await point.children[0].onclick();
+  assert.equal(card.pointMode, true);
+  assert.equal(card.$("point-mode").focused, true);
+  assert.equal(card.routineDialog.open, false);
+  await recommendation.children[0].onclick();
+  assert.equal(card.pointMode, false);
+  assert.equal(card.routineDraft.ordered, false);
+  assert.equal(card.$("routine-order").value, "automatic");
+  assert.deepEqual([...card.selected], ["room-b"]);
+  assert.deepEqual([...card.recommendedRooms.targets], ["room-b"]);
+});
+
+test("a selected recommended room keeps its amber fill and the selected outline", () => {
+  const { card, fills } = mockCard(0);
+  const id = card.geometry.regions[0].id;
+  card.recommendedRooms = { targets: new Set([id]) };
+  card.selected.add(id);
+  const strokes = [];
+  card.ctx.stroke = function (path) {
+    if (path?.points) strokes.push([this.strokeStyle, this.lineWidth]);
+  };
+  card.draw();
+  assert.ok(fills.some(([color, points]) => color === "#654727" && points?.length));
+  assert.ok(strokes.some(([color, width]) => color === "#79ecd3" && width === 3));
+  assert.equal(card.$("recommended-rooms-key").hidden, false);
+});
+
 test("recommended room highlighting uses the exact provider targets and keeps the selection intact", async () => {
   const card = draftEstimateCard();
   card.geometry.regions = [
