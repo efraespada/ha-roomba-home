@@ -100,6 +100,15 @@ template.innerHTML = `
     button[aria-pressed="true"], .primary { background:#116853; color:white; border-color:#4ac5a4; }
     button:disabled { cursor:default; opacity:.54; }
     .zoom button { min-width:36px; }
+    .floor-routine-controls { display:flex; flex-wrap:wrap; align-items:flex-start; gap:8px; margin:0 16px 12px; }
+    .floor-routine-controls:not(:has(> :not([hidden]))) { display:none; }
+    #floor-shortcuts { margin:0; max-width:100%; }
+    #floor-shortcuts[open] { flex-basis:100%; }
+    #floor-shortcuts summary { cursor:pointer; padding:7px 0; }
+    #floor-shortcut-list { display:flex; flex-wrap:wrap; gap:7px; list-style:none; padding:0; margin:8px 0; }
+    #floor-shortcut-list li, #floor-shortcut-list button { max-width:100%; }
+    #floor-shortcut-list button { text-align:start; overflow-wrap:anywhere; }
+    #floor-shortcut-status { margin:8px 0; }
     #regions,#furniture-cleaning-areas,.legend { display:flex; gap:7px; flex-wrap:wrap; }
     #map-room-selection,#furniture-cleaning-targets { margin-block:8px; }
     #furniture-cleaning-areas { margin-top:8px; }
@@ -196,6 +205,15 @@ template.innerHTML = `
       <button id="open-maintenance">Maintenance</button>
       <button id="open-robot-help">Robot help</button>
     </header>
+    <div class="floor-routine-controls">
+      <button id="show-recommended-rooms" hidden aria-pressed="false">Recommended rooms</button>
+      <details id="floor-shortcuts" hidden>
+        <summary>Quick routines</summary>
+        <p id="floor-shortcut-status" class="muted" role="status"></p>
+        <ul id="floor-shortcut-list"></ul>
+        <button id="refresh-floor-shortcuts" type="button">Refresh quick routines</button>
+      </details>
+    </div>
     <div id="scene" class="scene">
       <canvas width="${WIDTH}" height="${HEIGHT}" tabindex="0"
         aria-label="Floor plan. Use arrow keys to pan the zoomed or 3D map. Select areas using the controls below."></canvas>
@@ -392,7 +410,6 @@ template.innerHTML = `
         <button id="edit-restrictions" hidden>Edit restrictions</button>
         <button id="show-3d" hidden aria-pressed="false">3D view</button>
         <button id="show-furniture" hidden aria-pressed="false">Show furniture</button>
-        <button id="show-recommended-rooms" hidden aria-pressed="false">Recommended rooms</button>
         <button id="edit-furniture" hidden>Edit furniture</button>
         <button id="manage-routines" hidden>Manage routines</button>
         <button id="manage-schedules" hidden>Manage schedules</button>
@@ -1059,6 +1076,8 @@ class RoombaHomeMapCard extends HTMLElement {
     this.scoreSequence = 0;
     this.maintenanceSequence = 0;
     this.helpSequence = 0;
+    this.$("floor-shortcuts").ontoggle = () => this.loadFloorShortcuts();
+    this.$("refresh-floor-shortcuts").onclick = () => this.loadFloorShortcuts(true);
     this.$("maps").onchange = (event) => {
       this.closeLiveSubscription();
       this.removalDraft = null;
@@ -1067,6 +1086,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.selectedFloor = event.target.value || null;
       this.geometry = null;
       this.recommendedRooms = null;
+      this.updateFloorShortcuts();
       this.clearSelection();
       this.renderAreas();
       this.resetView();
@@ -1385,6 +1405,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.geometry = null;
     this.snapshot = null;
     this.recommendedRooms = null;
+    this.updateFloorShortcuts();
     this.pointMode = false;
     this.pointCleaningMode = null;
     this.elevated = false;
@@ -1414,6 +1435,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.closeLiveSubscription();
     this.timer = null;
     this.recommendedRooms = null;
+    this.invalidateFloorShortcuts();
     this.sequence++;
     this.loading = false;
   }
@@ -1464,6 +1486,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.floor = data.map?.id ?? null;
       if (!data.map) this.geometry = null;
       if (data.geometry) this.geometry = data.geometry;
+      this.updateFloorShortcuts();
       if (this.routineDialog.open) {
         this.renderRoutineEstimate();
         if (changed || inventoryChanged) this.renderQuickRoutines();
@@ -1515,6 +1538,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.updateFloorRemoval();
       this.geometry = null;
       this.recommendedRooms = null;
+      this.updateFloorShortcuts();
       if (this.routineDialog.open) {
         this.renderRoutineEstimate();
         this.renderQuickRoutines();
@@ -3739,6 +3763,94 @@ class RoombaHomeMapCard extends HTMLElement {
     }
   }
 
+  floorShortcutScope() {
+    const { map, cleaning, inventory_id } = this.snapshot ?? {};
+    if (!map || !cleaning || !this.geometry) return null;
+    return JSON.stringify([this.config.entity, map.id, map.version, inventory_id, this.geometry.selection_id]);
+  }
+
+  invalidateFloorShortcuts() {
+    this.floorShortcuts = null;
+    this.$("floor-shortcuts").open = false;
+    this.renderFloorShortcuts();
+  }
+
+  updateFloorShortcuts() {
+    const scope = this.floorShortcutScope();
+    this.$("floor-shortcuts").hidden = !scope;
+    if (!scope || (this.floorShortcuts && this.floorShortcuts.scope !== scope)) this.invalidateFloorShortcuts();
+  }
+
+  async loadFloorShortcuts(refresh = false) {
+    const scope = this.floorShortcutScope();
+    if (!scope || !this.$("floor-shortcuts").open || this.floorShortcuts?.pending ||
+        (!refresh && this.floorShortcuts?.scope === scope)) return;
+    const { id, version } = this.snapshot.map;
+    const reading = { scope, pending: true };
+    this.floorShortcuts = reading;
+    this.renderFloorShortcuts();
+    try {
+      const result = await this._hass.callWS({ type: "roomba_home/floor_routines", entity_id: this.config.entity,
+        map_id: id, version, include_saved: true });
+      if (result.map_id !== id || result.version !== version) throw Error("The floor changed. Refresh quick routines.");
+      if (this.floorShortcuts !== reading || this.floorShortcutScope() !== scope) return;
+      const areas = new Set([...this.geometry.regions, ...this.furnitureDestinations].map(({ id }) => id));
+      reading.options = [...result.saved, ...result.routines].filter(({ choose_point, region_settings }) =>
+        choose_point ? this.pointAvailable : region_settings?.length && region_settings.every(({ id }) => areas.has(id)));
+    } catch (error) {
+      reading.error = error?.message || "Roomba's routines are unavailable.";
+    } finally {
+      reading.pending = false;
+      if (this.floorShortcuts === reading && this.floorShortcutScope() === scope) this.renderFloorShortcuts();
+    }
+  }
+
+  renderFloorShortcuts() {
+    const reading = this.floorShortcuts;
+    const options = reading?.options ?? [];
+    const status = this.$("floor-shortcut-status");
+    status.textContent = reading?.pending ? "Reading Roomba's routines…"
+      : reading?.error ?? (reading && !options.length ? "No quick routines are available for this floor." : "");
+    status.hidden = !status.textContent;
+    this.$("refresh-floor-shortcuts").disabled = Boolean(reading?.pending);
+    const list = this.$("floor-shortcut-list");
+    list.hidden = !options.length;
+    list.replaceChildren(...options.map((item) => {
+      const row = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      const minutes = item.estimate?.duration_minutes ?? (item.duration_seconds == null ? null : item.duration_seconds / 60);
+      button.textContent = [[item.icon, item.name].filter(Boolean).join(" "),
+        item.last_run ? historyTime(item.last_run) : null, minutes == null ? null : `${Math.ceil(minutes)} min`]
+        .filter(Boolean).join(" · ");
+      if (item.color) button.style.borderInlineStartColor = item.color;
+      button.onclick = () => this.openFloorShortcut(item, reading);
+      row.append(button);
+      return row;
+    }));
+  }
+
+  async openFloorShortcut(item, reading) {
+    if (this.floorShortcuts !== reading || this.floorShortcutScope() !== reading.scope ||
+        !this.$("floor-shortcuts").open || this.routineDialog.open || this.editingMap ||
+        this.dialog.open || this.routineBusy || this.submitting || this.removalDraft) return;
+    if (item.choose_point) {
+      if (!this.pointAvailable) return;
+      if (!this.pointMode) this.togglePointMode();
+      this.$("point-mode").focus();
+      return;
+    }
+    if (this.pointMode) this.togglePointMode();
+    const regions = item.region_settings.map((area) => ({ ...area }));
+    if (item.kind === "recommended") this.recommendedRooms = { targets: new Set(item.target_ids) };
+    this.selected = new Set(regions.map(({ id }) => id));
+    this.draw();
+    this.updateSelection();
+    await this.openRoutines({ selection: true, initialDraft: {
+      name: item.name, regions, ordered: item.ordered !== false,
+    } });
+  }
+
   editRoutine(id, initialDraft) {
     const saved = this.routines.find((routine) => routine.id === id);
     const settings = saved?.region_settings;
@@ -4449,6 +4561,7 @@ class RoombaHomeMapCard extends HTMLElement {
       if (this.config.entity !== entity || this.routineDraft !== draft) return;
       this.routines = routines;
       draft.saved = routines.find((routine) => routine.id === routineId);
+      this.invalidateFloorShortcuts();
       status.textContent = "Routine order saved.";
     } catch (error) {
       if (this.routineDraft === draft) status.textContent = error?.message || "Roomba could not confirm the order.";
@@ -4535,8 +4648,10 @@ class RoombaHomeMapCard extends HTMLElement {
       this.routines = this.routines.filter((routine) => routine.id !== result.id);
       const removed = service === "remove_cleaning_routine" || service === "remove_cleaning_schedule";
       if (!removed) this.routines.push(result);
-      if (!this.scheduleEditor) this.routines.sort((left, right) =>
-        (left.display_order ?? Infinity) - (right.display_order ?? Infinity));
+      if (!this.scheduleEditor) {
+        this.invalidateFloorShortcuts();
+        this.routines.sort((left, right) => (left.display_order ?? Infinity) - (right.display_order ?? Infinity));
+      }
       this.editRoutine(removed ? "" : result.id);
       const kind = this.scheduleEditor ? "Schedule" : "Routine";
       this.$("routine-status").textContent = `${kind} ${removed ? "deleted" : "saved"}.`;
@@ -4752,9 +4867,11 @@ class RoombaHomeMapCard extends HTMLElement {
       for (const region of regions.filter((area) => area.kind === kind)) {
         for (const polygon of region.polygons) {
           const path = pathFor(polygon, xy);
-          const theme = selected.has(region.id) ? "selected" : recommended.has(region.id) ? "recommended" : kind;
+          const picked = selected.has(region.id);
+          const theme = recommended.has(region.id) ? "recommended" : picked ? "selected" : kind;
           [ctx.fillStyle, ctx.strokeStyle] = THEMES[theme];
-          ctx.lineWidth = selected.has(region.id) ? 3 : 1.5;
+          if (picked) ctx.strokeStyle = THEMES.selected[1];
+          ctx.lineWidth = picked ? 3 : 1.5;
           ctx.fill(path, "evenodd");
           ctx.stroke(path);
           if (region.id) this.targets.push({ path, id: region.id, kind });

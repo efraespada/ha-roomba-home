@@ -953,6 +953,23 @@ async def test_quick_routines_use_read_only_signed_floor_route_and_native_limit(
     assert headers["Authorization"].startswith("AWS4-HMAC-SHA256")
 
 
+async def test_map_shortcuts_use_the_associated_edition_one_favorites_when_requested():
+    from custom_components.roomba_home.core.capabilities import DeviceCapabilities
+    from custom_components.roomba_home.core.maps import PersistentMap
+
+    http = FakeHttp(login_responses() + [HttpResponse(200, []), HttpResponse(200, [])])
+    result = await client(http).map_quick_routines(
+        "robot-fixture",
+        PersistentMap("floor-a", "current", None, ()),
+        DeviceCapabilities(),
+        include_saved=True,
+    )
+    assert result == {"map_id": "floor-a", "version": "current", "routines": [], "saved": []}
+    method, url, headers, body = http.calls[-1]
+    assert method == "GET" and url.endswith("/v1/user/favorites?app_edition=1") and body is None
+    assert headers["Authorization"].startswith("AWS4-HMAC-SHA256")
+
+
 @pytest.mark.parametrize(("robot", "map_id"), [("foreign", "floor-a"), ("robot-fixture", "../")])
 async def test_quick_routines_reject_an_unassociated_robot_or_invalid_floor(robot, map_id):
     from custom_components.roomba_home.core.capabilities import DeviceCapabilities

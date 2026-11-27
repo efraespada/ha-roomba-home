@@ -1,0 +1,19 @@
+{
+  "model": "X185240",
+  "android_version": "3.4.1",
+  "current_room_count": 6,
+  "android_smart_cleaning_destination_count": 5,
+  "signed_clean_dirty_destination_count": 5,
+  "android_and_signed_destinations_match": true,
+  "recommendation_legend_categories": 1,
+  "signed_score_reference": "smart_clean_id",
+  "signed_routine_reference": "clean_score_id",
+  "references_match": true,
+  "recommended_preferences_match_smart_clean_prefs": true,
+  "reported_range_boundaries": [0.7],
+  "range_boundary_matches_recommended_destinations_in_this_read": true,
+  "recommended_order": "automatic",
+  "compatible_saved_shortcuts": 2,
+  "loadable_native_shortcuts": 3,
+  "robot_commands_sent": 0
+}

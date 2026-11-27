@@ -698,6 +698,23 @@ async def test_floor_routines_expose_recommendations_to_map_readers_only_for_the
     assert configured.client.map_quick_routines.await_args.args[:2] == ("fixture-0", MAP)
 
 
+async def test_floor_shortcuts_expose_a_saved_list_to_readers_without_control_permission(
+    configured, hass_ws_client, hass_admin_user
+):
+    reading = {"map_id": MAP.map_id, "version": MAP.version_id, "routines": [], "saved": []}
+    configured.client.map_quick_routines = AsyncMock(return_value=reading)
+    query = {**SCORES, "type": "roomba_home/floor_routines", "include_saved": True}
+    socket = await hass_ws_client()
+    with patch.object(
+        type(hass_admin_user.permissions), "check_entity", side_effect=lambda _, p: p == POLICY_READ
+    ):
+        await socket.send_json(query)
+        assert (await socket.receive_json())["result"] == reading
+    request = configured.client.map_quick_routines.await_args
+    assert request.args[:2] == ("fixture-0", MAP)
+    assert request.kwargs == {"include_saved": True}
+
+
 async def test_score_reads_offer_mode_scoped_recommendations_when_supported(
     configured, hass_ws_client
 ):

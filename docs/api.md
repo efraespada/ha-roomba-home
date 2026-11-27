@@ -1351,6 +1351,14 @@ against the robot's advertised capabilities. The score WebSocket command
 and `roomba_home.get_map_cleaning_scores` can include `smart_presets`,
 keyed by the room's segment ID and then by the selected mode.
 
+In a signed comparison of the current Max 700 Combo floor, the score
+response's `smart_clean_id` matched the `CLEAN_DIRTY` routine's
+`clean_score_id`. The parameters for all recommended rooms also matched
+their `smart_clean_prefs`. The reported range boundary was `0.7` in that
+read. The card uses the routine's room membership for the amber layer
+and uses the full room profiles for the draft.
+[Signed recommendation comparison](validation.md#quick-routines-and-smart-recommendations-on-the-floor-plan)
+
 The draft editor fetches recommendations when the viewer chooses the
 preset. It applies the returned settings to eligible rooms in place
 while retaining each area's mode and order. It discards a response if
@@ -1387,6 +1395,12 @@ private. The map highlights the reported targets and the editor loads
 supported settings with automatic order. Read routine suggestions through
 `roomba_home.list_map_routines` or the floor-scoped `roomba_home/floor_routines`
 WebSocket command, which requires read access to the selected vacuum.
+[Quick routines](usage.md#quick-routines-from-the-floor-plan) requests
+`include_saved: true` on that WebSocket command. The result also includes a
+`saved` list in Roomba display order. It contains compatible single-robot
+favorites for the reviewed floor, with all destination IDs and furniture
+outlines matched to the current archive. The shelf copies the projected
+settings into a reviewed one-off draft.
 [Recommendation validation](validation.md#recommended-rooms-on-the-floor-plan)
 
 [Quick routine validation](validation.md#recent-and-suggested-routines)
