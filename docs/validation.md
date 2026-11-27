@@ -1,5 +1,29 @@
 # Roomba Home validation
 
+## Household vacuum route after clearing error 48
+
+A Max 700 Combo reported error 48 while connected and charging. A
+normal reboot from the Android app produced an observed disconnection
+and reconnection. Roomba then reported error code zero and no active
+faults. The existing floor remained readable, and its dock position
+was inside the room selected for the follow-up test.
+
+With local recording enabled, the installed 0.85.0 card submitted one
+vacuum-only run for the dock's room. The live layers showed travel and
+vacuuming. The review sent the robot back to its dock, where it returned
+to charging with error code zero. The signed canceled report matched
+the exact room and recorded 3.9 m² and one native archive. The card
+displayed the native path and coverage. Recording was turned off with
+one saved route retained.
+
+Home Assistant passed the Core configuration check and restarted with
+version 0.86.0. The installed card retained the disabled setting and one
+saved route. Reopening the signed report showed the same 3.9 m² and
+the native path and coverage controls.
+[Anonymized household evidence](evidence/2026-11-27-household-local-route.json) ·
+[Installed recording status](screenshots/roomba-local-route-recording.jpg) ·
+[iRobot error 48 instructions](https://homesupport.irobot.com/articles/en_US/Knowledge/10548)
+
 ## Backed-up floor in cleaning history
 
 An isolated Home Assistant instance read a signed incomplete Max 700
