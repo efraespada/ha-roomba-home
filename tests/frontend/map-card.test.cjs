@@ -506,6 +506,7 @@ function oneOffCleaningCard() {
     cleaning: { modes: ["vacuum", "mop"], default_mode: "vacuum",
       suction_level: 4, wetness_level: 3, two_pass: true },
   });
+  card.robotOverview = card.snapshot;
   card.geometry.regions = [{ id: "room-a", name: "Kitchen" }, { id: "room-b", name: "Hall" }];
   card.selected = new Set(["room-b", "room-a"]);
   for (const dialog of [card.dialog, card.routineDialog]) {
@@ -2332,7 +2333,8 @@ test("mapping can be started without a saved floor after an explicit review", as
 test("clean everywhere confirms the robot and sends a new untargeted mission", async () => {
   const { card } = mockCard(0);
   card.config = { entity: "vacuum.example" };
-  card.snapshot = { robot: "Example", map: null, can_clean_everywhere: true };
+  card.snapshot = null;
+  card.robotOverview = { robot: "Example", can_clean_everywhere: true };
   card.geometry = null;
   card.draw = () => {};
   card.updateSelection = () => {};
@@ -2347,10 +2349,10 @@ test("clean everywhere confirms the robot and sends a new untargeted mission", a
   assert.equal(dialog.open, true);
   assert.equal(card.$("confirm-text").textContent,
     "Example will clean every reachable area using its next-cleaning preferences.");
-  card.snapshot.can_clean_everywhere = false;
+  card.robotOverview.can_clean_everywhere = false;
   await card.submit();
   assert.equal(calls.length, 0);
-  card.snapshot.can_clean_everywhere = true;
+  card.robotOverview.can_clean_everywhere = true;
   card.config.entity = "vacuum.other";
   await card.submit();
   assert.equal(calls.length, 0);
@@ -3073,7 +3075,7 @@ test("mission actions match the active phase and dispatch to the reviewed robot"
   const active = { review_id: "first", commands: ["pause", "stop", "dock"] };
   Object.assign(card, {
     config: { entity: "vacuum.example" },
-    snapshot: { robot: "Example robot", mission_controls: active },
+    robotOverview: { robot: "Example robot", mission_controls: active },
     _hass: { async callService(...args) { calls.push(args); } },
     async refresh() {},
     $(id) {
@@ -3096,7 +3098,7 @@ test("mission actions match the active phase and dispatch to the reviewed robot"
   assert.equal(elements.get("mission-control-dialog").open, true);
   assert.equal(calls.length, 1);
   const next = { review_id: "second", commands: ["resume", "stop", "dock"] };
-  card.snapshot.mission_controls = next;
+  card.robotOverview.mission_controls = next;
   card.updateMissionControls(next);
   assert.equal(elements.get("mission-control-dialog").open, false);
   await card.confirmMissionCommand();
@@ -3110,7 +3112,7 @@ test("mission actions match the active phase and dispatch to the reviewed robot"
   assert.equal(calls[1][2].command, "dock");
   assert.equal(calls[1][2].review_id, "second");
   assert.equal(elements.get("mission-control-status").hidden, true);
-  card.snapshot.mission_controls = null;
+  card.robotOverview.mission_controls = null;
   card.updateMissionControls(null);
   assert.equal(elements.get("mission-controls").hidden, true);
 });
@@ -3123,7 +3125,7 @@ test("a pending mission command cannot be repeated and failures are visible", as
   const controls = { review_id: "mission", commands: ["resume"] };
   Object.assign(card, {
     config: { entity: "vacuum.example" },
-    snapshot: { mission_controls: controls },
+    robotOverview: { mission_controls: controls },
     _hass: { callService() { calls++; return new Promise((_, reject) => { fail = reject; }); } },
     async refresh() {},
     $(id) {
@@ -3149,12 +3151,12 @@ test("dock controls show reported activity and require review for the exact link
   const calls = [];
   card._hass = { async callService(...args) { calls.push(args); } };
   card.refresh = async () => {};
-  card.snapshot.dock_controls = {
+  card.robotOverview = { dock_controls: {
     dry_mop: { active: true, entity_id: null },
     stop_drying: { active: false, entity_id: "button.linked_stop_drying" },
     wash_mop: { active: false, entity_id: "button.linked_wash" },
     empty_bin: { active: false, entity_id: null },
-  };
+  } };
   card.updateDockControls();
   assert.equal(card.$("open-dock-controls").hidden, false);
   assert.equal(card.$("dock-dry_mop").textContent, "Dry mop · In progress");
@@ -3170,7 +3172,7 @@ test("dock controls show reported activity and require review for the exact link
   assert.equal(card.$("back-dock-action").focused, true);
   assert.equal(calls.length, 0);
 
-  card.snapshot.dock_controls.wash_mop.entity_id = "button.renamed_wash";
+  card.robotOverview.dock_controls.wash_mop.entity_id = "button.renamed_wash";
   card.updateDockControls();
   await card.confirmDockAction();
   assert.equal(calls.length, 0);
@@ -3183,7 +3185,7 @@ test("dock controls show reported activity and require review for the exact link
   assert.deepEqual(calls[0].slice(0, 2), ["button", "press"]);
   assert.equal(calls[0][3].entity_id, "button.renamed_wash");
   assert.equal(card.$("dock-action-status").textContent, "Roomba confirmed the dock action.");
-  card.snapshot = null;
+  card.robotOverview = null;
   card.updateDockControls();
   assert.equal(card.$("open-dock-controls").hidden, true);
   assert.equal(card.$("dock-unavailable").hidden, false);
@@ -3202,7 +3204,7 @@ test("a dock request cannot be duplicated and an error remains visible in its ow
       return new Promise((_, failure) => { reject = failure; });
     },
   };
-  card.snapshot.dock_controls = { dry_mop: { active: false, entity_id: "button.dry" } };
+  card.robotOverview = { dock_controls: { dry_mop: { active: false, entity_id: "button.dry" } } };
   card.reviewDockAction("dry_mop");
   const pending = card.confirmDockAction();
   assert.equal(card.$("dock-dry_mop").disabled, true);
@@ -3214,6 +3216,93 @@ test("a dock request cannot be duplicated and an error remains visible in its ow
   await pending;
   assert.equal(card.$("dock-action-status").textContent, "The dock is busy.");
   assert.equal(card.$("dock-dry_mop").disabled, false);
+});
+
+test("a missing map keeps live robot status, errors and independent command reviews available", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  card.isConnected = true;
+  card.sequence = 0;
+  card.snapshot = null;
+  card.geometry = null;
+  card.draw = () => {};
+  card.renderAreas = () => {};
+  card.updateSelection = () => {};
+  card.updateFloorShortcuts = () => {};
+  card.$("mission-plan").append(mockElement("summary"), mockElement("div"));
+  card.$("active").append(mockElement("div"));
+  card.$("history").append(mockElement("div"));
+  const dialog = card.$("confirm-dialog");
+  dialog.showModal = () => { dialog.open = true; };
+  dialog.close = () => { dialog.open = false; };
+  const dockDialog = card.$("dock-controls-dialog");
+  dockDialog.open = true;
+  const requests = [];
+  let overview = {
+    robot: "Living room robot",
+    robot_status: { connected: true, activity: "docked", battery_pct: 0 },
+    dock_controls: {
+      dry_mop: { active: true, entity_id: null },
+      stop_drying: { active: false, entity_id: "button.stop_drying" },
+    },
+    active_errors: [{ source: "mission", code: 48, reason: "path_blocked" }],
+    can_clean_everywhere: true,
+  };
+  let mapError = "map_unavailable";
+  card._hass = { async callWS(request) {
+    requests.push(request.type);
+    if (request.type === "roomba_home/floor_plan") {
+      throw Object.assign(new Error("Floor unavailable"), { code: mapError });
+    }
+    if (!overview) throw new Error("Device status unavailable");
+    return overview;
+  } };
+
+  await card.refresh();
+  assert.deepEqual(requests, ["roomba_home/floor_plan", "roomba_home/robot_overview"]);
+  assert.equal(card.snapshot, null);
+  assert.equal(card.$("scene").hidden, true);
+  assert.equal(card.$("title").textContent, "Living room robot");
+  assert.equal(card.$("robot-status").textContent, "At dock · Drying mop · Battery 0%");
+  assert.equal(card.$("active-errors").hidden, false);
+  assert.equal(card.$("clean-everywhere").hidden, false);
+  card.reviewCleanEverywhere();
+  card.reviewDockAction("stop_drying");
+  await card.refresh();
+  assert.equal(dialog.open, true);
+  assert.equal(card.$("dock-action-review").hidden, false);
+
+  overview = { robot: "Living room robot", robot_status: { connected: false } };
+  await card.refresh();
+  assert.equal(card.$("robot-status").textContent, "Offline");
+  assert.equal(card.$("open-dock-controls").hidden, true);
+  assert.equal(card.$("active-errors").hidden, true);
+  assert.equal(dialog.open, false);
+  overview.robot_status.connected = null;
+  await card.refresh();
+  assert.equal(card.$("robot-status").textContent, "Connectivity unknown");
+  overview = null;
+  await card.refresh();
+  assert.equal(card.$("robot-status").hidden, true);
+
+  mapError = "unauthorized";
+  await card.refresh();
+  assert.equal(requests.at(-1), "roomba_home/floor_plan");
+  assert.equal(card.$("title").textContent, "Roomba floor plan");
+});
+
+test("late map-unavailable status cannot update a card after its robot changes", async () => {
+  const { card } = mockCard(0);
+  let resolve;
+  card._hass = { callWS: () => new Promise((done) => { resolve = done; }) };
+  card.sequence = 1;
+  const pending = card.refreshRobotOverview("vacuum.previous", 1);
+  card.sequence = 2;
+  card.updateRobotOverview({ robot: "Current robot", robot_status: { connected: true } });
+  resolve({ robot: "Previous robot", robot_status: { connected: false } });
+  await pending;
+  assert.equal(card.$("title").textContent, "Current robot");
+  assert.equal(card.$("robot-status").textContent, "Connected");
 });
 
 test("last mission results name furniture and keep separately reported zone metrics", () => {

@@ -38,6 +38,14 @@ const DOCK_CONTROLS = {
   empty_bin: "Empty bin",
   refill_tank: "Refill tank",
 };
+const ROBOT_ACTIVITY = {
+  idle: "Idle", docked: "At dock", cleaning: "Cleaning", paused: "Paused",
+  returning: "Returning to dock", error: "Needs attention", mapping: "Mapping",
+};
+const DOCK_ACTIVITY = {
+  wash_mop: "Washing mop and tray", dry_mop: "Drying mop",
+  empty_bin: "Emptying bin", refill_tank: "Refilling tank",
+};
 const SETTINGS = {
   suction_level: "Suction",
   wetness_level: "Mop wetness",
@@ -226,6 +234,7 @@ template.innerHTML = `
     <header>
       <div>
         <h2 id="title">Roomba floor plan</h2>
+        <p id="robot-status" class="muted" hidden></p>
         <p id="floor-name" class="muted" hidden></p>
         <p id="activity" class="muted"></p>
       </div>
@@ -253,7 +262,7 @@ template.innerHTML = `
         <button id="refresh-floor-shortcuts" type="button">Refresh quick routines</button>
       </details>
     </div>
-    <div id="scene" class="scene">
+    <div id="scene" class="scene" hidden>
       <canvas width="${WIDTH}" height="${HEIGHT}" tabindex="0"
         aria-label="Floor plan. Use arrow keys to pan the zoomed or 3D map. Select areas using the controls below."></canvas>
       <canvas id="live-marker" width="${WIDTH}" height="${HEIGHT}" aria-hidden="true"></canvas>
@@ -1564,16 +1573,14 @@ class RoombaHomeMapCard extends HTMLElement {
     this.selectedFloor = null;
     this.geometry = null;
     this.snapshot = null;
+    this.$("scene").hidden = true;
     this.dockDraft = null;
     this.dockRequest = null;
     this.dockMessage = "";
-    this.updateDockControls();
     this.recommendedRooms = null;
     this.recommendationsHidden = false;
-    this.renderActiveErrors();
-    this.renderCurrentMission(null);
     this.missionControlMessage = "";
-    this.updateMissionControls(null);
+    this.updateRobotOverview();
     this.updateFloorShortcuts();
     this.pointMode = false;
     this.pointCleaningMode = null;
@@ -1604,9 +1611,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.closeLiveSubscription();
     this.timer = null;
     this.recommendedRooms = null;
-    this.renderActiveErrors();
-    this.renderCurrentMission(null);
-    this.updateMissionControls(null);
+    this.updateRobotOverview();
     this.invalidateFloorShortcuts();
     if (this.$("dock-controls-dialog").open) this.$("dock-controls-dialog").close();
     this.sequence++;
@@ -1652,6 +1657,7 @@ class RoombaHomeMapCard extends HTMLElement {
         this.selectedFloor = null;
       }
       this.snapshot = data;
+      this.updateRobotOverview(data);
       this.updateLiveSubscription(data.map);
       this.updateSkipControl(data.skip_review);
       this.updateMappingControl(data.mapping);
@@ -1659,19 +1665,18 @@ class RoombaHomeMapCard extends HTMLElement {
       this.floor = data.map?.id ?? null;
       if (!data.map) this.geometry = null;
       if (data.geometry) this.geometry = data.geometry;
+      this.$("scene").hidden = !this.geometry;
       this.updateFloorShortcuts();
       if (this.routineDialog.open) {
         this.renderRoutineEstimate();
         if (changed || inventoryChanged) this.renderQuickRoutines();
       }
       if (floorsChanged || this.renderedGeometry !== this.geometry) this.renderAreas();
-      this.$("title").textContent = data.robot;
       this.$("floor-name").textContent = data.floor_settings?.name ?? "";
       this.$("floor-name").hidden = !data.floor_settings?.name ||
         (data.maps.length > 1 && Boolean(this.selectedFloor));
       this.$("manage-routines").hidden = !data.cleaning;
       this.$("manage-schedules").hidden = !data.can_manage_schedules || !data.map;
-      this.$("clean-everywhere").hidden = !data.can_clean_everywhere;
       this.$("open-cleaning-scores").hidden = !data.map;
       this.$("map-impact").hidden = !data.cleaning;
       this.$("edit-floor").hidden = !data.can_edit_rooms || !data.floor_settings ||
@@ -1689,10 +1694,6 @@ class RoombaHomeMapCard extends HTMLElement {
         (data.mapping.activity === "paused" ? "Mapping paused" : "Mapping in progress") :
         [data.current_room ? `Current room · ${data.current_room}` : null,
           data.on_mapped_carpet === true ? "On mapped carpet" : null].filter(Boolean).join(" · ");
-      this.renderActiveErrors(data.active_errors);
-      this.renderCurrentMission(data.current_mission);
-      this.updateMissionControls(data.mission_controls);
-      this.updateDockControls();
       if (staleFloorDraft) {
         this.operationMessage = "The floor settings changed. Open the editor again.";
         this.$("status").textContent = this.operationMessage;
@@ -1715,18 +1716,15 @@ class RoombaHomeMapCard extends HTMLElement {
       this.updateMappingControl(null);
       this.updateFloorRemoval();
       this.geometry = null;
+      this.$("scene").hidden = true;
       this.recommendedRooms = null;
       this.updateFloorShortcuts();
       if (this.routineDialog.open) {
         this.renderRoutineEstimate();
         this.renderQuickRoutines();
       }
-      this.clearSelection();
+      this.clearSelection(false, { keepRobotReview: error?.code === "map_unavailable" });
       this.renderAreas();
-      this.renderActiveErrors();
-      this.renderCurrentMission(null);
-      this.updateMissionControls(null);
-      this.updateDockControls();
       this.renderMissionPlan(null);
       this.renderAreaResults("active", [], "In progress");
       this.renderAreaResults("history", [], "Unknown outcome");
@@ -1735,7 +1733,6 @@ class RoombaHomeMapCard extends HTMLElement {
       this.$("floor-name").hidden = true;
       this.$("manage-routines").hidden = true;
       this.$("manage-schedules").hidden = true;
-      this.$("clean-everywhere").hidden = true;
       this.$("open-cleaning-scores").hidden = true;
       if (this.$("cleaning-scores-dialog").open) this.$("cleaning-scores-dialog").close();
       this.$("map-impact").hidden = true;
@@ -1745,12 +1742,27 @@ class RoombaHomeMapCard extends HTMLElement {
       this.$("edit-restrictions").hidden = true;
       this.$("edit-furniture").hidden = true;
       this.$("status").textContent = error?.message || "Floor plan unavailable.";
+      if (error?.code === "map_unavailable") {
+        await this.refreshRobotOverview(query.entity_id, sequence);
+      } else {
+        this.updateRobotOverview();
+      }
     } finally {
       if (sequence === this.sequence) {
         this.loading = false;
         if (this.backups && this.backupsOpen(this.backups)) this.updateMapBackupControls(this.backups);
       }
     }
+  }
+
+  async refreshRobotOverview(entity, sequence) {
+    let overview = null;
+    try {
+      overview = await this._hass.callWS({ type: "roomba_home/robot_overview", entity_id: entity });
+    } catch {
+      // Missing or unauthorized device data clears the controls for this card.
+    }
+    if (sequence === this.sequence) this.updateRobotOverview(overview);
   }
 
   updateLiveSubscription(map) {
@@ -3040,6 +3052,35 @@ class RoombaHomeMapCard extends HTMLElement {
     renderMeasurements(view, values);
   }
 
+  updateRobotOverview(overview = null) {
+    this.robotOverview = overview;
+    this.$("title").textContent = overview?.robot || "Roomba floor plan";
+    const status = overview?.robot_status;
+    const reported = [];
+    if (status?.connected === true) {
+      reported.push(ROBOT_ACTIVITY[status.activity] ?? "Connected");
+      for (const [action, label] of Object.entries(DOCK_ACTIVITY)) {
+        if (overview.dock_controls?.[action]?.active === true) reported.push(label);
+      }
+      if (Number.isInteger(status.battery_pct)) reported.push(`Battery ${status.battery_pct}%`);
+    } else if (status) {
+      reported.push(status.connected === false ? "Offline" : "Connectivity unknown");
+    }
+    const view = this.$("robot-status");
+    view.textContent = reported.join(" · ");
+    view.hidden = !reported.length;
+    this.renderActiveErrors(overview?.active_errors);
+    this.renderCurrentMission(overview?.current_mission);
+    this.updateMissionControls(overview?.mission_controls);
+    this.updateDockControls();
+    const canStart = overview?.can_clean_everywhere === true;
+    this.$("clean-everywhere").hidden = !canStart;
+    if (!canStart && this.confirmation?.everywhere) {
+      this.confirmation = null;
+      if (this.dialog.open) this.dialog.close();
+    }
+  }
+
   renderCurrentMission(mission) {
     const view = this.$("current-mission");
     const phaseLabels = { charge: "At dock", hmUsrDock: "Returning to dock", hmUsrChrg: "Returning to dock",
@@ -3090,7 +3131,7 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   updateDockControls() {
-    const controls = this.snapshot?.dock_controls ?? {};
+    const controls = this.robotOverview?.dock_controls ?? {};
     const available = Boolean(Object.keys(controls).length);
     this.$("open-dock-controls").hidden = !available;
     this.$("dock-unavailable").hidden = available;
@@ -3111,7 +3152,7 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   reviewDockAction(action) {
-    const entity = this.snapshot?.dock_controls?.[action]?.entity_id;
+    const entity = this.robotOverview?.dock_controls?.[action]?.entity_id;
     if (!Object.hasOwn(DOCK_CONTROLS, action) || !entity || this.dockRequest ||
         !this.$("dock-controls-dialog").open) return;
     this.dockDraft = { action, entity };
@@ -3124,7 +3165,7 @@ class RoombaHomeMapCard extends HTMLElement {
   async confirmDockAction() {
     const draft = this.dockDraft;
     if (!this.$("dock-controls-dialog").open || !draft || this.dockRequest ||
-        this.snapshot?.dock_controls?.[draft.action]?.entity_id !== draft.entity) return;
+        this.robotOverview?.dock_controls?.[draft.action]?.entity_id !== draft.entity) return;
     this.dockDraft = null;
     this.dockRequest = draft;
     this.dockMessage = "Waiting for Roomba to confirm…";
@@ -3148,15 +3189,15 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   reviewMissionCommand(command) {
-    const controls = this.snapshot?.mission_controls;
+    const controls = this.robotOverview?.mission_controls;
     if (!controls?.commands.includes(command) || this.missionControlPending) return;
     const draft = { command, review_id: controls.review_id };
     if (command === "pause" || command === "resume") return this.sendMissionCommand(draft);
     this.missionControlDraft = draft;
     this.$("mission-control-title").textContent = `${MISSION_CONTROLS[command]}?`;
     this.$("mission-control-description").textContent = command === "stop"
-      ? `End the current mission for ${this.snapshot.robot}?`
-      : `Send ${this.snapshot.robot} back to its dock?`;
+      ? `End the current mission for ${this.robotOverview.robot}?`
+      : `Send ${this.robotOverview.robot} back to its dock?`;
     this.$("confirm-mission-control").textContent = MISSION_CONTROLS[command];
     this.$("mission-control-dialog").showModal();
   }
@@ -3170,7 +3211,7 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   async sendMissionCommand(draft) {
-    const controls = this.snapshot?.mission_controls;
+    const controls = this.robotOverview?.mission_controls;
     if (this.missionControlPending || !controls?.commands.includes(draft.command) ||
         draft.review_id !== controls.review_id) return;
     const entity = this.config.entity;
@@ -3187,7 +3228,7 @@ class RoombaHomeMapCard extends HTMLElement {
     } finally {
       await this.refresh(true);
       this.missionControlPending = false;
-      this.updateMissionControls(this.snapshot?.mission_controls);
+      this.updateMissionControls(this.robotOverview?.mission_controls);
     }
   }
 
@@ -3292,11 +3333,13 @@ class RoombaHomeMapCard extends HTMLElement {
     }
   }
 
-  clearSelection(keepRoomDraft = false) {
+  clearSelection(keepRoomDraft = false, { keepRobotReview = false } = {}) {
     this.selected.clear();
     this.point = null;
-    this.confirmation = null;
-    if (this.dialog.open) this.dialog.close();
+    if (!(keepRobotReview && this.confirmation?.everywhere)) {
+      this.confirmation = null;
+      if (this.dialog.open) this.dialog.close();
+    }
     this.closeMapDrafts(keepRoomDraft);
     this.updateSelection();
   }
@@ -4053,21 +4096,21 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   reviewCleanEverywhere() {
-    if (!this.snapshot?.can_clean_everywhere || this.submitting ||
+    if (!this.robotOverview?.can_clean_everywhere || this.submitting ||
         this.$("clean-everywhere").disabled || this.dialog.open) return;
     this.confirmation = { everywhere: true, entity: this.config.entity };
     this.$("confirm-text").textContent =
-      `${this.snapshot.robot} will clean every reachable area using its next-cleaning preferences.`;
+      `${this.robotOverview.robot} will clean every reachable area using its next-cleaning preferences.`;
     this.$("customize-cleaning").hidden = true;
     this.dialog.showModal();
   }
 
   async submit() {
     const choice = this.confirmation;
-    if (!choice || this.submitting || !this.snapshot) return;
+    if (!choice || this.submitting) return;
     if (choice.everywhere) {
-      if (!this.dialog.open || !this.snapshot.can_clean_everywhere || choice.entity !== this.config.entity) return;
-    } else if ((choice.point && (!this.pointAvailable || !this.pointModes.includes(choice.mode))) ||
+      if (!this.dialog.open || !this.robotOverview?.can_clean_everywhere || choice.entity !== this.config.entity) return;
+    } else if (!this.snapshot || (choice.point && (!this.pointAvailable || !this.pointModes.includes(choice.mode))) ||
         !this.cleaningReviewIsCurrent(choice)) return;
     this.submitting = true;
     this.confirmation = null;
