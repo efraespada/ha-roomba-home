@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.78.0
+
+- Show the current mission's reported phase, mode, elapsed time, and
+  cleaned area above the floor plan, including runs without a destination plan.
+
 ## 0.77.0
 
 - Open saved, recent, and recommended cleaning drafts from **Quick routines**

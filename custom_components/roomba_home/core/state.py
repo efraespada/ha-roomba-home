@@ -108,6 +108,12 @@ class RobotState:
             return self.activity == "docked" and self.cycle == "none"
         return False
 
+    def mission_elapsed(self, now: datetime) -> int | None:
+        started = self.telemetry.get("mission_started")
+        if started is None or self.cycle in {None, "none"}:
+            return None
+        return max(0, int((now - started).total_seconds()))
+
 
 def project_state(robot_id: str, details: dict, shadows: dict) -> RobotState:
     def reported(name):

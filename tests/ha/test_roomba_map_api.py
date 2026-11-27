@@ -955,6 +955,96 @@ async def test_mapping_status_is_available_before_the_first_saved_floor(
         assert snapshot["mapping"] == {"can_start": False, "activity": "paused"}
 
 
+async def test_current_mission_is_covered_before_the_first_saved_floor_and_without_an_itinerary(
+    configured, hass_ws_client, hass_admin_user
+):
+    robot = "fixture-0"
+    now = datetime.now(UTC)
+    ready = configured.data[robot]
+    cleaning = replace(
+        ready,
+        connected=True,
+        cycle="spot",
+        phase="run",
+        mode=2,
+        error=0,
+        telemetry=ready.telemetry
+        | {
+            "mission_started": now - timedelta(seconds=65),
+            "mission_area": 0,
+        },
+    )
+    query = {
+        "id": 1,
+        "type": "roomba_home/floor_plan",
+        "entity_id": ENTITY,
+        "known_map_id": MAP.map_id,
+        "known_version": MAP.version_id,
+    }
+    socket = await hass_ws_client()
+    expected = {
+        "activity": "cleaning",
+        "phase": "run",
+        "mode": "vacuum",
+        "elapsed_seconds": 65,
+        "cleaned_area_m2": 0,
+        "error_code": None,
+    }
+    with (
+        patch("custom_components.roomba_home.map_api.datetime", wraps=datetime) as clock,
+        patch.object(
+            type(hass_admin_user.permissions),
+            "check_entity",
+            side_effect=lambda _, policy: policy == POLICY_READ,
+        ),
+    ):
+        clock.now.return_value = now
+        configured.data[robot] = cleaning
+        await socket.send_json(query)
+        snapshot = (await socket.receive_json())["result"]
+        assert snapshot["current_mission"] == expected
+        assert snapshot["live_plan"] is None
+
+        configured._maps[robot] = ()
+        await socket.send_json(query | {"id": 2})
+        snapshot = (await socket.receive_json())["result"]
+        assert snapshot["map"] is None and snapshot["current_mission"] == expected
+
+        configured.data[robot] = replace(cleaning, phase="stop")
+        clock.now.return_value = now + timedelta(seconds=20)
+        await socket.send_json(query | {"id": 3})
+        assert (await socket.receive_json())["result"]["current_mission"] == expected | {
+            "phase": "stop",
+            "activity": "paused",
+            "elapsed_seconds": 85,
+        }
+
+        configured.data[robot] = replace(
+            cleaning,
+            phase="stuck",
+            mode=999,
+            error=48,
+            telemetry=ready.telemetry,
+        )
+        await socket.send_json(query | {"id": 4})
+        assert (await socket.receive_json())["result"]["current_mission"] == {
+            "phase": "stuck",
+            "activity": "error",
+            "mode": None,
+            "elapsed_seconds": None,
+            "cleaned_area_m2": None,
+            "error_code": 48,
+        }
+
+        for identifier, state in (
+            (5, replace(cleaning, cycle="none", phase="charge")),
+            (6, replace(cleaning, connected=False)),
+        ):
+            configured.data[robot] = state
+            await socket.send_json(query | {"id": identifier})
+            assert (await socket.receive_json())["result"]["current_mission"] is None
+
+
 @pytest.mark.parametrize(
     ("connected", "phase", "cycle", "modes", "can_control", "available"),
     [

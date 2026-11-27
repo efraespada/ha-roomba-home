@@ -14,6 +14,7 @@ from homeassistant.helpers import config_validation as cv
 
 from .core.capabilities import supports_point_clean
 from .core.cleaning import CleaningMode
+from .core.cleaning_protocol import reported_cleaning_mode
 from .core.errors import AuthenticationError
 from .core.floor_settings import MAX_INITIAL_FLOOR_NAME_LENGTH, floor_name_limit
 from .core.furniture_edits import FURNITURE_TYPES, can_edit_furniture, furniture_pose
@@ -26,11 +27,26 @@ from .core.point_maps import with_archive_destinations
 from .core.restriction_edits import EDITABLE_RESTRICTIONS
 from .core.room_edits import MAX_ROOM_NAME_LENGTH, ROOM_TYPES
 from .core.routine_presets import routine_presets, supports_routine_presets
+from .core.state import RobotState
+from .core.telemetry import CLEANING_CYCLES
 from .core.zone_edits import zone_corners
 from .vacuum import RoombaVacuum
 
 CARD_URL = "/roomba_home/roomba-home-map-card.js"
 IDENTIFIER = vol.All(str, vol.Length(min=1, max=128))
+
+
+def current_mission(state: RobotState, now: datetime) -> dict | None:
+    if state.connected is not True or state.cycle not in CLEANING_CYCLES:
+        return None
+    return {
+        "activity": state.activity,
+        "phase": state.phase,
+        "mode": reported_cleaning_mode(state.mode),
+        "elapsed_seconds": state.mission_elapsed(now),
+        "cleaned_area_m2": state.telemetry.get("mission_area"),
+        "error_code": state.error or None,
+    }
 
 
 async def async_setup_map_api(hass):
@@ -494,6 +510,8 @@ async def websocket_floor_plan(hass, connection, message):
         "can_start": can_control and state.capabilities.persistent_maps is True,
         "activity": (state.activity or "mapping") if state.mapping is True else None,
     }
+    now = datetime.now(UTC)
+    mission = current_mission(state, now)
     if not maps:
         connection.send_result(
             message["id"],
@@ -502,6 +520,7 @@ async def websocket_floor_plan(hass, connection, message):
                 "map": None,
                 "maps": [],
                 "mapping": mapping,
+                "current_mission": mission,
                 "can_clean_everywhere": can_clean_everywhere,
             },
         )
@@ -514,7 +533,6 @@ async def websocket_floor_plan(hass, connection, message):
     # The archive revision and the associated region inventory can change independently.
     inventory_id = floor.inventory_id
     can_clean_point = can_control and supports_point_clean(state.capabilities.digital_spot)
-    now = datetime.now(UTC)
     path = account.live_path(robot_id) if active_floor else None
     live = live_geometry(
         path,
@@ -527,6 +545,7 @@ async def websocket_floor_plan(hass, connection, message):
     response = {
         "robot": state.name,
         "mapping": mapping,
+        "current_mission": mission,
         "map": {"id": floor.map_id, "version": floor.version_id},
         "inventory_id": inventory_id,
         "floor_settings": {

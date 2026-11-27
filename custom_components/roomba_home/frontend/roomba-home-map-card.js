@@ -85,6 +85,7 @@ template.innerHTML = `
     header { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     h2,h3,p { margin:0; } h2 { font-size:20px; font-weight:650; } h3 { font-size:14px; margin-bottom:8px; }
     .muted { color:var(--secondary-text-color,#a9b8c5); font-size:13px; }
+    #current-mission { margin:0 16px 12px; }
     .scene { position:relative; isolation:isolate; background:#101e2a; }
     canvas { width:100%; height:auto; display:block; touch-action:pan-y; cursor:crosshair; }
     [data-gesture-pan="true"] > canvas { touch-action:none; cursor:grab; }
@@ -205,6 +206,7 @@ template.innerHTML = `
       <button id="open-maintenance">Maintenance</button>
       <button id="open-robot-help">Robot help</button>
     </header>
+    <dl id="current-mission" class="measurements" aria-label="Current mission" hidden></dl>
     <div class="floor-routine-controls">
       <button id="show-recommended-rooms" hidden aria-pressed="false">Recommended rooms</button>
       <details id="floor-shortcuts" hidden>
@@ -1038,6 +1040,10 @@ function renderMeasurements(element, values) {
   }));
 }
 
+function durationClock(seconds) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 function showPresetChoices(select, keys, locked) {
   select.replaceChildren(option("", "Choose a preset"),
     ...keys.map((key) => option(key, PRESET_LABELS[key])));
@@ -1405,6 +1411,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.geometry = null;
     this.snapshot = null;
     this.recommendedRooms = null;
+    this.renderCurrentMission(null);
     this.updateFloorShortcuts();
     this.pointMode = false;
     this.pointCleaningMode = null;
@@ -1435,6 +1442,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.closeLiveSubscription();
     this.timer = null;
     this.recommendedRooms = null;
+    this.renderCurrentMission(null);
     this.invalidateFloorShortcuts();
     this.sequence++;
     this.loading = false;
@@ -1516,6 +1524,7 @@ class RoombaHomeMapCard extends HTMLElement {
         (data.mapping.activity === "paused" ? "Mapping paused" : "Mapping in progress") :
         [data.current_room ? `Current room · ${data.current_room}` : null,
           data.on_mapped_carpet === true ? "On mapped carpet" : null].filter(Boolean).join(" · ");
+      this.renderCurrentMission(data.current_mission);
       if (staleFloorDraft) {
         this.operationMessage = "The floor settings changed. Open the editor again.";
         this.$("status").textContent = this.operationMessage;
@@ -1545,6 +1554,7 @@ class RoombaHomeMapCard extends HTMLElement {
       }
       this.clearSelection();
       this.renderAreas();
+      this.renderCurrentMission(null);
       this.renderMissionPlan(null);
       this.renderAreaResults("active", [], "In progress");
       this.renderAreaResults("history", [], "Unknown outcome");
@@ -2764,6 +2774,29 @@ class RoombaHomeMapCard extends HTMLElement {
     }
   }
 
+  renderCurrentMission(mission) {
+    const view = this.$("current-mission");
+    const phaseLabels = { padWash: "Washing mop", refill: "Refilling tank", evac: "Emptying bin",
+      padDry: "Drying mop", mapupd: "Updating map" };
+    const activityLabels = { cleaning: "Cleaning", returning: "Returning to dock", docked: "At dock",
+      paused: "Paused", error: "Needs attention" };
+    const phase = mission?.error_code ? `Error ${mission.error_code}`
+      : phaseLabels[mission?.phase] ?? activityLabels[mission?.activity];
+    const elapsed = mission?.elapsed_seconds;
+    const area = mission?.cleaned_area_m2;
+    const values = [
+      ["Phase", phase],
+      ["Mode", MODES[mission?.mode]],
+      ["Time since start", elapsed == null ? null : durationClock(elapsed)],
+      ["Reported area", area == null ? null : `${area} m²`],
+    ];
+    const signature = JSON.stringify(values);
+    if (view.dataset.mission === signature) return;
+    view.dataset.mission = signature;
+    view.hidden = values.every(([, value]) => value == null);
+    renderMeasurements(view, values);
+  }
+
   renderMissionPlan(plan, id = "mission-plan") {
     const view = this.$(id);
     const signature = JSON.stringify(plan ?? null);
@@ -2806,7 +2839,7 @@ class RoombaHomeMapCard extends HTMLElement {
       const cleaning = destination.cleaning_elapsed_seconds;
       const elapsed = cleaning ?? destination.stage_elapsed_seconds;
       const stageTime = elapsed != null
-        ? `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")} ${cleaning != null ? "cleaning" : "in current stage"}`
+        ? `${durationClock(elapsed)} ${cleaning != null ? "cleaning" : "in current stage"}`
         : null;
       const passes = passSummary(
         destination.confirmed_completed_passes, destination.reported_pass_count, destination.current_pass_number,
