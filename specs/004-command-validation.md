@@ -104,7 +104,7 @@ The robot or dock reporting a fault or a different mission ends this
 additional wait. Confirmation still requires a docked robot with an
 ended mission. The wash can extend the deadline once.
 [Return trial](../docs/validation.md#return-during-active-cleaning) ·
-[Mop-only return trial](../docs/validation.md#household-mop-only-route-and-return)
+[Mop-only return confirmation on 0.86.1](../docs/validation.md#physical-confirmation-on-0861)
 
 ## 7. User-facing configuration
 
@@ -228,7 +228,7 @@ verify outcomes that fixtures cannot establish.
 | CMD-04 | `CommandReceipt` | [Broker receipt test](../tests/test_commands.py) |
 | CMD-05 | Transport errors and evidence tooling | [Privacy scan](../scripts/check_privacy.py) and [public validation](../docs/validation.md) |
 | CMD-06 | Control policy and live timeline | [Policy tests](../tests/test_application.py) and [physical skip](../docs/validation.md#skip-the-current-destination) |
-| CMD-07 | Return-to-base policy | [Policy tests](../tests/test_application.py), [Home Assistant service tests](../tests/ha/test_cleaning_controls.py), [physical return](../docs/validation.md#return-during-active-cleaning), and [post-return wash observation](../docs/validation.md#household-mop-only-route-and-return) |
+| CMD-07 | Return-to-base policy | [Policy tests](../tests/test_application.py), [Home Assistant service tests](../tests/ha/test_cleaning_controls.py), [physical return during vacuuming](../docs/validation.md#return-during-active-cleaning), and [physical return through a pad wash](../docs/validation.md#physical-confirmation-on-0861) |
 | CMD-08 | Confirmation polling and coordinator adapter | [Policy tests](../tests/test_application.py) and [coordinator tests](../tests/ha/test_coordinator.py) |
 
 ## 18. Implementation sequence

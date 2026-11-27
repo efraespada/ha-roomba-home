@@ -26,10 +26,34 @@ by a same-mission dock wash that takes longer than the normal window.
 The new deadline applies once and the sequence publishes one pause and
 one dock command. It confirms at the idle dock. The tests cover unrelated
 washes, later missions, dock faults, and a wash that outlasts the extension.
-The change still needs a physical return test on the updated version.
 [Anonymized household evidence](evidence/2026-11-27-household-mop-return.json) ·
 [Installed archive legend](screenshots/roomba-archived-mopping.jpg) ·
 [iRobot Max 700 dock behavior](https://homesupport.irobot.com/articles/en_US/Knowledge/70501)
+
+### Physical confirmation on 0.86.1
+
+The installed card started a second mop-only run in the room containing
+the dock and returned the robot after about three minutes of floor
+cleaning. Home Assistant's command sensor reported `pending` eight
+seconds after the return request. The dock reported wash code 602
+94 seconds after the request. At 338 seconds, the dock returned to code
+601 and the command sensor changed to `confirmed`. The sensor recorded
+no `unconfirmed` state during this return. The signed canceled report
+recorded three minutes of cleaning for its one room and 4.09 m². The
+installed card opened the native mopping route and coverage.
+
+Home Assistant reproduced the missing position updates during floor
+cleaning. The Android app displayed the active mopping state, but its
+map stayed on the loading screen while Proxyman reported a TLS
+certificate error on the map host. The Proxyman CA was missing from the
+emulator's system store after a stock cold boot. The emulator setup
+assistant restored the certificate on the test emulator. With the robot
+back at the dock, the app loaded the saved floor. Proxyman showed HTTP
+200 for three signed map list reads and one floor routine list read.
+These reads verify the restored capture. The simultaneous live-map
+comparison still needs a cleaning run with a working capture.
+[Anonymized physical confirmation](evidence/2026-11-27-household-mop-return-confirmed.json) ·
+[Proxyman emulator setup](https://proxyman.com/docs/debug-devices/android-device/google-play-android-emulator-with-magisk)
 
 ## Household vacuum route after clearing error 48
 

@@ -320,6 +320,9 @@ allowed command against a fresh state read before publication. Resume
 always uses the explicit `resume` command. The normal command
 confirmation path verifies the resulting state and reports an error if a
 different active mission replaces the reviewed one.
+An observed automatic pad wash in the same mission can extend the return
+confirmation window once. The installed action confirmed the physical
+return after a 244-second wash. [Mop-only confirmation](validation.md#physical-confirmation-on-0861)
 
 ### Mode-specific live coverage
 
