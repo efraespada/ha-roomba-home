@@ -1346,6 +1346,73 @@ test("quick routines load reviewed settings as a new draft without creating a fa
   }, { entity_id: card.config.entity }]]);
 });
 
+test("recommended room highlighting uses the exact provider targets and keeps the selection intact", async () => {
+  const card = draftEstimateCard();
+  card.geometry.regions = [
+    { id: "room-a", name: "Kitchen", kind: "room" },
+    { id: "room-b", name: "Entryway", kind: "room" },
+    { id: "zone-b", name: "Table zone", kind: "zone" },
+  ];
+  const selected = new Set(["room-a"]);
+  card.selected = selected;
+  card.draw = () => card.renderRecommendedRooms();
+  card._hass = { callWS: async (query) => {
+    assert.deepEqual(JSON.parse(JSON.stringify(query)), {
+      type: "roomba_home/floor_routines", entity_id: card.config.entity, map_id: "fixture-map", version: "v1",
+    });
+    return { map_id: "fixture-map", version: "v1", routines: [
+      { kind: "recent", target_ids: ["room-a"] },
+      { kind: "recommended", target_ids: ["room-b", "zone-b", "other-room"] },
+    ] };
+  } };
+  await card.toggleRecommendedRooms();
+  assert.deepEqual([...card.renderRecommendedRooms()], ["room-b"]);
+  assert.equal(card.$("recommended-rooms-status").textContent, "Cleaning recommended for Entryway.");
+  assert.equal(card.$("recommended-rooms-key").hidden, false);
+  assert.deepEqual([...selected], ["room-a"]);
+  await card.toggleRecommendedRooms();
+  assert.deepEqual([...card.renderRecommendedRooms()], []);
+  assert.equal(card.$("recommended-rooms-status").hidden, true);
+  assert.equal(card.$("recommended-rooms-key").hidden, true);
+});
+
+test("recommended rooms ignore stale replies and report an unavailable floor", async () => {
+  const card = draftEstimateCard();
+  card.draw = () => card.renderRecommendedRooms();
+  let resolve;
+  card._hass = { callWS: () => new Promise((done) => { resolve = done; }) };
+  const pending = card.toggleRecommendedRooms();
+  assert.equal(card.$("recommended-rooms-status").textContent, "Loading recommended rooms…");
+  await card.toggleRecommendedRooms();
+  resolve({ map_id: "fixture-map", version: "v1", routines: [{ kind: "recommended", target_ids: ["room-a"] }] });
+  await pending;
+  assert.equal(card.$("recommended-rooms-status").hidden, true);
+  card._hass.callWS = async () => ({ map_id: "fixture-map", version: "older", routines: [] });
+  await card.toggleRecommendedRooms();
+  assert.match(card.$("recommended-rooms-status").textContent, /floor changed/);
+  await card.toggleRecommendedRooms();
+  card._hass.callWS = async () => ({ map_id: "fixture-map", version: "v1", routines: [] });
+  await card.toggleRecommendedRooms();
+  assert.match(card.$("recommended-rooms-status").textContent, /no recommended rooms/);
+});
+
+test("loading a native recommendation keeps automatic order and requires review before dispatch", async () => {
+  const card = draftEstimateCard();
+  card.callAction = async () => ({ map_id: "fixture-map", version: "v1", routines: [{
+    kind: "recommended", name: "Clean recommended rooms", ordered: false,
+    region_settings: [{ id: "room-a", mode: "vacuum", suction_level: 2 }],
+  }] });
+  await card.loadQuickRoutines();
+  card.$("quick-routines").children[0].children[1].onclick();
+  assert.equal(card.routineDraft.ordered, false);
+  assert.equal(card.$("routine-order").value, "automatic");
+  const commands = [];
+  card._hass = { callService: async (...args) => commands.push(args) };
+  await card.runRoutine();
+  assert.match(card.$("routine-status").textContent, /Roomba will choose the order/);
+  assert.equal(commands.length, 0);
+});
+
 test("spot suggestion opens the existing point picker and a stale quick list is discarded", async () => {
   const card = draftEstimateCard();
   Object.defineProperty(card, "pointAvailable", { value: true });

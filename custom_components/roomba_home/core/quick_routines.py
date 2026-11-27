@@ -17,6 +17,7 @@ _REPLAY_FIELDS = {*_COMMAND_FIELDS, "user_p2mapv_id", "regions", "ordered", "id_
 _KINDS = {
     "REPLAY": ("recent", "Recent cleaning", "start"),
     "CLEAN_ALL": ("clean_all", "Clean all rooms", "start"),
+    "CLEAN_DIRTY": ("recommended", "Clean recommended rooms", "start"),
     "SPOT_CLEAN": ("spot_clean", "Clean a point", "point_clean"),
 }
 
@@ -49,8 +50,11 @@ def read_quick_routines(
             continue
         draft = None
         choose_point = False
+        recommendation = {}
         if kind == "REPLAY":
             draft = _replay_regions(command, params, floor, current, capabilities)
+        elif kind == "CLEAN_DIRTY":
+            recommendation = _recommended_rooms(command, params, floor, rooms, capabilities)
         elif command.keys() == _COMMAND_FIELDS and params.keys() == {"routine_type"}:
             if kind == "CLEAN_ALL" and 1 <= len(rooms) <= 32:
                 draft = [{"id": room.segment_id(floor.map_id)} for room in rooms]
@@ -65,9 +69,43 @@ def read_quick_routines(
                 "duration_seconds": integer(row.get("time_estimate_seconds")),
                 "region_settings": draft,
                 "choose_point": choose_point,
+                **recommendation,
             }
         )
     return {"map_id": floor.map_id, "version": floor.version_id, "routines": items}
+
+
+def _recommended_rooms(command, params, floor, rooms, capabilities):
+    if (
+        command.keys() != _COMMAND_FIELDS | {"regions"}
+        or params.keys() != {"routine_type", "clean_score_id"}
+        or not map_identifier(params["clean_score_id"])
+        or not isinstance(regions := command.get("regions"), list)
+        or not 1 <= len(regions) <= 32
+    ):
+        return {}
+    mapped = {room.region_id: room.segment_id(floor.map_id) for room in rooms}
+    settings = {}
+    for row in regions:
+        if (
+            not isinstance(row, dict)
+            or row.keys() != {"region_id", "params"}
+            or not isinstance(native_id := row["region_id"], str)
+            or (identifier := mapped.get(native_id)) is None
+            or identifier in settings
+        ):
+            return {}
+        profile = _supported_profile(
+            {"type": "rid", "region_id": native_id, "params": row["params"]}, capabilities
+        )
+        settings[identifier] = {"id": identifier, **profile} if profile is not None else None
+    return {
+        "target_ids": list(settings),
+        "region_settings": list(settings.values())
+        if all(profile is not None for profile in settings.values())
+        else None,
+        "ordered": False,
+    }
 
 
 def _replay_regions(command, params, floor, current, capabilities):
@@ -116,19 +154,27 @@ def _replay_regions(command, params, floor, current, capabilities):
             identifier = command_region_id(floor.map_id, region)
         if identifier not in current or identifier in result:
             return None
-        profile = routine_region_profile(
-            {"region_id": native_id, "type": region["type"], "params": global_preferences | local}
+        profile = _supported_profile(
+            {"region_id": native_id, "type": region["type"], "params": global_preferences | local},
+            capabilities,
         )
         if profile is None:
             return None
-        try:
-            CleaningProfile(**(profile | {"mode": CleaningMode(profile["mode"])})).validate(
-                capabilities.cleaning
-            )
-        except ValueError:
-            return None
         result[identifier] = {"id": identifier, **profile}
     return list(result.values()) if used_links == links.keys() else None
+
+
+def _supported_profile(region, capabilities):
+    profile = routine_region_profile(region)
+    if profile is None:
+        return None
+    try:
+        CleaningProfile(**(profile | {"mode": CleaningMode(profile["mode"])})).validate(
+            capabilities.cleaning
+        )
+    except ValueError:
+        return None
+    return profile
 
 
 def _matches_outline(points, furniture):

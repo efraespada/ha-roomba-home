@@ -166,6 +166,11 @@ classification, when the score was updated, and the settings Roomba
 suggested. Recorded mission times belong to the score record and can
 differ from the latest cleaning report.
 
+Choose **Recommended rooms** to highlight the rooms Roomba has selected
+for a suggested cleaning. The legend also lists their names. Switching
+floors or loading a new revision clears the layer. Choose the button
+again to load the recommendation for that floor.
+
 Use the **Get room cleaning scores** action to read the same values in an
 automation. Enable saved floor plans first. Omit `map_id` for a robot with
 one active floor. For multiple floors, use the floor plan response's map
@@ -1116,6 +1121,9 @@ card shows the latest entries Roomba provides for the current floor.
 Choose **Load draft** to reuse a recent selection and its settings. A
 suggestion to clean all rooms loads the current rooms with your configured
 cleaning defaults. **Choose point** opens the floor plan's point picker.
+When available, **Clean recommended rooms** loads the destinations and
+per-room settings from Roomba's current recommendation. Its draft starts
+with **Let Roomba choose** for the order.
 
 Review the areas, their order, and their individual preferences before
 choosing **Run draft** and **Confirm start**. You can save the draft as a

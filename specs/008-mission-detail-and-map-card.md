@@ -84,7 +84,9 @@ trajectory contains observed positions and retains sequence gaps.
   errors, bin emptying, mop washing, and refill. Preserve the distinction
   between an explicit dock error code of zero and an unavailable code.
   Keep the reported evacuation count separate from the bin emptying stage.
-- MAP-08: Read the active floor revision's reported room cleaning scores and suggested cleaning settings.
+- MAP-08: Read the active floor revision's room scores and suggested settings.
+  Offer an overlay for the current Roomba recommendation. Match its exact
+  room IDs and label them in the legend independently of cleaning selection.
 - MAP-09: Show directed mission destinations, declared order, requested modes, and reported destination outcomes with a completion count.
 - MAP-10: Estimate the remaining time for the applicable work in a directed mission using the provider's durations and verified live stage.
 - MAP-11: Receive the authorized robot's live position updates continuously and deliver them to the displayed map. Show cleaned areas by the activity reported by Roomba.
@@ -149,6 +151,12 @@ zero, and label mission timestamps as part of the score record. Display
 suggested settings for review. Return an empty list when the current
 revision has no scores. Discard a delayed reply when the card switches
 floors or revisions.
+
+Read the current native recommendation through the floor-scoped routine
+list. Highlight the rooms in its `CLEAN_DIRTY` command. Preserve the
+existing selection, describe the highlighted rooms in text, and clear the
+overlay on a floor, revision, or inventory change. A late response cannot
+restore a cleared layer. [Recommendation validation](../docs/validation.md#recommended-rooms-on-the-floor-plan)
 
 Position collection MUST retain bounded point counts, honor provider expiry,
 and stop on unload or mission change. Label travel, vacuuming, mopping, and

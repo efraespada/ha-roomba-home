@@ -1,5 +1,20 @@
 # Roomba Home validation
 
+## Recommended rooms on the floor plan
+
+Roomba Home 3.4.1 marked five of the six current rooms on a Max 700 Combo
+floor with its **Cleaning recommended** legend. A signed read of the same
+floor's quick routines returned a `CLEAN_DIRTY` recommendation. Its five
+targets matched the app's highlighted rooms. All five profiles projected
+to supported simultaneous vacuuming and mopping settings. The native
+recommendation left the order to the robot.
+
+The Home Assistant tests cover read permission, floor revision validation,
+and draft loading. The map discards results for a different floor or
+after the layer is turned off. Loading a recommendation preserves its
+automatic order, and starting still requires the usual confirmation.
+[Anonymized recommendation comparison](evidence/2026-11-27-recommended-rooms.json)
+
 ## Scheduled furniture cleaning
 
 Roomba Home 3.4.1 selected a saved furniture object and a room as two
