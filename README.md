@@ -179,7 +179,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.82.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.83.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
@@ -252,6 +252,8 @@ reload the dashboard. Use one card per robot.
 - **Current mission** shows the robot's reported phase, mode, time since
   start, and cleaned area above the map. Point cleaning and whole-floor
   cleaning also show a summary when Roomba reports an active mission.
+  Active mission and dock errors stay visible while Roomba reports them,
+  including after a mission ends. The card keeps each error with its source.
   [Current mission readout](docs/usage.md#current-mission-readout)
 - **Mission controls** pause or resume the active mission and let you
   review cancellation or return to the dock from the same card.

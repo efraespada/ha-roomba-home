@@ -119,6 +119,16 @@ def observations(state):
     return result
 
 
+def active_device_errors(state):
+    """Project current robot and dock faults using their existing code namespaces."""
+    codes = observations(state)
+    return [
+        {"source": source, "code": code, "reason": reason(source, code)}
+        for source in ("mission", "dock", *DOCK_FIELDS)
+        if (code := codes[source])
+    ]
+
+
 def _dock_health(capabilities, codes):
     if capabilities.recognized is False:
         return None

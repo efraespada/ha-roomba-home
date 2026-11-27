@@ -51,6 +51,14 @@ destination timeline shows cleaning time in each area when its events
 are available. The current readout clears when the mission ends or the
 robot disconnects. Completed measurements remain in **Cleaning history**.
 
+Active errors appear above the map with the Roomba code, its source, and
+its known description. For example, **Mission error** shows
+**48 · Path blocked** while the mission readout shows **Returning to dock**.
+The error stays visible at the dock as long as Roomba reports it. Dock,
+emptying, refill, mop wash, and mop dry errors have separate labels.
+Open **Robot help** to check linked articles for recognized current codes.
+[Installed live trial](validation.md#household-live-coverage-and-active-errors)
+
 ### Control the current mission
 
 Use **Pause mission** above the floor plan while Roomba is cleaning, and
