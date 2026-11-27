@@ -163,6 +163,8 @@ estimated coverage when Roomba's mission archive is unavailable and the
 matching floor revision is readable from Roomba or a **Map backup**.
 [Local route recording](docs/usage.md#local-route-recording)
 
+![Installed Home Assistant card showing recording off and one saved route](docs/screenshots/roomba-local-route-recording.jpg)
+
 Expand **Results by area** to
 see the reported target size and the area measured in completed passes for
 a saved zone. In a verified two-pass vacuum run, Roomba reported a 2.51 m²

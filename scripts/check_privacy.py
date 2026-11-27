@@ -47,6 +47,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-expanded-history-filter.png": (
         "008a0bea894f4bf1cc0e754b91e71219e8553cfbebc1e924f470d7e93b61ace3"
     ),
+    "docs/screenshots/roomba-local-route-recording.jpg": (
+        "f632d2b304de5ac432ce3d6f26327127a04bc01a85ddd7f5eba6b5f5c2e01aa7"
+    ),
     "docs/screenshots/roomba-room-editor.jpg": (
         "db26543768c3549e2406489e02ea8b65662ec16a7e4432ff8baee5856d7438cb"
     ),

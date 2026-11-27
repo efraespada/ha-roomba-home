@@ -81,11 +81,14 @@ checkpoints and can present the matching route with estimated coverage
 when the archive is unavailable. The signed report remains the source of
 its outcome, measurements, and archive. The tests cover persistent
 checkpoints, scope isolation, deletion, and archive precedence.
-Verify the full capture through a fresh household run with recording
-enabled and both observed cleaning activities. When the provider omits
-the exact base revision, an existing verified backup for that robot can
-supply the saved floor. The card identifies that source and requires the
-same revision as the saved route.
+A household vacuum-only run verified the live trajectory and the signed
+result. One local recording persisted after the Core restart. Verify
+a mop run through the same path to exercise the remaining physical mode.
+[Household vacuum trial](validation.md#household-vacuum-route-after-clearing-error-48)
+
+When the provider omits the exact base revision, an existing verified
+backup for that robot can supply the saved floor. The card identifies
+that source and requires the same revision as the saved route.
 [Recording controls](usage.md#local-route-recording)
 
 ## Physical automatic dock emptying
