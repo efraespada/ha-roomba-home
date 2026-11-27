@@ -1,0 +1,22 @@
+{
+  "model": "X185240",
+  "source": "authenticated isolated Home Assistant",
+  "confirmed_vacuum_target_type": "furniture",
+  "current_mission_samples": 9,
+  "first_elapsed_seconds": 14,
+  "last_elapsed_seconds": 146,
+  "reported_zero_area_preserved": true,
+  "positive_reported_area_observed": true,
+  "live_websocket_distinct_positions": 87,
+  "estimated_coverage_rows_observed": true,
+  "android_return_state_visible": true,
+  "signed_report": {
+    "exact_target": true,
+    "vacuuming": true,
+    "positive_area": true,
+    "outcome": "cancelled"
+  },
+  "dock_confirmed_without_error": true,
+  "readout_cleared_at_dock": true,
+  "chrome_fixture_widths_px": [358, 900]
+}

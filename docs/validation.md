@@ -1,5 +1,28 @@
 # Roomba Home validation
 
+## Current mission readout
+
+One Max 700 Combo trial started vacuuming around a previously verified
+furniture target through an isolated Home Assistant instance. Nine
+authenticated floor plan reads matched the robot's current phase, mode,
+and area. Time since start advanced from 14 to 146 seconds. A reported zero
+remained visible until Roomba began reporting positive area. The live
+position subscription delivered 87 distinct positions and estimated
+coverage rows during that interval.
+
+The trial requested return to the dock after the measurements. Roomba Home
+showed the return, and the signed history confirmed the exact furniture
+target, vacuuming, positive cleaned area, and a cancelled outcome. The
+WebSocket closed during the return. A fresh authenticated read confirmed
+the robot at the dock with no error and the mission readout cleared.
+
+The tests cover a missing destination plan, no saved floor, a pause,
+disconnect, missing readings, and a reported fault. Isolated Chrome at
+358 and 900 pixels showed the active measurements and cleared them at
+the end of the fixture mission.
+[Anonymized trial](evidence/2026-11-27-current-mission-readout.json) ·
+[iRobot live map documentation](https://homesupport.irobot.com/articles/en_GB/Knowledge/20500)
+
 ## Quick routines and Smart recommendations on the floor plan
 
 Opening **Smart cleaning** in Roomba Home 3.4.1 loaded five of six rooms on

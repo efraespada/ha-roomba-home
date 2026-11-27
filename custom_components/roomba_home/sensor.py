@@ -230,12 +230,7 @@ class RoombaMetricSensor(RoombaEntity, SensorEntity):
         if not state:
             return None
         if self.key == "mission_elapsed":
-            started = state.telemetry.get("mission_started")
-            return (
-                max(0, int((datetime.now(UTC) - started).total_seconds()))
-                if started and state.cycle not in {None, "none"}
-                else None
-            )
+            return state.mission_elapsed(datetime.now(UTC))
         if self.key == "not_ready_condition_count":
             conditions = state.telemetry.get("not_ready_conditions")
             return len(conditions) if conditions is not None else None
