@@ -31,6 +31,13 @@ const MISSION_CONTROLS = {
   stop: "Cancel mission",
   dock: "Return to dock",
 };
+const DOCK_CONTROLS = {
+  wash_mop: "Wash mop and tray",
+  dry_mop: "Dry mop",
+  stop_drying: "Stop drying",
+  empty_bin: "Empty bin",
+  refill_tank: "Refill tank",
+};
 const SETTINGS = {
   suction_level: "Suction",
   wetness_level: "Mop wetness",
@@ -150,7 +157,10 @@ template.innerHTML = `
     #routine-dialog { width:min(34rem, calc(100vw - 3rem)); max-width:none; }
     #mission-history-dialog { width:min(55rem, calc(100vw - 3rem)); max-width:none; }
     #cleaning-scores-dialog { width:min(36rem, calc(100vw - 3rem)); max-width:none; }
-    #maintenance-dialog, #robot-help-dialog { width:min(28rem, calc(100vw - 3rem)); max-width:none; }
+    #maintenance-dialog, #robot-help-dialog, #dock-controls-dialog { width:min(28rem, calc(100vw - 3rem)); max-width:none; }
+    #dock-action-list { display:grid; gap:8px; margin:12px 0; }
+    #dock-action-list button { text-align:start; }
+    #dock-action-status:empty { display:none; }
     #maintenance-parts { list-style:none; padding:0; margin:12px 0; }
     #maintenance-parts li { padding:10px 0; border-top:1px solid var(--divider-color,#647382); }
     #maintenance-parts p { margin:4px 0; }
@@ -221,6 +231,7 @@ template.innerHTML = `
       </div>
       <select id="maps" aria-label="Floor plan" hidden></select>
       <button id="open-mission-history">Cleaning history</button>
+      <button id="open-dock-controls" hidden>Dock controls</button>
       <button id="open-maintenance">Maintenance</button>
       <button id="open-robot-help">Robot help</button>
     </header>
@@ -466,6 +477,23 @@ template.innerHTML = `
       <p id="maintenance-status" class="muted" role="status"></p>
       <ul id="maintenance-parts"></ul>
       <div class="actions"><button id="close-maintenance">Close</button></div>
+    </dialog>
+    <dialog id="dock-controls-dialog" aria-labelledby="dock-controls-title">
+      <h3 id="dock-controls-title">Dock controls</h3>
+      <p id="dock-unavailable" class="muted" hidden>Dock status is unavailable.</p>
+      <div id="dock-action-list">
+        ${Object.entries(DOCK_CONTROLS).map(([key, label]) =>
+          `<button id="dock-${key}" hidden>${label}</button>`).join("")}
+      </div>
+      <div id="dock-action-review" hidden>
+        <p id="dock-action-prompt"></p>
+        <div class="actions">
+          <button id="back-dock-action">Back</button>
+          <button id="confirm-dock-action" class="primary">Confirm</button>
+        </div>
+      </div>
+      <p id="dock-action-status" class="muted" role="status"></p>
+      <div class="actions"><button id="close-dock-controls">Close</button></div>
     </dialog>
     <dialog id="robot-help-dialog" aria-labelledby="robot-help-title">
       <h3 id="robot-help-title">Robot help</h3>
@@ -1211,6 +1239,19 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("confirm-mission-control").onclick = () => this.confirmMissionCommand();
     this.$("mission-control-dialog").onclose = () => { this.missionControlDraft = null; };
     this.$("open-mission-history").onclick = () => this.openMissionHistory();
+    this.$("open-dock-controls").onclick = () => this.openDockControls();
+    this.$("close-dock-controls").onclick = () => this.$("dock-controls-dialog").close();
+    this.$("dock-controls-dialog").onclose = () => { this.dockDraft = null; };
+    for (const action of Object.keys(DOCK_CONTROLS)) {
+      this.$(`dock-${action}`).onclick = () => this.reviewDockAction(action);
+    }
+    this.$("back-dock-action").onclick = () => {
+      const lastAction = this.dockDraft?.action;
+      this.dockDraft = null;
+      this.updateDockControls();
+      if (lastAction) this.$(`dock-${lastAction}`).focus();
+    };
+    this.$("confirm-dock-action").onclick = () => this.confirmDockAction();
     this.$("open-maintenance").onclick = () => this.openMaintenance();
     this.$("close-maintenance").onclick = () => this.$("maintenance-dialog").close();
     this.$("open-robot-help").onclick = () => this.openRobotHelp();
@@ -1512,6 +1553,7 @@ class RoombaHomeMapCard extends HTMLElement {
     if (this.$("mission-history-dialog").open) this.$("mission-history-dialog").close();
     if (this.$("maintenance-dialog").open) this.$("maintenance-dialog").close();
     if (this.$("robot-help-dialog").open) this.$("robot-help-dialog").close();
+    if (this.$("dock-controls-dialog").open) this.$("dock-controls-dialog").close();
     if (this.$("map-backups-dialog").open) this.$("map-backups-dialog").close();
     if (this.$("cleaning-scores-dialog").open) this.$("cleaning-scores-dialog").close();
     if (this.$("mapping-dialog").open) this.$("mapping-dialog").close();
@@ -1522,6 +1564,10 @@ class RoombaHomeMapCard extends HTMLElement {
     this.selectedFloor = null;
     this.geometry = null;
     this.snapshot = null;
+    this.dockDraft = null;
+    this.dockRequest = null;
+    this.dockMessage = "";
+    this.updateDockControls();
     this.recommendedRooms = null;
     this.recommendationsHidden = false;
     this.renderActiveErrors();
@@ -1562,6 +1608,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.renderCurrentMission(null);
     this.updateMissionControls(null);
     this.invalidateFloorShortcuts();
+    if (this.$("dock-controls-dialog").open) this.$("dock-controls-dialog").close();
     this.sequence++;
     this.loading = false;
   }
@@ -1645,6 +1692,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.renderActiveErrors(data.active_errors);
       this.renderCurrentMission(data.current_mission);
       this.updateMissionControls(data.mission_controls);
+      this.updateDockControls();
       if (staleFloorDraft) {
         this.operationMessage = "The floor settings changed. Open the editor again.";
         this.$("status").textContent = this.operationMessage;
@@ -1678,6 +1726,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.renderActiveErrors();
       this.renderCurrentMission(null);
       this.updateMissionControls(null);
+      this.updateDockControls();
       this.renderMissionPlan(null);
       this.renderAreaResults("active", [], "In progress");
       this.renderAreaResults("history", [], "Unknown outcome");
@@ -3030,6 +3079,72 @@ class RoombaHomeMapCard extends HTMLElement {
     const status = this.$("mission-control-status");
     status.textContent = this.missionControlMessage ?? "";
     status.hidden = !status.textContent;
+  }
+
+  openDockControls() {
+    if (this.$("open-dock-controls").hidden) return;
+    this.dockDraft = null;
+    if (!this.dockRequest) this.dockMessage = "";
+    this.updateDockControls();
+    this.$("dock-controls-dialog").showModal();
+  }
+
+  updateDockControls() {
+    const controls = this.snapshot?.dock_controls ?? {};
+    const available = Boolean(Object.keys(controls).length);
+    this.$("open-dock-controls").hidden = !available;
+    this.$("dock-unavailable").hidden = available;
+    const draft = this.dockDraft;
+    if (draft && controls[draft.action]?.entity_id !== draft.entity) {
+      this.dockDraft = null;
+      this.dockMessage = "This dock action is no longer available.";
+    }
+    for (const [action, label] of Object.entries(DOCK_CONTROLS)) {
+      const control = controls[action];
+      const button = this.$(`dock-${action}`);
+      button.hidden = !control || (action === "stop_drying" && !control.entity_id);
+      button.disabled = Boolean(!control?.entity_id || this.dockRequest || this.dockDraft);
+      button.textContent = control?.active ? `${label} · In progress` : label;
+    }
+    this.$("dock-action-review").hidden = !this.dockDraft;
+    this.$("dock-action-status").textContent = this.dockMessage ?? "";
+  }
+
+  reviewDockAction(action) {
+    const entity = this.snapshot?.dock_controls?.[action]?.entity_id;
+    if (!Object.hasOwn(DOCK_CONTROLS, action) || !entity || this.dockRequest ||
+        !this.$("dock-controls-dialog").open) return;
+    this.dockDraft = { action, entity };
+    this.dockMessage = "";
+    this.$("dock-action-prompt").textContent = `${DOCK_CONTROLS[action]}?`;
+    this.updateDockControls();
+    this.$("back-dock-action").focus();
+  }
+
+  async confirmDockAction() {
+    const draft = this.dockDraft;
+    if (!this.$("dock-controls-dialog").open || !draft || this.dockRequest ||
+        this.snapshot?.dock_controls?.[draft.action]?.entity_id !== draft.entity) return;
+    this.dockDraft = null;
+    this.dockRequest = draft;
+    this.dockMessage = "Waiting for Roomba to confirm…";
+    this.updateDockControls();
+    try {
+      await this._hass.callService("button", "press", {}, { entity_id: draft.entity });
+      if (this.dockRequest === draft) this.dockMessage = "Roomba confirmed the dock action.";
+    } catch (error) {
+      if (this.dockRequest === draft) {
+        this.dockMessage = error?.message || "Roomba did not confirm the dock action.";
+      }
+    } finally {
+      if (this.dockRequest === draft) {
+        await this.refresh(true);
+        if (this.dockRequest === draft) {
+          this.dockRequest = null;
+          this.updateDockControls();
+        }
+      }
+    }
   }
 
   reviewMissionCommand(command) {

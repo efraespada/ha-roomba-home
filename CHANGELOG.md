@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.88.0
+
+- Open **Dock controls** on the floor plan card to wash the mop and tray,
+  dry the mop, stop drying, empty the bin, or manually refill on supported
+  docks. The panel shows active operations and reviews the selected action
+  before pressing the existing Home Assistant button.
+
 ## 0.87.1
 
 - Keep a Max 700 Combo return pending after Roomba reports final travel for
