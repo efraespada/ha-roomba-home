@@ -10,5 +10,8 @@
   "official_archive_precedence": true,
   "deleted_capture_not_returned": true,
   "verified_chrome_viewport_widths": [358, 900],
+  "installed_home_assistant_version": "0.85.0",
+  "installed_recording_enabled_and_disabled_with_no_routes": true,
+  "installed_recording_left_disabled": true,
   "robot_commands_sent": 0
 }
