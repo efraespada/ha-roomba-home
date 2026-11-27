@@ -194,11 +194,11 @@ classification, when the score was updated, and the settings Roomba
 suggested. Recorded mission times belong to the score record and can
 differ from the latest cleaning report.
 
-Choose **Recommended rooms** to shade in amber every room Roomba selected
-for **Smart cleaning** in the app. The layer uses the room IDs in Roomba's
-suggested routine. The status below the map lists their names. Switching
-floors or loading a new revision clears the layer. Choose the button again
-to load the recommendation for that floor.
+The floor plan shades in amber every room Roomba selected for **Smart
+cleaning** in the app. The layer uses the room IDs in Roomba's suggested
+routine. The status below the map lists their names. Switch floors to see
+their own recommendations. Press **Recommended rooms** to hide the layer or
+show it again. The card remembers that choice while you browse its floors.
 [Recommendation comparison](validation.md#quick-routines-and-smart-recommendations-on-the-floor-plan)
 
 Use the **Get room cleaning scores** action to read the same values in an
@@ -1173,7 +1173,7 @@ the draft. Choose **Start cleaning** and confirm to dispatch it. Use
 For example, choose **Clean recommended rooms** to shade those rooms in
 amber and review the modes and settings Roomba suggested for them. The
 selected outline remains visible over the shading. Use **Recommended rooms**
-to view the same layer by itself. If Roomba offers a point-cleaning shortcut,
+to toggle the layer on the floor plan. If Roomba offers a point-cleaning shortcut,
 choose a point and review the target before confirming the start.
 [Smart cleaning comparison](validation.md#quick-routines-and-smart-recommendations-on-the-floor-plan)
 

@@ -91,9 +91,10 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   [Verified live pass example](docs/validation.md#live-saved-zone-passes)
 - **Room cleaning scores.** View Roomba's reported score, mission timestamps,
   and suggested settings for each matched room on the active floor.
-  Use **Recommended rooms** on the map to highlight the destinations
-  Roomba selects for **Smart cleaning** in amber. Opening the recommendation
-  from **Quick routines** highlights those rooms and loads their settings.
+  The map automatically highlights the rooms Roomba selects for **Smart
+  cleaning** in amber. Use **Recommended rooms** to hide or show the layer.
+  Opening the recommendation from **Quick routines** loads those rooms and
+  their settings for review.
   [Room cleaning scores](docs/usage.md#room-cleaning-scores)
 
   ![Amber Cleaning recommended map key in Home Assistant](docs/screenshots/roomba-recommended-rooms-key.png)
@@ -178,7 +179,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.81.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.82.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)

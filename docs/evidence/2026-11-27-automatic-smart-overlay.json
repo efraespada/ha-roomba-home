@@ -1,0 +1,13 @@
+{
+  "model": "X185240",
+  "android_version": "3.4.1",
+  "floor_rooms": 6,
+  "android_highlighted_rooms_on_open": 5,
+  "prior_signed_target_count": 5,
+  "android_detected_carpet_visible": true,
+  "android_carpet_editor_in_map_menu": false,
+  "android_carpet_editor_in_furniture_catalog": false,
+  "android_carpet_editor_in_legend": false,
+  "robot_commands_sent": 0,
+  "map_edits_sent": 0
+}

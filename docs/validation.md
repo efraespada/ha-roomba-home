@@ -1,5 +1,26 @@
 # Roomba Home validation
 
+## Automatic Smart cleaning overlay
+
+On a Max 700 Combo, opening the saved floor's details in Roomba Home
+3.4.1 showed the amber recommendation before interacting with the map.
+Five of the six rooms were highlighted, matching the earlier signed
+`CLEAN_DIRTY` selection. No cleaning commands or map edits were issued.
+
+In the same app, the active map displayed detected carpet. The edit menu
+offered room division and merging, names, furniture, cleaning and exclusion
+zones, and floor rotation. Its furniture catalog and map legend offered
+no carpet editing control. The app release notes list carpet editing
+among new features. The ClearView map parser shows the reported carpet
+geometry for this Max 700 Combo.
+
+Isolated Chrome at 358 and 900 pixels verified actual amber pixels on the
+recommended room, the layer control and legend layout, an unchanged floor
+poll, and hiding across a floor change. Re-enabling the layer drew the
+second floor's own recommendation. The test issued zero robot commands.
+[Anonymized native comparison](evidence/2026-11-27-automatic-smart-overlay.json) ·
+[iRobot app release notes](https://homesupport.irobot.com/articles/en_US/Knowledge/40500)
+
 ## Cleaning history periods
 
 Signed reads of the same Max 700 Combo produced these report counts.
