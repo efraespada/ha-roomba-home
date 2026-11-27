@@ -17,6 +17,12 @@ coverage instead. Deleting local routes returned the static requested
 floor on the next query. Chrome at 358 and 900 pixels verified the
 estimate label, read-only controls, explicit delete confirmation, and
 the return to the requested floor. No robot commands were sent.
+
+The household configuration check and Core restart passed with version
+0.85.0. The installed card showed recording off and zero saved routes
+for the selected robot. Enabling and disabling recording changed the
+displayed setting and left the count at zero. The test used no robot
+commands and restored the recording setting to off.
 [Anonymized replay](evidence/2026-11-27-local-route-replay.json) ·
 [Recording contract](api.md#local-route-recording)
 
