@@ -106,7 +106,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   saving. Edit supported routines created in Roomba Home. Load recent and
   suggested routines and run a reviewed draft. Use **Manage schedules** on the floor
   card to manage weekly and one-time cleanings, including the order, mode,
-  and settings for each room or saved zone. Review map dependencies before
+  and settings for each room, saved zone, or supported furniture target.
+  Review map dependencies before
   editing destinations.
   [Saved routine actions](docs/usage.md#saved-cleaning-routines) · [Cleaning schedules](docs/usage.md#cleaning-schedules)
 - **Maintenance and alerts.** Open **Maintenance** to see consumables, part
@@ -165,7 +166,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.73.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.74.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
@@ -232,8 +233,8 @@ reload the dashboard. Use one card per robot.
   before opening it to prefill a new routine. Add furniture, rooms, or zones,
   set their individual cleaning preferences, and arrange them in order.
   Choose **Run saved routine** to review and start a supported routine.
-  Choose **Use in schedule** to copy an ordered room or saved-zone
-  selection into a new schedule. [Schedules](docs/usage.md#cleaning-schedules)
+  Choose **Use in schedule** to copy an ordered selection of rooms, saved
+  zones, or furniture into a new schedule. [Schedules](docs/usage.md#cleaning-schedules)
 - **Review map dependencies** shows known saved routines and schedules for
   the selected areas. It flags entries with unresolved destinations.
 - **Last mission by area** shows reported outcomes, area values, and pass

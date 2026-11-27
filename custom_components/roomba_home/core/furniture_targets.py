@@ -6,7 +6,7 @@ from math import dist, hypot, isclose
 from .cleaning import CleaningMode
 from .cleaning_protocol import cleaning_parameters, regional_cleaning_parameters
 from .furniture_edits import FURNITURE_TYPES
-from .maps import AreaTarget, FurnitureRegion, RegionKind, map_identifier
+from .maps import AreaTarget, FurnitureRegion, RegionKind, command_region_id, map_identifier
 from .point_maps import FloorPlan, Ring, _coordinate
 
 _MARGIN = 0.4
@@ -95,3 +95,13 @@ def furniture_links(polygons: object) -> dict[str, str]:
             return {}
         links[identity] = metadata["furniture_id"]
     return links
+
+
+def region_target_id(map_id: str, region: object, links: dict[str, str]) -> str | None:
+    """Resolve a native room, zone, or temporary region linked to furniture."""
+    if isinstance(region, dict) and region.get("type") == "tid":
+        identity = region.get("region_id")
+        if map_identifier(identity) and identity in links:
+            return f"{map_id}:{RegionKind.FURNITURE}:{links[identity]}"
+        return None
+    return command_region_id(map_id, region)

@@ -6,7 +6,8 @@ from datetime import UTC, date, datetime, time, timedelta, tzinfo
 
 from .cleaning_protocol import regional_cleaning_parameters
 from .errors import ProtocolError
-from .maps import AreaTarget, command_region_id, map_identifier
+from .furniture_targets import furniture_command_fields, furniture_links, region_target_id
+from .maps import AreaTarget, FurnitureRegion, map_identifier
 from .routines import routine_region_profile
 from .telemetry import convert, integer
 
@@ -27,6 +28,7 @@ REGIONAL_COMMAND_FIELDS = {
     "regions",
 }
 TIMED_COMMAND_FIELDS = REGIONAL_COMMAND_FIELDS - {"robot_id"} | {"initiator", "time"}
+FURNITURE_COMMAND_FIELDS = TIMED_COMMAND_FIELDS | {"id_multipolys"}
 
 
 def _identifier(value: object) -> bool:
@@ -53,6 +55,7 @@ class CleaningSchedule:
         command = self.command
         map_id = command.get("p2map_id")
         regions = command.get("regions")
+        links = furniture_links(command.get("id_multipolys"))
         targets = None
         if (
             command.get("select_all") is not True
@@ -60,7 +63,7 @@ class CleaningSchedule:
             and isinstance(regions, list)
             and regions
         ):
-            identifiers = [command_region_id(map_id, region) for region in regions]
+            identifiers = [region_target_id(map_id, region, links) for region in regions]
             if all(identifier is not None for identifier in identifiers):
                 targets = identifiers
         response = {
@@ -72,11 +75,11 @@ class CleaningSchedule:
             "regions": targets,
             **self.start,
         }
-        if targets and (settings := self.region_settings(targets)) is not None:
+        if targets and (settings := self.region_settings(targets, links)) is not None:
             response["region_settings"] = settings
         return response
 
-    def region_settings(self, targets: list[str]) -> list[dict] | None:
+    def region_settings(self, targets: list[str], links: dict[str, str]) -> list[dict] | None:
         command = self.command
         if (
             self.options["commands"][0].keys() != {"command"}
@@ -89,14 +92,20 @@ class CleaningSchedule:
         ):
             return None
         fields = command.keys()
-        timed = fields == TIMED_COMMAND_FIELDS
+        furniture = fields == FURNITURE_COMMAND_FIELDS
+        timed = furniture or fields == TIMED_COMMAND_FIELDS
         if timed:
             if (
-                self.options["frequency"] != "ONCE"
+                not furniture
+                and self.options["frequency"] != "ONCE"
                 or command["params"] != {}
-                or command["initiator"] != "rmtApp"
-                or type(command["time"]) is not int
-                or command["time"] <= 0
+                or not _native_command_time(command)
+            ):
+                return None
+            if furniture and (
+                not links
+                or links.keys()
+                != {region["region_id"] for region in command["regions"] if region["type"] == "tid"}
             ):
                 return None
         elif (
@@ -115,13 +124,33 @@ class CleaningSchedule:
             for identifier, profile in zip(targets, profiles, strict=True)
         ]
 
-    def replace_selection(self, target: AreaTarget) -> list[dict]:
+    def matches_creation(self, options: dict) -> bool:
+        if self.start != schedule_start(options) or any(
+            self.options.get(field) != value
+            for field, value in options.items()
+            if field not in {"start", "commands"}
+        ):
+            return False
+        wanted = options["commands"][0]["command"]
+        if "id_multipolys" in wanted and _native_command_time(self.command):
+            # A retry may generate a new timestamp for the same disabled schedule.
+            wanted = {**wanted, "time": self.command["time"]}
+        return self.options["commands"] == [{"command": wanted}]
+
+    def replace_selection(self, target: AreaTarget, timestamp: int) -> list[dict]:
         if "region_settings" not in self.action_response():
             raise ValueError("The scheduled cleaning preferences are not supported for editing.")
-        command = schedule_command(self.options["robot_id"], target)
+        command = schedule_command(
+            self.options["robot_id"], target, timestamp=self.command.get("time", timestamp)
+        )
         if "select_all" in self.command:
             command["select_all"] = False
         return [{"command": command}]
+
+
+def _native_command_time(command: dict) -> bool:
+    stamp = command.get("time")
+    return command.get("initiator") == "rmtApp" and type(stamp) is int and stamp > 0
 
 
 def weekly_start(weekdays: list[int], local_time: str) -> dict:
@@ -135,7 +164,8 @@ def weekly_start(weekdays: list[int], local_time: str) -> dict:
     ):
         raise ValueError("Select distinct ISO weekdays and a local time to the minute.")
     hour, minute = local_time.split(":")[:2]
-    return {"day": sorted(weekdays), "hour": int(hour), "min": int(minute)}
+    # Home Assistant uses ISO weekdays. The native editor encodes Sunday as zero.
+    return {"day": sorted(day % 7 for day in weekdays), "hour": int(hour), "min": int(minute)}
 
 
 def cleaning_schedule_start(weekdays: list[int], local_time: str, frequency: str) -> dict:
@@ -161,7 +191,7 @@ def once_weekday(local_time: str, zone: tzinfo, now: datetime) -> int:
 
 
 def new_cleaning_schedule(
-    robot_id: str, name: str, start: dict, target: AreaTarget, *, frequency="weekly"
+    robot_id: str, name: str, start: dict, target: AreaTarget, *, frequency="weekly", timestamp=0
 ) -> dict:
     return {
         "robot_id": robot_id,
@@ -169,7 +199,7 @@ def new_cleaning_schedule(
         "enabled": False,
         "frequency": frequency.upper(),
         "start": start,
-        "commands": [{"command": schedule_command(robot_id, target)}],
+        "commands": [{"command": schedule_command(robot_id, target, timestamp=timestamp)}],
     }
 
 
@@ -179,13 +209,25 @@ def schedule_name(name: str) -> str:
     return name.strip()
 
 
-def schedule_command(robot_id: str, target: AreaTarget) -> dict:
+def schedule_command(robot_id: str, target: AreaTarget, *, timestamp: int = 0) -> dict:
     if (
         not isinstance(target, AreaTarget)
         or not target.regions
         or len(target.profiles) != len(target.regions)
     ):
         raise ValueError("Each scheduled region must have a cleaning profile")
+    if any(isinstance(region, FurnitureRegion) for region in target.regions):
+        if type(timestamp) is not int or timestamp <= 0:
+            raise ValueError("A furniture schedule requires a positive timestamp.")
+        return {
+            "command": "start",
+            "p2map_id": target.map_id,
+            "user_p2mapv_id": target.version_id,
+            "params": {},
+            "initiator": "rmtApp",
+            "time": timestamp,
+            **furniture_command_fields(target, saved_routine=True),
+        }
     return {
         "robot_id": robot_id,
         "command": "start",
@@ -241,14 +283,16 @@ def schedule_start(options: dict) -> dict | None:
     )
     if hour is None or minute is None or not isinstance(days, list) or not days:
         return None
-    if not all(type(day) is int and 1 <= day <= 7 for day in days):
+    if not all(type(day) is int and 0 <= day <= 7 for day in days):
         return None
+    # Releases that wrote ISO weekdays to the API used seven for Sunday.
+    iso_days = tuple(sorted({day or 7 for day in days}))
     local_time = f"{hour:02d}:{minute:02d}"
     if frequency == "ONCE":
         if len(days) != 1:
             return None
-        return {"frequency": "once", "weekday": days[0], "time": local_time}
-    return {"weekdays": tuple(sorted(set(days))), "time": local_time}
+        return {"frequency": "once", "weekday": iso_days[0], "time": local_time}
+    return {"weekdays": iso_days, "time": local_time}
 
 
 def _raw_groups(document: object) -> list:

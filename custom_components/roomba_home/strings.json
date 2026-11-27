@@ -998,7 +998,7 @@
     },
     "list_cleaning_schedules": {
       "name": "List editable cleaning schedules",
-      "description": "Read editable weekly cleaning schedules for the selected robot."
+      "description": "Read editable weekly and one-time cleaning schedules for the selected robot."
     },
     "update_cleaning_schedule": {
       "name": "Update a cleaning schedule",
@@ -1026,7 +1026,7 @@
         },
         "regions": {
           "name": "Regions and preferences",
-          "description": "Ordered list of rooms or zones from one active map with optional settings."
+          "description": "Ordered rooms, saved zones, or furniture from one active map with optional settings."
         },
         "floor": {
           "name": "Reviewed floor",
@@ -1036,7 +1036,7 @@
     },
     "set_cleaning_schedule_enabled": {
       "name": "Enable or disable a cleaning schedule",
-      "description": "Change whether a weekly cleaning schedule runs. Keeps its routine and time.",
+      "description": "Change whether a cleaning schedule runs. Keeps its routine and time.",
       "fields": {
         "schedule_id": {
           "name": "Schedule",
@@ -1050,15 +1050,19 @@
     },
     "create_cleaning_schedule": {
       "name": "Create a cleaning schedule",
-      "description": "Save a disabled weekly routine for the selected robot and regions.",
+      "description": "Save a disabled cleaning schedule for the selected robot and destinations.",
       "fields": {
         "name": {
           "name": "Name",
           "description": "Schedule name in Roomba Home."
         },
+        "frequency": {
+          "name": "Frequency",
+          "description": "Choose weekly or the next occurrence of the local time."
+        },
         "weekdays": {
           "name": "Days of the week",
-          "description": "List of ISO weekdays from 1 (Monday) to 7 (Sunday)."
+          "description": "For weekly cleaning, list ISO weekdays from 1 (Monday) to 7 (Sunday)."
         },
         "time": {
           "name": "Local time",
@@ -1066,7 +1070,7 @@
         },
         "regions": {
           "name": "Regions and preferences",
-          "description": "Ordered list of rooms or zones from one active map with optional settings."
+          "description": "Ordered rooms, saved zones, or furniture from one active map with optional settings."
         },
         "floor": {
           "name": "Reviewed floor",

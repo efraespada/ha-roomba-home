@@ -521,10 +521,12 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         )
         try:
             record, plan = await self._executor(capture_snapshot, floor, archive, datetime.now(UTC))
-            zones = saved_zone_destinations(floor.map_id, plan)
-            if areas := zones | saved_furniture_destinations(floor.map_id, plan):
-                kinds = {"routine", "schedule"} if zones else {"routine"}
-                sources, unchecked = await self._read_backup_programs(robot_id, kinds)
+            if areas := saved_zone_destinations(floor.map_id, plan) | saved_furniture_destinations(
+                floor.map_id, plan
+            ):
+                sources, unchecked = await self._read_backup_programs(
+                    robot_id, {"routine", "schedule"}
+                )
                 programs = capture_map_programs(areas, sources, unchecked)
                 record = await self._executor(with_backup_programs, record, archive, programs)
             return await history.async_capture(robot_id, record)
@@ -880,9 +882,8 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         if not changes:
             return [], []
         targets = {f"{map_id}:{region_kind}:{row['id']}": row["id"] for row in changes}
-        kinds = {"routine", "schedule"} if region_kind is RegionKind.ZONE else {"routine"}
         key = "zones" if region_kind is RegionKind.ZONE else "objects"
-        sources, unchecked = await self._read_backup_programs(robot_id, kinds)
+        sources, unchecked = await self._read_backup_programs(robot_id, {"routine", "schedule"})
         dependencies = []
         for kind, programs in sources.items():
             if any(not row.get("regions") for row in programs):
@@ -955,6 +956,9 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             ) | saved_furniture_destinations(saved.map_id, archived)
             matching = matching_backup_destinations(archived, plan, saved_areas, current_areas)
             destinations = with_archive_destinations(floor, plan)
+            destinations = replace(
+                destinations, regions=(*destinations.regions, *furniture_regions(plan))
+            )
             capabilities = self.data[robot_id].capabilities.cleaning
             reviews, ready = [], {}
             for item in backup["items"]:
@@ -965,17 +969,8 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 if source in unchecked:
                     status, target, areas = "source_unavailable", None, []
                 else:
-                    supported = destinations
-                    if source == "routine":
-                        supported = replace(
-                            destinations,
-                            regions=(
-                                *destinations.regions,
-                                *furniture_regions(plan),
-                            ),
-                        )
                     status, target, areas = review_map_program(
-                        item, current, saved_areas, matching, supported, capabilities
+                        item, current, saved_areas, matching, destinations, capabilities
                     )
                 review = {
                     "kind": source,
@@ -2369,7 +2364,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                     changes["name"] = name
                 if selections is not None:
                     changes["target"] = await self._profiled_map_target(
-                        robot_id, state, selections, reviewed_map, include_furniture=False
+                        robot_id, state, selections, reviewed_map
                     )
                 if time is None:
                     if frequency is not None or weekdays is not None or not changes:
@@ -2401,7 +2396,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         async with self._schedule_transaction(robot_id, write=True) as state:
             days = await self._schedule_days(state, weekdays, time, frequency)
             target = await self._profiled_map_target(
-                robot_id, state, (segments, overrides), reviewed_map, include_furniture=False
+                robot_id, state, (segments, overrides), reviewed_map
             )
             return await self.client.create_cleaning_schedule(
                 robot_id, name, days, time, target, frequency=frequency
@@ -2473,12 +2468,10 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 ) from None
             return {"routines": routines}
 
-    async def _profiled_map_target(
-        self, robot_id, state, selections, reviewed_map=None, *, include_furniture=True
-    ):
+    async def _profiled_map_target(self, robot_id, state, selections, reviewed_map=None):
         segments, overrides = selections
         target = await self._resolve_current_areas(
-            robot_id, segments, reviewed_map, include_furniture=include_furniture
+            robot_id, segments, reviewed_map, include_furniture=True
         )
         profiles = self._area_profiles(self.profile(robot_id), target, overrides)
         try:

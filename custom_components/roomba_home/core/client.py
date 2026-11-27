@@ -737,14 +737,21 @@ class RoombaClient:
         frequency="weekly",
     ) -> dict:
         start = cleaning_schedule_start(weekdays, local_time, frequency)
-        options = new_cleaning_schedule(robot_id, name, start, target, frequency=frequency)
+        options = new_cleaning_schedule(
+            robot_id,
+            name,
+            start,
+            target,
+            frequency=frequency,
+            timestamp=int(self.clock().timestamp()),
+        )
         path = await self._schedule_path(robot_id)
 
         def find_creation(document):
             matches = [
                 schedule
                 for schedule in editable_schedules(document, robot_id).values()
-                if all(schedule.options.get(key) == value for key, value in options.items())
+                if schedule.matches_creation(options)
             ]
             if len(matches) > 1:
                 raise ScheduleNotEditable("The scheduled routine matches more than one entry")
@@ -804,7 +811,7 @@ class RoombaClient:
         if name is not None:
             options["name"] = schedule_name(name)
         if target is not None:
-            options["commands"] = schedule.replace_selection(target)
+            options["commands"] = schedule.replace_selection(target, int(self.clock().timestamp()))
         checked_fields = ("enabled", "commands", "name")
         if schedule.start == expected_start and all(
             schedule.options.get(key) == options.get(key) for key in checked_fields

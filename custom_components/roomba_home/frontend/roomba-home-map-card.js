@@ -3584,7 +3584,7 @@ class RoombaHomeMapCard extends HTMLElement {
     };
     this.scheduleEditor = schedule;
     this.cleaningEditor = selection;
-    const furniture = schedule ? [] : this.geometry.furniture?.destinations ?? [];
+    const furniture = this.geometry.furniture?.destinations ?? [];
     const areas = [...this.geometry.regions, ...furniture];
     this.routineAreas = new Map(areas.filter((area) => area.id)
       .map((area) => [area.id, area.name]));
@@ -4183,8 +4183,7 @@ class RoombaHomeMapCard extends HTMLElement {
     const draft = this.routineDraft;
     return !this.scheduleEditor && !this.routineBusy && this.snapshot?.can_manage_schedules &&
       this.routineFloorIsCurrent() && draft?.ordered !== false && draft?.regions?.length &&
-      draft.regions.every(({ id }) => this.geometry?.regions.some((area) =>
-        area.id === id && (area.kind === "room" || area.kind === "zone")));
+      draft.regions.every(({ id }) => this.routineAreas.has(id));
   }
 
   async useRoutineInSchedule() {
