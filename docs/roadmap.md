@@ -85,13 +85,14 @@ A household vacuum-only run verified the live trajectory and the signed
 result. One local recording persisted after the Core restart. A later
 mop-only run showed its native route and coverage in the signed report.
 During cleaning, Home Assistant saw the area increase without receiving
-positions. A follow-up reproduced the gap while Android's map connection
-failed at the proxy certificate. Proxyman's map and routine reads worked
-after restoring trust on the emulator. Compare the Android live map and
-Home Assistant position subscription during the same mop-only run with
-the verified capture to locate the gap.
+positions. A later side-by-side run with the restored Proxyman capture
+showed both live overlays and associated the position interruptions with
+the absence of repeated native map announcements. The integration now
+renews its announcement on a bounded cadence. Verify that renewal on a
+household run with the Android app in the background throughout.
 [Household vacuum trial](validation.md#household-vacuum-route-after-clearing-error-48) ·
-[Household mop-only trials](validation.md#household-mop-only-route-and-return)
+[Household mop-only trials](validation.md#household-mop-only-route-and-return) ·
+[Side-by-side live mopping](validation.md#side-by-side-live-mopping)
 
 When the provider omits the exact base revision, an existing verified
 backup for that robot can supply the saved floor. The card identifies
