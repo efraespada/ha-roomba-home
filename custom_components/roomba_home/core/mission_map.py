@@ -3,6 +3,7 @@
 from dataclasses import replace
 
 from .furniture_targets import furniture_regions
+from .map_snapshots import read_snapshot_archive
 from .maps import PersistentMap
 from .point_maps import (
     _coordinates,
@@ -78,7 +79,7 @@ def read_mission_map(data: bytes, map_id: str, version_id: str) -> tuple[Persist
 
 
 def read_requested_floor(data, map_id, version_id, itinerary, footprints):
-    """Read the signed command's base floor without importing any mission result layers."""
+    """Read a base floor, with destination outlines for the exact requested revision."""
     docs = _map_documents(data, map_id, version_id)
     floor, plan = _floor_and_plan(docs, map_id, version_id)
     zones = {zone.region_id: zone.polygons for zone in (*plan.zones, *plan.zone_outlines)}
@@ -86,10 +87,18 @@ def read_requested_floor(data, map_id, version_id, itinerary, footprints):
         "room": {room.region_id: room.polygons for room in plan.rooms},
         "saved_zone": zones,
     }
-    destinations = itinerary.destinations if itinerary is not None else ()
+    exact_plan = itinerary is not None and itinerary.scope == (map_id, version_id)
+    destinations = itinerary.destinations if exact_plan else ()
     requested = tuple(
         polygon
         for destination in destinations
         for polygon in targets.get(destination.kind, {}).get(destination.identity[2], ())
     )
-    return floor, {**_report_geometry(docs, plan), "requested_areas": (*requested, *footprints)}
+    outlines = (*requested, *footprints) if exact_plan else ()
+    return floor, {**_report_geometry(docs, plan), "requested_areas": outlines}
+
+
+def read_backed_up_floor(snapshot, scope, itinerary, footprints):
+    """Read a verified local archive with the same manifest validation as a provider read."""
+    _, archive = read_snapshot_archive(snapshot)
+    return read_requested_floor(archive, *scope, itinerary, footprints)

@@ -82,8 +82,10 @@ when the archive is unavailable. The signed report remains the source of
 its outcome, measurements, and archive. The tests cover persistent
 checkpoints, scope isolation, deletion, and archive precedence.
 Verify the full capture through a fresh household run with recording
-enabled and both observed cleaning activities. Investigate displaying an
-exact backed-up base floor when the provider no longer serves its revision.
+enabled and both observed cleaning activities. When the provider omits
+the exact base revision, an existing verified backup for that robot can
+supply the saved floor. The card identifies that source and requires the
+same revision as the saved route.
 [Recording controls](usage.md#local-route-recording)
 
 ## Physical automatic dock emptying

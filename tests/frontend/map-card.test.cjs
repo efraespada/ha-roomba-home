@@ -2083,6 +2083,14 @@ test("a requested floor highlights its targets and keeps mission result layers h
   assert.ok(card.$("history-map-legend").children.some(({ textContent }) => textContent === "Requested area"));
   assert.ok(paint.includes("#f4bf7c"));
 
+  const backup = { ...report, geometry_source: "backup_floor", floor_source: "local_backup" };
+  card.historyReport = backup;
+  card.renderMissionReport(backup);
+  assert.equal(card.$("history-map-source").hidden, false);
+  assert.match(card.$("history-map-source").textContent, /From a local map backup/);
+  assert.match(canvas["aria-label"], /Saved floor from a local map backup/);
+  assert.ok(inputs.every((input) => input.parentElement.hidden));
+
   const local = { ...report, geometry_source: "local_capture", geometry: {
     ...context, trajectories: [{ index: 7, points: [[1, 1], [2, 1]], modes: ["vacuuming"] }],
     estimated_coverage: { cell_size: 0.025, rows: [[40, [[40, 80, 1]]]] },
@@ -2095,6 +2103,12 @@ test("a requested floor highlights its targets and keeps mission result layers h
   assert.equal(card.$("history-coverage-label").textContent, "Estimated coverage");
   assert.equal(inputs[3].parentElement.hidden, false);
   assert.ok(paint.some((color) => color.endsWith("60")));
+
+  const localOnBackup = { ...local, floor_source: "local_backup" };
+  card.historyReport = localOnBackup;
+  card.renderMissionReport(localOnBackup);
+  assert.match(card.$("history-map-source").textContent, /Floor from a local map backup/);
+  assert.equal(card.$("history-coverage-label").textContent, "Estimated coverage");
 
   const traveling = { ...local, geometry: {
     ...context, trajectories: [{ index: 1, points: [[1, 1], [2, 1]], modes: ["traveling"] }],

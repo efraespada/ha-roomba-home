@@ -154,6 +154,11 @@ trajectory contains observed positions and retains sequence gaps.
   exact mission start, mission number, and floor correlation and show
   saved positions only when the original mission archive is unavailable.
   Preserve observed position gaps and label derived coverage as estimated.
+- MAP-27: If the report's archived geometry and requested base revision
+  are unavailable, try an existing private map backup for one of the
+  report's exact revisions. Validate the originating robot, file digest,
+  and manifest before displaying it. Use its original coordinate frame
+  for saved positions only when the capture matches that same revision.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -480,6 +485,12 @@ features, physical results, and open scenarios.
     start, or floor and verify the recording is excluded. Disable or
     delete recording under control permission and verify other robots
     retain their own settings and captures.
+18. Save a verified copy of an exact floor revision and simulate an
+    unavailable provider response. Read the cleaning report as an
+    authorized viewer and verify the backup caption, matching floor and
+    destination outlines, and preserved signed measures. Cover a captured
+    route on the same backup, an unrelated or damaged copy, and the return
+    to an original archive when it is readable.
 
 ## 17. Requirements traceability
 
@@ -511,6 +522,7 @@ features, physical results, and open scenarios.
 | MAP-24 | [Current mission and active error contract](../docs/api.md#current-mission-readout) | [Authenticated snapshot tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [household failure trial](../docs/validation.md#household-live-coverage-and-active-errors) |
 | MAP-25 | [Archived report contract](../docs/api.md#archived-cleaning-reports) | [Map parsing tests](../tests/test_mission_map.py), [authenticated report scope tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [unarchived report comparison](../docs/validation.md#requested-floor-in-an-unarchived-report) |
 | MAP-26 | [Local recording contract](../docs/api.md#local-route-recording) | [Private storage tests](../tests/ha/test_mission_route_store.py), [authenticated report and replay tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [isolated archive replay](../docs/validation.md#local-route-recording-replay) |
+| MAP-27 | [Archive and backup contract](../docs/api.md#archived-cleaning-reports) | [Private backup storage tests](../tests/ha/test_map_history.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed report comparison](../docs/validation.md#backed-up-floor-in-cleaning-history) |
 
 ## 18. Implementation sequence
 
