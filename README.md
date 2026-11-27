@@ -83,6 +83,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   Browse recorded cleaning reports with the mission's own coverage, route,
   timeline, and 3D floor plan. Hide travel, cleaning paths, or coverage
   independently and see zones and restrictions saved in the archived map.
+  When an archived map is unavailable, a signed cleaning order can supply
+  the requested floor revision and highlight its intended destinations.
   The timeline includes the end of the run and reported fault codes. **Recorded
   bin emptyings** shows Roomba's count separately from the dock stage.
   Directed reports include the requested order and preferences, plus the
@@ -92,7 +94,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
 - **Room cleaning scores.** View Roomba's reported score, mission timestamps,
   and suggested settings for each matched room on the active floor.
   The map automatically highlights the rooms Roomba selects for **Smart
-  cleaning** in amber. Use **Recommended rooms** to hide or show the layer.
+  cleaning** in amber and refreshes the layer while the dashboard is open.
+  Use **Recommended rooms** to hide or show it.
   Opening the recommendation from **Quick routines** loads those rooms and
   their settings for review.
   [Room cleaning scores](docs/usage.md#room-cleaning-scores)
@@ -179,7 +182,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.83.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.84.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)

@@ -1629,7 +1629,7 @@ test("recommended rooms ignore stale replies and report an unavailable floor", a
   assert.match(card.$("recommended-rooms-status").textContent, /no recommended rooms/);
 });
 
-test("the floor view loads recommendations once per revision and remembers hiding the layer", async () => {
+test("the floor view loads recommendations on revision changes and remembers hiding the layer", async () => {
   const { card, fills } = mockCard(0);
   const map = { id: "example", version: "one" };
   const geometry = card.geometry;
@@ -1684,6 +1684,52 @@ test("the floor view loads recommendations once per revision and remembers hidin
   assert.deepEqual(reads.at(-1), ["other", "two"]);
   assert.equal(card.$("show-recommended-rooms")["aria-pressed"], "true");
   assert.equal(card.$("recommended-rooms-key").hidden, false);
+});
+
+test("an open floor refreshes only expired recommendations and clears a removed recommendation", async () => {
+  const card = draftEstimateCard();
+  card.geometry.regions = [{ id: "room-a", name: "Kitchen", kind: "room" }];
+  card.draw = () => card.renderRecommendedRooms();
+  const floor = { map_id: "fixture-map", version: "v1" };
+  let calls = 0;
+  card._hass = { callWS: async () => {
+    calls++;
+    return { ...floor, routines: [{ kind: "recommended", target_ids: ["room-a"] }] };
+  } };
+  await card.loadRecommendedRooms();
+  assert.deepEqual([...card.renderRecommendedRooms()], ["room-a"]);
+  await card.loadRecommendedRooms();
+  assert.equal(calls, 1);
+
+  card.recommendedRooms.refreshAfter = 0;
+  let finish;
+  card._hass.callWS = () => new Promise((resolve) => { calls++; finish = resolve; });
+  sandbox.document.hidden = true;
+  try {
+    await card.loadRecommendedRooms();
+    assert.equal(calls, 1);
+  } finally {
+    delete sandbox.document.hidden;
+  }
+  const refresh = card.loadRecommendedRooms();
+  await card.loadRecommendedRooms();
+  assert.equal(calls, 2);
+  assert.deepEqual([...card.renderRecommendedRooms()], ["room-a"]);
+  finish({ ...floor, routines: [] });
+  await refresh;
+  assert.deepEqual([...card.renderRecommendedRooms()], []);
+  assert.equal(card.$("recommended-rooms-key").hidden, true);
+  assert.match(card.$("recommended-rooms-status").textContent, /no recommended rooms/);
+
+  card.recommendedRooms.refreshAfter = 0;
+  card._hass.callWS = async () => {
+    calls++;
+    throw new Error("Roomba unavailable");
+  };
+  await card.loadRecommendedRooms();
+  await card.loadRecommendedRooms();
+  assert.equal(calls, 3);
+  assert.match(card.$("recommended-rooms-status").textContent, /unavailable/);
 });
 
 test("loading a native recommendation keeps automatic order and requires review before dispatch", async () => {
@@ -2007,6 +2053,42 @@ test("the history panel opens the latest report and shows measurements when geom
   card.renderMissionReport({ ...card.historyReport, plan: null });
   assert.equal(planView.hidden, true);
   assert.equal(planView.querySelector("ul"), undefined);
+});
+
+test("a requested floor highlights its targets and keeps mission result layers hidden", () => {
+  const { card } = mockCard(0);
+  const archived = historyGeometry();
+  const context = {
+    ...archived, coverage: [], trajectories: [], hazards: [], temporary_zones: [],
+    requested_areas: region.polygons,
+  };
+  const paint = [];
+  const canvas = card.$("history-map");
+  canvas.getContext = () => ({
+    fillRect() {}, fill() { paint.push(this.fillStyle); }, stroke() { paint.push(this.strokeStyle); },
+    beginPath() {}, moveTo() {}, lineTo() {}, arc() {},
+  });
+  const inputs = ["cleaning", "travel", "unclassified", "coverage"].map((layer) =>
+    Object.assign(card.$(`history-${layer}`), { checked: true, parentElement: {} }));
+  card.historyView = { zoom: 1, pan: [0, 0], angle: 0, elevated: false };
+  card.renderAreaResults = () => {};
+  card.$("history-plan").append(mockElement("summary"), mockElement("div"));
+  const report = { mission: { map_count: 0 }, geometry_source: "requested_floor", geometry: context,
+    map_index: 0, timeline: [], modes: {}, rooms: [], zones: [] };
+  card.historyReport = report;
+  card.renderMissionReport(report);
+  assert.equal(card.$("history-map-source").hidden, false);
+  assert.match(canvas["aria-label"], /Requested floor plan/);
+  assert.ok(inputs.every((input) => input.parentElement.hidden));
+  assert.ok(card.$("history-map-legend").children.some(({ textContent }) => textContent === "Requested area"));
+  assert.ok(paint.includes("#f4bf7c"));
+
+  const recorded = { ...report, geometry: archived, geometry_source: "mission_archive" };
+  card.historyReport = recorded;
+  card.renderMissionReport(recorded);
+  assert.equal(card.$("history-map-source").hidden, true);
+  assert.match(canvas["aria-label"], /Recorded floor, coverage and robot route/);
+  assert.equal(inputs[3].parentElement.hidden, false);
 });
 
 test("expanded history keeps its query scope when opening an archived report", async () => {

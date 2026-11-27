@@ -69,6 +69,23 @@ Verify each recovery operation independently on a disposable map, including
 the resulting floor and its destinations, before offering it in the card.
 [Map editor SDD](../specs/009-map-zone-editor.md)
 
+## Local route captures for unarchived reports
+
+A Max 700 Combo sent live positions during an approach that ended with
+error 48. The signed report retained the outcome and the requested map
+revision and omitted the mission map. The report can now show that original
+requested floor. [Unarchived report proof](validation.md#requested-floor-in-an-unarchived-report)
+
+Add per-robot opt-in recording of Roomba's live positions and estimated
+coverage. Associate each capture with the reported mission number, start
+time, and resolved floor revision, and preserve sequence gaps and captured
+activity. Keep a bounded, private local history with an explicit deletion
+control. The signed mission report remains the source of its outcome,
+measurements, and archive. Where that archive is unavailable, present an
+exactly matched local capture with its source and estimated coverage label.
+Verify recovery after restart, capture isolation across robots and floors,
+and archive precedence using a recorded mission replay and a household run.
+
 ## Physical automatic dock emptying
 
 The Max 700 Combo's three Android choices and a custom threshold were

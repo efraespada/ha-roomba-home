@@ -1,0 +1,17 @@
+{
+  "model": "X185240",
+  "reported_outcome": "incomplete",
+  "reported_error": 48,
+  "archived_map_reference_count": 0,
+  "requested_revision_readable": true,
+  "requested_floor_rooms": 6,
+  "verified_furniture_footprint_vertices": 4,
+  "requested_revision_route_count": 0,
+  "requested_revision_coverage_count": 0,
+  "navigation_event_map_reads_http_statuses": [400, 400, 400],
+  "control_archive_distinct_from_navigation_versions": true,
+  "authenticated_home_assistant_returns_requested_geometry": true,
+  "authenticated_home_assistant_control_returns_archived_trajectory": true,
+  "verified_chrome_viewport_widths": [358, 900],
+  "roomba_commands_sent": 0
+}

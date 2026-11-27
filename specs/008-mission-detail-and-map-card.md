@@ -145,6 +145,10 @@ trajectory contains observed positions and retains sequence gaps.
 - MAP-24: Show active mission and dock errors above the floor plan while
   Roomba reports them, including after a mission and before the first
   saved floor. Preserve the reported mission phase and each error source.
+- MAP-25: If a mission archive is unavailable, show the readable revision
+  named in the signed cleaning order. Label it **Requested floor** and
+  show verified destination shapes. Mission trajectory, hazard, and
+  coverage layers require their original archive.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -192,7 +196,11 @@ polling. Use the `CLEAN_DIRTY` command's room IDs as the sole source for
 amber shading and room labels. Preserve the existing selection. Clear
 the previous reading on a floor, revision, or inventory change. Load the
 new reading while the layer is enabled. Honor the viewer's choice to hide
-the layer across floor changes and discard any superseded read.
+the layer across floor changes and discard any superseded read. Refresh
+the recommendation on a visible tab after five minutes, even when the
+floor revision stays the same. Keep the current layer during the read.
+Remove its highlights if the provider stops recommending the rooms or
+the refresh fails. Wait for the next refresh interval after an error.
 [Recommendation validation](../docs/validation.md#automatic-smart-cleaning-overlay)
 
 Position collection MUST retain bounded point counts, honor provider expiry,
@@ -488,6 +496,7 @@ features, physical results, and open scenarios.
 | MAP-22 | [Signed history window comparison](../docs/validation.md#cleaning-history-periods) and [archive contract](../docs/api.md#archived-cleaning-reports) | [Signed request tests](../tests/test_api_client.py), [list and detail tests](../tests/ha/test_roomba_map_api.py), and [period and filter tests](../tests/frontend/map-card.test.cjs) |
 | MAP-23 | [Native floor defaults and recommendation mapping](../docs/validation.md#automatic-smart-cleaning-overlay) | [Authenticated routine endpoint](../tests/ha/test_roomba_map_api.py) and [default layer, floor revision, and suppression tests](../tests/frontend/map-card.test.cjs) |
 | MAP-24 | [Current mission and active error contract](../docs/api.md#current-mission-readout) | [Authenticated snapshot tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [household failure trial](../docs/validation.md#household-live-coverage-and-active-errors) |
+| MAP-25 | [Archived report contract](../docs/api.md#archived-cleaning-reports) | [Map parsing tests](../tests/test_mission_map.py), [authenticated report scope tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [unarchived report comparison](../docs/validation.md#requested-floor-in-an-unarchived-report) |
 
 ## 18. Implementation sequence
 

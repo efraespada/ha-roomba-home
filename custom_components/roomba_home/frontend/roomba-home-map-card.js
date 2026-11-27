@@ -6,6 +6,7 @@ const MAX_LIVE_TRANSITION_SECONDS = 6;
 const MAX_LIVE_TRANSITION_MS = 1800;
 const MAX_CLEANING_AREAS = 32;
 const DEFAULT_HISTORY_DAYS = 10;
+const RECOMMENDATION_REFRESH_MS = 5 * 60 * 1000;
 const WALL_HEIGHT = 2.2;
 const OBLIQUE_PITCH = 0.55;
 const segmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter() : null;
@@ -504,6 +505,7 @@ template.innerHTML = `
         <dl id="history-measurements" class="measurements"></dl>
         <label id="history-map-selector" hidden>Mission map <select id="history-map-index"></select></label>
         <section id="history-map-view" aria-label="Mission map" hidden>
+          <p id="history-map-source" class="muted" hidden>Requested floor · Saved revision from the cleaning order</p>
           <canvas id="history-map" width="${WIDTH}" height="${HEIGHT}" tabindex="0"
             aria-label="Recorded floor, coverage and robot route. Use arrow keys to pan."></canvas>
           <div class="map-actions">
@@ -1029,6 +1031,7 @@ function drawMissionMap(canvas, geometry, view, layers = geometry) {
   area(geometry.temporary_zones, "#00000000", "#ffffffa0");
   if (view.elevated) drawElevation(ctx, geometry.walls, geometry.furniture, projection);
   else area(geometry.furniture.map(({ points }) => [points]), "#43535d", "#8aa1aa");
+  area(geometry.requested_areas ?? [], "#f4bf7c28", "#f4bf7c");
   ctx.lineWidth = 2;
   ctx.strokeStyle = "#ff7893";
   for (const wall of geometry.virtual_walls ?? []) {
@@ -1906,9 +1909,11 @@ class RoombaHomeMapCard extends HTMLElement {
 
   async loadRecommendedRooms() {
     const map = this.snapshot?.map;
-    if (!map || !this.geometry || this.editingMap || this.recommendationsHidden || this.recommendedRooms) return;
+    const previous = this.recommendedRooms;
+    if (!map || !this.geometry || this.editingMap || this.recommendationsHidden || document.hidden ||
+        previous?.pending || previous?.refreshAfter > Date.now()) return;
     const entity = this.config.entity;
-    const reading = { pending: true };
+    const reading = { pending: true, targets: previous?.targets };
     this.recommendedRooms = reading;
     this.renderRecommendedRooms();
     try {
@@ -1921,9 +1926,11 @@ class RoombaHomeMapCard extends HTMLElement {
       const suggestions = response.routines.filter((routine) => routine.kind === "recommended");
       reading.targets = new Set(suggestions.length === 1 ? suggestions[0].target_ids : []);
     } catch (error) {
+      reading.targets = undefined;
       reading.error = error?.message || "Recommended rooms are unavailable.";
     } finally {
       reading.pending = false;
+      reading.refreshAfter = Date.now() + RECOMMENDATION_REFRESH_MS;
       if (reading === this.recommendedRooms) this.draw();
     }
   }
@@ -1939,7 +1946,7 @@ class RoombaHomeMapCard extends HTMLElement {
     const rooms = visible && this.geometry.regions.filter(({ id, kind }) =>
       kind === "room" && reading.targets?.has(id));
     const names = rooms && rooms.map(({ name }) => name || "Unnamed room");
-    const message = (!visible ? "" : reading.pending ? "Loading recommended rooms…"
+    const message = (!visible ? "" : reading.pending && !reading.targets ? "Loading recommended rooms…"
       : reading.error || (names.length ? `Cleaning recommended for ${names.join(", ")}.`
         : "Roomba has no recommended rooms for this floor."));
     this.$("recommended-rooms-key").hidden = !rooms?.length;
@@ -2684,7 +2691,14 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("history-detail").hidden = false;
     this.$("history-map-view").hidden = !report.geometry;
     this.$("history-no-map").hidden = Boolean(report.geometry);
-    if (report.geometry) this.drawHistoryMap();
+    if (report.geometry) {
+      const requested = report.geometry_source === "requested_floor";
+      this.$("history-map-source").hidden = !requested;
+      this.$("history-map").setAttribute("aria-label", requested
+        ? "Requested floor plan. Use arrow keys to pan."
+        : "Recorded floor, coverage and robot route. Use arrow keys to pan.");
+      this.drawHistoryMap();
+    }
   }
 
   drawHistoryMap() {
@@ -2716,6 +2730,7 @@ class RoombaHomeMapCard extends HTMLElement {
     if (geometry.saved_zones?.length) legend.push(["Cleaning zone", "#5bd4b0"]);
     if (geometry.keep_out?.length || geometry.virtual_walls?.length) legend.push(["Keep-out area or wall", "#ff7893"]);
     if (geometry.no_mop?.length) legend.push(["No-mop area", "#e8ab6a"]);
+    if (geometry.requested_areas?.length) legend.push(["Requested area", "#f4bf7c"]);
     if (geometry.docks.length) legend.push(["Dock", "#f0c674"]);
     if (geometry.hazards.length) legend.push(["Obstacle", "#ff8080"]);
     if (geometry.trajectories.length) legend.push(["End of recorded path", "#eaf3f9"]);
@@ -3987,6 +4002,7 @@ class RoombaHomeMapCard extends HTMLElement {
         map_id: id, version, include_saved: true });
       if (result.map_id !== id || result.version !== version) throw Error("The floor changed. Refresh quick routines.");
       if (this.floorShortcuts !== reading || this.floorShortcutScope() !== scope) return;
+      reading.readAt = Date.now();
       const areas = new Set([...this.geometry.regions, ...this.furnitureDestinations].map(({ id }) => id));
       reading.options = [...result.saved, ...result.routines].filter(({ choose_point, region_settings }) =>
         choose_point ? this.pointAvailable : region_settings?.length && region_settings.every(({ id }) => areas.has(id)));
@@ -4037,7 +4053,9 @@ class RoombaHomeMapCard extends HTMLElement {
     const regions = item.region_settings.map((area) => ({ ...area }));
     if (item.kind === "recommended") {
       this.recommendationsHidden = false;
-      this.recommendedRooms = { targets: new Set(item.target_ids) };
+      this.recommendedRooms = {
+        targets: new Set(item.target_ids), refreshAfter: reading.readAt + RECOMMENDATION_REFRESH_MS,
+      };
     }
     this.selected = new Set(regions.map(({ id }) => id));
     this.draw();

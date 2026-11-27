@@ -1,5 +1,28 @@
 # Roomba Home validation
 
+## Requested floor in an unarchived report
+
+A signed Max 700 Combo report associated error 48 with one incomplete
+furniture destination and 0 m² cleaned. Its `p2maps` list had no references. The
+cleaning order retained the original floor and revision and the four
+vertices of its furniture target. That revision returned six rooms and
+the intended furniture item. Its route and coverage layers were empty.
+
+Three map scopes found in the same report's `reloc` and `travel` events
+returned HTTP 400 through the map archive route. A completed comparison
+report had an archived map scope distinct from all three of its own
+event scopes. The verified cleaning order is the floor context for this
+case. The trial issued zero additional cleaning commands.
+
+An isolated Home Assistant instance read that signed report through the
+card's authenticated WebSocket. It returned the six-room requested floor
+and the exact furniture footprint, with no path or coverage. A completed
+control report returned its archived trajectory. Chrome at 358 and 900
+pixels verified the source label, legend, and archive layer controls.
+[Anonymized evidence](evidence/2026-11-27-unarchived-requested-floor.json) ·
+[Household failure trial](#household-live-coverage-and-active-errors) ·
+[iRobot archive documentation](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
+
 ## Household live coverage and active errors
 
 A Max 700 Combo started one vacuum-only furniture target through the
@@ -43,7 +66,7 @@ and served the exact released module.
 
 On a Max 700 Combo, opening the saved floor's details in Roomba Home
 3.4.1 showed the amber recommendation before interacting with the map.
-Five of the six rooms were highlighted, matching the earlier signed
+Five of the six rooms were highlighted, matching the signed
 `CLEAN_DIRTY` selection. No cleaning commands or map edits were issued.
 
 In the same app, the active map displayed detected carpet. The edit menu
@@ -65,6 +88,12 @@ viewer used **Recommended rooms**. The control hid the layer and restored
 the same five rooms. The Android and installed room names matched exactly.
 The same default layer and module were verified through the household's
 remote Home Assistant dashboard.
+
+For 0.84.0, a new read of the same floor again matched all five Android
+destinations to the signed recommendation and the exact room preferences.
+Chrome at 358 and 900 pixels verified that the amber fill moves to the
+updated room when a response changes on the same revision, and that
+ordinary floor polls within the interval do not repeat the routine read.
 [Anonymized native comparison](evidence/2026-11-27-automatic-smart-overlay.json) ·
 [Installed map legend](#recommended-rooms-on-the-floor-plan) ·
 [iRobot app release notes](https://homesupport.irobot.com/articles/en_US/Knowledge/40500)
