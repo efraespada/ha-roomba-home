@@ -9,6 +9,24 @@ reject a different mission as proof of a resume. A floor plan read with
 read permission alone omits the controls. A paused mission can be
 reviewed before the first saved floor.
 
+Home Assistant Core passed its configuration check and restarted with
+0.79.0 on the household instance. The module matched the release. After
+updating the Lovelace resource and reloading the dashboard, one reviewed
+furniture-target trial exercised all four controls on a Max 700 Combo.
+Roomba reported `stop` after pause and `run` after resume. The installed
+readout showed a paused vacuum mission with 2:21 elapsed and 0 m², and
+the robot later reported positive area. Confirming cancellation removed
+the active readout and left **Return to dock** available. The card sent
+that request, the robot reported `hmUsrDock` and returned with error zero,
+and the card cleared the mission controls. The trial kept the previous
+release available for rollback.
+
+The signed history query with the app's usual
+`omit_quickly_canceled_not_scheduled` filter returned zero matching records.
+Removing only that parameter returned one record matching the start and
+end times and the exact furniture target. It recorded a canceled vacuum
+mission with positive area. [Anonymized household trial](evidence/2026-11-27-household-mission-controls.json)
+
 ## Current mission readout
 
 One Max 700 Combo trial started vacuuming around a previously verified
