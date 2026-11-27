@@ -115,8 +115,10 @@ and revision. A saved zone is a provider-confirmed region with its own ID.
   identifiers and preserve unrelated active restrictions. Verify the full
   replacement layer and distinct endpoints for each linear wall.
 - EDIT-15: Recover moved and missing furniture placements from a backup of
-  the same floor. Review the object types, sources, and linked routines.
-  Preserve furniture added later and verify the complete active layer.
+  the same floor. Review the object types, sources, and linked routines
+  and schedules. Preserve furniture added later and verify the complete
+  active layer. Use the current polygon when relinking a compatible
+  cleaning schedule to restored furniture.
 - EDIT-16: Recover one room's name and type after confirming its saved and
   active identifiers and footprints. Report missing rooms and changed
   footprints before saving. Verify the selected metadata on the new active

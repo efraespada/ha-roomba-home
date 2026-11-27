@@ -815,7 +815,7 @@ test("a schedule can be created from the reviewed floor, enabled and removed", a
   };
   await card.openRoutines({ schedule: true });
   assert.equal(card.$("routine-title").textContent, "Cleaning schedules");
-  assert.equal(card.routineAreas.has("furniture-b"), false);
+  assert.equal(card.routineAreas.get("furniture-b"), "Table");
   assert.equal(card.$("run-routine").hidden, true);
   card.routineDraft.name = "Office cleaning";
   card.routineDraft.time = "10:15";
@@ -826,10 +826,11 @@ test("a schedule can be created from the reviewed floor, enabled and removed", a
     check.onchange();
   }
   card.routineDraft.regions[0].mode = "vacuum";
+  card.routineDraft.regions.push({ id: "furniture-b", mode: "mop", wetness_level: 2 });
   await card.saveSchedule();
   assert.deepEqual(calls[1], ["create_cleaning_schedule", {
     name: "Office cleaning", frequency: "weekly", time: "10:15", weekdays: [2, 5],
-    regions: [{ id: "room-a", mode: "vacuum" }],
+    regions: [{ id: "room-a", mode: "vacuum" }, { id: "furniture-b", mode: "mop", wetness_level: 2 }],
     floor: { map_id: "fixture-map", version: "v1", inventory_id: "inventory" },
   }, card.config.entity]);
   assert.equal(card.$("toggle-schedule").textContent, "Enable schedule");
@@ -845,12 +846,13 @@ test("a schedule can be created from the reviewed floor, enabled and removed", a
 
 test("a routine selection opens a new schedule with its order and settings intact", async () => {
   const card = draftEstimateCard();
-  const zone = "fixture-map:zid:100";
+  const table = "fixture-map:furniture:table";
   const room = "fixture-map:rid:room-a";
   card.snapshot.can_manage_schedules = true;
-  card.geometry.regions = [{ id: room, name: "Hall", kind: "room" }, { id: zone, name: "Entry", kind: "zone" }];
-  card.routineAreas = new Map([[room, "Hall"], [zone, "Entry"]]);
-  const profiles = [{ id: zone, mode: "mop", wetness_level: 3, smart_scrub: true },
+  card.geometry.regions = [{ id: room, name: "Hall", kind: "room" }];
+  card.geometry.furniture = { destinations: [{ id: table, name: "Table" }] };
+  card.routineAreas = new Map([[room, "Hall"], [table, "Table"]]);
+  const profiles = [{ id: table, mode: "mop", wetness_level: 3, smart_scrub: true },
     { id: room, mode: "vacuum", suction_level: 1, two_pass: false }];
   const saved = { id: "routine-id", name: "Entry and hall", ordered: true, region_settings: profiles };
   card.routines = [saved];
@@ -859,9 +861,9 @@ test("a routine selection opens a new schedule with its order and settings intac
   card.routineDraft.ordered = false;
   assert.ok(!card.canUseRoutineInSchedule());
   card.routineDraft.ordered = true;
-  card.routineDraft.regions[0].id = "fixture-map:furniture:table";
+  card.routineDraft.regions[0].id = "fixture-map:furniture:unknown";
   assert.ok(!card.canUseRoutineInSchedule());
-  card.routineDraft.regions[0].id = zone;
+  card.routineDraft.regions[0].id = table;
   const calls = [];
   card.callAction = async (action, data, entity) => {
     calls.push([action, JSON.parse(JSON.stringify(data)), entity]);
@@ -878,6 +880,7 @@ test("a routine selection opens a new schedule with its order and settings intac
   assert.equal(card.routineDraft.name, saved.name);
   assert.equal(card.routineDraft.saved, undefined);
   assert.equal(card.routineDraft.time, "");
+  assert.equal(card.routineAreas.get(table), "Table");
   assert.notEqual(card.routineDraft.regions[0], profiles[0]);
   assert.equal(card.$("schedule-frequency").focused, true);
   assert.equal(card.$("use-routine-in-schedule").hidden, true);
