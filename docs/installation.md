@@ -89,6 +89,7 @@ isolated rollback, 0.1.0 restored the original twelve entities. Reinstalling
 | 0.81.0 | Core configuration check and restart passed. The installed card verified all four history filters and opened the same fifteen-day-old archive across both thirty-day filters. [Validation](validation.md#cleaning-history-periods) |
 | 0.82.0 | Core configuration check and restart passed. The installed card opened with the same five Smart cleaning recommendations as Android. Hiding and restoring the layer kept that selection. [Validation](validation.md#automatic-smart-cleaning-overlay) |
 | 0.83.0 | Core configuration check and restart passed. The installed card displayed the physical robot's active fault after its mission ended and it returned to charge. [Validation](validation.md#household-live-coverage-and-active-errors) |
+| 0.84.0 | Core configuration check and restart passed. The installed card showed the five current Android recommendations. Cleaning history showed the requested floor for a report without an archive and the original route and coverage for a completed report. [Recommendations](validation.md#automatic-smart-cleaning-overlay) · [History](validation.md#requested-floor-in-an-unarchived-report) |
 
 ## Troubleshooting
 
