@@ -126,7 +126,12 @@ def map_geometry(floor, plan):
             "editable": can_edit_furniture(plan),
             "types": {kind: label for kind, (_, label) in FURNITURE_TYPES.items()},
             "destinations": [
-                {"id": item.segment_id(floor.map_id), "name": item.name}
+                {
+                    "id": item.segment_id(floor.map_id),
+                    "name": item.name,
+                    "object_id": item.region_id,
+                    "outline": item.outline,
+                }
                 for item in furniture_regions(plan)
             ],
             "items": [
