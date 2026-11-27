@@ -1,5 +1,14 @@
 # Roomba Home validation
 
+## Reviewed mission controls
+
+Home Assistant tests pause eligibility during cleaning, explicit resume
+from a paused mission, and return while an identified robot is idle off
+the dock. The tests reject a stale mission review before publication and
+reject a different mission as proof of a resume. A floor plan read with
+read permission alone omits the controls. A paused mission can be
+reviewed before the first saved floor.
+
 ## Current mission readout
 
 One Max 700 Combo trial started vacuuming around a previously verified
@@ -2687,6 +2696,11 @@ reboot, and Wi-Fi change. The robot page exposed a factory reset
 and removal entry. The review opened the settings and maintenance
 screens and performed a read-only parts check. The two device lifecycle
 flows remain open in the device specification.
+
+On the connected Max 700 Combo, opening **Reconnect or change Wi-Fi**
+showed a confirmation that continuing would clear its current Wi-Fi
+configuration. The trial canceled there without supplying credentials
+or clearing the connection.
 [Device capability specification](../specs/007-device-capabilities.md)
 
 ## Robot serial number

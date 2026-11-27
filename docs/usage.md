@@ -51,6 +51,19 @@ destination timeline shows cleaning time in each area when its events
 are available. The current readout clears when the mission ends or the
 robot disconnects. Completed measurements remain in **Cleaning history**.
 
+### Control the current mission
+
+Use **Pause mission** above the floor plan while Roomba is cleaning, and
+**Resume mission** when it is paused. **Cancel mission** ends the current
+work. **Return to dock** sends the robot to its base. Both ask for
+confirmation and show the robot's name. The controls follow the robot's
+verified phase, including an active mapping run or a pause before the
+first floor has been saved. **Return to dock** stays available after
+cancellation if Roomba reports that it is idle off the dock and still
+identifies the run. A user needs control permission for the linked
+vacuum. If the mission changes while a confirmation is open, the card
+closes it and displays the available commands for the new state.
+
 ### Select destinations and navigate
 
 Use the map or the accessible buttons below it to select rooms and saved

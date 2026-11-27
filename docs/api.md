@@ -293,6 +293,24 @@ the first saved floor or without a correlated destination timeline. Position,
 coverage, and destination overlays still follow the verified floor and
 mission association.
 
+### Reviewed mission controls
+
+For a user with control permission, `roomba_home/floor_plan` returns
+`mission_controls` when Roomba reports an identifiable active mission
+or an idle robot off its dock with a retained mission identity.
+It has an opaque `review_id` and a list of available `commands`. Supported
+commands are `pause`, `resume`, `stop`, and `dock`. The review applies to
+the linked robot's mission number and start time, including a mapping run.
+The response omits raw mission and robot identifiers from the review.
+
+The Home Assistant action `roomba_home.control_current_mission` accepts
+one `command` and the `review_id` for the targeted vacuum entity. The
+coordinator serializes the request per robot and checks the review and
+allowed command against a fresh state read before publication. Resume
+always uses the explicit `resume` command. The normal command
+confirmation path verifies the resulting state and reports an error if a
+different active mission replaces the reviewed one.
+
 ### Mode-specific live coverage
 
 The live map positions and raw route snapshots provide coordinates and

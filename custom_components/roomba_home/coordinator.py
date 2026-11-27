@@ -41,6 +41,7 @@ from .core.application import (
     ControlState,
     PreparationConfirmation,
     execute_control,
+    mission_commands,
     skip_review,
 )
 from .core.capabilities import supports_point_clean
@@ -2581,6 +2582,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         overrides=(),
         reviewed_map=None,
         reviewed_skip=None,
+        mission_review_id=None,
         ordered=True,
         new_mission=False,
     ):
@@ -2591,6 +2593,16 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                     skip_target = self._skip_review(robot_id)
                     if _skip_review_id(skip_target) != reviewed_skip:
                         raise ControlError("skip_destination_changed")
+                mission_identity = None
+                if mission_review_id is not None:
+                    state = (self.data or {}).get(robot_id)
+                    if state is None:
+                        raise ControlError("mission_changed")
+                    mission = control_snapshot(state)
+                    current = mission_review(robot_id, mission)
+                    if current is None or current["review_id"] != mission_review_id:
+                        raise ControlError("mission_changed")
+                    mission_identity = mission.mission_identity
                 target = None
                 if segments is not None:
                     target = await self._resolve_areas(
@@ -2616,6 +2628,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                     new_mission=new_mission or target is not None,
                     area_profiles=area_profiles,
                     reviewed_skip=skip_target,
+                    reviewed_mission=mission_identity,
                 )
             except AuthenticationError as error:
                 self._notify_status(robot_id, "unconfirmed")
@@ -2840,6 +2853,13 @@ class RobotControlAdapter:
 
 def _skip_review_id(key):
     return sha256(repr(key).encode()).hexdigest() if key is not None else None
+
+
+def mission_review(robot_id, state: ControlState) -> dict | None:
+    if not (commands := mission_commands(state)):
+        return None
+    review_id = sha256(repr((robot_id, state.mission_identity)).encode()).hexdigest()
+    return {"review_id": review_id, "commands": commands}
 
 
 def control_snapshot(state, timeline=None):

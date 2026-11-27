@@ -12,6 +12,7 @@ from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 
+from .coordinator import control_snapshot, mission_review
 from .core.capabilities import supports_point_clean
 from .core.cleaning import CleaningMode
 from .core.cleaning_protocol import reported_cleaning_mode
@@ -512,6 +513,7 @@ async def websocket_floor_plan(hass, connection, message):
     }
     now = datetime.now(UTC)
     mission = current_mission(state, now)
+    controls = mission_review(robot_id, control_snapshot(state)) if can_control else None
     if not maps:
         connection.send_result(
             message["id"],
@@ -521,6 +523,7 @@ async def websocket_floor_plan(hass, connection, message):
                 "maps": [],
                 "mapping": mapping,
                 "current_mission": mission,
+                "mission_controls": controls,
                 "can_clean_everywhere": can_clean_everywhere,
             },
         )
@@ -546,6 +549,7 @@ async def websocket_floor_plan(hass, connection, message):
         "robot": state.name,
         "mapping": mapping,
         "current_mission": mission,
+        "mission_controls": controls,
         "map": {"id": floor.map_id, "version": floor.version_id},
         "inventory_id": inventory_id,
         "floor_settings": {

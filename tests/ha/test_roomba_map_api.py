@@ -13,7 +13,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import entity_registry
 
 from custom_components.roomba_home.const import CONF_SHOW_MAPS, DOMAIN
-from custom_components.roomba_home.coordinator import RoombaCoordinator
+from custom_components.roomba_home.coordinator import RobotControlAdapter, RoombaCoordinator
 from custom_components.roomba_home.core.actions import Command
 from custom_components.roomba_home.core.area_preferences import read_area_defaults
 from custom_components.roomba_home.core.capabilities import DigitalSpotCapability, SkipCapability
@@ -970,6 +970,7 @@ async def test_current_mission_is_covered_before_the_first_saved_floor_and_witho
         error=0,
         telemetry=ready.telemetry
         | {
+            "mission_number": 100,
             "mission_started": now - timedelta(seconds=65),
             "mission_area": 0,
         },
@@ -1004,6 +1005,7 @@ async def test_current_mission_is_covered_before_the_first_saved_floor_and_witho
         snapshot = (await socket.receive_json())["result"]
         assert snapshot["current_mission"] == expected
         assert snapshot["live_plan"] is None
+        assert snapshot["mission_controls"] is None
 
         configured._maps[robot] = ()
         await socket.send_json(query | {"id": 2})
@@ -1043,6 +1045,71 @@ async def test_current_mission_is_covered_before_the_first_saved_floor_and_witho
             configured.data[robot] = state
             await socket.send_json(query | {"id": identifier})
             assert (await socket.receive_json())["result"]["current_mission"] is None
+
+
+async def test_control_current_mission_requires_the_current_review_and_confirms_resume(
+    hass, configured, hass_ws_client, hass_admin_user
+):
+    robot = "fixture-0"
+    ready = configured.data[robot]
+    paused = replace(
+        ready,
+        connected=True,
+        cycle="clean",
+        phase="stop",
+        mode=2,
+        telemetry=ready.telemetry | {"mission_number": 23, "mission_started": datetime.now(UTC)},
+    )
+    configured.data[robot] = paused
+    configured._maps[robot] = ()
+    socket = await hass_ws_client()
+    query = {"id": 1, "type": "roomba_home/floor_plan", "entity_id": ENTITY}
+    await socket.send_json(query)
+    snapshot = (await socket.receive_json())["result"]
+    assert snapshot["map"] is None
+    review = snapshot["mission_controls"]
+    assert review["commands"] == ["resume", "stop", "dock"]
+    context = Context(user_id=hass_admin_user.id)
+
+    async def resume(command, profile):
+        assert command is Command.RESUME and profile is None
+        configured.data[robot] = replace(paused, phase="run")
+
+    async def submit(review_id):
+        await hass.services.async_call(
+            DOMAIN,
+            "control_current_mission",
+            {"entity_id": ENTITY, "command": "resume", "review_id": review_id},
+            context=context,
+            blocking=True,
+        )
+
+    with (
+        patch.object(configured, "_refresh_for_command", new_callable=AsyncMock),
+        patch.object(RobotControlAdapter, "send", side_effect=resume) as sent,
+        patch.object(RobotControlAdapter, "wait", new_callable=AsyncMock),
+    ):
+        with pytest.raises(HomeAssistantError, match="mission_changed"):
+            await submit("a" * 64)
+        configured.data[robot] = replace(paused, cycle="none", phase="charge")
+        with pytest.raises(HomeAssistantError, match="mission_changed"):
+            await submit(review["review_id"])
+        configured.data[robot] = paused
+        await submit(review["review_id"])
+        sent.assert_awaited_once_with(Command.RESUME, None)
+
+    await socket.send_json(query | {"id": 2})
+    controls = (await socket.receive_json())["result"]["mission_controls"]
+    assert controls == {"review_id": review["review_id"], "commands": ["pause", "stop", "dock"]}
+
+    account_data = configured.data.pop(robot)
+    try:
+        with pytest.raises(HomeAssistantError, match="mission_changed"):
+            await configured.async_command(
+                robot, Command.CANCEL, mission_review_id=review["review_id"]
+            )
+    finally:
+        configured.data[robot] = account_data
 
 
 @pytest.mark.parametrize(

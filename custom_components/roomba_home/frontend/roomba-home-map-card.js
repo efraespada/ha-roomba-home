@@ -23,6 +23,12 @@ const MODES = {
   vacuum_mop: "Vacuum and mop",
   vacuum_then_mop: "Vacuum then mop",
 };
+const MISSION_CONTROLS = {
+  pause: "Pause mission",
+  resume: "Resume mission",
+  stop: "Cancel mission",
+  dock: "Return to dock",
+};
 const SETTINGS = {
   suction_level: "Suction",
   wetness_level: "Mop wetness",
@@ -86,6 +92,7 @@ template.innerHTML = `
     h2,h3,p { margin:0; } h2 { font-size:20px; font-weight:650; } h3 { font-size:14px; margin-bottom:8px; }
     .muted { color:var(--secondary-text-color,#a9b8c5); font-size:13px; }
     #current-mission { margin:0 16px 12px; }
+    #mission-control-status { margin:0 16px 12px; }
     .scene { position:relative; isolation:isolate; background:#101e2a; }
     canvas { width:100%; height:auto; display:block; touch-action:pan-y; cursor:crosshair; }
     [data-gesture-pan="true"] > canvas { touch-action:none; cursor:grab; }
@@ -207,6 +214,13 @@ template.innerHTML = `
       <button id="open-robot-help">Robot help</button>
     </header>
     <dl id="current-mission" class="measurements" aria-label="Current mission" hidden></dl>
+    <div id="mission-controls" class="floor-routine-controls" role="group" aria-label="Mission controls" hidden>
+      <button id="mission-pause" hidden>Pause mission</button>
+      <button id="mission-resume" hidden>Resume mission</button>
+      <button id="mission-stop" hidden>Cancel mission</button>
+      <button id="mission-dock" hidden>Return to dock</button>
+    </div>
+    <p id="mission-control-status" class="muted" role="status" hidden></p>
     <div class="floor-routine-controls">
       <button id="show-recommended-rooms" hidden aria-pressed="false">Recommended rooms</button>
       <details id="floor-shortcuts" hidden>
@@ -576,6 +590,14 @@ template.innerHTML = `
       <div class="actions">
         <button id="cancel-skip">Cancel</button>
         <button id="confirm-skip" class="primary">Confirm skip</button>
+      </div>
+    </dialog>
+    <dialog id="mission-control-dialog" aria-labelledby="mission-control-title">
+      <h3 id="mission-control-title"></h3>
+      <p id="mission-control-description"></p>
+      <div class="actions">
+        <button id="close-mission-control">Back</button>
+        <button id="confirm-mission-control" class="primary"></button>
       </div>
     </dialog>
     <dialog id="floor-edit-dialog" aria-labelledby="floor-edit-title">
@@ -1111,6 +1133,12 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("cancel").onclick = () => this.dialog.close();
     this.$("start").onclick = () => this.submit();
     this.$("review-mapping").onclick = () => this.reviewMapping();
+    for (const command of Object.keys(MISSION_CONTROLS)) {
+      this.$(`mission-${command}`).onclick = () => this.reviewMissionCommand(command);
+    }
+    this.$("close-mission-control").onclick = () => this.$("mission-control-dialog").close();
+    this.$("confirm-mission-control").onclick = () => this.confirmMissionCommand();
+    this.$("mission-control-dialog").onclose = () => { this.missionControlDraft = null; };
     this.$("open-mission-history").onclick = () => this.openMissionHistory();
     this.$("open-maintenance").onclick = () => this.openMaintenance();
     this.$("close-maintenance").onclick = () => this.$("maintenance-dialog").close();
@@ -1412,6 +1440,8 @@ class RoombaHomeMapCard extends HTMLElement {
     this.snapshot = null;
     this.recommendedRooms = null;
     this.renderCurrentMission(null);
+    this.missionControlMessage = "";
+    this.updateMissionControls(null);
     this.updateFloorShortcuts();
     this.pointMode = false;
     this.pointCleaningMode = null;
@@ -1443,6 +1473,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.timer = null;
     this.recommendedRooms = null;
     this.renderCurrentMission(null);
+    this.updateMissionControls(null);
     this.invalidateFloorShortcuts();
     this.sequence++;
     this.loading = false;
@@ -1525,6 +1556,7 @@ class RoombaHomeMapCard extends HTMLElement {
         [data.current_room ? `Current room · ${data.current_room}` : null,
           data.on_mapped_carpet === true ? "On mapped carpet" : null].filter(Boolean).join(" · ");
       this.renderCurrentMission(data.current_mission);
+      this.updateMissionControls(data.mission_controls);
       if (staleFloorDraft) {
         this.operationMessage = "The floor settings changed. Open the editor again.";
         this.$("status").textContent = this.operationMessage;
@@ -1555,6 +1587,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.clearSelection();
       this.renderAreas();
       this.renderCurrentMission(null);
+      this.updateMissionControls(null);
       this.renderMissionPlan(null);
       this.renderAreaResults("active", [], "In progress");
       this.renderAreaResults("history", [], "Unknown outcome");
@@ -2795,6 +2828,68 @@ class RoombaHomeMapCard extends HTMLElement {
     view.dataset.mission = signature;
     view.hidden = values.every(([, value]) => value == null);
     renderMeasurements(view, values);
+  }
+
+  updateMissionControls(controls) {
+    const commands = controls?.commands ?? [];
+    for (const command of Object.keys(MISSION_CONTROLS)) {
+      const button = this.$(`mission-${command}`);
+      button.hidden = !commands.includes(command);
+      button.disabled = Boolean(this.missionControlPending);
+    }
+    const draft = this.missionControlDraft;
+    if (draft && (draft.review_id !== controls?.review_id || !commands.includes(draft.command))) {
+      this.missionControlDraft = null;
+      this.$("mission-control-dialog").close();
+    }
+    this.$("mission-controls").hidden = !commands.length;
+    const status = this.$("mission-control-status");
+    status.textContent = this.missionControlMessage ?? "";
+    status.hidden = !status.textContent;
+  }
+
+  reviewMissionCommand(command) {
+    const controls = this.snapshot?.mission_controls;
+    if (!controls?.commands.includes(command) || this.missionControlPending) return;
+    const draft = { command, review_id: controls.review_id };
+    if (command === "pause" || command === "resume") return this.sendMissionCommand(draft);
+    this.missionControlDraft = draft;
+    this.$("mission-control-title").textContent = `${MISSION_CONTROLS[command]}?`;
+    this.$("mission-control-description").textContent = command === "stop"
+      ? `End the current mission for ${this.snapshot.robot}?`
+      : `Send ${this.snapshot.robot} back to its dock?`;
+    this.$("confirm-mission-control").textContent = MISSION_CONTROLS[command];
+    this.$("mission-control-dialog").showModal();
+  }
+
+  confirmMissionCommand() {
+    const dialog = this.$("mission-control-dialog");
+    const draft = this.missionControlDraft;
+    if (!dialog.open || !draft) return;
+    dialog.close();
+    return this.sendMissionCommand(draft);
+  }
+
+  async sendMissionCommand(draft) {
+    const controls = this.snapshot?.mission_controls;
+    if (this.missionControlPending || !controls?.commands.includes(draft.command) ||
+        draft.review_id !== controls.review_id) return;
+    const entity = this.config.entity;
+    this.missionControlPending = true;
+    this.missionControlMessage = "Waiting for Roomba to confirm…";
+    this.updateMissionControls(controls);
+    try {
+      await this._hass.callService("roomba_home", "control_current_mission", draft, { entity_id: entity });
+      if (this.config.entity === entity) this.missionControlMessage = "";
+    } catch (error) {
+      if (this.config.entity === entity) {
+        this.missionControlMessage = error?.message || "Roomba did not confirm the command.";
+      }
+    } finally {
+      await this.refresh(true);
+      this.missionControlPending = false;
+      this.updateMissionControls(this.snapshot?.mission_controls);
+    }
   }
 
   renderMissionPlan(plan, id = "mission-plan") {
