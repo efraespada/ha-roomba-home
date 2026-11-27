@@ -92,6 +92,7 @@ isolated rollback, 0.1.0 restored the original twelve entities. Reinstalling
 | 0.84.0 | Core configuration check and restart passed. The installed card showed the five current Android recommendations. Cleaning history showed the requested floor for a report without an archive and the original route and coverage for a completed report. [Recommendations](validation.md#automatic-smart-cleaning-overlay) · [History](validation.md#requested-floor-in-an-unarchived-report) |
 | 0.85.0 | Core configuration check and restart passed. The installed card verified that local route recording starts off and can be enabled and disabled for the selected robot. [Validation](validation.md#local-route-recording-replay) |
 | 0.86.0 | Core configuration check and restart passed. The installed card retained one saved route with recording off. The signed 3.9 m² vacuum report still showed the native route and coverage controls. [Validation](validation.md#household-vacuum-route-after-clearing-error-48) |
+| 0.86.1 | Core configuration check and restart passed. The installed card showed all three robots and retained two local records with recording off. A physical mop-only return stayed pending through the dock wash and was confirmed at 338 seconds. [Validation](validation.md#physical-confirmation-on-0861) |
 
 ## Troubleshooting
 

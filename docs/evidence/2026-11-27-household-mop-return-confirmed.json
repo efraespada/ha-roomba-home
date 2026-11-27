@@ -1,0 +1,29 @@
+{
+  "model": "X185240",
+  "tested_integration_version": "0.86.1",
+  "requested_mode": "mop",
+  "requested_destination_count": 1,
+  "return_history_seconds_from_request": [
+    {"seconds": 8, "command_result": "pending"},
+    {"seconds": 94, "dock_pad_wash_state": 602},
+    {"seconds": 338, "dock_pad_wash_state": 601, "command_result": "confirmed"}
+  ],
+  "post_return_wash_seconds": 244,
+  "unconfirmed_state_observed": false,
+  "signed_reported_outcome": "canceled_after_requested_dock_return",
+  "signed_room_cleaning_seconds": 180,
+  "signed_reported_area_m2": 4.09,
+  "native_archived_mopping_route_visible": true,
+  "native_archived_coverage_visible": true,
+  "home_assistant_live_positions_observed_during_floor_cleaning": false,
+  "android_mopping_state_visible_during_floor_cleaning": true,
+  "android_live_map_loaded_during_trial": false,
+  "proxyman_map_host_tls_error_during_trial": true,
+  "proxy_ca_missing_from_android_system_store_before_repair": true,
+  "proxy_ca_restored_on_the_test_emulator": true,
+  "proxyman_decrypted_after_repair": [
+    {"method": "GET", "path": "/v1/p2maps", "status": 200, "observed_count": 3},
+    {"method": "GET", "path": "/v1/p2maps/{map}/routines", "status": 200, "observed_count": 1}
+  ],
+  "simultaneous_live_map_comparison_verified": false
+}
