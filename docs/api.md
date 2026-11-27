@@ -494,10 +494,21 @@ robot's internal revision on the same floor during that mission.
 
 Names come from the selected signed mission archive. If it is readable and
 missing a destination's name, one optional read of the original requested
-revision on that floor can recover the name. The optional revision never
-changes the geometry drawn for the report. Both the plan and metrics remain
-readable when the archive is missing. The response omits native area and
-map identifiers.
+revision on that floor can recover the name. The readable archive retains
+`geometry_source: mission_archive` and supplies its own drawing layers.
+
+For a missing or unreadable archive, the signed command can identify the
+requested floor through `p2map_id` and `user_p2mapv_id`. An exact readable
+match with the requested scope returns `geometry_source: requested_floor`
+and static floor layers. The optional `requested_areas` array includes
+room and saved-zone polygons from that revision and validated furniture
+footprints from the command. Archive trajectories, coverage, obstacles,
+and ad hoc results are omitted from this view. For a report with multiple
+map references, fallback scope must match the selected reference's floor.
+`geometry_source` is null when geometry is unavailable. The plan,
+metrics, and timeline use the signed report, and the response omits native
+area and map identifiers.
+[Unarchived report validation](validation.md#requested-floor-in-an-unarchived-report)
 
 ### Floor plan display layers
 
@@ -1445,9 +1456,10 @@ A native `CLEAN_DIRTY` start has `params.clean_score_id` and a list of
 a room. The projection returns those IDs in `target_ids`, validates
 their profiles for `region_settings`, and leaves the native score ID
 private. The card reads this suggestion when displaying a new floor
-revision, highlights the reported targets, and keeps it outside the floor
-poll. The editor loads supported settings with automatic order. Read
-routine suggestions through
+revision and refreshes it every five minutes while the tab is visible and
+the layer is enabled. It highlights the reported targets without another
+routine read on ordinary floor polls. The editor loads supported settings
+with automatic order. Read routine suggestions through
 `roomba_home.list_map_routines` or the floor-scoped `roomba_home/floor_routines`
 WebSocket command, which requires read access to the selected vacuum.
 [Quick routines](usage.md#quick-routines-from-the-floor-plan) requests

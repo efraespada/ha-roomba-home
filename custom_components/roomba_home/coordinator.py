@@ -96,7 +96,7 @@ from .core.map_programs import (
 )
 from .core.map_snapshots import capture_snapshot, read_snapshot, with_backup_programs
 from .core.maps import SAVED_ZONE_IDS, AreaTarget, CleaningRegion, RegionKind, resolve_segments
-from .core.mission_map import read_mission_map
+from .core.mission_map import read_mission_map, read_requested_floor
 from .core.mission_plan import present_mission_plan
 from .core.mission_time import (
     estimate_durations,
@@ -2039,31 +2039,46 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 floors = (floor,)
             except ProtocolError:
                 pass
+        geometry_source = "mission_archive" if geometry is not None else None
         detail = report.detail(floors)
+        requested = report.requested_scope
         if (
-            floors
-            and report.plan is not None
-            and report.plan.scope[0] == scope[0]
-            and report.plan.scope != scope
-            and any(
-                row["name"] is None and row["kind"] != "temporary_zone"
-                for row in detail["plan"]["destinations"]
+            requested is not None
+            and requested != scope
+            and (scope is None or requested[0] == scope[0])
+            and (
+                geometry is None
+                or report.plan is not None
+                and any(
+                    row["name"] is None and row["kind"] != "temporary_zone"
+                    for row in detail["plan"]["destinations"]
+                )
             )
         ):
-            # A mission archive can omit an object that was on the requested floor.
             try:
                 async with self._io_lock:
                     requested_archive = await self._read_map_action(
-                        self.client.map_geometry, *report.plan.scope
+                        self.client.map_geometry, *requested
                     )
-                requested_floor, _ = await self._executor(
-                    read_mission_map, requested_archive, *report.plan.scope
+                requested_floor, context = await self._executor(
+                    read_requested_floor,
+                    requested_archive,
+                    *requested,
+                    report.plan,
+                    report.requested_footprints,
                 )
             except HomeAssistantError, AuthenticationError, ProtocolError:
                 pass
             else:
                 detail = report.detail(floors, requested_floor=requested_floor)
-        return {**detail, "geometry": geometry, "map_index": map_index}
+                if geometry is None:
+                    geometry, geometry_source = context, "requested_floor"
+        return {
+            **detail,
+            "geometry": geometry,
+            "geometry_source": geometry_source,
+            "map_index": map_index,
+        }
 
     async def _resolve_point(self, robot_id, region_id, x, y, reviewed_map, mops):
         async with self._io_lock:

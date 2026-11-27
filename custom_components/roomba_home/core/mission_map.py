@@ -43,12 +43,15 @@ def _trajectory(feature: dict) -> tuple[dict, ...]:
     return ({"index": index, "modes": _operating_modes(props), "points": points},)
 
 
-def read_mission_map(data: bytes, map_id: str, version_id: str) -> tuple[PersistentMap, dict]:
-    docs = _map_documents(data, map_id, version_id, MISSION_LAYERS)
+def _floor_and_plan(docs, map_id, version_id):
     floor = PersistentMap(map_id, version_id, None, ())
     plan = _floor_plan_documents(docs, floor)
     floor = with_archive_destinations(floor, plan)
-    return replace(floor, regions=(*floor.regions, *furniture_regions(plan))), {
+    return replace(floor, regions=(*floor.regions, *furniture_regions(plan))), plan
+
+
+def _report_geometry(docs, plan):
+    return {
         "rooms": [{"name": room.name, "polygons": room.polygons} for room in plan.rooms],
         "borders": _display_features(docs, "borders", _polygons),
         "walls": [{"kind": kind, "points": points} for kind, points in plan.walls],
@@ -66,3 +69,27 @@ def read_mission_map(data: bytes, map_id: str, version_id: str) -> tuple[Persist
             _display_features(docs, "trajectories", _trajectory), key=lambda path: path["index"]
         ),
     }
+
+
+def read_mission_map(data: bytes, map_id: str, version_id: str) -> tuple[PersistentMap, dict]:
+    docs = _map_documents(data, map_id, version_id, MISSION_LAYERS)
+    floor, plan = _floor_and_plan(docs, map_id, version_id)
+    return floor, _report_geometry(docs, plan)
+
+
+def read_requested_floor(data, map_id, version_id, itinerary, footprints):
+    """Read the signed command's base floor without importing any mission result layers."""
+    docs = _map_documents(data, map_id, version_id)
+    floor, plan = _floor_and_plan(docs, map_id, version_id)
+    zones = {zone.region_id: zone.polygons for zone in (*plan.zones, *plan.zone_outlines)}
+    targets = {
+        "room": {room.region_id: room.polygons for room in plan.rooms},
+        "saved_zone": zones,
+    }
+    destinations = itinerary.destinations if itinerary is not None else ()
+    requested = tuple(
+        polygon
+        for destination in destinations
+        for polygon in targets.get(destination.kind, {}).get(destination.identity[2], ())
+    )
+    return floor, {**_report_geometry(docs, plan), "requested_areas": (*requested, *footprints)}

@@ -207,6 +207,8 @@ cleaning** in the app. The layer uses the room IDs in Roomba's suggested
 routine. The status below the map lists their names. Switch floors to see
 their own recommendations. Press **Recommended rooms** to hide the layer or
 show it again. The card remembers that choice while you browse its floors.
+It checks Roomba for changes every five minutes while the tab is visible
+and the layer is enabled, even if the map revision stays the same.
 [Recommendation comparison](validation.md#quick-routines-and-smart-recommendations-on-the-floor-plan)
 
 Use the **Get room cleaning scores** action to read the same values in an
@@ -258,6 +260,14 @@ when the archive provides walls or furniture. Drag to pan and use the rotate
 button to inspect it from another angle. The archive is scoped to the mission's
 original revision. A report can still show its measurements and timeline
 after its map becomes unavailable. [Report protocol](api.md#archived-cleaning-reports)
+
+**Requested floor** appears when the report lacks its original map and
+the signed cleaning order identifies a readable floor revision. Amber
+outlines identify the requested rooms, saved zones, or recognized
+furniture footprints. For example, an approach that ended with error 48
+can show the original furniture destination and the separately reported
+0 m². The travel, cleaning path, and coverage controls appear with their
+archived layers. [Unarchived report validation](validation.md#requested-floor-in-an-unarchived-report)
 
 For directed runs, **Requested order** shows the requested sequence,
 cleaning settings, and final outcome for each room, zone, or furniture
