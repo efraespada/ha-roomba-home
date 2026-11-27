@@ -1,5 +1,23 @@
 # Roomba Home validation
 
+## Quick routines and Smart recommendations on the floor plan
+
+Opening **Smart cleaning** in Roomba Home 3.4.1 loaded five of six rooms on
+a Max 700 Combo floor. Each selected room exposed its cleaning settings.
+The map legend marked recommended cleaning with one colored category.
+The signed `CLEAN_DIRTY` response named the exact same rooms, and its
+`clean_score_id` matched `smart_clean_id` on the active floor score row.
+Each room's command settings matched its `smart_clean_prefs`. The reported
+`0.7` range boundary separated the five target rooms in this read. The
+app reached the review screen without starting a mission.
+
+A signed read through the shortcut client returned two compatible saved
+routines and three loadable native options on the same floor. The tests
+cover saved order and profiles, stale geometry and changed furniture,
+read permission, confirmation, and the amber fill with a selected outline.
+[Anonymized comparison](evidence/2026-11-27-smart-cleaning-shortcuts.json) ·
+[ClearView routine documentation](https://homesupport.irobot.com/articles/en_GB/Knowledge/20500)
+
 ## Room and furniture selection on the floor plan
 
 Roomba Home 3.4.1 switched from room add controls to per-room cleaning
@@ -13,7 +31,11 @@ Tests also compare an object's selectable footprint with its expanded
 cleaning outline and verify that a confirmed mixed selection sends the
 exact map review and destination order. An earlier physical schedule on
 the same model reached a supported furniture destination and reported
-cleaned area for its exact furniture link.
+cleaned area for its exact furniture link. A separate 0.76.0 household
+trial selected and cleared all six rooms in the installed card, then
+started vacuuming around one furniture object. The signed report matched
+the exact target and recorded cleaned area and natural completion. The
+robot returned to its dock with error code zero.
 [Scheduled furniture cleaning](#scheduled-furniture-cleaning)
 
 ## Recommended rooms on the floor plan

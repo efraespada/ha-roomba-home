@@ -1,5 +1,6 @@
 """Interpret Roomba's floor-scoped recent and suggested routines as drafts."""
 
+from collections.abc import Iterable
 from math import dist
 
 from .capabilities import DeviceCapabilities, supports_point_clean
@@ -7,7 +8,7 @@ from .cleaning import CleaningMode, CleaningProfile
 from .errors import ProtocolError
 from .furniture_targets import furniture_links
 from .maps import FurnitureRegion, PersistentMap, RegionKind, command_region_id, map_identifier
-from .routines import routine_region_profile
+from .routines import CleaningRoutine, routine_region_profile
 from .telemetry import convert, integer
 
 QUICK_ROUTINE_LIMIT = 5
@@ -73,6 +74,42 @@ def read_quick_routines(
             }
         )
     return {"map_id": floor.map_id, "version": floor.version_id, "routines": items}
+
+
+def saved_quick_routines(
+    routines: Iterable[CleaningRoutine], floor: PersistentMap, capabilities: DeviceCapabilities
+) -> list[dict]:
+    """Keep saved routines that can be copied to a current, reviewed floor draft."""
+    current = {region.segment_id(floor.map_id): region for region in floor.regions}
+    shortcuts = []
+    for routine in routines:
+        command = routine.command
+        if command.get("p2map_id") != floor.map_id:
+            continue
+        summary = routine.action_response()
+        settings = summary["region_settings"]
+        if not settings or any(
+            area["id"] not in current
+            or not _profile_supported(
+                {key: val for key, val in area.items() if key != "id"}, capabilities
+            )
+            for area in settings
+        ):
+            continue
+        polygons = command.get("id_multipolys", [])
+        if any(
+            not isinstance(
+                furniture := current.get(
+                    f"{floor.map_id}:{RegionKind.FURNITURE}:{polygon['metadata']['furniture_id']}"
+                ),
+                FurnitureRegion,
+            )
+            or not _matches_outline(polygon["poly"], furniture)
+            for polygon in polygons
+        ):
+            continue
+        shortcuts.append({"kind": "saved", **summary})
+    return shortcuts
 
 
 def _recommended_rooms(command, params, floor, rooms, capabilities):
@@ -166,15 +203,17 @@ def _replay_regions(command, params, floor, current, capabilities):
 
 def _supported_profile(region, capabilities):
     profile = routine_region_profile(region)
-    if profile is None:
-        return None
+    return profile if profile is not None and _profile_supported(profile, capabilities) else None
+
+
+def _profile_supported(profile, capabilities):
     try:
         CleaningProfile(**(profile | {"mode": CleaningMode(profile["mode"])})).validate(
             capabilities.cleaning
         )
     except ValueError:
-        return None
-    return profile
+        return False
+    return True
 
 
 def _matches_outline(points, furniture):

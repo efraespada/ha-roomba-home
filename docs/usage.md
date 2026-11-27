@@ -1123,6 +1123,22 @@ reliable estimate, `partial_duration_seconds` for the known areas in an
 incomplete selection, and per-area details in selection order.
 [Draft estimate validation](validation.md#routine-draft-estimates)
 
+### Quick routines from the floor plan
+
+Open **Quick routines** above the map. It lists compatible saved routines
+in Roomba's display order, followed by recent and suggested options for
+the displayed floor. Choose a routine to open **Cleaning preferences**
+with its destinations, order and per-area settings. Changes apply to
+the draft. Choose **Start cleaning** and confirm to dispatch it. Use
+**Refresh quick routines** to pick up changes made in Roomba Home.
+
+For example, choose **Clean recommended rooms** to shade those rooms in
+amber and review the modes and settings Roomba suggested for them. The
+selected outline remains visible over the shading. Use **Recommended rooms**
+to view the same layer by itself. If Roomba offers a point-cleaning shortcut,
+choose a point and review the target before confirming the start.
+[Smart cleaning comparison](validation.md#quick-routines-and-smart-recommendations-on-the-floor-plan)
+
 ### Recent and suggested routines
 
 Choose **Recent and suggested routines** inside **Manage routines**. The
