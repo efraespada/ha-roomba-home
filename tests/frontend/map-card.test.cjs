@@ -2725,6 +2725,86 @@ test("skipping an area requires confirmation and discards a changed destination"
   assert.equal(elements.get("status").textContent, card.operationMessage);
 });
 
+test("mission actions match the active phase and dispatch to the reviewed robot", async () => {
+  const { card } = mockCard(0);
+  const elements = new Map([["mission-control-dialog", {
+    open: false,
+    showModal() { this.open = true; },
+    close() { this.open = false; },
+  }]]);
+  const calls = [];
+  const active = { review_id: "first", commands: ["pause", "stop", "dock"] };
+  Object.assign(card, {
+    config: { entity: "vacuum.example" },
+    snapshot: { robot: "Example robot", mission_controls: active },
+    _hass: { async callService(...args) { calls.push(args); } },
+    async refresh() {},
+    $(id) {
+      if (!elements.has(id)) elements.set(id, {});
+      return elements.get(id);
+    },
+  });
+  card.updateMissionControls(active);
+  assert.equal(elements.get("mission-pause").hidden, false);
+  assert.equal(elements.get("mission-resume").hidden, true);
+  await card.reviewMissionCommand("resume");
+  assert.equal(calls.length, 0);
+  await card.reviewMissionCommand("pause");
+  assert.deepEqual(calls[0].slice(0, 2), ["roomba_home", "control_current_mission"]);
+  assert.equal(calls[0][2].command, "pause");
+  assert.equal(calls[0][2].review_id, "first");
+  assert.equal(calls[0][3].entity_id, "vacuum.example");
+
+  card.reviewMissionCommand("stop");
+  assert.equal(elements.get("mission-control-dialog").open, true);
+  assert.equal(calls.length, 1);
+  const next = { review_id: "second", commands: ["resume", "stop", "dock"] };
+  card.snapshot.mission_controls = next;
+  card.updateMissionControls(next);
+  assert.equal(elements.get("mission-control-dialog").open, false);
+  await card.confirmMissionCommand();
+  assert.equal(calls.length, 1);
+  assert.equal(elements.get("mission-pause").hidden, true);
+  assert.equal(elements.get("mission-resume").hidden, false);
+
+  card.reviewMissionCommand("dock");
+  assert.match(elements.get("mission-control-description").textContent, /its dock/);
+  await card.confirmMissionCommand();
+  assert.equal(calls[1][2].command, "dock");
+  assert.equal(calls[1][2].review_id, "second");
+  assert.equal(elements.get("mission-control-status").hidden, true);
+  card.snapshot.mission_controls = null;
+  card.updateMissionControls(null);
+  assert.equal(elements.get("mission-controls").hidden, true);
+});
+
+test("a pending mission command cannot be repeated and failures are visible", async () => {
+  const { card } = mockCard(0);
+  const elements = new Map();
+  let fail;
+  let calls = 0;
+  const controls = { review_id: "mission", commands: ["resume"] };
+  Object.assign(card, {
+    config: { entity: "vacuum.example" },
+    snapshot: { mission_controls: controls },
+    _hass: { callService() { calls++; return new Promise((_, reject) => { fail = reject; }); } },
+    async refresh() {},
+    $(id) {
+      if (!elements.has(id)) elements.set(id, {});
+      return elements.get(id);
+    },
+  });
+  const pending = card.reviewMissionCommand("resume");
+  assert.equal(elements.get("mission-resume").disabled, true);
+  assert.equal(elements.get("mission-control-status").hidden, false);
+  await card.reviewMissionCommand("resume");
+  assert.equal(calls, 1);
+  fail(new Error("The current mission changed."));
+  await pending;
+  assert.equal(elements.get("mission-resume").disabled, false);
+  assert.equal(elements.get("mission-control-status").textContent, "The current mission changed.");
+});
+
 test("last mission results name furniture and keep separately reported zone metrics", () => {
   const { card } = mockCard(0);
   const element = () => ({ children: [], append(...items) { this.children.push(...items); } });

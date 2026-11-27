@@ -15,6 +15,7 @@ from custom_components.roomba_home.core.application import (
     SkipAreaEvent,
     SkipObservation,
     execute_control,
+    mission_commands,
     prepare_control,
     skip_review,
 )
@@ -74,6 +75,65 @@ class Port:
 
     def clock(self):
         return self.now
+
+
+@pytest.mark.parametrize(
+    ("state", "commands"),
+    [
+        (RUNNING, (Command.PAUSE, Command.CANCEL, Command.DOCK)),
+        (PAUSED, (Command.RESUME, Command.CANCEL, Command.DOCK)),
+        (PREPARING, (Command.CANCEL,)),
+        (replace(RUNNING, docking=None), (Command.PAUSE, Command.CANCEL)),
+        (replace(RUNNING, activity="docked"), (Command.CANCEL,)),
+        (replace(RUNNING, activity="returning"), (Command.CANCEL,)),
+        (replace(RUNNING, activity="error"), (Command.CANCEL,)),
+        (replace(RUNNING, activity=None), ()),
+        (replace(RUNNING, connected=False), ()),
+        (replace(BASE, activity="idle"), (Command.DOCK,)),
+        (replace(BASE, activity="idle", docking=None), ()),
+        (BASE, ()),
+    ],
+)
+def test_mission_actions_follow_the_identified_active_phase(state, commands):
+    assert mission_commands(replace(state, mission_identity=MISSION_IDENTITY)) == commands
+    assert mission_commands(replace(state, mission_identity=None)) == ()
+
+
+@pytest.mark.parametrize(
+    "before",
+    [
+        PAUSED,
+        replace(RUNNING, mission_identity=(11, MISSION_IDENTITY[1])),
+        replace(RUNNING, mission_identity=MISSION_IDENTITY),
+    ],
+)
+async def test_reviewed_resume_cannot_launch_a_new_mission(before):
+    port = Port(before)
+    with pytest.raises(ControlError, match="mission_changed"):
+        await execute_control(
+            port, Command.RESUME, CleaningProfile(), reviewed_mission=MISSION_IDENTITY
+        )
+    assert not port.sent
+
+
+@pytest.mark.parametrize("switched", [False, True])
+async def test_reviewed_resume_confirms_only_the_same_mission(switched):
+    paused = replace(PAUSED, mission_identity=MISSION_IDENTITY)
+    running = replace(
+        RUNNING, mission_identity=(11, MISSION_IDENTITY[1]) if switched else MISSION_IDENTITY
+    )
+    port = Port(paused, running)
+    if switched:
+        with pytest.raises(ControlError, match="command_unconfirmed"):
+            await execute_control(
+                port, Command.RESUME, CleaningProfile(), reviewed_mission=MISSION_IDENTITY
+            )
+    else:
+        await execute_control(
+            port, Command.RESUME, CleaningProfile(), reviewed_mission=MISSION_IDENTITY
+        )
+    assert port.sent == [(Command.RESUME, None)]
+    assert port.statuses == ["pending", "unconfirmed" if switched else "confirmed"]
 
 
 async def test_reboot_confirms_only_after_the_robot_disconnects_and_returns():

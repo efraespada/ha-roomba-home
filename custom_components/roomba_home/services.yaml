@@ -81,6 +81,25 @@ skip_current_area:
     review_id:
       selector:
         text:
+control_current_mission:
+  target:
+    entity:
+      integration: roomba_home
+      domain: vacuum
+  fields:
+    command:
+      required: true
+      selector:
+        select:
+          options:
+            - pause
+            - resume
+            - stop
+            - dock
+    review_id:
+      required: true
+      selector:
+        text:
 list_voice_languages:
   target:
     entity:

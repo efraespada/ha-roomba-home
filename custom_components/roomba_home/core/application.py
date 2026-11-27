@@ -13,6 +13,7 @@ from .errors import AuthenticationError
 
 PREPARATION_CONFIRMATION_SECONDS = 300
 COMMAND_CONFIRMATION_SECONDS = {Command.DOCK: 120, Command.REBOOT: 180}
+MISSION_COMMANDS = (Command.PAUSE, Command.RESUME, Command.CANCEL, Command.DOCK)
 
 
 class ControlError(Exception):
@@ -88,6 +89,32 @@ def skip_review(state: ControlState) -> SkipReview | None:
         return None
     destination = state.skip_observation.destination
     return state.mission_identity, destination.kind, destination.identity
+
+
+def mission_commands(state: ControlState) -> tuple[Command, ...]:
+    """Offer operations for the identified mission and robot activity."""
+    activity = state.activity
+    if state.connected is not True or state.mission_identity is None:
+        return ()
+    if state.mission_active is False and activity == "idle" and state.docking is True:
+        return (Command.DOCK,)
+    if state.mission_active is not True or activity not in {
+        "cleaning",
+        "paused",
+        "returning",
+        "docked",
+        "error",
+    }:
+        return ()
+    commands = []
+    if activity == "cleaning" and not state.preparing_mop:
+        commands.append(Command.PAUSE)
+    elif activity == "paused":
+        commands.append(Command.RESUME)
+    commands.append(Command.CANCEL)
+    if activity in {"cleaning", "paused"} and not state.preparing_mop and state.docking is True:
+        commands.append(Command.DOCK)
+    return tuple(commands)
 
 
 def _confirmed_skip(before: ControlState, state: ControlState) -> bool:
@@ -350,6 +377,7 @@ async def execute_control(
     new_mission: bool = False,
     area_profiles: tuple[CleaningProfile, ...] = (),
     reviewed_skip: SkipReview | None = None,
+    reviewed_mission: tuple[int, datetime] | None = None,
 ) -> None:
     """Validate each command step and confirm the result with robot state."""
     if not port.active:
@@ -360,6 +388,10 @@ async def execute_control(
         raise
     except Exception:
         raise ControlError("robot_unavailable") from None
+    if reviewed_mission is not None and (
+        before.mission_identity != reviewed_mission or command not in mission_commands(before)
+    ):
+        raise ControlError("mission_changed")
     plan = prepare_control(
         command, before, profile, new_mission=new_mission, area_profiles=area_profiles
     )
@@ -415,6 +447,12 @@ async def execute_control(
                 break
             if state.connected is None:
                 continue
+            if (
+                reviewed_mission is not None
+                and state.mission_active is True
+                and state.mission_identity != reviewed_mission
+            ):
+                break
             if plan.command is Command.SKIP:
                 if _confirmed_skip(before, state):
                     port.report("confirmed")
