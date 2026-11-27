@@ -30,7 +30,7 @@ from .errors import (
 )
 from .floor_settings import FloorSettingsEdit
 from .help_catalog import project_help_catalog
-from .history import MissionReport, history_metrics, mission_reports
+from .history import DEFAULT_HISTORY_DAYS, MissionReport, history_metrics, mission_reports
 from .live_route import RawRouteReference
 from .map_programs import program_selection
 from .maps import AreaTarget, PersistentMap, map_identifier, parse_maps
@@ -472,22 +472,30 @@ class RoombaClient:
         return history_metrics(await self._mission_history_document(robot_id), robot_id)
 
     async def mission_reports(
-        self, robot_id: str, *, include_short_canceled: bool = False
+        self,
+        robot_id: str,
+        *,
+        include_short_canceled: bool = False,
+        history_days: int = DEFAULT_HISTORY_DAYS,
     ) -> tuple[MissionReport, ...]:
         document = await self._mission_history_document(
-            robot_id, include_short_canceled=include_short_canceled
+            robot_id, include_short_canceled=include_short_canceled, history_days=history_days
         )
         return mission_reports(document, robot_id)
 
     async def _mission_history_document(
-        self, robot_id: str, *, include_short_canceled: bool = False
+        self,
+        robot_id: str,
+        *,
+        include_short_canceled: bool = False,
+        history_days: int = DEFAULT_HISTORY_DAYS,
     ) -> object:
         session = await self.ensure_session()
         if robot_id not in session.raw["robots"]:
             raise ProtocolError("Mission history requires an associated robot")
         params = {
             "app_id": self.profile.app_id,
-            "maxAge": 10,
+            "maxAge": history_days,
             "supportedDoneCodes": "dndEnd,returnHomeEnd",
         }
         if not include_short_canceled:

@@ -1,5 +1,22 @@
 # Roomba Home validation
 
+## Cleaning history periods
+
+Signed reads of the same Max 700 Combo produced these report counts.
+
+| Period | Standard filter | Include short canceled runs |
+| --- | ---: | ---: |
+| Ten days | 18 | 26 |
+| Thirty days | 27 | 35 |
+
+The thirty-day standard view returned nine reports older than ten days.
+One report from fifteen days earlier had positive cleaned area and an
+original map archive with route and coverage. The authenticated candidate
+WebSocket returned all four counts and opened the same archive under both
+thirty-day filters. It excluded that report from the ten-day scope. Chrome
+verified the period, combined filters, and selection at 358 and 900 pixels.
+[Anonymized period comparison](evidence/2026-11-27-cleaning-history-periods.json)
+
 ## Expanded cleaning history
 
 Two signed reads for the same Max 700 Combo compared the normal history
@@ -28,8 +45,8 @@ installed dialog.
 Additional signed reads used the expanded query with `maxAge` set to 10,
 30, and 90. The 30-day response contained 35 reports, including nine older
 than ten days. The oldest was 28 whole days old. The 90-day response for
-the same robot contained the same count and oldest age. The installed
-history view uses the ten-day window.
+the same robot contained the same count and oldest age. The 0.80.0
+history view used the ten-day window.
 [Anonymized history comparison](evidence/2026-11-27-expanded-cleaning-history.json) ·
 [Mission control trial](#reviewed-mission-controls)
 

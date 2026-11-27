@@ -223,8 +223,10 @@ async def test_expanded_history_resolves_the_cancelled_report_in_the_same_scope(
         ],
         "fixture-0",
     )
-    configured.client.mission_reports.side_effect = lambda _, *, include_short_canceled=False: (
-        (cancelled, *history_reports) if include_short_canceled else history_reports
+    configured.client.mission_reports.side_effect = (
+        lambda _, *, include_short_canceled, history_days: (
+            (cancelled, *history_reports) if include_short_canceled else history_reports
+        )
     )
     configured.client.map_geometry.return_value = picea_archive(version="cancelled-revision")
     socket = await hass_ws_client()
@@ -250,7 +252,51 @@ async def test_expanded_history_resolves_the_cancelled_report_in_the_same_scope(
         assert report["mission"] == cancelled.summary() and report["geometry"]["rooms"]
         configured.client.map_geometry.assert_awaited_once_with(MAP.map_id, "cancelled-revision")
         assert "cancelled-revision" not in repr(report)
-    assert configured.client.mission_reports.await_args.kwargs == expanded
+    assert configured.client.mission_reports.await_args.kwargs == expanded | {"history_days": 10}
+
+
+async def test_30_day_history_requires_same_period_and_filter_for_detail(
+    configured, history_reports, picea_archive, hass_ws_client
+):
+    (older,) = mission_reports(
+        [
+            {
+                "robot_id": "fixture-0",
+                "timestamp": 1698704000,
+                "cmd": {"command": "start"},
+                "done": "cncl",
+                "p2maps": [{"p2map_id": MAP.map_id, "p2mapv_id": "older-revision"}],
+            }
+        ],
+        "fixture-0",
+    )
+    configured.client.mission_reports.side_effect = (
+        lambda _, *, include_short_canceled, history_days: (
+            (*history_reports, older)
+            if history_days == 30 and include_short_canceled
+            else history_reports
+        )
+    )
+    configured.client.map_geometry.return_value = picea_archive(version="older-revision")
+    socket = await hass_ws_client()
+    await socket.send_json(HISTORY | {"history_days": 90})
+    assert (await socket.receive_json())["error"]["code"] == "invalid_format"
+    configured.client.mission_reports.assert_not_awaited()
+    scope = {"history_days": 30, "include_short_canceled": True}
+    await socket.send_json(HISTORY | {"id": 2} | scope)
+    records = (await socket.receive_json())["result"]["missions"]
+    assert records[-1] == older.summary()
+    report = {"report_id": older.key, "map_index": 0}
+    await socket.send_json(HISTORY | {"id": 3, "history_days": 30} | report)
+    assert (await socket.receive_json())["error"]["code"] == "report_not_found"
+    await socket.send_json(HISTORY | {"id": 4, "include_short_canceled": True} | report)
+    assert (await socket.receive_json())["error"]["code"] == "report_not_found"
+    configured.client.map_geometry.assert_not_awaited()
+    await socket.send_json(HISTORY | {"id": 5} | scope | report)
+    detail = (await socket.receive_json())["result"]
+    assert detail["mission"] == older.summary() and detail["geometry"]["rooms"]
+    configured.client.map_geometry.assert_awaited_once_with(MAP.map_id, "older-revision")
+    assert configured.client.mission_reports.await_args.kwargs == scope
 
 
 @pytest.mark.parametrize("counters_available", [True, False])
