@@ -15,6 +15,13 @@ original map archive with route and coverage. The authenticated candidate
 WebSocket returned all four counts and opened the same archive under both
 thirty-day filters. It excluded that report from the ten-day scope. Chrome
 verified the period, combined filters, and selection at 358 and 900 pixels.
+
+The household 0.81.0 installation passed its Core configuration check and
+restart. The served card matched the release, and the updated Lovelace
+resource loaded that version. The installed dialog showed all four counts.
+Turning off **Include short canceled runs** in the thirty-day view kept the
+same fifteen-day-old report selected with its archived map, route, and
+coverage visible.
 [Anonymized period comparison](evidence/2026-11-27-cleaning-history-periods.json)
 
 ## Expanded cleaning history
@@ -159,8 +166,10 @@ and draft loading. The map discards results for a different floor or
 after the layer is turned off. Loading a recommendation preserves its
 automatic order, and starting still requires the usual confirmation.
 
-The household 0.78.0 card showed the same five recommended destinations on
-the verified floor. The capture includes only the map key.
+The household 0.78.0 and 0.81.0 cards showed five recommended destinations
+on the verified floor. The 0.81.0 check matched the five displayed names
+to the Android selection and used only read operations. The capture
+includes only the map key.
 [Anonymized recommendation comparison](evidence/2026-11-27-recommended-rooms.json)
 
 ![Amber Cleaning recommended map key in the installed Home Assistant card](screenshots/roomba-recommended-rooms-key.png)

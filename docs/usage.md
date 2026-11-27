@@ -194,10 +194,12 @@ classification, when the score was updated, and the settings Roomba
 suggested. Recorded mission times belong to the score record and can
 differ from the latest cleaning report.
 
-Choose **Recommended rooms** to highlight the rooms Roomba has selected
-for a suggested cleaning. The legend also lists their names. Switching
-floors or loading a new revision clears the layer. Choose the button
-again to load the recommendation for that floor.
+Choose **Recommended rooms** to shade in amber every room Roomba selected
+for **Smart cleaning** in the app. The layer uses the room IDs in Roomba's
+suggested routine. The status below the map lists their names. Switching
+floors or loading a new revision clears the layer. Choose the button again
+to load the recommendation for that floor.
+[Recommendation comparison](validation.md#quick-routines-and-smart-recommendations-on-the-floor-plan)
 
 Use the **Get room cleaning scores** action to read the same values in an
 automation. Enable saved floor plans first. Omit `map_id` for a robot with
