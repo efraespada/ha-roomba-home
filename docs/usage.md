@@ -221,6 +221,11 @@ Open **Cleaning history** in the floor plan card. Select a report to see the
 recorded duration, area, outcome, available per-mode measurements, and
 timeline. The list can include signed cleaning reports with no map that
 Roomba Home omits. Its totals use the measurements on the reports it lists.
+Select **Include short canceled runs** to load additional reports that
+Roomba's usual history filter omits. The report picker and totals reflect
+the expanded list. Select a canceled report to inspect its outcome,
+cleaned area, and archived route and coverage when available. Opening
+**Cleaning history** starts with the usual filter.
 Expand **Timeline** to see the order and times of recorded actions, including
 the bin emptying stage and the end of the run. **Recorded bin emptyings**
 shows the count reported by Roomba, which can be zero even when the timeline

@@ -208,6 +208,51 @@ async def test_history_reads_the_exact_archive_using_read_permission(
         assert "mission-revision" not in repr(report)
 
 
+async def test_expanded_history_resolves_the_cancelled_report_in_the_same_scope(
+    configured, history_reports, picea_archive, hass_ws_client, hass_admin_user
+):
+    (cancelled,) = mission_reports(
+        [
+            {
+                "robot_id": "fixture-0",
+                "timestamp": 1700000600,
+                "cmd": {"command": "start"},
+                "done": "cncl",
+                "p2maps": [{"p2map_id": MAP.map_id, "p2mapv_id": "cancelled-revision"}],
+            }
+        ],
+        "fixture-0",
+    )
+    configured.client.mission_reports.side_effect = lambda _, *, include_short_canceled=False: (
+        (cancelled, *history_reports) if include_short_canceled else history_reports
+    )
+    configured.client.map_geometry.return_value = picea_archive(version="cancelled-revision")
+    socket = await hass_ws_client()
+    expanded = {"include_short_canceled": True}
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda _entity, policy: policy == POLICY_READ,
+    ):
+        await socket.send_json(HISTORY)
+        standard = (await socket.receive_json())["result"]["missions"]
+        assert cancelled.summary() not in standard
+        await socket.send_json(HISTORY | expanded | {"id": 2})
+        assert (await socket.receive_json())["result"]["missions"] == [
+            cancelled.summary(),
+            *standard,
+        ]
+        await socket.send_json(HISTORY | {"id": 3, "report_id": cancelled.key})
+        assert (await socket.receive_json())["error"]["code"] == "report_not_found"
+        configured.client.map_geometry.assert_not_awaited()
+        await socket.send_json(HISTORY | expanded | {"id": 4, "report_id": cancelled.key})
+        report = (await socket.receive_json())["result"]
+        assert report["mission"] == cancelled.summary() and report["geometry"]["rooms"]
+        configured.client.map_geometry.assert_awaited_once_with(MAP.map_id, "cancelled-revision")
+        assert "cancelled-revision" not in repr(report)
+    assert configured.client.mission_reports.await_args.kwargs == expanded
+
+
 @pytest.mark.parametrize("counters_available", [True, False])
 async def test_maintenance_requires_only_read_access_and_works_without_maps(
     configured, hass_ws_client, hass_admin_user, counters_available
@@ -549,7 +594,7 @@ async def test_history_rejects_unauthorized_or_stale_requests_before_fetching_ge
 ):
     socket = await hass_ws_client()
     with patch.object(type(hass_admin_user.permissions), "check_entity", return_value=False):
-        await socket.send_json(HISTORY)
+        await socket.send_json(HISTORY | {"include_short_canceled": True})
         assert (await socket.receive_json())["error"]["code"] == "unauthorized"
     configured.client.mission_reports.assert_not_awaited()
     await socket.send_json(HISTORY | {"id": 2, "entity_id": "vacuum.other"})

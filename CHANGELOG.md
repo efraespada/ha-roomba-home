@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.80.0
+
+- Include short canceled runs on demand in **Cleaning history** and open
+  their original reports, maps, and recorded coverage when available.
+
 ## 0.79.0
 
 - Pause, resume, cancel, and return the current mission from the floor plan.

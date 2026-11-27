@@ -477,8 +477,13 @@ template.innerHTML = `
     </dialog>
     <dialog id="mission-history-dialog" aria-labelledby="mission-history-title">
       <h3 id="mission-history-title">Recent cleaning reports</h3>
-      <p id="history-status" class="muted" role="status"></p>
-      <p id="history-totals" class="muted" hidden></p>
+      <div id="history-summary">
+        <div class="legend">
+          <label><input id="history-include-short-canceled" type="checkbox"> Include short canceled runs</label>
+        </div>
+        <p id="history-status" class="muted" role="status"></p>
+        <p id="history-totals" class="muted" hidden></p>
+      </div>
       <label id="history-selector" hidden>Report <select id="history-mission"></select></label>
       <div id="history-detail" hidden>
         <dl id="history-measurements" class="measurements"></dl>
@@ -1148,6 +1153,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("close-cleaning-scores").onclick = () => this.$("cleaning-scores-dialog").close();
     this.$("close-mission-history").onclick = () => this.$("mission-history-dialog").close();
     this.$("mission-history-dialog").onclose = () => { this.historySequence++; };
+    this.$("history-include-short-canceled").onchange = () => this.refreshMissionHistory(this.$("history-mission").value);
     this.$("history-mission").onchange = (event) => this.loadMissionReport(event.target.value, 0);
     this.$("history-map-index").onchange = (event) => this.loadMissionReport(this.historyReport.mission.id, Number(event.target.value));
     this.$("history-zoom-in").onclick = () => this.changeHistoryView(1.25);
@@ -2536,18 +2542,32 @@ class RoombaHomeMapCard extends HTMLElement {
 
   async openMissionHistory() {
     if (!this.config || !this._hass) return;
+    this.$("history-include-short-canceled").checked = false;
+    this.$("mission-history-dialog").showModal();
+    return this.refreshMissionHistory();
+  }
+
+  missionHistoryRequest(options = {}) {
+    return this._hass.callWS({
+      type: "roomba_home/mission_history",
+      entity_id: this.config.entity,
+      ...(this.$("history-include-short-canceled").checked ? { include_short_canceled: true } : {}),
+      ...options,
+    });
+  }
+
+  async refreshMissionHistory(preferredReport) {
     const entity = this.config.entity;
     const dialog = this.$("mission-history-dialog");
     const status = this.$("history-status");
     const totals = this.$("history-totals");
     const sequence = ++this.historySequence;
-    dialog.showModal();
     status.textContent = "Loading cleaning history…";
     totals.hidden = true;
     this.$("history-selector").hidden = true;
     this.$("history-detail").hidden = true;
     try {
-      const { missions } = await this._hass.callWS({ type: "roomba_home/mission_history", entity_id: entity });
+      const { missions } = await this.missionHistoryRequest();
       if (sequence !== this.historySequence || !dialog.open || entity !== this.config.entity) return;
       if (!missions.length) {
         status.textContent = "Roomba returned no recent cleaning reports.";
@@ -2561,12 +2581,14 @@ class RoombaHomeMapCard extends HTMLElement {
       });
       totals.textContent = [`${missions.length} ${missions.length === 1 ? "report" : "reports"}`, ...measurements].join(" · ");
       totals.hidden = false;
-      this.$("history-mission").replaceChildren(...missions.map((mission) => option(mission.id,
+      const selector = this.$("history-mission");
+      selector.replaceChildren(...missions.map((mission) => option(mission.id,
         [historyTime(mission.started_at ?? mission.finished_at), historyLabel(mission.outcome),
           mission.duration_minutes == null ? "" : `${mission.duration_minutes} min`,
           mission.area_m2 == null ? "" : `${mission.area_m2} m²`].filter(Boolean).join(" · "))));
       this.$("history-selector").hidden = false;
-      await this.loadMissionReport(missions[0].id, 0);
+      selector.value = missions.some(({ id }) => id === preferredReport) ? preferredReport : missions[0].id;
+      await this.loadMissionReport(selector.value, 0);
     } catch (error) {
       if (sequence === this.historySequence && dialog.open) status.textContent = error?.message || "Cleaning history is unavailable.";
     }
@@ -2580,9 +2602,7 @@ class RoombaHomeMapCard extends HTMLElement {
     status.textContent = "Loading cleaning report…";
     this.$("history-detail").hidden = true;
     try {
-      const report = await this._hass.callWS({
-        type: "roomba_home/mission_history", entity_id: entity, report_id: reportId, map_index: mapIndex,
-      });
+      const report = await this.missionHistoryRequest({ report_id: reportId, map_index: mapIndex });
       if (sequence !== this.historySequence || !dialog.open || entity !== this.config.entity) return;
       this.historyReport = report;
       this.historyView = { zoom: 1, pan: [0, 0], angle: 0, elevated: false };
