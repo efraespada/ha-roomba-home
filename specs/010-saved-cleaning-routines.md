@@ -74,7 +74,8 @@ calendar trigger and may carry an independent copy of a routine.
 - ROUTINE-10: Estimate an ordered draft from Roomba's room duration table and
   identify unavailable or ambiguous areas before saving or starting.
 - ROUTINE-11: Load compatible recent and suggested floor routines and run
-  reviewed drafts directly from the current map.
+  reviewed drafts directly from the current map. Load the native room
+  recommendation with its profiles and automatic order.
 - ROUTINE-12: Apply Roomba's current Smart recommendations to eligible rooms
   with each area's selected mode and order.
 - ROUTINE-13: Recover regional settings and the order preference from verified
@@ -223,9 +224,10 @@ Discard the draft estimate when its selection, order, settings, or floor changes
 Read the native routine list for the associated floor and recheck the active
 revision. Turn a compatible recent command into a draft with its ordered
 destinations and recognized preferences. Match furniture IDs and outlines on
-the current archive. Offer the clean-all and point suggestions from the
-provider. Start a draft after confirmation and revalidate its map review and
-profiles through the usual command path.
+the current archive. Offer the clean-all, recommended rooms, and point
+suggestions from the provider. The recommended-room draft retains its
+room profiles and automatic order. Start a draft after confirmation and
+revalidate its map review and profiles through the usual command path.
 
 Offer **Customize cleaning** for a current reviewed area selection.
 Initialize an unsaved draft in selection order and reuse the typed per-area

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.75.0
+
+- Highlight Roomba's recommended rooms in the floor plan. Load the same
+  suggestion as a draft with its per-room profiles and automatic order.
+
 ## 0.74.0
 
 - Schedule cleaning around mapped furniture and mix furniture, rooms, and

@@ -672,6 +672,32 @@ async def test_score_websocket_rejects_unassociated_maps_and_old_revisions(
     configured.client.map_geometry.assert_not_awaited()
 
 
+async def test_floor_routines_expose_recommendations_to_map_readers_only_for_the_current_floor(
+    configured, hass_ws_client, hass_admin_user
+):
+    room = MAP.regions[0].segment_id(MAP.map_id)
+    reading = {
+        "map_id": MAP.map_id,
+        "version": MAP.version_id,
+        "routines": [{"kind": "recommended", "target_ids": [room], "ordered": False}],
+    }
+    configured.client.map_quick_routines = AsyncMock(return_value=reading)
+    query = {**SCORES, "type": "roomba_home/floor_routines"}
+    socket = await hass_ws_client()
+    with patch.object(type(hass_admin_user.permissions), "check_entity", return_value=False):
+        await socket.send_json(query)
+        assert (await socket.receive_json())["error"]["code"] == "unauthorized"
+    with patch.object(
+        type(hass_admin_user.permissions), "check_entity", side_effect=lambda _, p: p == POLICY_READ
+    ):
+        await socket.send_json({**query, "id": 2, "version": "older"})
+        assert (await socket.receive_json())["error"]["code"] == "map_changed"
+        await socket.send_json({**query, "id": 3})
+        assert (await socket.receive_json())["result"] == reading
+    configured.client.map_quick_routines.assert_awaited_once()
+    assert configured.client.map_quick_routines.await_args.args[:2] == ("fixture-0", MAP)
+
+
 async def test_score_reads_offer_mode_scoped_recommendations_when_supported(
     configured, hass_ws_client
 ):
