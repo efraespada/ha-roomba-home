@@ -98,6 +98,7 @@ from .core.map_snapshots import capture_snapshot, read_snapshot, with_backup_pro
 from .core.maps import SAVED_ZONE_IDS, AreaTarget, CleaningRegion, RegionKind, resolve_segments
 from .core.mission_map import read_mission_map, read_requested_floor
 from .core.mission_plan import present_mission_plan
+from .core.mission_routes import RouteCaptureKey, captured_geometry
 from .core.mission_time import (
     estimate_durations,
     estimate_target,
@@ -131,6 +132,7 @@ from .core.telemetry import (
     FAST_SHADOWS,
     RESETTABLE_PARTS,
     convert,
+    integer,
     project_parts,
     project_telemetry,
     reported,
@@ -146,6 +148,7 @@ from .core.zone_edits import (
 )
 from .live_stream import LiveMapStream, MapWatch, live_map_client
 from .map_history import map_history
+from .mission_route_store import mission_route_store
 from .robot_updates import RobotUpdates
 
 _LOGGER = logging.getLogger(__name__)
@@ -187,6 +190,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         self._live_paths = {}
         self._live_floor_pins = {}
         self._live_coverage = {}
+        self._mission_routes = mission_route_store(hass, entry.entry_id)
         self._live_obstacles = {}
         self._stream_route_references = {}
         self._live_stream = LiveMapStream(
@@ -1159,6 +1163,25 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             self._live_coverage[robot_id] = requested, coverage
         coverage.observe(points)
 
+    async def _checkpoint_mission_route(self, state, path, now, *, final=False):
+        if state is None or path.started != state.telemetry.get("mission_started"):
+            return
+        number = integer(state.telemetry.get("mission_number"))
+        robot_id = state.robot_id
+        scope, coverage = self._live_coverage.get(robot_id, (None, None))
+        if number is None or scope != (path.started, path.map_version):
+            return
+        try:
+            await self._mission_routes.async_checkpoint(
+                robot_id,
+                RouteCaptureKey(path.started, number, path.map_version),
+                now.timestamp(),
+                coverage.samples(),
+                final=final,
+            )
+        except OSError, ProtocolError:
+            _LOGGER.debug("Local Roomba mission route checkpoint failed")
+
     def live_point(self, robot_id, now):
         state = (self.data or {}).get(robot_id)
         if state is None:
@@ -1459,21 +1482,23 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             if started is None:
                 self._live_floor_pins.pop(key, None)
             floor = self.live_floor(state)
-            if floor is None:
+            path = self._live_paths.get(key)
+            version = (floor.map_id, floor.version_id) if floor is not None else None
+            if path is not None and (path.started, path.map_version) != (started, version):
+                await self._checkpoint_mission_route(
+                    (self.data or {}).get(key), path, now, final=True
+                )
                 self._live_paths.pop(key, None)
+                path = None
+            if floor is None:
                 self._live_coverage.pop(key, None)
                 self._live_obstacles.pop(key, None)
                 self._live_route_attempts.pop(key, None)
                 self._stream_route_references.pop(key, None)
                 continue
-            version = (floor.map_id, floor.version_id)
             report = self._current_timeline(state)
             if report is not None and (report.requested_floor or report.localized_maps):
                 self._live_floor_pins[key] = (started, report.mission_number), version
-            path = self._live_paths.get(key)
-            if path and (path.started != started or path.map_version != version):
-                del self._live_paths[key]
-                path = None
             batches = positions.get(key, ())
             for batch in batches:
                 if not batch.belongs_to(started, now):
@@ -1498,6 +1523,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 path = path.merge(live)
             self._live_paths[key] = path
             self._record_live_coverage(key, path, path.points)
+            await self._checkpoint_mission_route(state, path, now)
             if self.show_maps and now.timestamp() < path.latest.expires:
                 robots[key] = self._with_live_position(state, floor, path.latest)
         self._schedule_live_expiration(now)
@@ -2042,6 +2068,21 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         geometry_source = "mission_archive" if geometry is not None else None
         detail = report.detail(floors)
         requested = report.requested_scope
+        capture = None
+        started = report.metrics.get("last_mission_started")
+        if geometry is None and started is not None and report.mission_number is not None:
+            try:
+                capture = await self._mission_routes.async_lookup(
+                    robot_id,
+                    started,
+                    report.mission_number,
+                    requested,
+                    scope,
+                )
+            except OSError, ProtocolError:
+                _LOGGER.debug("Local Roomba mission route unavailable")
+            if capture is not None and requested is None:
+                requested = tuple(capture["key"][2:])
         if (
             requested is not None
             and requested != scope
@@ -2073,6 +2114,9 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 detail = report.detail(floors, requested_floor=requested_floor)
                 if geometry is None:
                     geometry, geometry_source = context, "requested_floor"
+                    if capture is not None:
+                        geometry.update(await self._executor(captured_geometry, capture["points"]))
+                        geometry_source = "local_capture"
         return {
             **detail,
             "geometry": geometry,

@@ -1,4 +1,4 @@
-"""Expose local map backups through authenticated Home Assistant commands."""
+"""Expose local map and route history through authenticated Home Assistant commands."""
 
 import probatio as vol
 from homeassistant.auth.permissions.const import POLICY_CONTROL, POLICY_READ
@@ -15,6 +15,7 @@ from .core.routines import ROUTINE_ID
 from .core.schedules import SCHEDULE_ID
 from .map_api import IDENTIFIER, map_geometry
 from .map_history import map_history
+from .mission_route_store import mission_route_store
 from .vacuum import RoombaVacuum
 
 _DIGEST = vol.Match(SNAPSHOT_ID.pattern + r"\Z")
@@ -45,6 +46,7 @@ def async_register_map_history(hass):
         restore_backup_furniture,
         restore_backup_programs,
         restore_backup_room_details,
+        mission_route_settings,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -70,7 +72,7 @@ def _active_account(hass, entity_id, robot_id, unavailable):
     return vacuum.account
 
 
-async def _handle(hass, connection, message, permission, operation):
+async def _handle(hass, connection, message, permission, operation, *, store=map_history):
     request_id, entity_id = message["id"], message["entity_id"]
     if not connection.user.permissions.check_entity(entity_id, permission):
         connection.send_error(request_id, websocket_api.ERR_UNAUTHORIZED, "Access denied.")
@@ -82,7 +84,7 @@ async def _handle(hass, connection, message, permission, operation):
         return
     entry_id, robot_id = scope
     try:
-        result = await operation(map_history(hass, entry_id), robot_id)
+        result = await operation(store(hass, entry_id), robot_id)
     except AuthenticationError:
         connection.send_error(request_id, "map_unavailable", "Roomba authentication is required.")
     except HomeAssistantError as error:
@@ -95,6 +97,30 @@ async def _handle(hass, connection, message, permission, operation):
         )
     else:
         connection.send_result(request_id, result)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "roomba_home/mission_route_settings",
+        vol.Required("entity_id"): cv.entity_id,
+        vol.Optional("enabled"): bool,
+        vol.Optional("clear", default=False): bool,
+    }
+)
+@websocket_api.async_response
+async def mission_route_settings(hass, connection, message):
+    enabled, clear = message.get("enabled"), message["clear"]
+    permission = POLICY_CONTROL if enabled is not None or clear else POLICY_READ
+
+    async def settings(history, robot_id):
+        return {
+            **await history.async_settings(robot_id, enabled=enabled, clear=clear),
+            "can_manage": connection.user.permissions.check_entity(
+                message["entity_id"], POLICY_CONTROL
+            ),
+        }
+
+    await _handle(hass, connection, message, permission, settings, store=mission_route_store)
 
 
 @websocket_api.websocket_command(

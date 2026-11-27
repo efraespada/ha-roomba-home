@@ -373,6 +373,7 @@ class MissionReport:
     destination_elapsed: tuple[int | None, ...] = ()
     requested_scope: tuple[str, str] | None = None
     requested_footprints: tuple[Polygon, ...] = ()
+    mission_number: int | None = None
 
     def summary(self) -> dict:
         started = self.metrics.get("last_mission_started")
@@ -524,5 +525,6 @@ def mission_reports(response: object, robot_id: str) -> tuple[MissionReport, ...
             elapsed,
             requested if all(map_identifier(item) for item in requested) else None,
             _requested_footprints(command, plan),
+            integer(row.get("nMssn")),
         )
     return tuple(reports.values())

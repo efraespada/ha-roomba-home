@@ -76,15 +76,15 @@ error 48. The signed report retained the outcome and the requested map
 revision and omitted the mission map. The report can now show that original
 requested floor. [Unarchived report proof](validation.md#requested-floor-in-an-unarchived-report)
 
-Add per-robot opt-in recording of Roomba's live positions and estimated
-coverage. Associate each capture with the reported mission number, start
-time, and resolved floor revision, and preserve sequence gaps and captured
-activity. Keep a bounded, private local history with an explicit deletion
-control. The signed mission report remains the source of its outcome,
-measurements, and archive. Where that archive is unavailable, present an
-exactly matched local capture with its source and estimated coverage label.
-Verify recovery after restart, capture isolation across robots and floors,
-and archive precedence using a recorded mission replay and a household run.
+The card's opt-in **Local route recording** keeps scoped position
+checkpoints and can present the matching route with estimated coverage
+when the archive is unavailable. The signed report remains the source of
+its outcome, measurements, and archive. The tests cover persistent
+checkpoints, scope isolation, deletion, and archive precedence.
+Verify the full capture through a fresh household run with recording
+enabled and both observed cleaning activities. Investigate displaying an
+exact backed-up base floor when the provider no longer serves its revision.
+[Recording controls](usage.md#local-route-recording)
 
 ## Physical automatic dock emptying
 
