@@ -1,0 +1,16 @@
+{
+  "model": "X185240",
+  "signed_standard_report_count": 18,
+  "signed_expanded_report_count": 26,
+  "all_standard_report_keys_present": true,
+  "additional_outcomes": {"cancelled": 8},
+  "authenticated_home_assistant_report_scope_verified": true,
+  "reviewed_cancelled_report": {
+    "exact_target_type": "furniture",
+    "positive_cleaned_area": true,
+    "archive_reference_count": 1,
+    "archive_target_resolved": true,
+    "recorded_trajectory": true,
+    "recorded_coverage": true
+  }
+}

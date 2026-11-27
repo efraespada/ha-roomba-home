@@ -902,6 +902,39 @@ async def test_mission_history_uses_observed_read_only_signed_contract():
     assert headers["Authorization"].startswith("AWS4-HMAC-SHA256")
 
 
+async def test_expanded_mission_reports_only_omit_the_app_filter():
+    http = FakeHttp(
+        login_responses()
+        + [
+            HttpResponse(
+                200,
+                [
+                    {
+                        "robot_id": "robot-fixture",
+                        "timestamp": 1700000500,
+                        "done": "cncl",
+                        "sqft": 4,
+                        "cmd": {"command": "start"},
+                    }
+                ],
+            )
+        ]
+    )
+    c = client(http)
+    (report,) = await c.mission_reports("robot-fixture", include_short_canceled=True)
+    assert report.summary()["outcome"] == "cancelled"
+    assert report.summary()["area_m2"] > 0
+    method, url, headers, body = http.calls[-1]
+    assert (method, body) == ("GET", None)
+    assert "/v1/robot-fixture/missionhistory?" in url
+    assert parse_qs(url.split("?")[1]) == {
+        "app_id": [c.profile.app_id],
+        "maxAge": ["10"],
+        "supportedDoneCodes": ["dndEnd,returnHomeEnd"],
+    }
+    assert headers["Authorization"].startswith("AWS4-HMAC-SHA256")
+
+
 async def test_mission_history_cannot_target_an_unassociated_robot():
     http = FakeHttp(login_responses())
     with pytest.raises(ProtocolError, match="associated robot"):

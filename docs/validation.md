@@ -1,5 +1,24 @@
 # Roomba Home validation
 
+## Expanded cleaning history
+
+Two signed reads for the same Max 700 Combo compared the normal history
+query and the query with only `filterType` omitted. The normal view had
+18 cleaning reports and the expanded one had 26. All 18 original selection
+keys were present. The eight additional reports were canceled missions.
+The report for the reviewed 0.79.0 trial matched the furniture target and
+had positive cleaned area. Its signed map revision supplied the target
+label, recorded trajectory, and coverage.
+
+The candidate Home Assistant returned the same 18 and 26 reports through
+its authenticated WebSocket endpoint. The expanded view resolved the
+canceled report's furniture target and original archive. The same report
+key in the standard view returned `report_not_found`. Chrome exercised the
+default view, the expanded totals, report selection, and return to the
+default view at 358 and 900 pixels.
+[Anonymized history comparison](evidence/2026-11-27-expanded-cleaning-history.json) ·
+[Mission control trial](#reviewed-mission-controls)
+
 ## Reviewed mission controls
 
 Home Assistant tests pause eligibility during cleaning, explicit resume

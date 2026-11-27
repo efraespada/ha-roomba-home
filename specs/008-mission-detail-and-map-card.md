@@ -130,6 +130,9 @@ trajectory contains observed positions and retains sequence gaps.
   runs from the signed Roomba history query. Keep the app-filtered view as
   the default. Use the same robot scope and archive validation for both
   views and keep a canceled report's outcome and original target intact.
+  Preserve a selected report when it is present after changing the option.
+  Recalculate the totals from the displayed list and discard late results
+  when the option, selected robot, or open report changes.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -462,7 +465,7 @@ features, physical results, and open scenarios.
 | MAP-18 | [Interactive floor plan](../docs/usage.md#interactive-floor-plan) and [cleaning history](../docs/usage.md#cleaning-history) | [Card tests](../tests/frontend/map-card.test.cjs) and [Chrome touch verification](../docs/validation.md#touch-navigation-for-floor-plans-and-reports) |
 | MAP-19 | [Current mission WebSocket projection](../docs/api.md#current-mission-readout) | [Authenticated snapshot tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [physical trial](../docs/validation.md#current-mission-readout) |
 | MAP-20 | [Reviewed mission controls](../docs/api.md#reviewed-mission-controls) | [Control policy tests](../tests/test_application.py), [Home Assistant action tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [household trial](../docs/validation.md#reviewed-mission-controls) |
-| MAP-21 | [Signed history comparison](../docs/validation.md#reviewed-mission-controls) | The source query is verified on a canceled physical run. The optional history view is planned. |
+| MAP-21 | [Archived report contract](../docs/api.md#archived-cleaning-reports) and [signed history comparison](../docs/validation.md#expanded-cleaning-history) | [Signed query tests](../tests/test_api_client.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), and [list selection and race tests](../tests/frontend/map-card.test.cjs) |
 
 ## 18. Implementation sequence
 

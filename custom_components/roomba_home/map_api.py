@@ -377,6 +377,7 @@ async def _send_floor_details(hass, connection, message, method, **options):
         vol.Required("entity_id"): cv.entity_id,
         vol.Optional("report_id"): vol.All(str, vol.Match(r"[a-f0-9]{64}\Z")),
         vol.Optional("map_index", default=0): vol.All(int, vol.Range(min=0)),
+        vol.Optional("include_short_canceled", default=False): bool,
     }
 )
 @websocket_api.async_response
@@ -394,7 +395,10 @@ async def websocket_mission_history(hass, connection, message):
         return
     try:
         history = await vacuum.account.async_mission_history(
-            vacuum.robot_id, message.get("report_id"), message["map_index"]
+            vacuum.robot_id,
+            message.get("report_id"),
+            message["map_index"],
+            include_short_canceled=message["include_short_canceled"],
         )
     except AuthenticationError:
         connection.send_error(message["id"], "history_unavailable", "Authentication is required.")

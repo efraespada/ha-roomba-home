@@ -1998,11 +1998,15 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 raise action_error("map_changed", "Select the current floor")
             return found
 
-    async def async_mission_history(self, robot_id, report_id=None, map_index=0):
+    async def async_mission_history(
+        self, robot_id, report_id=None, map_index=0, *, include_short_canceled=False
+    ):
         async with self._io_lock:
             if self._closed or not self.show_maps or robot_id not in self.selected:
                 raise action_error("history_unavailable", "Cleaning history is unavailable")
-            reports = await self._read_map_action(self.client.mission_reports, robot_id)
+            reports = await self._read_map_action(
+                self.client.mission_reports, robot_id, include_short_canceled=include_short_canceled
+            )
             if report_id is None:
                 return {"missions": [report.summary() for report in reports]}
             report = next((row for row in reports if row.key == report_id), None)
