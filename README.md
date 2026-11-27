@@ -37,6 +37,9 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   mop wetness, SmartScrub, passes, carpet boost, and manual dock actions.
   Open **Dock controls** on the floor plan for mop and tray washing,
   drying, bin emptying, and other supported manual dock actions.
+  The card shows the reported battery, robot activity, and dock operations.
+  These readings, active faults, and compatible controls remain available
+  when a floor plan cannot load or maps are disabled.
   Skip the current destination when Roomba reports a supported mission.
   Adjust the robot's **Voice volume** and **Child and pet lock** from its
   device page. On the linked dock, configure mop wash temperature, wash
@@ -202,7 +205,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.88.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.89.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)

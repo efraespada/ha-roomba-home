@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.89.0
+
+- Keep the robot's battery, activity, errors, and compatible controls
+  visible when a floor plan is unavailable or maps are disabled. The card
+  uses the same Roomba account state and permission checks in both views.
+
 ## 0.88.0
 
 - Open **Dock controls** on the floor plan card to wash the mop and tray,
