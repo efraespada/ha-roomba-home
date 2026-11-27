@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.81.0
+
+- Choose a ten- or thirty-day period in **Cleaning history**. Either
+  period can include short canceled runs and open their original report
+  maps, routes, and coverage when available.
+
 ## 0.80.0
 
 - Include short canceled runs on demand in **Cleaning history** and open
