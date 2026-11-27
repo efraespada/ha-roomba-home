@@ -8,6 +8,11 @@
   "android_carpet_editor_in_map_menu": false,
   "android_carpet_editor_in_furniture_catalog": false,
   "android_carpet_editor_in_legend": false,
+  "household_installed_version": "0.82.0",
+  "household_room_names_match_android": true,
+  "household_highlighted_before_toggle": 5,
+  "household_highlighted_after_restoring_layer": 5,
+  "household_remote_default_layer_verified": true,
   "robot_commands_sent": 0,
   "map_edits_sent": 0
 }
