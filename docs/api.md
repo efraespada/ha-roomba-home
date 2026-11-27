@@ -510,6 +510,36 @@ metrics, and timeline use the signed report, and the response omits native
 area and map identifiers.
 [Unarchived report validation](validation.md#requested-floor-in-an-unarchived-report)
 
+### Local route recording
+
+Use the authenticated `roomba_home/mission_route_settings` WebSocket
+command with `entity_id` to read `enabled`, `count`, and `can_manage`.
+Supply `enabled: true` or `enabled: false` to change recording and
+`clear: true` to delete the linked robot's saved routes. Reading requires
+vacuum read permission. Recording changes and deletion require control
+permission.
+
+The integration writes the bounded native point indices, coordinates,
+and activity flags to a separate private Home Assistant store. Its key
+scopes each capture to the account entry, robot, mission start, mission
+number, and resolved floor revision. Checkpoints are written at first
+observation, at intervals of at least a minute during the run, and at a
+confirmed live scope change. Repeated checkpoints merge point indices.
+Clearing the history while recording also moves the eligibility threshold
+to the time of deletion.
+
+An available mission archive takes precedence. Otherwise, the signed
+report must match the capture's exact mission start and number. An
+explicit requested revision must match the captured revision, and a
+selected archive reference must match its floor ID. A report without a
+requested revision can use a single unambiguous capture. A readable
+matching base floor yields `geometry_source: local_capture` and indexed
+`trajectories`. Missing indices leave gaps. `estimated_coverage` includes
+`cell_size` and sparse `[row, runs]` tuples with `[start, end, mask]`
+runs. Vacuuming has bit 1, mopping bit 2, and combined cleaning bit 3.
+The signed report retains its own area and timeline. Native capture
+identifiers are excluded from the WebSocket response.
+
 ### Floor plan display layers
 
 The Max 700 persistent map archive includes optional layers alongside room

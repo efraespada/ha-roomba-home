@@ -1,5 +1,25 @@
 # Roomba Home validation
 
+## Local route recording replay
+
+An isolated Home Assistant instance replayed thirteen position batches
+from the recorded trajectory in a signed Max 700 Combo archive. The
+test converted archived points to live position messages and inserted
+sequence gaps. It used the normal position parser and coordinator path,
+then reopened the private store before querying the authenticated card
+endpoint. The unavailable-archive case was simulated with the same
+signed report and a readable matching base revision.
+
+The returned route preserved the injected gaps and included separately
+labeled estimated coverage. The original signed area was unchanged.
+Restoring the archive reference returned the native trajectory and
+coverage instead. Deleting local routes returned the static requested
+floor on the next query. Chrome at 358 and 900 pixels verified the
+estimate label, read-only controls, explicit delete confirmation, and
+the return to the requested floor. No robot commands were sent.
+[Anonymized replay](evidence/2026-11-27-local-route-replay.json) ·
+[Recording contract](api.md#local-route-recording)
+
 ## Requested floor in an unarchived report
 
 A signed Max 700 Combo report associated error 48 with one incomplete

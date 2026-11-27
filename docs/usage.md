@@ -269,6 +269,28 @@ can show the original furniture destination and the separately reported
 0 m². The travel, cleaning path, and coverage controls appear with their
 archived layers. [Unarchived report validation](validation.md#requested-floor-in-an-unarchived-report)
 
+### Local route recording
+
+In **Cleaning history**, expand **Local route recording** and choose
+**Enable recording** before starting a run. This option is off initially
+and applies to the selected robot. A running mission that began before
+recording was enabled is skipped. Home Assistant saves checkpoints while
+receiving positions and when the active route is cleared at mission end.
+
+If the signed report has no readable mission map, the card can show a
+matching **Locally recorded route** on its base floor. **Estimated coverage**
+is reconstructed from observed vacuuming and mopping positions. The
+signed report remains the source of its outcome, cleaned area, and errors.
+Available original archives take precedence.
+
+The most recent 12 captures per robot are kept in private Home Assistant
+storage. Each keeps up to 32,768 positions. Disable recording to stop
+future captures. Use **Delete saved routes** and confirm to erase that
+robot's captures. After deletion, an ongoing mission cannot recreate its
+capture. [Recording contract](api.md#local-route-recording)
+
+### Requested order and area results
+
 For directed runs, **Requested order** shows the requested sequence,
 cleaning settings, and final outcome for each room, zone, or furniture
 target. When Roomba chose the order, the section is **Requested

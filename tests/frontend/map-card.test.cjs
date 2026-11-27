@@ -2066,7 +2066,7 @@ test("a requested floor highlights its targets and keeps mission result layers h
   const canvas = card.$("history-map");
   canvas.getContext = () => ({
     fillRect() {}, fill() { paint.push(this.fillStyle); }, stroke() { paint.push(this.strokeStyle); },
-    beginPath() {}, moveTo() {}, lineTo() {}, arc() {},
+    beginPath() {}, moveTo() {}, lineTo() {}, arc() {}, save() {}, clip() {}, restore() {},
   });
   const inputs = ["cleaning", "travel", "unclassified", "coverage"].map((layer) =>
     Object.assign(card.$(`history-${layer}`), { checked: true, parentElement: {} }));
@@ -2083,12 +2083,50 @@ test("a requested floor highlights its targets and keeps mission result layers h
   assert.ok(card.$("history-map-legend").children.some(({ textContent }) => textContent === "Requested area"));
   assert.ok(paint.includes("#f4bf7c"));
 
+  const local = { ...report, geometry_source: "local_capture", geometry: {
+    ...context, trajectories: [{ index: 7, points: [[1, 1], [2, 1]], modes: ["vacuuming"] }],
+    estimated_coverage: { cell_size: 0.025, rows: [[40, [[40, 80, 1]]]] },
+  } };
+  card.historyReport = local;
+  card.renderMissionReport(local);
+  assert.equal(card.$("history-map-source").hidden, false);
+  assert.match(card.$("history-map-source").textContent, /Coverage is estimated from live positions/);
+  assert.match(canvas["aria-label"], /Locally recorded route/);
+  assert.equal(card.$("history-coverage-label").textContent, "Estimated coverage");
+  assert.equal(inputs[3].parentElement.hidden, false);
+  assert.ok(paint.some((color) => color.endsWith("60")));
+
   const recorded = { ...report, geometry: archived, geometry_source: "mission_archive" };
   card.historyReport = recorded;
   card.renderMissionReport(recorded);
   assert.equal(card.$("history-map-source").hidden, true);
   assert.match(canvas["aria-label"], /Recorded floor, coverage and robot route/);
   assert.equal(inputs[3].parentElement.hidden, false);
+  assert.equal(card.$("history-coverage-label").textContent, "Coverage");
+});
+
+test("local route controls respect permissions and refresh the report after explicit deletion", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  card.$("mission-history-dialog").open = true;
+  card.historyReport = { geometry_source: "local_capture", mission: { id: "report" }, map_index: 0 };
+  const requests = [];
+  const reloads = [];
+  card.loadMissionReport = (...args) => reloads.push(args);
+  card._hass = { callWS: async (input) => {
+    requests.push(input);
+    return { enabled: !input.clear, count: input.clear ? 0 : 1, can_manage: Boolean(input.clear) };
+  } };
+  await card.readRouteSettings();
+  assert.match(card.$("history-route-status").textContent, /1 saved route$/);
+  assert.equal(card.$("history-route-toggle").hidden, true);
+  assert.equal(card.$("history-route-clear").hidden, true);
+  assert.equal(requests.length, 1);
+  await card.readRouteSettings({ clear: true });
+  assert.equal(requests[1].clear, true);
+  assert.equal(card.$("history-route-toggle").hidden, false);
+  assert.equal(card.$("history-route-clear").hidden, true);
+  assert.deepEqual(reloads, [["report", 0]]);
 });
 
 test("expanded history keeps its query scope when opening an archived report", async () => {

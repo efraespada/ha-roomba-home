@@ -500,6 +500,22 @@ template.innerHTML = `
         <p id="history-status" class="muted" role="status"></p>
         <p id="history-totals" class="muted" hidden></p>
       </div>
+      <details id="history-route-settings">
+        <summary>Local route recording</summary>
+        <p>Keep Roomba's live positions on this Home Assistant for future cleaning reports.</p>
+        <p id="history-route-status" class="muted" role="status"></p>
+        <div class="map-actions">
+          <button id="history-route-toggle" hidden></button>
+          <button id="history-route-clear" hidden>Delete saved routes</button>
+        </div>
+        <div id="history-route-review" hidden>
+          <p>Delete all saved routes for this robot?</p>
+          <div class="map-actions">
+            <button id="history-route-cancel">Cancel</button>
+            <button id="history-route-confirm">Delete routes</button>
+          </div>
+        </div>
+      </details>
       <label id="history-selector" hidden>Report <select id="history-mission"></select></label>
       <div id="history-detail" hidden>
         <dl id="history-measurements" class="measurements"></dl>
@@ -519,7 +535,7 @@ template.innerHTML = `
             <label hidden><input id="history-cleaning" type="checkbox" checked> Cleaning path</label>
             <label hidden><input id="history-travel" type="checkbox" checked> Travel path</label>
             <label hidden><input id="history-unclassified" type="checkbox" checked> Unclassified path</label>
-            <label hidden><input id="history-coverage" type="checkbox" checked> Coverage</label>
+            <label hidden><input id="history-coverage" type="checkbox" checked> <span id="history-coverage-label">Coverage</span></label>
           </div>
           <p class="legend muted" id="history-map-legend"></p>
         </section>
@@ -999,6 +1015,35 @@ function renderMapLegend(element, entries) {
   }));
 }
 
+function drawEstimatedCoverage(ctx, coverage, xy, selected, polygons) {
+  const clip = new Path2D();
+  for (const polygon of polygons) clip.addPath(pathFor(polygon, xy));
+  const layers = [null, new Path2D(), new Path2D(), new Path2D()];
+  const size = coverage.cell_size;
+  for (const [row, runs] of coverage.rows) {
+    for (const [start, end, mask] of runs) {
+      const layer = layers[mask & selected];
+      if (!layer) continue;
+      const x0 = start * size;
+      const x1 = end * size;
+      const y0 = row * size;
+      const y1 = (row + 1) * size;
+      layer.moveTo(...xy([x0, y0]));
+      layer.lineTo(...xy([x1, y0]));
+      layer.lineTo(...xy([x1, y1]));
+      layer.lineTo(...xy([x0, y1]));
+      layer.closePath();
+    }
+  }
+  ctx.save();
+  ctx.clip(clip, "evenodd");
+  for (const [index, mode] of ["vacuuming", "mopping", "vacuum_mop"].entries()) {
+    ctx.fillStyle = `${ROUTE_COLORS[mode]}60`;
+    ctx.fill(layers[index + 1]);
+  }
+  ctx.restore();
+}
+
 function drawMissionMap(canvas, geometry, view, layers = geometry) {
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#101e2a";
@@ -1027,6 +1072,9 @@ function drawMissionMap(canvas, geometry, view, layers = geometry) {
   for (const item of layers.coverage) {
     const color = ROUTE_COLORS[historyMode(item.modes)] ?? "#74889b";
     area(item.polygons, `${color}44`);
+  }
+  if (layers.estimated?.rows.length) {
+    drawEstimatedCoverage(ctx, layers.estimated, project, 3, geometry.rooms.flatMap(({ polygons }) => polygons));
   }
   area(geometry.temporary_zones, "#00000000", "#ffffffa0");
   if (view.elevated) drawElevation(ctx, geometry.walls, geometry.furniture, projection);
@@ -1170,7 +1218,17 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("open-cleaning-scores").onclick = () => this.openCleaningScores();
     this.$("close-cleaning-scores").onclick = () => this.$("cleaning-scores-dialog").close();
     this.$("close-mission-history").onclick = () => this.$("mission-history-dialog").close();
-    this.$("mission-history-dialog").onclose = () => { this.historySequence++; };
+    this.$("mission-history-dialog").onclose = () => {
+      this.historySequence++;
+      this.historyRouteRequest = null;
+    };
+    this.$("history-route-settings").ontoggle = (event) => {
+      if (event.target.open) void this.readRouteSettings();
+    };
+    this.$("history-route-toggle").onclick = () => this.readRouteSettings({ enabled: !this.historyRouteSettings.enabled });
+    this.$("history-route-clear").onclick = () => { this.$("history-route-review").hidden = false; };
+    this.$("history-route-cancel").onclick = () => { this.$("history-route-review").hidden = true; };
+    this.$("history-route-confirm").onclick = () => this.readRouteSettings({ clear: true });
     for (const id of ["history-days", "history-include-short-canceled"]) {
       this.$(id).onchange = () => this.refreshMissionHistory(this.$("history-mission").value);
     }
@@ -2580,8 +2638,39 @@ class RoombaHomeMapCard extends HTMLElement {
     if (!this.config || !this._hass) return;
     this.$("history-days").value = String(DEFAULT_HISTORY_DAYS);
     this.$("history-include-short-canceled").checked = false;
+    this.$("history-route-settings").open = false;
     this.$("mission-history-dialog").showModal();
     return this.refreshMissionHistory();
+  }
+
+  async readRouteSettings(options = {}) {
+    const dialog = this.$("mission-history-dialog");
+    if (!dialog.open || this.historyRouteRequest) return;
+    const entity = this.config.entity;
+    const request = {};
+    this.historyRouteRequest = request;
+    const status = this.$("history-route-status");
+    const toggle = this.$("history-route-toggle");
+    const clear = this.$("history-route-clear");
+    const current = () => this.historyRouteRequest === request && dialog.open && entity === this.config.entity;
+    toggle.hidden = clear.hidden = this.$("history-route-review").hidden = true;
+    status.textContent = "Reading local route settings…";
+    try {
+      const settings = await this._hass.callWS({ type: "roomba_home/mission_route_settings", entity_id: entity, ...options });
+      if (!current()) return;
+      this.historyRouteSettings = settings;
+      status.textContent = `Recording ${settings.enabled ? "on" : "off"} · ${settings.count} saved ${settings.count === 1 ? "route" : "routes"}`;
+      toggle.textContent = settings.enabled ? "Disable recording" : "Enable recording";
+      toggle.hidden = !settings.can_manage;
+      clear.hidden = !settings.can_manage || !settings.count;
+      if (options.clear && this.historyReport?.geometry_source === "local_capture") {
+        void this.loadMissionReport(this.historyReport.mission.id, this.historyReport.map_index);
+      }
+    } catch (error) {
+      if (current()) status.textContent = error?.message || "Local route settings are unavailable.";
+    } finally {
+      if (this.historyRouteRequest === request) this.historyRouteRequest = null;
+    }
   }
 
   missionHistoryRequest(options = {}) {
@@ -2693,10 +2782,15 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("history-no-map").hidden = Boolean(report.geometry);
     if (report.geometry) {
       const requested = report.geometry_source === "requested_floor";
-      this.$("history-map-source").hidden = !requested;
-      this.$("history-map").setAttribute("aria-label", requested
-        ? "Requested floor plan. Use arrow keys to pan."
-        : "Recorded floor, coverage and robot route. Use arrow keys to pan.");
+      const captured = report.geometry_source === "local_capture";
+      const source = this.$("history-map-source");
+      source.hidden = !requested && !captured;
+      source.textContent = captured ? "Locally recorded route · Coverage is estimated from live positions"
+        : "Requested floor · Saved revision from the cleaning order";
+      const mapLabel = captured ? "Locally recorded route and estimated coverage. Use arrow keys to pan."
+        : requested ? "Requested floor plan. Use arrow keys to pan."
+          : "Recorded floor, coverage and robot route. Use arrow keys to pan.";
+      this.$("history-map").setAttribute("aria-label", mapLabel);
       this.drawHistoryMap();
     }
   }
@@ -2720,7 +2814,10 @@ class RoombaHomeMapCard extends HTMLElement {
     });
     const enabledPaths = HISTORY_PATH_LAYERS.filter((layer) => shown(layer, pathLayers.includes(layer)));
     const trajectories = geometry.trajectories.filter((_, index) => enabledPaths.includes(pathLayers[index]));
-    const coverage = shown("coverage", geometry.coverage.length) ? geometry.coverage : [];
+    const estimated = geometry.estimated_coverage;
+    const showCoverage = shown("coverage", geometry.coverage.length || estimated?.rows.length);
+    this.$("history-coverage-label").textContent = estimated ? "Estimated coverage" : "Coverage";
+    const coverage = showCoverage ? geometry.coverage : [];
     const modes = new Set([...coverage, ...trajectories].map((layer) => historyMode(layer.modes)).filter(Boolean));
     const travelPath = enabledPaths.includes("travel");
     const legend = [...modes].map((mode) => [
@@ -2738,7 +2835,7 @@ class RoombaHomeMapCard extends HTMLElement {
     const canvas = this.$("history-map");
     const ctx = canvas.getContext("2d");
     drawMissionMap(canvas, geometry, { ...view, label: (...args) => this.drawLabel.call({ ctx }, ...args) },
-      { coverage, trajectories });
+      { coverage, trajectories, estimated: showCoverage ? estimated : null });
   }
 
   resetHistoryView() {
@@ -5363,37 +5460,8 @@ class RoombaHomeMapCard extends HTMLElement {
     const selected = (this.$("coverage-vacuum").checked ? 1 : 0) |
       (this.$("coverage-mop").checked ? 2 : 0);
     if (!selected) return;
-    const clip = new Path2D();
-    for (const {kind, polygons} of regions) {
-      if (kind === "room") {
-        for (const polygon of polygons) clip.addPath(pathFor(polygon, xy));
-      }
-    }
-    const layers = [null, new Path2D(), new Path2D(), new Path2D()];
-    const size = coverage.cell_size;
-    for (const [row, runs] of coverage.rows) {
-      for (const [start, end, mask] of runs) {
-        const layer = layers[mask & selected];
-        if (!layer) continue;
-        const x0 = start * size;
-        const x1 = end * size;
-        const y0 = row * size;
-        const y1 = (row + 1) * size;
-        layer.moveTo(...xy([x0, y0]));
-        layer.lineTo(...xy([x1, y0]));
-        layer.lineTo(...xy([x1, y1]));
-        layer.lineTo(...xy([x0, y1]));
-        layer.closePath();
-      }
-    }
-    const ctx = this.ctx;
-    ctx.save();
-    ctx.clip(clip, "evenodd");
-    for (const [index, mode] of ["vacuuming", "mopping", "vacuum_mop"].entries()) {
-      ctx.fillStyle = `${ROUTE_COLORS[mode]}60`;
-      ctx.fill(layers[index + 1]);
-    }
-    ctx.restore();
+    const rooms = regions.filter(({ kind }) => kind === "room");
+    drawEstimatedCoverage(this.ctx, coverage, xy, selected, rooms.flatMap(({ polygons }) => polygons));
   }
 
   drawLiveMarker() {
