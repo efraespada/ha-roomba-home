@@ -15,6 +15,8 @@ A signed read through the shortcut client returned two compatible saved
 routines and three loadable native options on the same floor. The tests
 cover saved order and profiles, stale geometry and changed furniture,
 read permission, confirmation, and the amber fill with a selected outline.
+Isolated Chrome at 358 and 900 pixels opened the panel, wrapped a long
+routine name, loaded the recommendation, and rendered its amber fill.
 [Anonymized comparison](evidence/2026-11-27-smart-cleaning-shortcuts.json) ·
 [ClearView routine documentation](https://homesupport.irobot.com/articles/en_GB/Knowledge/20500)
 
