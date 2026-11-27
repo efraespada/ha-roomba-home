@@ -1,5 +1,35 @@
 # Roomba Home validation
 
+## Household live coverage and active errors
+
+A Max 700 Combo started one vacuum-only furniture target through the
+installed 0.82.0 floor plan. The dashboard showed the travel path and
+estimated coverage during the run. A separate read-only subscription
+received 41 distinct position updates with a median interval of one
+second. It held 180 route points and seven estimated vacuum coverage
+rows. Four downloaded live snapshots each had zero obstacle records.
+
+Roomba reported error 48 during the return phase `hmPostMsn`. The
+robot subsequently reported `charge` and cycle `none` while error 48
+was still active. Its signed report matched the reviewed furniture
+target, recorded an incomplete outcome, and reported zero cleaned area.
+The 0.82.0 card cleared both live overlays and the mission readout and
+left the current fault out of the floor plan once the mission ended.
+The coverage seen during the run was an estimate based on position
+modes. The archived cleaned area is a separate provider measurement.
+
+The candidate tests verify that the reported phase and active fault can
+be displayed at the same time. They retain current faults at the dock
+and before the first saved floor, distinguish robot and dock code
+sources, and clear stale readings on disconnect. The new projection
+returned the physical robot's active error 48 while it reported `charge`
+with no ongoing mission. Isolated Chrome at 358 and 900 pixels verified
+the display during return, after the mission ended, and after clearing
+the code. Household obstacle marker verification still requires a run
+with Roomba-reported detections.
+[Anonymized trial](evidence/2026-11-27-household-live-active-errors.json) ·
+[iRobot Error 48 guidance](https://homesupport.irobot.com/articles/en_US/Knowledge/10548)
+
 ## Automatic Smart cleaning overlay
 
 On a Max 700 Combo, opening the saved floor's details in Roomba Home
@@ -2920,8 +2950,11 @@ Replaying a late join with 30 positions from that combined mission
 aligned 446 earlier snapshot points and expanded the covered grid from
 689 cells to 6,241.
 Android showed the cleaning route with shaded bands and offered separate
-controls for cleaning and travel paths. The household dashboard still
-needs verification with the new rendering.
+controls for cleaning and travel paths. A household trial displayed live
+travel and estimated vacuum coverage before a path error. A completed run
+with both cleaning modes is still needed to verify their separate
+coverage layers on the household dashboard.
+[Household trial](#household-live-coverage-and-active-errors) ·
 [Coverage evidence](evidence/2026-11-25-live-coverage.json) ·
 [iRobot live and archived map guide](https://homesupport.irobot.com/s/article/20500)
 

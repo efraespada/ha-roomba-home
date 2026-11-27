@@ -1,0 +1,23 @@
+{
+  "model": "X185240",
+  "trial_version": "0.82.0",
+  "requested_target_type": "furniture",
+  "mode": "vacuum",
+  "household_travel_path_visible": true,
+  "household_estimated_coverage_visible": true,
+  "household_live_layers_cleared_after_failure": true,
+  "subscription_position_updates": 41,
+  "median_position_update_seconds": 1,
+  "route_points": 180,
+  "estimated_vacuum_coverage_rows": 7,
+  "native_temporary_obstacle_counts": [0, 0, 0, 0],
+  "mission_error": 48,
+  "phase_on_error": "hmPostMsn",
+  "settled_phase": "charge",
+  "settled_cycle": "none",
+  "settled_error": 48,
+  "candidate_projected_settled_error": true,
+  "archive_target_matched": true,
+  "archive_outcome": "inc",
+  "archive_reported_cleaned_area_zero": true
+}

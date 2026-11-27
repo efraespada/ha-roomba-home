@@ -1138,6 +1138,64 @@ async def test_current_mission_is_covered_before_the_first_saved_floor_and_witho
             assert (await socket.receive_json())["result"]["current_mission"] is None
 
 
+async def test_active_errors_remain_visible_after_the_mission_and_without_a_floor(
+    configured, hass_ws_client, hass_admin_user
+):
+    robot = "fixture-0"
+    ready = configured.data[robot]
+    faulted = replace(
+        ready,
+        connected=True,
+        cycle="none",
+        phase="charge",
+        error=48,
+        telemetry=ready.telemetry | {"dock_known": True, "dock_error": 501},
+    )
+    query = {
+        "id": 1,
+        "type": "roomba_home/floor_plan",
+        "entity_id": ENTITY,
+        "known_map_id": MAP.map_id,
+        "known_version": MAP.version_id,
+    }
+    expected = [
+        {"source": "mission", "code": 48, "reason": "path_blocked"},
+        {"source": "dock", "code": 501, "reason": "buoy_path_occluded"},
+    ]
+    socket = await hass_ws_client()
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda _, policy: policy == POLICY_READ,
+    ):
+        configured.data[robot] = faulted
+        await socket.send_json(query)
+        snapshot = (await socket.receive_json())["result"]
+        assert snapshot["map"] is not None
+        assert snapshot["active_errors"] == expected
+        assert snapshot["current_mission"] is None
+        assert snapshot["mission_controls"] is None
+
+        configured.data[robot] = replace(faulted, phase="hmPostMsn", cycle="clean")
+        await socket.send_json(query | {"id": 2})
+        snapshot = (await socket.receive_json())["result"]
+        assert snapshot["current_mission"]["phase"] == "hmPostMsn"
+        assert snapshot["active_errors"] == expected
+
+        configured._maps[robot] = ()
+        await socket.send_json(query | {"id": 3})
+        snapshot = (await socket.receive_json())["result"]
+        assert snapshot["map"] is None and snapshot["active_errors"] == expected
+
+        for identifier, state in (
+            (4, replace(faulted, connected=False)),
+            (5, replace(faulted, error=0, telemetry=faulted.telemetry | {"dock_error": 510})),
+        ):
+            configured.data[robot] = state
+            await socket.send_json(query | {"id": identifier})
+            assert (await socket.receive_json())["result"]["active_errors"] == []
+
+
 async def test_control_current_mission_requires_the_current_review_and_confirms_resume(
     hass, configured, hass_ws_client, hass_admin_user
 ):
