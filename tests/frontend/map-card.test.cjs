@@ -1950,6 +1950,77 @@ test("the history panel opens the latest report and shows measurements when geom
   assert.equal(planView.querySelector("ul"), undefined);
 });
 
+test("expanded history keeps its query scope when opening an archived report", async () => {
+  const { card } = mockCard(0);
+  const standard = { id: "completed", finished_at: "2026-11-27T17:00:00Z", outcome: "completed" };
+  const canceled = { id: "canceled", finished_at: "2026-11-27T18:00:00Z", outcome: "cancelled" };
+  const checkbox = card.$("history-include-short-canceled");
+  const picker = card.$("history-mission");
+  const dialog = card.$("mission-history-dialog");
+  dialog.showModal = function () { this.open = true; };
+  card.config = { entity: "vacuum.example" };
+  card.historySequence = 0;
+  card.renderMissionReport = () => {};
+  const calls = [];
+  card._hass = { async callWS(request) {
+    calls.push(request);
+    const missions = request.include_short_canceled ? [canceled, standard] : [standard];
+    return request.report_id
+      ? { mission: missions.find(({id}) => id === request.report_id), map_index: request.map_index }
+      : { missions };
+  } };
+
+  checkbox.checked = true;
+  await card.openMissionHistory();
+  assert.equal(checkbox.checked, false);
+  assert.equal(picker.value, standard.id);
+  assert.equal(calls[0].include_short_canceled, undefined);
+
+  checkbox.checked = true;
+  await card.refreshMissionHistory(picker.value);
+  assert.equal(picker.value, standard.id);
+  assert.equal(card.$("history-totals").textContent, "2 reports");
+  assert.equal(calls[2].include_short_canceled, true);
+  assert.equal(calls[3].include_short_canceled, true);
+  await card.loadMissionReport(canceled.id, 1);
+  assert.equal(calls.at(-1).map_index, 1);
+  assert.equal(calls.at(-1).include_short_canceled, true);
+  assert.equal(card.historyReport.mission.id, canceled.id);
+
+  checkbox.checked = false;
+  await card.refreshMissionHistory(canceled.id);
+  assert.equal(picker.value, standard.id);
+  assert.equal(card.historyReport.mission.id, standard.id);
+  assert.equal(calls.at(-1).include_short_canceled, undefined);
+});
+
+test("history discards an expanded list that arrives after the filter is turned off", async () => {
+  const { card } = mockCard(0);
+  const standard = { id: "completed", finished_at: "2026-11-27T17:00:00Z", outcome: "completed" };
+  const canceled = { id: "canceled", finished_at: "2026-11-27T18:00:00Z", outcome: "cancelled" };
+  card.$("mission-history-dialog").open = true;
+  card.config = { entity: "vacuum.example" };
+  card.historySequence = 0;
+  card.renderMissionReport = () => {};
+  let resolveExpanded;
+  const calls = [];
+  card._hass = { async callWS(request) {
+    calls.push(request);
+    if (request.include_short_canceled) return new Promise((resolve) => { resolveExpanded = resolve; });
+    return request.report_id ? { mission: standard, map_index: 0 } : { missions: [standard] };
+  } };
+  const checkbox = card.$("history-include-short-canceled");
+  checkbox.checked = true;
+  const expanded = card.refreshMissionHistory();
+  checkbox.checked = false;
+  await card.refreshMissionHistory();
+  resolveExpanded({ missions: [canceled, standard] });
+  await expanded;
+  assert.equal(card.$("history-mission").value, standard.id);
+  assert.equal(card.$("history-totals").textContent, "1 report");
+  assert.equal(calls.length, 3);
+});
+
 test("selecting a different mission discards an older archive response", async () => {
   const { card } = mockCard(0);
   card.config = { entity: "vacuum.example" };

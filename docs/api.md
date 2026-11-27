@@ -440,6 +440,12 @@ the selected robot. It uses the app's ten-day query and keeps summaries
 for records without map references. Each report is represented by an
 opaque selection key scoped to the robot.
 
+Set `include_short_canceled: true` on `roomba_home/mission_history` to omit
+only `filterType` from the signed list query. The age, outcome parameters,
+association checks, and report projection stay the same. Send the option
+with detail and map-index requests for reports discovered in the expanded
+list. Periodic history sensors continue to use the standard query.
+
 Selecting a report resolves the key against the current signed mission
 list and fetches its referenced archive through
 `GET /v1/p2maps/{map}/versions/{version}/geojson?response_type=binary`.

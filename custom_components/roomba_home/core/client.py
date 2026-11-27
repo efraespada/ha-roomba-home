@@ -471,23 +471,28 @@ class RoombaClient:
     async def mission_history(self, robot_id: str) -> dict:
         return history_metrics(await self._mission_history_document(robot_id), robot_id)
 
-    async def mission_reports(self, robot_id: str) -> tuple[MissionReport, ...]:
-        return mission_reports(await self._mission_history_document(robot_id), robot_id)
+    async def mission_reports(
+        self, robot_id: str, *, include_short_canceled: bool = False
+    ) -> tuple[MissionReport, ...]:
+        document = await self._mission_history_document(
+            robot_id, include_short_canceled=include_short_canceled
+        )
+        return mission_reports(document, robot_id)
 
-    async def _mission_history_document(self, robot_id: str) -> object:
+    async def _mission_history_document(
+        self, robot_id: str, *, include_short_canceled: bool = False
+    ) -> object:
         session = await self.ensure_session()
         if robot_id not in session.raw["robots"]:
             raise ProtocolError("Mission history requires an associated robot")
-        return await self.request(
-            "GET",
-            f"/v1/{robot_id}/missionhistory",
-            params={
-                "app_id": self.profile.app_id,
-                "maxAge": 10,
-                "filterType": "omit_quickly_canceled_not_scheduled",
-                "supportedDoneCodes": "dndEnd,returnHomeEnd",
-            },
-        )
+        params = {
+            "app_id": self.profile.app_id,
+            "maxAge": 10,
+            "supportedDoneCodes": "dndEnd,returnHomeEnd",
+        }
+        if not include_short_canceled:
+            params["filterType"] = "omit_quickly_canceled_not_scheduled"
+        return await self.request("GET", f"/v1/{robot_id}/missionhistory", params=params)
 
     async def cleaning_time_estimates(
         self, robot_id: str, target: AreaTarget, capabilities: CleaningCapabilities

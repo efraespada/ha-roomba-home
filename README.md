@@ -147,7 +147,9 @@ threshold. [Dock settings and automation example](docs/usage.md#dock-settings)
 ![Installed Home Assistant report excerpt showing a bin emptying stage with zero recorded emptyings](docs/screenshots/roomba-history-emptying.png)
 
 Open **Cleaning history** on the floor plan card to inspect the reported
-outcome, measurements, and timeline. Expand **Results by area** to
+outcome, measurements, and timeline. Turn on **Include short canceled
+runs** for reports Roomba leaves out of its usual history list.
+Expand **Results by area** to
 see the reported target size and the area measured in completed passes for
 a saved zone. In a verified two-pass vacuum run, Roomba reported a 2.51 m²
 target, 2.69 m² across the passes, and a separate mission total of 2.79 m².
@@ -172,7 +174,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.79.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.80.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
