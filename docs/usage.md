@@ -38,6 +38,21 @@ show them. The markers expire with the snapshot and clear when the
 mission or floor revision changes. Saved keep-out and no-mop zones have
 their own overlays.
 
+### Current mission readout
+
+While Roomba reports an active cleaning mission, the top of the card
+shows its **Phase**, **Mode**, **Time since start**, and **Reported area**
+in square metres. The same summary appears for a mapped plan, a point
+clean, or a whole-floor run. Missing readings stay hidden.
+
+For example, a paused run can show **Paused**, **Vacuum**, **2:05**, and
+**1.39 m²**. Time since start includes travel and pauses. The separate
+destination timeline shows cleaning time in each area when its events
+are available. The current readout clears when the mission ends or the
+robot disconnects. Completed measurements remain in **Cleaning history**.
+
+### Select destinations and navigate
+
 Use the map or the accessible buttons below it to select rooms and saved
 zones. Pinch or use the zoom buttons to change scale. Drag a zoomed floor
 or the 3D view to pan it. With the map focused, use the arrow keys to pan.

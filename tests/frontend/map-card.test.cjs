@@ -2762,6 +2762,35 @@ test("last mission results name furniture and keep separately reported zone metr
   }
 });
 
+test("mission header shows reported totals and phase without a destination plan", () => {
+  const { card } = mockCard(0);
+  const panel = card.$("current-mission");
+  const rows = () => panel.children.map(({ children }) => children.map(({ textContent }) => textContent));
+  const current = {
+    activity: "cleaning", phase: "run", mode: "vacuum", elapsed_seconds: 65, cleaned_area_m2: 0,
+  };
+  card.renderCurrentMission(current);
+  assert.equal(panel.hidden, false);
+  assert.deepEqual(rows(), [["Phase", "Cleaning"], ["Mode", "Vacuum"],
+    ["Time since start", "1:05"], ["Reported area", "0 m²"]]);
+  const rendered = panel.children;
+  card.renderCurrentMission({ ...current });
+  assert.equal(panel.children, rendered);
+
+  card.renderCurrentMission({ ...current, activity: "paused", elapsed_seconds: 91, cleaned_area_m2: 3.8 });
+  assert.deepEqual(rows(), [["Phase", "Paused"], ["Mode", "Vacuum"],
+    ["Time since start", "1:31"], ["Reported area", "3.8 m²"]]);
+  card.renderCurrentMission({ phase: "padWash", activity: "cleaning" });
+  assert.deepEqual(rows(), [["Phase", "Washing mop"]]);
+  card.renderCurrentMission({ phase: "stuck", activity: "error", error_code: 48 });
+  assert.deepEqual(rows(), [["Phase", "Error 48"]]);
+  card.renderCurrentMission({ activity: "error" });
+  assert.deepEqual(rows(), [["Phase", "Needs attention"]]);
+  card.renderCurrentMission(null);
+  assert.equal(panel.hidden, true);
+  assert.deepEqual(rows(), []);
+});
+
 test("live plans show real destination counts, preserve order and disappear when unavailable", () => {
   const { card } = mockCard(0);
   const plan = {

@@ -115,6 +115,10 @@ trajectory contains observed positions and retains sequence gaps.
   Preserve dashboard scrolling over a fitted overhead map. Treat a tap
   as area selection only if it belongs to the current floor and stayed
   within the tap threshold.
+- MAP-19: Show the selected robot's current mission phase, mode, time
+  since start, and reported cleaned area above its floor plan. Keep the
+  summary available without a saved floor or a correlated destination plan.
+  Omit missing readings and clear the summary at mission end or disconnect.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -218,6 +222,11 @@ seconds. When a new position interrupts an animation, continue from the
 displayed position along the remaining reported legs. Bound animation to
 1.8 seconds per update, honor reduced motion, and preserve gaps in the
 reported trail.
+
+Show the robot-wide mission summary separately from floor-scoped overlays.
+Use the same wall-clock elapsed time as the existing mission sensor. Retain
+a reported zero area, show a nonzero error code when available, and clear
+active values when the robot has no active cleaning cycle or disconnects.
 
 Show estimated live coverage from mode-tagged positions using a calibrated
 footprint for each cleaning mode. Mark only known cleaning positions and
@@ -440,6 +449,7 @@ features, physical results, and open scenarios.
 | MAP-16 | [Archived report contract](../docs/api.md#archived-cleaning-reports) | [Destination and pass-event tests](../tests/test_history.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), [signed report verification](../docs/validation.md#historical-destination-plans), and [recorded durations](../docs/validation.md#accumulated-destination-cleaning-time) |
 | MAP-17 | [Clean everywhere action](../docs/usage.md#clean-everywhere) | [Home Assistant control tests](../tests/ha/test_cleaning_controls.py), [card tests](../tests/frontend/map-card.test.cjs), and [scope validation](../docs/validation.md#whole-area-and-directed-cleaning-scope) |
 | MAP-18 | [Interactive floor plan](../docs/usage.md#interactive-floor-plan) and [cleaning history](../docs/usage.md#cleaning-history) | [Card tests](../tests/frontend/map-card.test.cjs) and [Chrome touch verification](../docs/validation.md#touch-navigation-for-floor-plans-and-reports) |
+| MAP-19 | [Current mission WebSocket projection](../docs/api.md#current-mission-readout) | [Authenticated snapshot tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [physical trial](../docs/validation.md#current-mission-readout) |
 
 ## 18. Implementation sequence
 

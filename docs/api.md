@@ -273,6 +273,26 @@ keeps an available cached floor. Position, current room, coverage, obstacles,
 and current activity appear on the verified floor.
 [Mission replay](validation.md#multiple-saved-floors)
 
+### Current mission readout
+
+The authenticated `roomba_home/floor_plan` response includes optional
+`current_mission` for the selected robot. It is null when Roomba reports
+no active cleaning cycle or when the device disconnects. The projection
+uses the same current-state shadow as the vacuum and sensors.
+
+| Field | Source |
+| --- | --- |
+| `activity`, `phase` | Projected activity and reported `cleanMissionStatus.phase` |
+| `mode` | Semantic form of the currently reported `operatingMode` |
+| `elapsed_seconds` | Time since `mssnStrtTm`, using the same seconds calculation as the mission elapsed sensor |
+| `cleaned_area_m2` | Reported `cleanMissionStatus.sqft` converted to square metres, including a reported zero |
+| `error_code` | Nonzero current mission error when provided |
+
+Each missing reading is null. The robot-wide summary is available before
+the first saved floor or without a correlated destination timeline. Position,
+coverage, and destination overlays still follow the verified floor and
+mission association.
+
 ### Mode-specific live coverage
 
 The live map positions and raw route snapshots provide coordinates and

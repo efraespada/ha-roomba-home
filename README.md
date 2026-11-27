@@ -169,7 +169,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.77.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.78.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
@@ -239,6 +239,10 @@ reload the dashboard. Use one card per robot.
   floor plan. Review the destinations, adjust their settings, and confirm
   the start. The current saved routine stays available for later use.
   [Quick routines](docs/usage.md#quick-routines-from-the-floor-plan)
+- **Current mission** shows the robot's reported phase, mode, time since
+  start, and cleaned area above the map. Point cleaning and whole-floor
+  cleaning also show a summary when Roomba reports an active mission.
+  [Current mission readout](docs/usage.md#current-mission-readout)
 - **Manage routines** opens the saved routines list. Select areas on the map
   before opening it to prefill a new routine. Add furniture, rooms, or zones,
   set their individual cleaning preferences, and arrange them in order.
