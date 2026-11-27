@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-27",
+  "model": "X185240",
+  "android_version": "3.4.1",
+  "native_schedule": {
+    "frequency": "WEEKLY",
+    "selected_iso_weekdays": [7],
+    "provider_weekdays": [0],
+    "ordered_destination_types": ["tid", "rid"],
+    "furniture_outline_point_count": 4,
+    "furniture_link_present": true,
+    "command_timestamp_is_epoch_seconds": true,
+    "temporary_schedule_removed": true,
+    "original_robot_schedules_match_baseline": true
+  },
+  "integration_round_trip": {
+    "weekly_sunday_rule_created_disabled": true,
+    "one_time_rule_created_disabled": true,
+    "duplicate_creation_returned_same_id": true,
+    "ordered_furniture_and_room_returned": true,
+    "edited_order_and_per_destination_modes": true,
+    "timing_and_disabled_state_preserved": true,
+    "temporary_schedules_removed": true,
+    "original_robot_schedules_match_baseline": true
+  }
+}

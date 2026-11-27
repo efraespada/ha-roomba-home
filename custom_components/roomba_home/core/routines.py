@@ -10,8 +10,8 @@ from .cleaning_protocol import (
     regional_cleaning_parameters,
 )
 from .errors import ProtocolError
-from .furniture_targets import furniture_command_fields, furniture_links
-from .maps import AreaTarget, FurnitureRegion, RegionKind, command_region_id, map_identifier
+from .furniture_targets import furniture_command_fields, furniture_links, region_target_id
+from .maps import AreaTarget, FurnitureRegion, map_identifier
 from .telemetry import number
 
 FAVORITES_PATH = "/v1/user/favorites"
@@ -97,7 +97,7 @@ class CleaningRoutine:
         recognized = [
             (identifier, item)
             for item in regions
-            if (identifier := _routine_region_id(map_id, item, links)) is not None
+            if (identifier := region_target_id(map_id, item, links)) is not None
         ]
         settings = None
         if (
@@ -148,15 +148,6 @@ def _routine_estimate(estimates):
         "duration_minutes": minutes,
         "confidence": _ESTIMATE_CONFIDENCE.get(confidence) if isinstance(confidence, str) else None,
     }
-
-
-def _routine_region_id(map_id, region, links):
-    if isinstance(region, dict) and region.get("type") == "tid":
-        identity = region.get("region_id")
-        if map_identifier(identity) and identity in links:
-            return f"{map_id}:{RegionKind.FURNITURE}:{links[identity]}"
-        return None
-    return command_region_id(map_id, region)
 
 
 def _round_trip_command(command, regions, links):

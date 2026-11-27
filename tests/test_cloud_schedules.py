@@ -6,7 +6,12 @@ import pytest
 
 from custom_components.roomba_home.core.cleaning import CleaningMode, CleaningProfile
 from custom_components.roomba_home.core.errors import ProtocolError
-from custom_components.roomba_home.core.maps import AreaTarget, CleaningRegion, RegionKind
+from custom_components.roomba_home.core.maps import (
+    AreaTarget,
+    CleaningRegion,
+    FurnitureRegion,
+    RegionKind,
+)
 from custom_components.roomba_home.core.schedules import (
     associated_households,
     cleaning_schedule_start,
@@ -14,6 +19,7 @@ from custom_components.roomba_home.core.schedules import (
     new_cleaning_schedule,
     next_schedule_start,
     once_weekday,
+    schedule_command,
     schedule_metrics,
     schedule_removed,
     weekly_start,
@@ -174,6 +180,109 @@ def edit_entry(**options):
     return entry(**({"commands": [command]} | options))
 
 
+@pytest.fixture
+def furniture_selection():
+    table = FurnitureRegion(
+        "table", RegionKind.FURNITURE, "Table", ((0, 0), (1, 0), (1, 1), (0, 1))
+    )
+    hall = CleaningRegion("hall", RegionKind.ROOM, "Hall")
+    return AreaTarget(
+        "map",
+        "version",
+        (table, hall),
+        (
+            CleaningProfile(CleaningMode.VACUUM, suction_level=1),
+            CleaningProfile(CleaningMode.MOP, wetness_level=2),
+        ),
+    )
+
+
+@pytest.mark.parametrize("frequency", ["weekly", "once"])
+def test_timed_schedule_preserves_furniture_links_and_room_order(furniture_selection, frequency):
+    start = cleaning_schedule_start([7], "08:10", frequency)
+    options = new_cleaning_schedule(
+        "first", "Furniture schedule", start, furniture_selection, frequency=frequency, timestamp=42
+    )
+    command = options["commands"][0]["command"]
+    assert command == {
+        "command": "start",
+        "ordered": 1,
+        "initiator": "rmtApp",
+        "time": 42,
+        "p2map_id": "map",
+        "user_p2mapv_id": "version",
+        "params": {},
+        "regions": [
+            {"region_id": "160", "type": "tid", "params": {"operatingMode": 2, "suctionLevel": 1}},
+            {
+                "region_id": "hall",
+                "type": "rid",
+                "params": {"operatingMode": 4, "padWetness": {"padPlate": 2}},
+            },
+        ],
+        "id_multipolys": [
+            {
+                "id": "160",
+                "metadata": {"furniture_id": "table"},
+                "poly": [[0, 0], [1, 0], [1, 1], [0, 1]],
+            },
+        ],
+    }
+    assert options["enabled"] is False
+    # A disabled Sunday rule from an earlier release has the same public timing.
+    stored = {**options, "start": {**start, "day": [7]}}
+    [row] = editable_schedules(edit_document([entry(**stored)]), "first").values()
+    response = row.action_response()
+    assert response["regions"] == ["map:furniture:table", "map:rid:hall"]
+    assert [
+        (item["mode"], item["suction_level"], item["wetness_level"])
+        for item in response["region_settings"]
+    ] == [("vacuum", 1, None), ("mop", None, 2)]
+    assert row.matches_creation(
+        new_cleaning_schedule(
+            "first",
+            "Furniture schedule",
+            start,
+            furniture_selection,
+            frequency=frequency,
+            timestamp=99,
+        )
+    )
+    assert row.replace_selection(furniture_selection, 99) == options["commands"]
+    assert not row.matches_creation(options | {"name": "Another entry"})
+
+
+@pytest.mark.parametrize("timestamp", [0, False])
+def test_furniture_schedule_requires_a_valid_timestamp(furniture_selection, timestamp):
+    with pytest.raises(ValueError, match="positive timestamp"):
+        schedule_command("first", furniture_selection, timestamp=timestamp)
+
+
+@pytest.mark.parametrize("polygons", ["missing", "extra", "empty"])
+def test_unmatched_furniture_polygons_do_not_offer_destination_edits(furniture_selection, polygons):
+    command = schedule_command("first", furniture_selection, timestamp=42)
+    if polygons == "missing":
+        command["id_multipolys"].clear()
+    if polygons == "extra":
+        command["id_multipolys"].append({**command["id_multipolys"][0], "id": "161"})
+    if polygons == "empty":
+        command["regions"].pop(0)
+        command["id_multipolys"].clear()
+    [row] = editable_schedules(
+        edit_document([edit_entry(commands=[{"command": command}])]), "first"
+    ).values()
+    assert "region_settings" not in row.action_response()
+
+
+def test_sunday_forecast_understands_the_native_zero_and_legacy_seven():
+    weekly = edit_entry(start={"day": [0, 7], "hour": 11, "min": 10})
+    values = schedule_metrics(edit_document([weekly]), frozenset({"first"}))["first"]
+    assert values["cloud_schedule_times"] == ({"weekdays": (7,), "time": "11:10", "enabled": True},)
+    assert next_schedule_start(values, UTC, datetime(2026, 11, 27, tzinfo=UTC)) == datetime(
+        2026, 11, 29, 11, 10, tzinfo=UTC
+    )
+
+
 @pytest.mark.parametrize(
     "name,expected",
     [("Routine", "Routine"), (None, None), ("line\nbreak", None), ("x" * 121, None)],
@@ -243,8 +352,8 @@ def test_weekly_start_rejects_unknown_days_or_time(days, time):
         weekly_start(days, time)
 
 
-def test_weekly_start_serializes_chronological_iso_days_and_minutes():
-    assert weekly_start([7, 2], "23:59:00") == {"day": [2, 7], "hour": 23, "min": 59}
+def test_weekly_start_serializes_native_days_from_iso_weekdays():
+    assert weekly_start([7, 2], "23:59:00") == {"day": [0, 2], "hour": 23, "min": 59}
 
 
 @pytest.mark.parametrize(("clock", "expected_day"), [("22:39", 3), ("08:30", 4), ("15:42", 4)])
@@ -314,7 +423,7 @@ def test_schedule_summaries_skip_old_or_deleted_rows_and_hide_names_and_identifi
         {"start": {"hour": 0, "min": -1, "day": [1]}},
         {"start": {"hour": 0, "min": 0, "day": True}},
         {"start": {"hour": 0, "min": 0, "day": []}},
-        {"start": {"hour": 0, "min": 0, "day": [0]}},
+        {"start": {"hour": 0, "min": 0, "day": [8]}},
     ],
 )
 def test_untrusted_or_unknown_schedule_times_are_not_fabricated(change):

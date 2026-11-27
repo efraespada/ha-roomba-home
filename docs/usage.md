@@ -862,12 +862,13 @@ Open **Manage schedules** on the floor plan to list this robot's schedules.
 Choose **New schedule** or select an existing entry. Set the start time,
 select **Weekly** with one or more days or **Once**, then choose the areas
 and their cleaning modes and preferences. The order buttons set the sequence
-for rooms and saved zones. Saving a new entry keeps it disabled until you
+for rooms, saved zones, and supported furniture. A furniture target cleans
+around the selected object on the current map. Saving a new entry keeps it disabled until you
 choose **Enable schedule**. Select **Delete** and confirm to remove it.
 
 To schedule an existing ordered selection, open it under **Manage
 routines** and choose **Use in schedule**. The editor copies the name,
-rooms and saved zones, their order, and their individual preferences into
+rooms, saved zones, and furniture, their order, and their individual preferences into
 a new draft. Set the time and recurrence, then choose **Save schedule**.
 The routine stays available and the new schedule starts disabled. This
 option appears for selections on the current floor with **Use listed order**.
@@ -879,9 +880,11 @@ or preferences, you can still change timing, enable or disable, and remove
 the schedule.
 
 **Create a cleaning schedule** saves a disabled entry in Roomba Home. Use
-**List cleaning regions** to pick destinations from one active floor. The
-schedule preserves their order and cleaning preferences. Weekly schedules
-use ISO weekdays from 1 (Monday) to 7 (Sunday).
+**List cleaning regions** to pick rooms or saved zones. For furniture IDs,
+select the objects in a disabled schedule from the card, then call **List
+editable cleaning schedules** to read their IDs. The schedule preserves
+the destinations' order and preferences. Weekly schedules use ISO weekdays
+from 1 (Monday) to 7 (Sunday).
 
 ```yaml
 action: roomba_home.create_cleaning_schedule
@@ -896,6 +899,26 @@ data:
       mode: vacuum
       suction_level: 1
       two_pass: false
+```
+
+To vacuum around furniture on Sundays before mopping a room, use an ordered
+mixed selection. Query the selected map for the IDs before using the example.
+
+```yaml
+action: roomba_home.create_cleaning_schedule
+target:
+  entity_id: vacuum.example_robot
+data:
+  name: Sunday kitchen
+  weekdays: [7]
+  time: "10:30:00"
+  regions:
+    - id: example_map:furniture:example_table
+      mode: vacuum
+      suction_level: 1
+    - id: example_map:rid:entryway
+      mode: mop
+      wetness_level: 2
 ```
 
 For a one-time cleaning, set `frequency: once` and provide its local time.

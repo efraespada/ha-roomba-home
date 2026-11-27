@@ -3,7 +3,7 @@
 - Status: Draft
 - Date: 2026-11-23
 - Catalog capability ID: device-capabilities
-- Last verified: 2026-11-26
+- Last verified: 2026-11-27
 - Owners: ha-roomba-home maintainer
 - Scope: A central discovery, robot co-ordination and advanced base with clear regions.
 - Related issues/PRs: Extension requested by the incumbent and local development.
@@ -91,7 +91,9 @@ becoming an indiscriminately false or zero.
 - CAP-17: Expose the provider-reported serial on the associated Home Assistant device.
 - CAP-18: Manage weekly and one-time schedules from the floor plan. Show
   the recognized destination order and per-area settings and let the owner
-  change either independently of timing and activation.
+  change either independently of timing and activation. Support ordered
+  rooms, saved zones, and mapped furniture. Keep ISO weekdays in the
+  Home Assistant boundary and translate the provider's Sunday value.
 - CAP-19: Show part SKUs and verified market-scoped replacement and care
   links beside the signed robot and dock counters. Keep catalog references
   available if the counter read fails. Require read access to the linked robot.
@@ -147,6 +149,9 @@ state, and keep the exact occurrence when the owner leaves the timing alone.
 Recognize the timed one-time app format and keep validated inactive mop
 preferences available when changing the mode in the editor. Removal MUST verify
 the robot and schedule group and confirm absence after one write.
+For ordered furniture schedules, resolve each temporary region to its
+current furniture polygon and persistent furniture ID. Reject stale map
+reviews and omit per-area edit controls for incomplete polygon links.
 Keep private room, schedule, and robot identifiers out of the published
 evidence and diagnostics. [Schedule contract](../docs/api.md#cloud-schedule-frequency-and-ownership)
 

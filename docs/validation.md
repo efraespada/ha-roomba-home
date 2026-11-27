@@ -1,5 +1,20 @@
 # Roomba Home validation
 
+## Scheduled furniture cleaning
+
+Roomba Home 3.4.1 selected a saved furniture object and a room as two
+ordered destinations. A temporary Sunday automation stored a weekly
+rule with day zero, a `tid` linked to the furniture polygon, and a `rid`
+for the room. The rule was removed and signed reads matched the original
+schedule set for the selected robot.
+
+The integration created separate disabled weekly and one-time schedules
+with those destinations and distinct cleaning modes. An identical
+creation returned the same schedule ID. Updating the order and modes
+preserved the weekly schedule's timing and disabled state. Both entries
+were removed and the original schedule set matched the baseline.
+[Anonymized schedule comparison](evidence/2026-11-27-furniture-scheduling.json)
+
 ## Saved routine display order
 
 The native order endpoint moved two temporary Max 700 Combo routines

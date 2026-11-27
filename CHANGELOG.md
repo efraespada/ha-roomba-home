@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.74.0
+
+- Schedule cleaning around mapped furniture and mix furniture, rooms, and
+  saved cleaning zones in one ordered schedule. Copy compatible furniture
+  routines into schedules and include their links in map backup previews.
+- Read Sunday schedules written by Roomba Home and use the native Sunday
+  value for new schedules. Home Assistant actions continue to use ISO
+  weekdays.
+
 ## 0.73.0
 
 - List saved routines in Roomba's display order. Move a routine earlier or

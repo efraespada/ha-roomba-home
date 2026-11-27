@@ -720,8 +720,10 @@ acknowledgement. The robot publishes no state change for the sound.
 `GET /v1/households/{id}/settings/schedule` returns
 `household_schedules[].schedules[].options` for each robot. Weekly and
 one-time entries use `frequency: WEEKLY` and `frequency: ONCE`.
-Both store `start: {day, hour, min}`. The Android app published one ISO
-weekday for a one-time schedule, and set the group's `options.robot_id`.
+Both store `start: {day, hour, min}`. The Android app publishes Sunday
+as zero. Home Assistant uses ISO weekday 7 for Sunday, recognizes both
+stored values, and writes the native zero. A one-time schedule stores a
+single day. The app sets the group's `options.robot_id`.
 Its nested start command omitted the redundant robot ID. An explicit
 different robot ID in the command invalidates the entry's scope.
 [One-time schedule evidence](evidence/2026-11-25-once-schedule.json)
@@ -750,6 +752,17 @@ use if the user changes the mode. A replacement uses the canonical ordered
 form and serializes the active settings for the selected mode. Timing,
 activation, and removal remain available for other editable single-start
 entries. [One-time schedule evidence](evidence/2026-11-25-once-schedule.json)
+
+A furniture schedule stores an ordered, timed app command with an empty
+global `params` object and one profile per destination. Its temporary
+`tid` entries match entries in `id_multipolys` by ID. Each polygon carries
+the saved furniture ID in `metadata.furniture_id`. A room remains a
+`rid` within the same ordered list. The integration resolves furniture
+against the reviewed current map revision before writing and confirms
+the polygon links, order and profiles on a fresh read. A retry of an
+identical disabled rule matches the existing command even if the locally
+generated command timestamp has changed.
+[Native and integration comparison](validation.md#scheduled-furniture-cleaning)
 
 `rw-settings.timezone` gives the robot's IANA time zone. Weekly
 starts recur on their ISO weekdays. For one-time entries, the next-start
