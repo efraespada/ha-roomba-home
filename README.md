@@ -197,7 +197,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.86.1` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.87.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
@@ -210,6 +210,12 @@ entity: vacuum.example_robot
 
 On upgrade, update the existing module URL to the version shown above and
 reload the dashboard. Use one card per robot.
+
+Home Assistant renews Roomba's live map during active missions. The card
+shows reported movement and estimates coverage for the observed cleaning
+mode. [Side-by-side mopping trial](docs/validation.md#side-by-side-live-mopping)
+
+![Travel and mopping legend from a live household Home Assistant map](docs/screenshots/roomba-live-mopping.jpg)
 
 - **Review selection** shows the robot and destinations before cleaning with
   the next-cleaning preferences saved in Home Assistant.

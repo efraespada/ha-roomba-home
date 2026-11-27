@@ -1,0 +1,36 @@
+{
+  "model": "X185240",
+  "tested_integration_version": "0.86.1",
+  "requested_mode": "mop",
+  "requested_destination_count": 1,
+  "comparison_same_mission": true,
+  "proxyman_live_map_request": {
+    "method": "GET",
+    "path": "/v1/p2maps/livemap",
+    "rawOnly": true,
+    "status": 200,
+    "matched_live_topic_format": true,
+    "observed_seconds_since_start_request": [6, 99, 157, 208, 258, 259, 308, 394, 399, 402]
+  },
+  "android_path_advanced_over_seconds": 44,
+  "home_assistant_travel_and_mopping_legend_visible": true,
+  "home_assistant_estimated_coverage_updates_seen": true,
+  "android_background_at_start_offset_seconds": 342,
+  "android_foreground_at_start_offset_seconds": 392,
+  "background_observation": {
+    "reported_phase": "run",
+    "retained_trail_points": 141,
+    "position_available": false,
+    "new_position_events": 0
+  },
+  "foreground_observation": {
+    "reported_phase": "run",
+    "retained_trail_points": 148,
+    "position_available": true,
+    "new_mopping_points": 7,
+    "coverage_row_updates": 47
+  },
+  "return_result_during_travel": "command_unconfirmed",
+  "post_return_dock_wash_observed": true,
+  "standalone_candidate_physical_test_verified": false
+}

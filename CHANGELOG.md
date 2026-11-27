@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.87.0
+
+- Renew the Roomba live-map announcement during opt-in active missions.
+  The integration can request the position feed itself while keeping
+  its subscribed topic scoped to the current robot and mission.
+
 ## 0.86.1
 
 - Keep **Return to dock** pending when Roomba reports a new automatic
