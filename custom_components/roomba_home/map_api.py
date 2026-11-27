@@ -44,6 +44,7 @@ async def async_setup_map_api(hass):
     websocket_api.async_register_command(hass, websocket_maintenance)
     websocket_api.async_register_command(hass, websocket_robot_help)
     websocket_api.async_register_command(hass, websocket_cleaning_scores)
+    websocket_api.async_register_command(hass, websocket_floor_routines)
     websocket_api.async_register_command(hass, websocket_edit_floor_settings)
     websocket_api.async_register_command(hass, websocket_remove_floor)
     websocket_api.async_register_command(hass, websocket_edit_rooms)
@@ -306,6 +307,23 @@ def live_point_geometry(reading, floor):
 )
 @websocket_api.async_response
 async def websocket_cleaning_scores(hass, connection, message):
+    await _send_floor_details(hass, connection, message, "async_map_cleaning_scores")
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "roomba_home/floor_routines",
+        vol.Required("entity_id"): cv.entity_id,
+        vol.Required("map_id"): IDENTIFIER,
+        vol.Required("version"): IDENTIFIER,
+    }
+)
+@websocket_api.async_response
+async def websocket_floor_routines(hass, connection, message):
+    await _send_floor_details(hass, connection, message, "async_list_map_routines")
+
+
+async def _send_floor_details(hass, connection, message, method):
     entity_id = message["entity_id"]
     if not connection.user.permissions.check_entity(entity_id, POLICY_READ):
         connection.send_error(message["id"], websocket_api.ERR_UNAUTHORIZED, "Access denied.")
@@ -316,7 +334,7 @@ async def websocket_cleaning_scores(hass, connection, message):
         connection.send_error(message["id"], "map_unavailable", "Floor maps are unavailable.")
         return
     try:
-        scores = await vacuum.account.async_map_cleaning_scores(
+        response = await getattr(vacuum.account, method)(
             vacuum.robot_id, message["map_id"], message["version"]
         )
     except AuthenticationError:
@@ -325,7 +343,7 @@ async def websocket_cleaning_scores(hass, connection, message):
     except HomeAssistantError as error:
         connection.send_error(message["id"], error.translation_key or "map_unavailable", str(error))
         return
-    connection.send_result(message["id"], scores)
+    connection.send_result(message["id"], response)
 
 
 @websocket_api.websocket_command(

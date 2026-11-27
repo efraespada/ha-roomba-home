@@ -1361,7 +1361,7 @@ separate source of settings.
 
 Roomba Home reads `GET /v1/p2maps/{map_id}/routines?limit=5`. Each observed
 entry has one `commanddefs` item. Its `params.routine_type` identifies
-`REPLAY`, `CLEAN_ALL`, or `SPOT_CLEAN`. A replay includes the previous
+`REPLAY`, `CLEAN_ALL`, `CLEAN_DIRTY`, or `SPOT_CLEAN`. A replay includes the previous
 command's `user_p2mapv_id` and a `last_run` timestamp in seconds. The
 projection exposes a reviewed current revision, recognized settings, and
 the optional seconds estimate. It omits the opaque `replay_of` reference.
@@ -1373,6 +1373,16 @@ current furniture ID and the expanded outline within 1 mm. Unsupported
 records remain visible with unavailable draft settings. The clean-all
 suggestion loads current rooms in the editor. The spot suggestion opens
 the existing point picker on supported models.
+
+A native `CLEAN_DIRTY` start has `params.clean_score_id` and a list of
+`{region_id, params}` entries. The exact current map resolves each ID to
+a room. The projection returns those IDs in `target_ids`, validates
+their profiles for `region_settings`, and leaves the native score ID
+private. The map highlights the reported targets and the editor loads
+supported settings with automatic order. Read routine suggestions through
+`roomba_home.list_map_routines` or the floor-scoped `roomba_home/floor_routines`
+WebSocket command, which requires read access to the selected vacuum.
+[Recommendation validation](validation.md#recommended-rooms-on-the-floor-plan)
 
 [Quick routine validation](validation.md#recent-and-suggested-routines)
 

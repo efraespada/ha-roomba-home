@@ -9,6 +9,7 @@ const OBLIQUE_PITCH = 0.55;
 const segmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter() : null;
 const THEMES = {
   room: ["#243b4d", "#688294"],
+  recommended: ["#654727", "#f4bf7c"],
   zone: ["#44366b", "#bc9af9"],
   selected: ["#195f57", "#79ecd3"],
   exclusion: ["#643e37", "#f6ac9d"],
@@ -351,6 +352,7 @@ template.innerHTML = `
       </section>
       <div class="legend muted">
         <span style="--swatch:#79ecd3">Selected</span>
+        <span id="recommended-rooms-key" style="--swatch:#f4bf7c" hidden>Cleaning recommended</span>
         <span id="zone-key" style="--swatch:#bc9af9" hidden>Saved zone</span>
         <span id="exclusion-key" style="--swatch:#f6ac9d" hidden>Keep-out area or wall</span>
         <span id="no-mop-key" style="--swatch:#f3cf72" hidden>No-mop area</span>
@@ -358,6 +360,7 @@ template.innerHTML = `
         <span id="dock-key" style="--swatch:#7dd9e4" hidden>Dock</span>
         <span id="point-key" style="--swatch:#fcf6e8" hidden></span>
       </div>
+      <p id="recommended-rooms-status" class="muted" role="status" hidden></p>
       <h3 id="target-heading">Cleaning areas</h3><div id="regions"></div>
       <label id="point-cleaning-settings" hidden>Cleaning mode <select id="point-cleaning-mode"></select></label>
       <details id="point-picker" hidden>
@@ -380,6 +383,7 @@ template.innerHTML = `
         <button id="edit-restrictions" hidden>Edit restrictions</button>
         <button id="show-3d" hidden aria-pressed="false">3D view</button>
         <button id="show-furniture" hidden aria-pressed="false">Show furniture</button>
+        <button id="show-recommended-rooms" hidden aria-pressed="false">Recommended rooms</button>
         <button id="edit-furniture" hidden>Edit furniture</button>
         <button id="manage-routines" hidden>Manage routines</button>
         <button id="manage-schedules" hidden>Manage schedules</button>
@@ -1052,6 +1056,7 @@ class RoombaHomeMapCard extends HTMLElement {
       if (this.$("cleaning-scores-dialog").open) this.$("cleaning-scores-dialog").close();
       this.selectedFloor = event.target.value || null;
       this.geometry = null;
+      this.recommendedRooms = null;
       this.clearSelection();
       this.renderAreas();
       this.resetView();
@@ -1239,6 +1244,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.furnitureShown = !this.showFurniture;
       this.draw();
     };
+    this.$("show-recommended-rooms").onclick = () => this.toggleRecommendedRooms();
     this.$("edit-furniture").onclick = () => this.openFurnitureEditor();
     this.$("close-furniture-editor").onclick = () => {
       this.closeFurnitureEditor();
@@ -1366,6 +1372,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.selectedFloor = null;
     this.geometry = null;
     this.snapshot = null;
+    this.recommendedRooms = null;
     this.pointMode = false;
     this.pointCleaningMode = null;
     this.elevated = false;
@@ -1394,6 +1401,7 @@ class RoombaHomeMapCard extends HTMLElement {
     window.clearInterval(this.timer);
     this.closeLiveSubscription();
     this.timer = null;
+    this.recommendedRooms = null;
     this.sequence++;
     this.loading = false;
   }
@@ -1421,6 +1429,7 @@ class RoombaHomeMapCard extends HTMLElement {
       const angleChanged = this.snapshot?.floor_settings?.orientation !== data.floor_settings?.orientation;
       const staleFloorDraft = settingsChanged && this.floorDraft && !this.floorSaving;
       const inventoryChanged = this.snapshot?.inventory_id !== data.inventory_id;
+      if (changed || inventoryChanged) this.recommendedRooms = null;
       if ((changed || inventoryChanged) && this.$("cleaning-scores-dialog").open) this.$("cleaning-scores-dialog").close();
       const selectionId = this.geometry?.selection_id;
       if (changed || (inventoryChanged && (!selectionId || selectionId !== data.geometry?.selection_id))) {
@@ -1493,6 +1502,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.updateMappingControl(null);
       this.updateFloorRemoval();
       this.geometry = null;
+      this.recommendedRooms = null;
       if (this.routineDialog.open) {
         this.renderRoutineEstimate();
         this.renderQuickRoutines();
@@ -1766,6 +1776,55 @@ class RoombaHomeMapCard extends HTMLElement {
     } catch (error) {
       if (current()) status.textContent = error?.message || "Room cleaning scores are unavailable.";
     }
+  }
+
+  async toggleRecommendedRooms() {
+    const map = this.snapshot?.map;
+    if (!map || !this.geometry || this.editingMap) return;
+    if (this.recommendedRooms) {
+      this.recommendedRooms = null;
+      this.draw();
+      return;
+    }
+    const entity = this.config.entity;
+    const reading = { pending: true };
+    this.recommendedRooms = reading;
+    this.draw();
+    try {
+      const response = await this._hass.callWS({
+        type: "roomba_home/floor_routines", entity_id: entity, map_id: map.id, version: map.version,
+      });
+      if (response.map_id !== map.id || response.version !== map.version) {
+        throw new Error("The floor changed. Load recommended rooms again.");
+      }
+      const suggestions = response.routines.filter((routine) => routine.kind === "recommended");
+      reading.targets = new Set(suggestions.length === 1 ? suggestions[0].target_ids : []);
+    } catch (error) {
+      reading.error = error?.message || "Recommended rooms are unavailable.";
+    } finally {
+      reading.pending = false;
+      if (reading === this.recommendedRooms) this.draw();
+    }
+  }
+
+  renderRecommendedRooms() {
+    const button = this.$("show-recommended-rooms");
+    const status = this.$("recommended-rooms-status");
+    const reading = this.recommendedRooms;
+    button.hidden = !this.geometry;
+    button.disabled = this.editingMap;
+    button.setAttribute("aria-pressed", Boolean(reading));
+    const visible = reading && this.geometry && !this.editingMap;
+    const rooms = visible && this.geometry.regions.filter(({ id, kind }) =>
+      kind === "room" && reading.targets?.has(id));
+    const names = rooms && rooms.map(({ name }) => name || "Unnamed room");
+    const message = (!visible ? "" : reading.pending ? "Loading recommended rooms…"
+      : reading.error || (names.length ? `Cleaning recommended for ${names.join(", ")}.`
+        : "Roomba has no recommended rooms for this floor."));
+    this.$("recommended-rooms-key").hidden = !rooms?.length;
+    status.hidden = !message;
+    if (status.textContent !== message) status.textContent = message;
+    return new Set(rooms ? rooms.map(({ id }) => id) : []);
   }
 
   async openMaintenance() {
@@ -3855,7 +3914,9 @@ class RoombaHomeMapCard extends HTMLElement {
     }
     const regions = option.region_settings;
     if (!regions?.length || !regions.every(({ id }) => this.routineAreas.has(id))) return;
-    this.routineDraft = { name: option.name, regions: regions.map((region) => ({ ...region })) };
+    this.routineDraft = {
+      name: option.name, regions: regions.map((region) => ({ ...region })), ordered: option.ordered !== false,
+    };
     this.$("routine-status").textContent = "Review the loaded areas and preferences.";
     this.renderRoutine();
     this.$("routine-name").focus();
@@ -4581,6 +4642,7 @@ class RoombaHomeMapCard extends HTMLElement {
     const furniture = this.$("show-furniture");
     furniture.hidden = !this.geometry?.furniture?.items.length;
     furniture.setAttribute("aria-pressed", this.showFurniture);
+    const recommended = this.renderRecommendedRooms();
     this.$("carpet-key").hidden = !carpets.length;
     this.$("dock-key").hidden = !docks.length;
     const activePoint = this.snapshot?.active_point;
@@ -4614,7 +4676,8 @@ class RoombaHomeMapCard extends HTMLElement {
       for (const region of regions.filter((area) => area.kind === kind)) {
         for (const polygon of region.polygons) {
           const path = pathFor(polygon, xy);
-          [ctx.fillStyle, ctx.strokeStyle] = THEMES[selected.has(region.id) ? "selected" : kind];
+          const theme = selected.has(region.id) ? "selected" : recommended.has(region.id) ? "recommended" : kind;
+          [ctx.fillStyle, ctx.strokeStyle] = THEMES[theme];
           ctx.lineWidth = selected.has(region.id) ? 3 : 1.5;
           ctx.fill(path, "evenodd");
           ctx.stroke(path);

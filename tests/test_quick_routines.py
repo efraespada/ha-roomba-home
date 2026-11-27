@@ -50,6 +50,78 @@ def poly(points=OUTLINE):
     return {"id": "160", "metadata": {"furniture_id": "sofa-c"}, "poly": [list(p) for p in points]}
 
 
+def recommendation(**overrides):
+    return row(
+        "CLEAN_DIRTY",
+        **(
+            {
+                "params": {"routine_type": "CLEAN_DIRTY", "clean_score_id": "private-score"},
+                "regions": [
+                    {
+                        "region_id": ROOM.region_id,
+                        "params": {
+                            "operatingMode": 6,
+                            "suctionLevel": 2,
+                            "padWetness": {"padPlate": 3},
+                        },
+                    }
+                ],
+            }
+            | overrides
+        ),
+    )
+
+
+def test_native_recommendation_uses_room_ids_profiles_and_automatic_order():
+    (routine,) = read_quick_routines([recommendation()], ROBOT, FLOOR, CAPS)["routines"]
+    assert routine["name"] == "Clean recommended rooms"
+    assert routine["kind"] == "recommended"
+    assert routine["ordered"] is False
+    assert routine["target_ids"] == [ROOM.segment_id(FLOOR.map_id)]
+    assert routine["region_settings"] == [
+        {
+            "id": ROOM.segment_id(FLOOR.map_id),
+            "mode": "vacuum_mop",
+            "suction_level": 2,
+            "wetness_level": 3,
+            "two_pass": None,
+            "smart_scrub": None,
+            "carpet_boost": None,
+        }
+    ]
+    assert "private-score" not in repr(routine)
+
+
+def test_recommendation_can_highlight_known_rooms_with_an_unsupported_profile():
+    record = recommendation(
+        regions=[{"region_id": ROOM.region_id, "params": {"operatingMode": 99}}]
+    )
+    (routine,) = read_quick_routines([record], ROBOT, FLOOR, CAPS)["routines"]
+    assert routine["target_ids"] == [ROOM.segment_id(FLOOR.map_id)]
+    assert routine["region_settings"] is None
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"ordered": 1},
+        {"params": {"routine_type": "CLEAN_DIRTY"}},
+        {"params": {"routine_type": "CLEAN_DIRTY", "clean_score_id": None}},
+        {"regions": None},
+        {"regions": []},
+        {"regions": [None]},
+        {"regions": [{"region_id": ROOM.region_id}]},
+        {"regions": [{"region_id": [], "params": {}}]},
+        {"regions": [{"region_id": ZONE.region_id, "params": {}}]},
+        {"regions": [{"region_id": ROOM.region_id, "params": {"operatingMode": 2}}] * 2},
+    ],
+)
+def test_recommendation_rejects_ambiguous_or_non_current_room_inventories(change):
+    (routine,) = read_quick_routines([recommendation(**change)], ROBOT, FLOOR, CAPS)["routines"]
+    assert "target_ids" not in routine
+    assert routine["region_settings"] is None
+
+
 def test_quick_routines_supply_typed_recent_settings_and_suggested_entry_points():
     recent = row() | {"last_run": 1_800_000_000, "time_estimate_seconds": 0}
     data = read_quick_routines([recent, row("CLEAN_ALL"), row("SPOT_CLEAN")], ROBOT, FLOOR, CAPS)

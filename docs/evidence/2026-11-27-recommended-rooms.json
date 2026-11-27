@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-27",
+  "model": "X185240",
+  "android_version": "3.4.1",
+  "current_rooms": 6,
+  "android_highlighted_rooms": 5,
+  "signed_routine_type": "CLEAN_DIRTY",
+  "signed_recommended_room_count": 5,
+  "signed_targets_match_highlight": true,
+  "supported_profiles": 5,
+  "recommended_profile_modes": ["vacuum_mop"],
+  "draft_preserves_automatic_order": true,
+  "robot_commands_sent": 0
+}
