@@ -3,7 +3,7 @@
 - Status: As-built baseline
 - Date: 2026-11-23
 - Catalog capability ID: native-commands
-- Last verified: 2026-11-26
+- Last verified: 2026-11-27
 - Owners: ha-roomba-home maintainer
 - Scope: Dispatch supported robot commands and verify their reported effects.
 - Related issues/PRs: [Command confirmation recovery](https://github.com/efraespada/ha-roomba-home/pull/38)
@@ -98,7 +98,13 @@ flowchart LR
 The Max 700 Combo return flow observes the same active mission after
 `pause`. A matching paused state permits `dock`. When the mission finishes
 while the pause is pending, a reported return or arrival can confirm the
-operation without further publication. [Return trial](../docs/validation.md#return-during-active-cleaning)
+operation without further publication. A new active pad wash within the
+same mission grants up to five minutes from the first wash observation.
+The robot or dock reporting a fault or a different mission ends this
+additional wait. Confirmation still requires a docked robot with an
+ended mission. The wash can extend the deadline once.
+[Return trial](../docs/validation.md#return-during-active-cleaning) ·
+[Mop-only return trial](../docs/validation.md#household-mop-only-route-and-return)
 
 ## 7. User-facing configuration
 
@@ -222,7 +228,7 @@ verify outcomes that fixtures cannot establish.
 | CMD-04 | `CommandReceipt` | [Broker receipt test](../tests/test_commands.py) |
 | CMD-05 | Transport errors and evidence tooling | [Privacy scan](../scripts/check_privacy.py) and [public validation](../docs/validation.md) |
 | CMD-06 | Control policy and live timeline | [Policy tests](../tests/test_application.py) and [physical skip](../docs/validation.md#skip-the-current-destination) |
-| CMD-07 | Return-to-base policy | [Policy tests](../tests/test_application.py) and [physical return](../docs/validation.md#return-during-active-cleaning) |
+| CMD-07 | Return-to-base policy | [Policy tests](../tests/test_application.py), [Home Assistant service tests](../tests/ha/test_cleaning_controls.py), [physical return](../docs/validation.md#return-during-active-cleaning), and [post-return wash observation](../docs/validation.md#household-mop-only-route-and-return) |
 | CMD-08 | Confirmation polling and coordinator adapter | [Policy tests](../tests/test_application.py) and [coordinator tests](../tests/ha/test_coordinator.py) |
 
 ## 18. Implementation sequence

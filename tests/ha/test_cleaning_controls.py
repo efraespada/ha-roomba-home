@@ -152,12 +152,14 @@ async def test_clean_everywhere_uses_an_untargeted_command_and_confirms_start(ha
     assert loaded.command_status["fixture-0"] == "confirmed"
 
 
-async def test_return_to_base_pauses_the_supported_robot_before_docking(hass, loaded):
+@pytest.mark.parametrize("wash_reads", [0, 54], ids=["direct", "post-return-wash"])
+async def test_return_to_base_pauses_the_supported_robot_before_docking(hass, loaded, wash_reads):
     robot = loaded.data["fixture-0"]
     cleaning = replace(
         robot,
         phase="run",
         cycle="clean",
+        mode=4 if wash_reads else 2,
         connected=True,
         capabilities=replace(robot.capabilities, docking=True),
         telemetry={
@@ -167,11 +169,22 @@ async def test_return_to_base_pauses_the_supported_robot_before_docking(hass, lo
         },
     )
     paused = replace(cleaning, phase="stop")
+    washing = replace(
+        cleaning, phase="padWash", telemetry={**cleaning.telemetry, "pad_wash_state": 602}
+    )
     docked = replace(cleaning, phase="charge", cycle="none")
-    states = [control_snapshot(state) for state in (cleaning, paused, docked)]
+    robot_states = [cleaning, paused, *([washing] * wash_reads), docked]
+    states = [control_snapshot(state) for state in robot_states]
+    elapsed = 0
+
+    async def wait(seconds):
+        nonlocal elapsed
+        elapsed += seconds
+
     with (
         patch.object(RobotControlAdapter, "refresh", side_effect=states),
-        patch.object(RobotControlAdapter, "wait"),
+        patch.object(RobotControlAdapter, "wait", side_effect=wait),
+        patch.object(RobotControlAdapter, "clock", side_effect=lambda: elapsed),
         patch.object(RobotControlAdapter, "send", autospec=True) as send,
     ):
         await hass.services.async_call(
@@ -182,6 +195,7 @@ async def test_return_to_base_pauses_the_supported_robot_before_docking(hass, lo
         ("fixture-0", Command.DOCK),
     ]
     assert loaded.command_status["fixture-0"] == "confirmed"
+    assert elapsed == (wash_reads + 2) * 5
 
 
 async def test_maintenance_reset_action_requires_a_supported_part_and_confirmation(hass, loaded):
