@@ -316,12 +316,21 @@ Assistant observes the arrival. [Return validation](validation.md#return-during-
 
 ### Customize a one-off cleaning
 
-Select rooms or saved zones on the floor plan, then choose **Review
-selection → Customize cleaning**. The draft starts in the order you
-selected the areas. Add a supported destination or use the order buttons
-to move it. Choose each area's cleaning mode and settings or use an
-available preset. For example, vacuum the hall first and give the kitchen
-two mop passes. **Estimate draft** shows available room estimates.
+Select rooms, saved cleaning zones, or supported furniture on the floor
+plan. With **Show furniture** enabled, select the object on the map or
+choose it from **Furniture destinations**. The dashed outline shows the
+requested area around the chosen object. Choose **Select all rooms** to add
+the remaining rooms in map order. Existing picks keep their order, and
+**Deselect all rooms** removes only rooms. A selection can contain up to
+32 destinations.
+
+Choose **Review selection → Start cleaning** to use the current cleaning
+preferences. Choose **Review selection → Customize cleaning** to set each
+area's mode and settings. The draft starts in selection order. Use the order
+buttons to move areas, or use **Select all rooms** to add the remaining rooms
+while keeping individual settings. For example, vacuum around the dining
+table first and give the kitchen two mop passes. **Estimate draft** shows
+available room estimates.
 
 Choose **Start cleaning**, review the order, and select **Confirm start**.
 The card returns to the map after Roomba accepts the request. To keep the

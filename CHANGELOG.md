@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.76.0
+
+- Select or deselect all rooms on the floor plan and in cleaning drafts.
+  Keep selected zones, furniture, and individual cleaning settings.
+- Pick supported furniture on the map or from the furniture list. Review
+  the ordered selection to start cleaning or customize each destination.
+
 ## 0.75.0
 
 - Highlight Roomba's recommended rooms in the floor plan. Load the same

@@ -1,5 +1,21 @@
 # Roomba Home validation
 
+## Room and furniture selection on the floor plan
+
+Roomba Home 3.4.1 switched from room add controls to per-room cleaning
+settings after selecting all rooms on a Max 700 Combo floor. Home Assistant
+checks cover bulk selection with an existing room, zone, and furniture
+selection, retention of individual settings in a draft, the destination
+limit, and stale floor revisions. The card keeps the existing order and
+adds missing rooms in map order.
+
+Tests also compare an object's selectable footprint with its expanded
+cleaning outline and verify that a confirmed mixed selection sends the
+exact map review and destination order. An earlier physical schedule on
+the same model reached a supported furniture destination and reported
+cleaned area for its exact furniture link.
+[Scheduled furniture cleaning](#scheduled-furniture-cleaning)
+
 ## Recommended rooms on the floor plan
 
 Roomba Home 3.4.1 marked five of the six current rooms on a Max 700 Combo

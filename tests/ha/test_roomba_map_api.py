@@ -2487,8 +2487,18 @@ async def test_routine_actions_resolve_furniture_and_run_in_saved_order(
     await socket.send_json({"id": 1, "type": "roomba_home/floor_plan", "entity_id": ENTITY})
     data = (await socket.receive_json())["result"]["geometry"]
     assert data["furniture"]["destinations"] == [
-        {"id": "map-a:furniture:1", "name": "Sofa"},
-        {"id": "map-a:furniture:2", "name": "Chair"},
+        {
+            "id": "map-a:furniture:1",
+            "name": "Sofa",
+            "object_id": "1",
+            "outline": [[0.6, 0.6], [3.4, 0.6], [3.4, 2.4], [0.6, 2.4]],
+        },
+        {
+            "id": "map-a:furniture:2",
+            "name": "Chair",
+            "object_id": "2",
+            "outline": [[3.6, 2.6], [6.4, 2.6], [6.4, 5.4], [3.6, 5.4]],
+        },
     ]
     selections = [
         {"id": "map-a:furniture:2", "mode": "vacuum", "suction_level": 3},

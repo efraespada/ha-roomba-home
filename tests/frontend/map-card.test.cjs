@@ -516,6 +516,114 @@ function oneOffCleaningCard() {
   return card;
 }
 
+function cleaningSelectionCard() {
+  const card = oneOffCleaningCard();
+  card.geometry.regions = [
+    { id: "room-a", name: "Kitchen", kind: "room", polygons: [] },
+    { id: "room-b", name: "Hall", kind: "room", polygons: [] },
+    { id: "zone-b", name: "Entry zone", kind: "zone", polygons: [] },
+  ];
+  card.geometry.furniture = {
+    items: [{ id: "17", points: [[1, 1], [2, 1], [2, 2], [1, 2]] }],
+    destinations: [{
+      id: "fixture-map:furniture:17", name: "Dining table", object_id: "17",
+      outline: [[0.6, 0.6], [2.4, 0.6], [2.4, 2.4], [0.6, 2.4]],
+    }],
+  };
+  return card;
+}
+
+test("bulk room selection preserves the previous order, zones, and furniture", () => {
+  const card = cleaningSelectionCard();
+  card.draw = () => {};
+  const table = card.furnitureDestinations[0].id;
+  card.selected = new Set(["room-b", "zone-b", table]);
+  card.renderAreas();
+  card.updateSelection();
+  const bulk = card.$("map-room-selection");
+  assert.equal(bulk.textContent, "Select all rooms");
+  card.review();
+  assert.equal(card.dialog.open, true);
+  card.toggleMapRooms();
+  assert.equal(card.dialog.open, false);
+  assert.equal(card.confirmation, null);
+  assert.deepEqual([...card.selected], ["room-b", "zone-b", table, "room-a"]);
+  assert.equal(bulk.textContent, "Deselect all rooms");
+  card.toggleMapRooms();
+  assert.deepEqual([...card.selected], ["zone-b", table]);
+  const target = card.$("furniture-cleaning-areas").children[0];
+  assert.equal(target["aria-pressed"], "true");
+  target.onclick();
+  assert.deepEqual([...card.selected], ["zone-b"]);
+});
+
+test("bulk room selection respects the current reviewed floor and the area limit", () => {
+  const card = cleaningSelectionCard();
+  card.draw = () => {};
+  card.geometry.regions = Array.from({ length: 32 }, (_, i) =>
+    ({ id: `room-${i}`, name: `Room ${i}`, kind: "room", polygons: [] }));
+  card.selected = new Set(["zone-b"]);
+  card.updateSelection();
+  assert.equal(card.$("map-room-selection").disabled, true);
+  card.toggleMapRooms();
+  assert.deepEqual([...card.selected], ["zone-b"]);
+  card.geometry.regions.length = 2;
+  card.routineDraft.regions = [
+    { id: "room-1", mode: "mop", wetness_level: 2 }, { id: "zone-b", mode: "vacuum" },
+  ];
+  card.routineAreas = new Map([["room-0", "Room 0"], ["room-1", "Room 1"], ["zone-b", "Zone"]]);
+  card.routineDialog.open = true;
+  card.renderRoutine();
+  card.snapshot.map.version = "v2";
+  card.toggleDraftRooms();
+  assert.equal(card.routineDraft.regions.length, 2);
+  card.snapshot.map.version = "v1";
+  card.toggleDraftRooms();
+  assert.deepEqual(JSON.parse(JSON.stringify(card.routineDraft.regions)), [
+    { id: "room-1", mode: "mop", wetness_level: 2 }, { id: "zone-b", mode: "vacuum" }, { id: "room-0" },
+  ]);
+  card.toggleDraftRooms();
+  assert.deepEqual(JSON.parse(JSON.stringify(card.routineDraft.regions)), [{ id: "zone-b", mode: "vacuum" }]);
+});
+
+test("the furniture hit area uses the object footprint and previews the requested outline", () => {
+  const card = cleaningSelectionCard();
+  const target = card.furnitureDestinations[0];
+  card.selected = new Set([target.id]);
+  card.targets = [];
+  const previews = [];
+  card.drawOutlinedDraft = (polygons) => previews.push(polygons);
+  card.furnitureShown = false;
+  card.drawFurnitureDestinations((point) => point);
+  assert.deepEqual(card.targets, []);
+  assert.equal(previews.length, 1);
+  card.furnitureShown = true;
+  card.drawFurnitureDestinations((point) => point);
+  assert.equal(card.targets[0].id, target.id);
+  assert.deepEqual(JSON.parse(JSON.stringify(card.targets[0].path.points)),
+    [[1, 1], [2, 1], [2, 2], [1, 2], [1, 1]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(previews[0][0][0])),
+    [[0.6, 0.6], [2.4, 0.6], [2.4, 2.4], [0.6, 2.4], [0.6, 0.6]]);
+});
+
+test("a mixed furniture selection dispatches only after review through the typed draft action", async () => {
+  const card = cleaningSelectionCard();
+  card.draw = () => {};
+  const table = card.furnitureDestinations[0].id;
+  card.selected = new Set([table, "room-a"]);
+  const calls = [];
+  card._hass = { async callService(...args) { calls.push(JSON.parse(JSON.stringify(args))); } };
+  await card.submit();
+  assert.deepEqual(calls, []);
+  card.review();
+  assert.equal(card.$("confirm-text").textContent, "Example robot will clean Dining table, Kitchen.");
+  await card.submit();
+  assert.deepEqual(calls, [["roomba_home", "run_cleaning_draft", {
+    floor: { map_id: "fixture-map", version: "v1", inventory_id: "inventory" },
+    regions: [{ id: table }, { id: "room-a" }],
+  }, { entity_id: card.config.entity }]]);
+});
+
 test("the map review opens cleaning preferences and starts only the reviewed one-off", async () => {
   const card = oneOffCleaningCard();
   card.callAction = () => { throw Error("Opening or editing a one-off must not call an action"); };

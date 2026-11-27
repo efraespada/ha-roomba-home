@@ -4,6 +4,7 @@ const QUARTER_TURN = Math.PI / 2;
 const MAX_LIVE_POINTS = 2048;
 const MAX_LIVE_TRANSITION_SECONDS = 6;
 const MAX_LIVE_TRANSITION_MS = 1800;
+const MAX_CLEANING_AREAS = 32;
 const WALL_HEIGHT = 2.2;
 const OBLIQUE_PITCH = 0.55;
 const segmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter() : null;
@@ -99,7 +100,9 @@ template.innerHTML = `
     button[aria-pressed="true"], .primary { background:#116853; color:white; border-color:#4ac5a4; }
     button:disabled { cursor:default; opacity:.54; }
     .zoom button { min-width:36px; }
-    #regions,.legend { display:flex; gap:7px; flex-wrap:wrap; }
+    #regions,#furniture-cleaning-areas,.legend { display:flex; gap:7px; flex-wrap:wrap; }
+    #map-room-selection,#furniture-cleaning-targets { margin-block:8px; }
+    #furniture-cleaning-areas { margin-top:8px; }
     #zone-notice { margin-top:10px; }
     .map-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
     .map-editor { display:grid; gap:10px; margin:0 0 16px; padding:12px; border:1px solid var(--divider-color,#647382); border-radius:8px; }
@@ -361,7 +364,13 @@ template.innerHTML = `
         <span id="point-key" style="--swatch:#fcf6e8" hidden></span>
       </div>
       <p id="recommended-rooms-status" class="muted" role="status" hidden></p>
-      <h3 id="target-heading">Cleaning areas</h3><div id="regions"></div>
+      <h3 id="target-heading">Cleaning areas</h3>
+      <button id="map-room-selection" type="button" hidden>Select all rooms</button>
+      <div id="regions"></div>
+      <details id="furniture-cleaning-targets" hidden>
+        <summary>Furniture destinations</summary>
+        <div id="furniture-cleaning-areas"></div>
+      </details>
       <label id="point-cleaning-settings" hidden>Cleaning mode <select id="point-cleaning-mode"></select></label>
       <details id="point-picker" hidden>
         <summary>Enter a position in a room</summary>
@@ -603,6 +612,7 @@ template.innerHTML = `
           </select>
         </label>
         <p id="routine-region-note" class="muted" hidden></p>
+        <button id="draft-room-selection" type="button" hidden>Select all rooms</button>
         <ol id="routine-regions" aria-label="Cleaning order"></ol>
         <label id="add-routine-region-label">Add a cleaning area <select id="add-routine-region"></select></label>
         <div>
@@ -1070,6 +1080,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.draw();
     };
     this.$("review").onclick = () => this.review();
+    this.$("map-room-selection").onclick = () => this.toggleMapRooms();
     this.$("customize-cleaning").onclick = () => this.customizeCleaning();
     this.$("cancel").onclick = () => this.dialog.close();
     this.$("start").onclick = () => this.submit();
@@ -1289,6 +1300,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.routineDraft.regions.push({ id });
       this.renderRoutine();
     };
+    this.$("draft-room-selection").onclick = () => this.toggleDraftRooms();
     this.$("copy-routine").onclick = () => this.copyRoutine();
     this.$("use-routine-in-schedule").onclick = () => this.useRoutineInSchedule();
     this.$("load-quick-routines").onclick = () => this.loadQuickRoutines();
@@ -1665,6 +1677,7 @@ class RoombaHomeMapCard extends HTMLElement {
   renderAreas() {
     this.renderedGeometry = this.geometry;
     const container = this.$("regions");
+    const furniture = this.$("furniture-cleaning-areas");
     const floors = this.$("maps");
     floors.replaceChildren();
     const maps = this.snapshot?.maps ?? [];
@@ -1678,15 +1691,21 @@ class RoombaHomeMapCard extends HTMLElement {
     floors.value = this.selectedFloor ?? "";
     floors.hidden = maps.length < 2;
     container.replaceChildren();
+    furniture.replaceChildren();
     this.buttons = new Map();
-    for (const region of this.geometry?.regions ?? []) {
-      if (!region.id) continue;
-      const button = document.createElement("button");
-      button.textContent = region.name;
-      button.dataset.kind = region.kind;
-      button.onclick = () => this.toggle(region.id);
-      container.append(button);
-      this.buttons.set(region.id, button);
+    for (const [list, areas] of [
+      [container, this.geometry?.regions ?? []], [furniture, this.furnitureDestinations],
+    ]) {
+      for (const { id, name, kind = "furniture" } of areas) {
+        if (!id) continue;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = name;
+        button.dataset.kind = kind;
+        button.onclick = () => this.toggle(id);
+        list.append(button);
+        this.buttons.set(id, button);
+      }
     }
     const pointRoom = this.$("point-room");
     const previousRoom = pointRoom.value;
@@ -2845,9 +2864,54 @@ class RoombaHomeMapCard extends HTMLElement {
         this.furnitureDraft || this.furnitureSaving) return;
     this.operationMessage = null;
     if (this.selected.has(id)) this.selected.delete(id);
-    else if (this.selected.size < 32) this.selected.add(id);
+    else if (this.selected.size < MAX_CLEANING_AREAS) this.selected.add(id);
     this.updateSelection();
     this.draw();
+  }
+
+  get furnitureDestinations() { return this.geometry?.furniture?.destinations ?? []; }
+
+  roomSelection(ids) {
+    const chosen = new Set(ids);
+    const rooms = this.geometry?.regions.filter(({ id, kind }) => id && kind === "room")
+      .map(({ id }) => id) ?? [];
+    const missing = rooms.filter((id) => !chosen.has(id));
+    return { rooms, missing, overLimit: chosen.size + missing.length > MAX_CLEANING_AREAS };
+  }
+
+  renderRoomSelection(button, selection, disabled) {
+    const { rooms, missing, overLimit } = selection;
+    button.hidden = !rooms.length;
+    button.disabled = disabled || overLimit;
+    button.textContent = missing.length ? "Select all rooms" : "Deselect all rooms";
+    button.title = overLimit ? `A selection can contain up to ${MAX_CLEANING_AREAS} destinations.` : "";
+  }
+
+  toggleMapRooms() {
+    const control = this.$("map-room-selection");
+    if (control.disabled || control.hidden) return;
+    const { rooms, missing, overLimit } = this.roomSelection(this.selected);
+    if (!rooms.length || overLimit) return;
+    if (missing.length) missing.forEach((id) => this.selected.add(id));
+    else rooms.forEach((id) => this.selected.delete(id));
+    this.operationMessage = null;
+    this.confirmation = null;
+    if (this.dialog.open) this.dialog.close();
+    this.updateSelection();
+    this.draw();
+  }
+
+  toggleDraftRooms() {
+    const control = this.$("draft-room-selection");
+    if (control.disabled || control.hidden || !this.routineDialog.open ||
+        !this.routineFloorIsCurrent()) return;
+    const regions = this.routineDraft.regions;
+    if (!regions) return;
+    const { rooms, missing, overLimit } = this.roomSelection(regions.map(({ id }) => id));
+    if (!rooms.length || overLimit) return;
+    this.routineDraft.regions = missing.length ? [...regions, ...missing.map((id) => ({ id }))]
+      : regions.filter(({ id }) => !rooms.includes(id));
+    this.renderRoutine();
   }
 
   togglePointMode() {
@@ -2910,6 +2974,10 @@ class RoombaHomeMapCard extends HTMLElement {
       ? "Point cleaning requires a map without virtual walls." : "";
     modeButton.setAttribute("aria-pressed", pointMode);
     this.$("regions").hidden = pointMode;
+    this.$("furniture-cleaning-targets").hidden = pointMode || !this.furnitureDestinations.length;
+    const allRooms = this.$("map-room-selection");
+    this.renderRoomSelection(allRooms, this.roomSelection(this.selected), editing || saving || this.submitting);
+    if (pointMode) allRooms.hidden = true;
     this.$("point-cleaning-settings").hidden = !pointMode || modes.length < 2;
     this.$("point-picker").hidden = !pointMode;
     this.$("target-heading").textContent = pointMode ? "Cleaning point" : "Cleaning areas";
@@ -2929,7 +2997,7 @@ class RoombaHomeMapCard extends HTMLElement {
       this.$("status").textContent = pointMode
         ? (this.point ? `Point selected in ${this.point.name}.` : "Choose a point inside a room.")
         : (this.snapshot.map === null ? "No saved floor plans yet." :
-          this.selected.size ? `${this.selected.size} selected` : "Select a room or saved zone.");
+          this.selected.size ? `${this.selected.size} selected` : "Select a cleaning destination.");
     }
   }
 
@@ -3505,7 +3573,9 @@ class RoombaHomeMapCard extends HTMLElement {
       point,
       mode: point ? this.pointCleaningMode : null,
     };
-    const names = this.geometry.regions.filter((area) => this.selected.has(area.id)).map((area) => area.name);
+    const areas = new Map([...this.geometry.regions, ...this.furnitureDestinations]
+      .map(({ id, name }) => [id, name]));
+    const names = this.confirmation.regions.map((id) => areas.get(id) || "Area");
     this.$("confirm-text").textContent = point
       ? `${data.robot} will ${MODES[this.pointCleaningMode].toLowerCase()} around the marked point in ${point.name}.`
       : `${data.robot} will clean ${names.join(", ")}.`;
@@ -3565,6 +3635,9 @@ class RoombaHomeMapCard extends HTMLElement {
       } else if (choice.point) {
         service = "clean_point";
         selection = { region_id: choice.point.id, x: choice.point.x, y: choice.point.y, mode: choice.mode, review };
+      } else if (this.furnitureDestinations.some(({ id }) => choice.regions.includes(id))) {
+        service = "run_cleaning_draft";
+        selection = { floor: review, regions: choice.regions.map((id) => ({ id })) };
       }
       await this._hass.callService("roomba_home", service, selection, { entity_id: this.config.entity });
       this.selected.clear();
@@ -3643,8 +3716,7 @@ class RoombaHomeMapCard extends HTMLElement {
     };
     this.scheduleEditor = schedule;
     this.cleaningEditor = selection;
-    const furniture = this.geometry.furniture?.destinations ?? [];
-    const areas = [...this.geometry.regions, ...furniture];
+    const areas = [...this.geometry.regions, ...this.furnitureDestinations];
     this.routineAreas = new Map(areas.filter((area) => area.id)
       .map((area) => [area.id, area.name]));
     this.routines = [];
@@ -3736,11 +3808,15 @@ class RoombaHomeMapCard extends HTMLElement {
     order.value = this.routineDraft.ordered === false ? "automatic" : "listed";
     this.$("routine-regions").replaceChildren(...(regions ?? []).map((region, index) =>
       this.routineRegion(region, index, regions, locked)));
+    const allRooms = this.$("draft-room-selection");
+    this.renderRoomSelection(allRooms, this.roomSelection(regions?.map(({ id }) => id)),
+      locked || !this.routineFloorIsCurrent());
+    if (!regions) allRooms.hidden = true;
     this.renderRoutineGlobalPreset();
     const add = this.$("add-routine-region");
     const remaining = [...this.routineAreas].filter(([id]) => !regions?.some((area) => area.id === id));
     add.replaceChildren(option("", "Choose an area"), ...remaining.map(([id, label]) => option(id, label)));
-    this.$("add-routine-region-label").hidden = regions === null || locked || regions.length >= 32;
+    this.$("add-routine-region-label").hidden = regions === null || locked || regions.length >= MAX_CLEANING_AREAS;
     add.disabled = !remaining.length;
     this.$("copy-routine").hidden = selection;
     this.$("copy-routine").disabled = busy || !saved || !regions?.length;
@@ -4697,6 +4773,7 @@ class RoombaHomeMapCard extends HTMLElement {
       const items = this.showFurniture ? this.geometry.furniture?.items ?? [] : [];
       drawElevation(ctx, floorWalls, items, projection);
     } else if (this.showFurniture || this.furnitureDraft) this.drawFurniture(xy);
+    if (!this.editingMap && !this.pointMode) this.drawFurnitureDestinations(xy);
     for (const [name, outer, path] of labels) this.drawLabel(name, outer, path, xy);
     for (const polygon of noMop) {
       const path = pathFor(polygon, xy);
@@ -4792,6 +4869,22 @@ class RoombaHomeMapCard extends HTMLElement {
       ctx.strokeStyle = "#79ecd3";
       ctx.lineWidth = 3;
       ctx.stroke();
+    }
+  }
+
+  drawFurnitureDestinations(xy) {
+    const items = this.geometry.furniture?.items ?? [];
+    const objects = new Map(items.map(({ id, points }) => [id, points]));
+    for (const { id, object_id: objectId, outline } of this.furnitureDestinations) {
+      const points = objects.get(objectId);
+      if (this.showFurniture && points?.length) {
+        const path = pathFor([[...points, points[0]]], xy);
+        this.targets.push({ path, id, kind: "furniture" });
+      }
+      if (this.selected.has(id) && outline?.length) {
+        const ring = [...outline, outline[0]];
+        this.drawOutlinedDraft([[ring]], xy, "#195f5755", THEMES.selected[1]);
+      }
     }
   }
 

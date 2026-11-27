@@ -74,7 +74,11 @@ trajectory contains observed positions and retains sequence gaps.
   unknown area when a confirmed pass has no valid measurement.
 - MAP-02: Improve continuity of the observed path and correlate live timeline reads with the current mission.
 - MAP-03: Physically verify sequential cleaning, a saved-zone run, and recharge with automatic resume.
-- MAP-04: Provide zoom, room and zone selection, keep-out overlays, and explicit confirmation in a standard dashboard card.
+- MAP-04: Provide zoom, room, zone, and furniture selection, keep-out overlays,
+  and explicit confirmation in a standard dashboard card. Bulk room selection
+  preserves the current order and adds missing rooms in map order. Clearing
+  the room selection preserves zones and furniture. Link each selectable
+  furniture footprint to its reviewed cleaning outline.
 - MAP-05: Offer an optional 3D map from the reported wall layer. Keep room
   and zone selection, live positions, and detected features aligned when
   the camera rotates. Indicate when a fresh position is on mapped carpet.
@@ -359,7 +363,7 @@ restart before operating the two authorized robots.
 |---|---|
 | Room parsing | Duplicates, unknown codes, zero values, units, and exact map revision |
 | Live data | Retained, invalid, expired, unmatched, late, and bounded messages. Verify travel, vacuuming, mopping, and simultaneous activity against the same mission's archive. |
-| Dashboard | Click and keyboard selection, zoom, exclusions, confirmation, and stale maps |
+| Dashboard | Click and keyboard selection, bulk room selection, furniture footprint and outline, ordered confirmation, zoom, exclusions, and stale maps |
 | 3D view | Optional layer decoding, wall gaps, supported map detection, camera alignment, furniture visibility, and flat editing |
 | Household | Complete sequential cycle, saved zone with matching history, and automatic recharge and resume |
 

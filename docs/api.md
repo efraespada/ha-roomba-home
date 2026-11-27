@@ -466,6 +466,11 @@ The browser projects these planar coordinates. Wall and furniture heights
 are fixed display estimates. Camera changes are local to the card and issue
 no map edits. [ClearView LiDAR map guide](https://homesupport.irobot.com/s/article/20500)
 
+Each supported `geometry.furniture.destinations` entry includes an
+`object_id` for its displayed furniture footprint and an `outline` for
+the reviewed cleaning destination. The outline uses the same geometry as
+the directed cleaning command for the active revision.
+
 ## MQTT of modern models
 
 The app sets up `wss://{mqttAts}/mqtt` at the port 443 with these header:
@@ -1389,8 +1394,10 @@ WebSocket command, which requires read access to the selected vacuum.
 ### One-off area cleaning
 
 `roomba_home.run_cleaning_draft` accepts an area list and an exact floor
-review. The map card uses it both for **Customize cleaning** and for a
-loaded recent draft. The service resolves areas and validates settings
+review. The map card uses it for **Customize cleaning**, loaded recent
+drafts, and direct map selections that include furniture. For a direct
+selection, the card sends the ordered destination IDs and the service
+applies the current cleaning preferences. The service validates areas and settings
 against the active archive and capabilities, then dispatches the reviewed
 start command. The draft can use explicit listed order or supported
 automatic order. The start tests confirmed that the favorite inventory
