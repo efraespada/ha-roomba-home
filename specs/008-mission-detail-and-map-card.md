@@ -139,6 +139,9 @@ trajectory contains observed positions and retains sequence gaps.
   A window describes the request period. Display the reports Roomba
   returns within the selected scope. Preserve the report selection when
   it is present in the new list and discard results from an earlier request.
+- MAP-23: Highlight Roomba's current Smart cleaning destinations on open.
+  Allow hiding the recommendation for the current card view and restoring
+  it on demand. Load the match for each displayed floor and revision.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -181,11 +184,13 @@ revision has no scores. Discard a delayed reply when the card switches
 floors or revisions.
 
 Read the current **Smart cleaning** recommendation through the floor-scoped
-routine list. Use the `CLEAN_DIRTY` command's room IDs as the only source
-for the map overlay. Shade those rooms in amber and show their names in
-text. Preserve the existing selection and clear the overlay on a floor,
-revision, or inventory change. Discard responses received after the layer
-was cleared. [Recommendation validation](../docs/validation.md#recommended-rooms-on-the-floor-plan)
+routine list when the floor first becomes visible, independently of map
+polling. Use the `CLEAN_DIRTY` command's room IDs as the sole source for
+amber shading and room labels. Preserve the existing selection. Clear
+the previous reading on a floor, revision, or inventory change. Load the
+new reading while the layer is enabled. Honor the viewer's choice to hide
+the layer across floor changes and discard any superseded read.
+[Recommendation validation](../docs/validation.md#automatic-smart-cleaning-overlay)
 
 Position collection MUST retain bounded point counts, honor provider expiry,
 and stop on unload or mission change. Label travel, vacuuming, mopping, and
@@ -447,6 +452,10 @@ features, physical results, and open scenarios.
     map and pinch to zoom the map. Drag the live 3D view at fit. Pinch, pan,
     and reset a recorded 3D map. Verify that a drag, cancelled gesture,
     or pinch cannot select a cleaning area.
+16. Open a floor with a Smart cleaning recommendation. Verify the colored
+    rooms before using any controls. Hide the layer, switch floors, and
+    re-enable it. Compare the current rooms to the signed targets and
+    check that an earlier reply does not overwrite the new floor.
 
 ## 17. Requirements traceability
 
@@ -474,6 +483,7 @@ features, physical results, and open scenarios.
 | MAP-20 | [Reviewed mission controls](../docs/api.md#reviewed-mission-controls) | [Control policy tests](../tests/test_application.py), [Home Assistant action tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [household trial](../docs/validation.md#reviewed-mission-controls) |
 | MAP-21 | [Archived report contract](../docs/api.md#archived-cleaning-reports) and [signed history comparison](../docs/validation.md#expanded-cleaning-history) | [Signed query tests](../tests/test_api_client.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), [list selection and race tests](../tests/frontend/map-card.test.cjs), and [household verification](../docs/validation.md#expanded-cleaning-history) |
 | MAP-22 | [Signed history window comparison](../docs/validation.md#cleaning-history-periods) and [archive contract](../docs/api.md#archived-cleaning-reports) | [Signed request tests](../tests/test_api_client.py), [list and detail tests](../tests/ha/test_roomba_map_api.py), and [period and filter tests](../tests/frontend/map-card.test.cjs) |
+| MAP-23 | [Native floor defaults and recommendation mapping](../docs/validation.md#automatic-smart-cleaning-overlay) | [Authenticated routine endpoint](../tests/ha/test_roomba_map_api.py) and [default layer, floor revision, and suppression tests](../tests/frontend/map-card.test.cjs) |
 
 ## 18. Implementation sequence
 

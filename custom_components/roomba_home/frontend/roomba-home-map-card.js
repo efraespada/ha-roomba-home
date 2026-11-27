@@ -1455,6 +1455,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.geometry = null;
     this.snapshot = null;
     this.recommendedRooms = null;
+    this.recommendationsHidden = false;
     this.renderCurrentMission(null);
     this.missionControlMessage = "";
     this.updateMissionControls(null);
@@ -1586,6 +1587,7 @@ class RoombaHomeMapCard extends HTMLElement {
       ], "Unknown outcome");
       this.draw();
       this.updateSelection();
+      void this.loadRecommendedRooms();
     } catch (error) {
       if (sequence !== this.sequence) return;
       this.snapshot = null;
@@ -1881,17 +1883,23 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   async toggleRecommendedRooms() {
-    const map = this.snapshot?.map;
-    if (!map || !this.geometry || this.editingMap) return;
-    if (this.recommendedRooms) {
+    if (!this.snapshot?.map || !this.geometry || this.editingMap) return;
+    this.recommendationsHidden = !this.recommendationsHidden;
+    if (this.recommendationsHidden) {
       this.recommendedRooms = null;
       this.draw();
       return;
     }
+    await this.loadRecommendedRooms();
+  }
+
+  async loadRecommendedRooms() {
+    const map = this.snapshot?.map;
+    if (!map || !this.geometry || this.editingMap || this.recommendationsHidden || this.recommendedRooms) return;
     const entity = this.config.entity;
     const reading = { pending: true };
     this.recommendedRooms = reading;
-    this.draw();
+    this.renderRecommendedRooms();
     try {
       const response = await this._hass.callWS({
         type: "roomba_home/floor_routines", entity_id: entity, map_id: map.id, version: map.version,
@@ -4003,7 +4011,10 @@ class RoombaHomeMapCard extends HTMLElement {
     }
     if (this.pointMode) this.togglePointMode();
     const regions = item.region_settings.map((area) => ({ ...area }));
-    if (item.kind === "recommended") this.recommendedRooms = { targets: new Set(item.target_ids) };
+    if (item.kind === "recommended") {
+      this.recommendationsHidden = false;
+      this.recommendedRooms = { targets: new Set(item.target_ids) };
+    }
     this.selected = new Set(regions.map(({ id }) => id));
     this.draw();
     this.updateSelection();
