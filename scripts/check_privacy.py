@@ -50,6 +50,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-local-route-recording.jpg": (
         "f632d2b304de5ac432ce3d6f26327127a04bc01a85ddd7f5eba6b5f5c2e01aa7"
     ),
+    "docs/screenshots/roomba-archived-mopping.jpg": (
+        "387527de342f74933e55af35ed68529281fb5734acfa62f247f0b30e28343587"
+    ),
     "docs/screenshots/roomba-room-editor.jpg": (
         "db26543768c3549e2406489e02ea8b65662ec16a7e4432ff8baee5856d7438cb"
     ),

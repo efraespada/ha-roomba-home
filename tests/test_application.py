@@ -385,6 +385,8 @@ async def test_other_control_transitions_use_one_publication(command, initial, f
 RETURN_RUNNING = replace(RUNNING, pause_before_return=True, mission_identity=MISSION_IDENTITY)
 RETURN_PAUSED = replace(RETURN_RUNNING, activity="paused")
 RETURN_TRAVEL = replace(RETURN_RUNNING, activity="returning")
+MOP_RETURN = replace(RETURN_RUNNING, mode=CleaningMode.MOP)
+RETURN_WASHING = replace(MOP_RETURN, preparing_mop=True, dock=DockSnapshot(pad_wash=602))
 
 
 async def test_return_waits_for_pause_and_reports_success_only_at_the_dock():
@@ -393,6 +395,63 @@ async def test_return_waits_for_pause_and_reports_success_only_at_the_dock():
     assert port.sent == [(Command.PAUSE, None), (Command.DOCK, None)]
     assert port.statuses == ["pending", "confirmed"]
     assert port.now == 20
+
+
+async def test_return_allows_same_mission_wash_to_finish_beyond_the_normal_window():
+    paused = replace(MOP_RETURN, activity="paused")
+    returning = replace(MOP_RETURN, activity="returning")
+    port = Port(MOP_RETURN, paused, returning, *([RETURN_WASHING] * 54), BASE)
+
+    await execute_control(port, Command.DOCK, CleaningProfile(), reviewed_mission=MISSION_IDENTITY)
+
+    assert port.sent == [(Command.PAUSE, None), (Command.DOCK, None)]
+    assert port.statuses == ["pending", "confirmed"]
+    assert port.now == 285
+
+
+@pytest.mark.parametrize(
+    ("before", "observed"),
+    [
+        (RETURN_WASHING, RETURN_WASHING),
+        (replace(MOP_RETURN, activity="paused", mission_identity=None), RETURN_WASHING),
+        (MOP_RETURN, replace(RETURN_WASHING, mission_identity=(11, MISSION_IDENTITY[1]))),
+        (MOP_RETURN, replace(RETURN_WASHING, preparing_mop=False)),
+        (MOP_RETURN, replace(RETURN_WASHING, dock=DockSnapshot(pad_wash=601))),
+        (MOP_RETURN, replace(RETURN_WASHING, dock=DockSnapshot(pad_wash=602, fault=517))),
+    ],
+)
+async def test_return_keeps_normal_deadline_without_a_new_matching_dock_wash(before, observed):
+    states = [before]
+    if before is MOP_RETURN:
+        states.append(replace(before, activity="paused"))
+    port = Port(*states, observed)
+
+    with pytest.raises(ControlError, match="command_unconfirmed"):
+        await execute_control(port, Command.DOCK, CleaningProfile())
+
+    assert port.now == (125 if before is MOP_RETURN else 120)
+    assert port.sent.count((Command.DOCK, None)) == 1
+    assert port.statuses == ["pending", "unconfirmed"]
+
+
+@pytest.mark.parametrize(
+    ("after", "elapsed"),
+    [
+        (RETURN_WASHING, 310),
+        (replace(RETURN_WASHING, activity="error"), 15),
+        (replace(RETURN_WASHING, dock=DockSnapshot(pad_wash=651)), 15),
+        (replace(RETURN_WASHING, mission_identity=(11, MISSION_IDENTITY[1])), 15),
+    ],
+)
+async def test_return_wash_wait_ends_on_deadline_fault_or_changed_mission(after, elapsed):
+    port = Port(MOP_RETURN, replace(MOP_RETURN, activity="paused"), RETURN_WASHING, after)
+
+    with pytest.raises(ControlError, match="command_unconfirmed"):
+        await execute_control(port, Command.DOCK, CleaningProfile())
+
+    assert port.now == elapsed
+    assert port.sent == [(Command.PAUSE, None), (Command.DOCK, None)]
+    assert port.statuses == ["pending", "unconfirmed"]
 
 
 async def test_return_docks_if_the_same_cleaning_mission_ends_while_pausing():
