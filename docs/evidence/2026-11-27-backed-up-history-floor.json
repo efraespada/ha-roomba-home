@@ -1,0 +1,12 @@
+{
+  "source": "signed Max 700 Combo report and matching Roomba floor archive",
+  "missing_map_response_simulated": true,
+  "saved_floor_recovered": true,
+  "matching_geometry_room_count": 6,
+  "original_furniture_outline_retained": true,
+  "signed_error_and_measurements_retained": true,
+  "deleting_exact_copy_removes_base": true,
+  "native_archive_control_trajectory_present": true,
+  "verified_chrome_viewport_widths": [358, 900],
+  "robot_commands_sent": 0
+}

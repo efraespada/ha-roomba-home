@@ -1,5 +1,24 @@
 # Roomba Home validation
 
+## Backed-up floor in cleaning history
+
+An isolated Home Assistant instance read a signed incomplete Max 700
+Combo report and saved the exact floor revision from its cleaning order.
+The test then simulated an unavailable archive response for that
+revision. Home Assistant reopened the saved copy and showed the same
+six rooms and original furniture outline. The signed outcome, 0 m² and
+timeline remained available. Deleting the matching backup removed the
+floor from the report, and a completed control report retained its native
+archived trajectory.
+
+Authenticated tests also cover a matching saved route on a local backup,
+an alternate archived revision without transplanted route or target
+geometry, a damaged copy before a valid copy, and backups owned by a
+different robot. Chrome at 358 and 900 pixels verified the local floor
+caption and the native archive controls. No robot commands were sent by
+this test.
+[Anonymized comparison](evidence/2026-11-27-backed-up-history-floor.json)
+
 ## Local route recording replay
 
 An isolated Home Assistant instance replayed thirteen position batches

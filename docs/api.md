@@ -510,6 +510,17 @@ metrics, and timeline use the signed report, and the response omits native
 area and map identifiers.
 [Unarchived report validation](validation.md#requested-floor-in-an-unarchived-report)
 
+After an unavailable map read, Home Assistant can use a verified private
+map backup. It searches only the report's robot and account entry. It
+prefers the exact requested or captured base revision, then the exact
+selected archive reference when the original geometry is unavailable. A
+requested revision associated with a different floor from the selected
+archive cannot supply its geometry. The backup checksum and the archive's
+map and version manifest are checked before use. Destination outlines
+require a match to the original cleaning order's revision. The returned
+`floor_source: local_backup` identifies a displayed backup. Static backups
+have `geometry_source: backup_floor`.
+
 ### Local route recording
 
 Use the authenticated `roomba_home/mission_route_settings` WebSocket
@@ -539,7 +550,9 @@ available, `estimated_coverage` includes `cell_size` and sparse
 `[row, runs]` tuples with `[start, end, mask]`
 runs. Vacuuming has bit 1, mopping bit 2, and combined cleaning bit 3.
 The signed report retains its own area and timeline. Native capture
-identifiers are excluded from the WebSocket response.
+identifiers are excluded from the WebSocket response. An exact map
+backup can supply the route's base floor. It must identify the route's
+captured map and revision before those points are added.
 
 ### Floor plan display layers
 

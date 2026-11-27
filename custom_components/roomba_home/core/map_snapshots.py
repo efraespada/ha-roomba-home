@@ -78,6 +78,12 @@ def snapshot_summary(snapshot: dict) -> dict:
 
 def read_snapshot(snapshot: dict):
     """Recheck the saved bytes and floor revision before viewing or exporting."""
+    floor, archive = read_snapshot_archive(snapshot)
+    return floor, read_floor_plan(archive, floor)
+
+
+def read_snapshot_archive(snapshot: dict) -> tuple[PersistentMap, bytes]:
+    """Recover the verified metadata and archive bytes for a saved revision."""
     try:
         metadata = snapshot["floor"]
         encoded = snapshot["archive"]
@@ -100,7 +106,7 @@ def read_snapshot(snapshot: dict):
         )
     except KeyError, TypeError, ValueError, RecursionError:
         raise ProtocolError("The local floor backup is damaged.") from None
-    return floor, read_floor_plan(archive, floor)
+    return floor, archive
 
 
 def retained_snapshots(snapshots: list[dict], retention: int) -> list[dict]:

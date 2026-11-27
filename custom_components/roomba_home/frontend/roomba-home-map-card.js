@@ -2783,14 +2783,18 @@ class RoombaHomeMapCard extends HTMLElement {
     if (report.geometry) {
       const requested = report.geometry_source === "requested_floor";
       const captured = report.geometry_source === "local_capture";
+      const backedUp = report.floor_source === "local_backup";
       const source = this.$("history-map-source");
-      source.hidden = !requested && !captured;
-      source.textContent = "Requested floor · Saved revision from the cleaning order";
+      source.hidden = !requested && !captured && !backedUp;
+      source.textContent = backedUp ? "Saved floor · From a local map backup"
+        : "Requested floor · Saved revision from the cleaning order";
       let mapLabel = requested ? "Requested floor plan" : "Recorded floor, coverage and robot route";
+      if (backedUp) mapLabel = "Saved floor from a local map backup";
       if (captured) {
         const estimated = report.geometry.estimated_coverage;
         source.textContent = estimated ? "Locally recorded route · Coverage is estimated from live positions"
           : "Locally recorded route · Live positions saved by Home Assistant";
+        if (backedUp) source.textContent += " · Floor from a local map backup";
         mapLabel = estimated ? "Locally recorded route and estimated coverage" : "Locally recorded route";
       }
       this.$("history-map").setAttribute("aria-label", `${mapLabel}. Use arrow keys to pan.`);

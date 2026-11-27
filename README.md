@@ -160,7 +160,8 @@ reports Roomba leaves out of its usual history list.
 Enable **Local route recording** to keep live positions for future runs
 on this Home Assistant. The card can show a locally recorded route and
 estimated coverage when Roomba's mission archive is unavailable and the
-matching floor revision is readable.
+matching floor revision is readable from Roomba or a **Map backup**.
+[Local route recording](docs/usage.md#local-route-recording)
 
 Expand **Results by area** to
 see the reported target size and the area measured in completed passes for
@@ -187,7 +188,7 @@ Screenshots use a synthetic floor plan and mission.
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.85.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.86.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
