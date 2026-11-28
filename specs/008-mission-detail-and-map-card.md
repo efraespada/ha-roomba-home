@@ -483,7 +483,10 @@ features, physical results, and open scenarios.
 3. Start a confirmed room selection and observe provider state. Reject unknown, excluded, or stale choices.
 4. Observe vacuuming, mopping, the same mission identity, and a final outcome.
 5. Observe a saved-zone mission with the matching history destination and return.
-6. Observe a low-battery return, charging, and automatic resumption of the same mission.
+6. Observe a low-battery return, charging, and automatic resumption of the
+   same mission. Match the mission number and start time across the three
+   phases. Compare the Android and Home Assistant readouts during charging,
+   and check the completed report's recharge count and charging time.
 7. On a supported map, switch to 3D. Rotate the camera and select an area.
    Toggle furniture and open an editor. Verify the normal coordinate controls
    and that cancelling restores the 3D view with the same saved floor orientation.
