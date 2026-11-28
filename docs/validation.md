@@ -641,12 +641,28 @@ change Wi-Fi** and instructions for persistent connection problems. It
 displayed no signal, channel, or access point measurements. Opening it
 did not change the robot's configuration.
 
+After reopening Android 3.4.1, Proxyman captured successful current map
+reads from Roomba. The capture while viewing the Wi-Fi page contained map,
+maintenance, software, time estimate, and other routine app traffic. The
+inspected HTTPS responses contained no signal
+strength, channel, access point, or cloud connectivity fields. The
+connection status and metadata used here come from the existing signed
+Roomba shadow. The reconnection step was left untouched.
+
 Home Assistant's WebSocket tests cover a connected or disconnected robot,
 a missing connection state, and an account refresh failure. A read remains
 available without map geometry and includes only the selected robot's
 authorized items. The card tests verify distinct status texts, local time
 formatting, the zero code, missing readings, and clearing the old panel
 when the selected robot changes.
+
+Home Assistant passed its Core configuration check and restarted on 0.97.0.
+The three robots returned at their docks. The card for the selected Max 700
+Combo showed **Connected to Roomba**, code `1`, and both distinct timestamps.
+On a later read, the last cloud read advanced and the provider timestamp
+and code were unchanged. The installed card linked the manufacturer's
+Wi-Fi reconnection guide. No robot commands, settings changes, or Wi-Fi
+changes were issued. [Installed connection section](screenshots/roomba-connection-details.jpg)
 
 ## Robot help after moving a card
 
