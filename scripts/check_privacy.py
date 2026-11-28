@@ -134,6 +134,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-charging-during-mission.jpg": (
         "be882915d1fbc6244ee777caffad9c6ec0f54b35c4e68e037e14e9a383789d9e"
     ),
+    "docs/screenshots/roomba-room-time-during-recharge.jpg": (
+        "92e552e2965202daf3f1649798c7ed8148601cb732399cd3d60a9297ef00b226"
+    ),
 }
 PATTERNS = {
     "private-key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),

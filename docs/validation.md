@@ -21,9 +21,15 @@ The replay retains 6,956 seconds of reported room work when charging
 starts and on a later sample. It leaves the cleaning estimate hidden until
 a new active room stage. The resumption fixture confirms that charging and
 travel time are excluded from both the accumulated time and the countdown.
+
+Version 0.104.5 passed Home Assistant's configuration check and restarted
+Core during that charge. Both apps showed 21% battery. The integration
+recovered the original mission and charging stage. The room row showed
+**115:56 cleaning** on two reads 47 seconds apart, with no active countdown.
 [Reduced evidence](evidence/2026-11-28-active-recharge.json)
 
 ![Charging during the same mission in the installed card](screenshots/roomba-charging-during-mission.jpg)
+![The installed card keeping the room's cleaning time during recharge](screenshots/roomba-room-time-during-recharge.jpg)
 
 ## Earlier room visits during a two-pass clean
 
