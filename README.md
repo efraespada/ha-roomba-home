@@ -172,6 +172,14 @@ installing it. [Voice settings and automation examples](docs/usage.md#robot-sett
 
 ![Voice installation review on the installed Home Assistant card](docs/screenshots/roomba-voice-download.jpg)
 
+## Locate and reboot
+
+Open **Device settings** on the robot's map card to review **Locate robot**
+or **Reboot robot**. The card reports a successful reboot after the robot
+disconnects and reconnects. [Robot settings](docs/usage.md#robot-settings)
+
+![Locate and reboot controls with a confirmed reconnection on the installed Home Assistant card](docs/screenshots/roomba-robot-actions.jpg)
+
 ## Maintenance and diagnostics
 
 Open **Maintenance** to check a part's usage, remaining time, and care
