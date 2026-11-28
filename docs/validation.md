@@ -1,5 +1,28 @@
 # Roomba Home validation
 
+## Earlier room visits during a two-pass clean
+
+A Max 700 Combo started a directed two-pass vacuum run at suction level 4.
+Proxyman confirmed the matching planned duration of 7,018 seconds. During
+the run, Roomba Home showed 46 minutes left. Home Assistant 0.104.2
+showed about 92 minutes in a sample taken 14 seconds later. Its room row
+started counting cleaning time at the most recent entry.
+
+The signed live timeline retained three entries for the same declared
+room under different robot revisions. Their offsets were 46, 1,292, and
+2,907 seconds from mission start. Completed travel events began at
+1,195 and 2,846 seconds, between the entries. The corresponding room
+completion records were points in time with identical start and end
+timestamps. The robot reported no mission error in the observed sample.
+
+The replay verifies 4,996 seconds of cleaning and 2,022 seconds remaining
+at the 5,200-second sample. The room's latest stage contains 2,293 of
+those cleaning seconds. A simulated pause in the same room holds the
+corrected estimate and keeps both preceding visits. A separate test
+rejects a missing departure or a departure outside the interval between
+two entries.
+[Reduced signed evidence](evidence/2026-11-28-two-pass-room-intervals.json)
+
 ## Timeline updates on pause and resume
 
 With 0.104.2 installed, Roomba Home Android 3.4.1 started and paused

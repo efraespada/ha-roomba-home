@@ -96,6 +96,9 @@ class MissionTimeline:
     def timed_destination(self, stage_started: datetime | None) -> AreaResult | None:
         if stage_started is None:
             return None
+        stamp = int(stage_started.timestamp())
+        if self.stage == "pause" and self.plan is not None and not self.active_zones:
+            return self._single_room(stamp)
         active = {
             "room": self.active_rooms,
             "zone": self.active_zones,
@@ -104,7 +107,6 @@ class MissionTimeline:
         if len(active) != 1:
             return None
         area = active[0]
-        stamp = int(stage_started.timestamp())
         if self.stage == "pause":
             return area if area.timestamp <= stamp else None
         return area if area.timestamp == stamp else None
@@ -265,6 +267,7 @@ def mission_timeline(document, request_id, mission_number, now) -> MissionTimeli
     )
     command = document.get("cmd")
     finished = document.get("finEvents")
+    plan = mission_plan(command)
     return MissionTimeline(
         mission_number,
         datetime.fromtimestamp(now, UTC),
@@ -281,10 +284,10 @@ def mission_timeline(document, request_id, mission_number, now) -> MissionTimeli
         and bool(command["regions"]),
         _point_destination(command),
         datetime.fromtimestamp(current[0], UTC) if 0 < current[0] <= now else None,
-        mission_plan(command),
+        plan,
         _requested_floor(command),
         _localized_maps(events) | _localized_maps(finished),
-        mission_timing(finished, command),
+        mission_timing(finished, command, active_events=events, plan=plan),
     )
 
 

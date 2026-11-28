@@ -366,6 +366,12 @@ exclude time between confirmed pause and resumption. Omit the countdown
 during unverified stages, on an expired report, or while any remaining
 destination lacks a verified estimate.
 
+Keep earlier open entries for the same declared room when the timeline
+contains a completed travel or relocation stage between entrances.
+Close each earlier segment at the recorded departure and count its time
+only for that mission's room. Merge overlaps with explicitly timed
+results and retain the latest stage duration separately.
+
 After the robot confirms a pause or resume within the same mission,
 request the timeline on the next active poll when the stage is
 unavailable or conflicts with the new state. Queue one early read per

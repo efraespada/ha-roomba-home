@@ -79,6 +79,50 @@ def test_live_room_timing_rejects_unscoped_and_ambiguous_areas():
     duplicate = replace(live, plan=plan, active_rooms=(room, newer))
     observed = duplicate.observe_room_timing("pause", started, now)
     assert observed.room_timing.areas == (replace(newer, ended_at=NOW),)
+    assert observed.timed_destination(now) == newer
+
+
+def test_two_room_entries_need_a_verified_departure_between_them():
+    begin = NOW - 180
+    command = POINT_COMMAND | {
+        "command": "start",
+        "regions": [{"type": "rid", "region_id": "room-a"}],
+    }
+
+    def room(clock, revision, **attrs):
+        return {
+            "type": "room",
+            "ts": clock,
+            "room": {"p2mapId": MAP.map_id, "p2mapvId": revision, "rid": "room-a", "area": 3}
+            | attrs,
+        }
+
+    early = room(begin + 10, "first")
+    latest = room(begin + 100, "newer")
+    raw = {
+        "timelineRequestId": 12,
+        "nMssn": 8,
+        "cmd": command,
+        "event": [
+            room(begin + 1, "unrequested", p2mapId="another-map"),
+            room(begin + 5, "checkpoint", status=1),
+            room(begin + 8, "completed") | {"ets": begin + 9},
+            early,
+            room(begin + 10, "duplicate"),
+            latest,
+        ],
+        "finEvents": [
+            {"type": "travel", "ts": begin + 6, "ets": begin + 7},
+            {"type": "reloc", "ts": begin + 90, "ets": begin + 103},
+            {"type": "travel", "ts": begin + 140, "ets": begin + 143},
+        ],
+    }
+    assert mission_timeline(raw, 12, 8, NOW).timing.areas == ()
+    narrowed = raw | {
+        "finEvents": [*raw["finEvents"], {"type": "reloc", "ts": begin + 80, "ets": begin + 85}]
+    }
+    (interval,) = mission_timeline(narrowed, 12, 8, NOW).timing.areas
+    assert (interval.timestamp, interval.ended_at) == (begin + 10, begin + 80)
 
 
 def test_live_floor_can_use_a_whole_floor_request_without_a_directed_plan():
