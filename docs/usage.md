@@ -630,8 +630,10 @@ confirmed pause in a timed room holds the estimate until cleaning resumes.
 For example, pause with about 56 minutes left and the same estimate stays
 visible while the robot waits. When Roomba confirms that cleaning resumed
 in the same room, the countdown includes the cleaning time from before
-the pause. The reading becomes unknown when verified timing is unavailable,
-the estimate is exhausted, or the mission ends.
+the pause. While the robot and the latest mission report disagree, the
+affected row shows **Waiting for Roomba update** and the countdown is
+unavailable. The reading also becomes unknown when the estimate is
+exhausted or the mission ends.
 [Timing and telemetry](telemetry.md#how-to-interpret-progress)
 
 Use the robot and dock problem event entities for new, changed, or cleared

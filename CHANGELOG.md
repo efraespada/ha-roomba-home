@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.104.2
+
+- Refresh the mission timeline on the next active poll after Roomba
+  confirms a pause or resume and the latest timeline is still behind.
+  Mark the affected destination as waiting for a Roomba update.
+
 ## 0.104.1
 
 - Carry verified room cleaning time across a pause and resume when Roomba

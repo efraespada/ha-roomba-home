@@ -283,6 +283,56 @@ async def test_live_map_renews_and_keeps_verified_topic_during_temporary_failure
     assert account.client.live_map_topic.await_count == 8
 
 
+@pytest.mark.parametrize(
+    ("prior_phase", "phase", "stage", "scope", "expedite"),
+    [
+        ("run", "stop", "room", "same", True),
+        ("stop", "run", "pause", "same", True),
+        ("stop", "run", None, "same", True),
+        ("run", "stop", "pause", "same", False),
+        ("stop", "run", "room", "same", False),
+        ("run", "run", "pause", "same", False),
+        ("stop", "run", "pause", "first", False),
+        ("stop", "run", "pause", "start", False),
+        ("stop", "run", "pause", "number", False),
+    ],
+)
+async def test_pause_transition_advances_only_its_missing_timeline_read(
+    hass, entry, robot_states, prior_phase, phase, stage, scope, expedite
+):
+    account = RoombaCoordinator(hass, entry)
+    now = datetime.now(UTC)
+    started = now - timedelta(minutes=2)
+    robot_id, other_id = "fixture-0", "fixture-1"
+    telemetry = {"mission_started": started, "mission_number": 19}
+    active = replace(robot_states[robot_id], phase=phase, cycle="clean", telemetry=telemetry)
+    other = replace(robot_states[other_id], phase="run", cycle="clean", telemetry=telemetry)
+    prior = replace(active, phase=prior_phase, telemetry=dict(telemetry))
+    if scope == "start":
+        prior.telemetry["mission_started"] = started - timedelta(minutes=2)
+    if scope == "number":
+        prior.telemetry["mission_number"] = 18
+    account.data = {other_id: other}
+    if scope != "first":
+        account.data[robot_id] = prior
+    account._timeline_due = {robot_id: (started, 145), other_id: (started, 145)}
+    report = (
+        MissionTimeline(19, now, stage, (), stage_started_at=now - timedelta(seconds=5))
+        if stage
+        else None
+    )
+
+    await account._timeline_metrics(active, report, now)
+    account.data[robot_id] = active
+    topics = (robot_id, other_id)
+    assert account._timeline_requests(topics, 115) == ({robot_id: 19} if expedite else {})
+    await account._timeline_metrics(active, None, now + timedelta(seconds=15))
+    assert account._timeline_requests(topics, 130) == {}
+    assert account._timeline_requests(topics, 145) == {robot_id: 19, other_id: 19}
+    assert account._timeline_requests(topics, 160) == {}
+    await account.async_close()
+
+
 @pytest.mark.parametrize("extra_floor", [False, True])
 async def test_live_frames_flow_through_normal_account_refresh(
     hass, entry, robot_states, cloud_session, make_point_bundle, extra_floor

@@ -363,6 +363,13 @@ verified new stage timestamp. Merge overlapping source intervals and
 exclude time between confirmed pause and resumption. Omit the countdown
 during unverified stages, on an expired report, or while any remaining
 destination lacks a verified estimate.
+
+After the robot confirms a pause or resume within the same mission,
+request the timeline on the next active poll when the stage is
+unavailable or conflicts with the new state. Queue one early read per
+observed transition and preserve the regular timeline deadline. Show the
+affected destination as waiting when the timeline and the reported
+motion state disagree. Retain the verified outcomes and elapsed time.
 Recalculate on each floor-plan read from existing verified stage times and
 saved durations. Reading the countdown requires no additional provider
 request and leaves the coordinator snapshot intact.
