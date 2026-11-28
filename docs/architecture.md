@@ -13,11 +13,13 @@ flowchart TD
     CLI --> MQ[Bounded MQTT reader]
     C --> API
     C --> MQ
+    C --> STREAM[Scoped live position stream]
     C --> UC[Command application]
     C --> MP[Typed state, map, and mission projections]
     API --> P[HttpTransport]
     AIO[Aiohttp adapter] -.-> P
     MQ --> PAHO[Paho over TLS]
+    STREAM --> PAHO
     UC --> CT[ControlPort]
     ADAPTER[RobotControlAdapter] -.-> CT
     C --> ADAPTER
@@ -35,6 +37,7 @@ and lifecycle decisions at their respective entry points.
 | `core/client.py` | Discovery, single-flight authentication, signing, and typed HTTP operations |
 | `core/transport.py` | HTTP timeouts, response limits, TLS transport, and redirect policy |
 | `core/mqtt.py` | Scoped named shadows and bounded live position and timeline observations |
+| `core/mqtt_live.py` and `live_stream.py` | Separately authenticated position subscriptions and watch lifecycle |
 | `core/commands.py` | Serialize and issue a supported native command |
 | `core/cleaning.py` and `core/cleaning_protocol.py` | Semantic profiles, capabilities, and translation to native settings |
 | `core/application.py` | Control preconditions, dispatch, and confirmation through a port |
@@ -63,9 +66,10 @@ confirmed progress can continue under the regular poll. Provider
 backoff applies to scheduled reads and confirmation reads. Commands
 with an unconfirmed outcome are not automatically republished.
 
-The live map uses positions and mission timelines from authorized active
-polls. Each measurement requires a matching robot, mission, and map
-scope. The coordinator expires stale data and retains proven room time
+The live map uses mission timelines from authorized active polls. A
+separate authenticated subscription can also deliver positions between
+polls. Each live map measurement requires a matching robot, mission,
+and map scope. The coordinator expires stale data and retains proven room time
 across a pause, a re-entry, or a completed trip to charge. The exposed
 estimate requires Roomba's duration and a supported active stage.
 [MQTT state](../specs/002-mqtt-state.md) ·

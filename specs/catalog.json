@@ -38,7 +38,7 @@
       "id": "mqtt-state",
       "title": "Robot state and live observations over MQTT",
       "status": "as-built-baseline",
-      "scope": "Bounded named-shadow reads, authorized live positions, and correlated mission timelines",
+      "scope": "Bounded named-shadow reads, separately authorized position subscriptions, and correlated mission timelines",
       "owner": "ha-roomba-home maintainer",
       "lastVerified": "2026-11-28",
       "specs": [
@@ -50,11 +50,14 @@
       ],
       "code": [
         "custom_components/roomba_home/core/mqtt.py",
+        "custom_components/roomba_home/core/mqtt_live.py",
         "custom_components/roomba_home/core/live_maps.py",
-        "custom_components/roomba_home/core/live_route.py"
+        "custom_components/roomba_home/core/live_route.py",
+        "custom_components/roomba_home/live_stream.py"
       ],
       "tests": [
         "tests/test_mqtt.py",
+        "tests/test_live_stream.py",
         "tests/test_live_maps.py",
         "tests/ha/test_live_map_entities.py"
       ],
@@ -150,7 +153,7 @@
       "status": "proposed",
       "scope": "Typed telemetry, consumables, problem events, provider connectivity timestamps, and mission results",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-23",
+      "lastVerified": "2026-11-28",
       "specs": [
         "specs/005-telemetry-and-problems.md"
       ],
@@ -183,16 +186,17 @@
         "docs/validation.md",
         "docs/evidence/2026-11-23-telemetry.json",
         "docs/evidence/2026-11-23-telemetry-quality.json",
-        "docs/evidence/2026-11-23-temporary-zone-history.json"
+        "docs/evidence/2026-11-23-temporary-zone-history.json",
+        "docs/evidence/2026-11-28-active-recharge.json"
       ]
     },
     {
       "id": "cleaning-profiles",
-      "title": "Cleaning modes and profiles",
+      "title": "Cleaning modes and per-area profiles",
       "status": "proposed",
-      "scope": "Capability-based mode and parameter combinations, next-cleaning controls, and physical confirmation",
+      "scope": "Capability-based modes, next-cleaning settings, ordered per-area profiles, and physical confirmation",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-25",
+      "lastVerified": "2026-11-28",
       "specs": [
         "specs/006-cleaning-profiles.md"
       ],
@@ -238,7 +242,7 @@
       "status": "proposed",
       "scope": "Shared discovery, device coordination, dock actions, regions, recovery, live map position, and cleaning schedules",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-25",
+      "lastVerified": "2026-11-28",
       "specs": [
         "specs/007-device-capabilities.md"
       ],

@@ -81,9 +81,10 @@ Each command uses the matching selected robot and current capabilities.
 
 Poll the account every 60 seconds at rest and every 15 seconds during
 reported activity. Read slower telemetry on its own cadence and reuse
-fresh results across entities. Eligible live map observations are
-sampled during active reads. Preserve per-robot availability during
-permitted partial responses.
+fresh results across entities. Eligible live map observations and
+timeline reports can arrive during active reads. A separately authorized
+subscription also receives positions between account polls. Preserve
+per-robot availability during permitted partial responses.
 
 | State | Source | Result |
 | --- | --- | --- |
@@ -238,8 +239,8 @@ normal UI or automation entry point against the authorized test robot.
 
 The design takes account setup and per-device organization from My
 Verisure. Roomba Home uses the Roomba-specific provider contracts and
-Home Assistant's `cloud_polling` IoT class. Position and timeline updates
-are bounded observations during polling.
+Home Assistant's `cloud_polling` IoT class. The active map subscription
+is scoped independently of the polling connection.
 [My Verisure](https://github.com/efraespada/my_verisure) ·
 [Native API](001-native-api.md) · [MQTT](002-mqtt-state.md) ·
 [Live maps](008-mission-detail-and-map-card.md)

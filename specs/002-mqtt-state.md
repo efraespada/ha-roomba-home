@@ -12,10 +12,11 @@
 
 ## 1. Executive summary
 
-The MQTT reader retrieves named Roomba cloud shadows and, during a
-recognized mission, can sample live position and timeline events.
-Home Assistant projects accepted data into state and measures connectivity
-from its dedicated source. Every read owns a bounded connection.
+The MQTT reader retrieves named Roomba cloud shadows and can sample live
+position and timeline events during a recognized mission. Home Assistant
+also uses a separately authorized position subscription between polls.
+It projects accepted data into state and measures connectivity from its
+dedicated source. Each request-response read owns a bounded connection.
 
 ## 2. Problem, current behavior, and evidence
 
@@ -57,6 +58,7 @@ correlated observation.
 - MQ-04: The reader MUST bound connection, subscription, and receive waits and close when a read finishes or fails.
 - MQ-05: The reader MUST preserve correlated rejections as unavailable documents.
 - MQ-06: Live observations MUST be authorized, fresh, and non-retained. Position batches MUST stay bounded.
+- MQ-07: The position stream MUST use its own authorized client identity and release a watch when its robot, mission, or map scope changes.
 
 Physical commands and settings writes use the separate command adapter.
 The polling coordinator owns read cadence, renewal, and retry timing.
@@ -74,7 +76,8 @@ flowchart LR
 
 The validation CLI reports counts from an explicit shadow read. During
 Home Assistant polling, the coordinator can add authorized live-map topics
-and timeline requests for a corroborated mission.
+and timeline requests for a corroborated mission. A dedicated read-only
+subscription receives positions between those polls.
 
 ## 6. Functional behavior and state model
 
@@ -93,6 +96,12 @@ mission number. The coordinator checks its freshness and mission start
 before using it. Apply the same scoping to positions and raw-route
 references.
 
+The dedicated subscription uses the signed announcement and an identity
+derived from the account profile. The coordinator delivers only data for
+the current watch's robot, mission start, and map revision. On connection
+loss, the subscription manager can retry after 30 seconds while the watch
+remains eligible. Unload closes the workers.
+
 ## 7. User-facing configuration
 
 | Input | Default | Validation |
@@ -110,7 +119,9 @@ client ID can replace each other's broker connection.
 ## 8. Clean Architecture design
 
 `core/mqtt.py` validates profiles, builds scoped requests, and performs
-bounded operations through Paho. `core/live_maps.py` and
+bounded operations through Paho. `core/mqtt_live.py` receives positions
+from a read-only connection. `live_stream.py` owns its separate client
+profile and account-scoped watches. `core/live_maps.py` and
 `core/live_route.py` parse mission and position observations. Neither
 depends on Home Assistant. The Home Assistant coordinator owns scheduling,
 execution off the event loop, state projection, and entity availability.
@@ -193,6 +204,7 @@ Use the household validation log for behavior observed in Home Assistant.
 6. Reject a profile containing an invalid host, header, or topic component.
 7. Accept only eligible position and timeline observations for the active mission.
 8. Reduce output without exposing a robot identifier or an original document.
+9. Receive positions between polls and release the subscription when its watch changes.
 
 ## 17. Requirements traceability
 
@@ -201,6 +213,7 @@ Use the household validation log for behavior observed in Home Assistant.
 | MQ-01 | `MqttProfile` | [Profile validation](../tests/test_mqtt.py) |
 | MQ-02 through MQ-05 | `MqttShadowReader` | [Broker and shadow contract](../tests/test_mqtt.py) |
 | MQ-06 | Live-map parser and coordinator | [Position and timeline tests](../tests/test_live_maps.py), [Home Assistant projection](../tests/ha/test_live_map_entities.py) |
+| MQ-07 | `MqttLiveReader` and `LiveMapStream` | [Subscription lifecycle](../tests/test_live_stream.py) |
 
 ## 18. Implementation sequence
 

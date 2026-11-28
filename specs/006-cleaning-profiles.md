@@ -1,294 +1,254 @@
-# Cleaning modes and profiles
+# Cleaning modes and per-area profiles
 
 - Status: Draft
 - Date: 2026-11-23
 - Catalog capability ID: cleaning-profiles
-- Last verified: 2026-11-25
+- Last verified: 2026-11-28
 - Owners: ha-roomba-home maintainer
-- Scope: Modes, combinations and adjustments of the next robot mission.
-- Related issues/PRs: The incumbent's request and local work without publication.
+- Scope: Cleaning modes, next-cleaning preferences, ordered regional profiles, and physical confirmation
+- Related issues/PRs: Household cleaning trials and two-pass progress fixes
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
-- Open decisions blocking readiness: Automatic recharge and resume, and physical application of every adjustable preference.
+- Open decisions blocking readiness: Physical completion after automatic recharge and the effect of every supported preference combination.
 
 ## 1. Executive summary
 
-A combined robot MUST retains an empty entity and a HA device. Additional controls select
-the profile of next cleanup. The integration MUST differentiate local preferences, order
-sent and accused of the broker. None of them alone prove that the ground clearance has been
-completed.
+A combination robot uses a Home Assistant vacuum entity with additional
+controls for cleaning profiles. Choose a profile for the next mission or
+assign a separate profile to each ordered destination in a saved routine.
+Roomba status and history verify the physical result.
 
 ## 2. Problem, current behavior, and evidence
 
-- Observed behavior: start at 0.2.0 He's always requested. operatingMode 2, vacuuming.
-- Intentional contract: preserve existing IDs, authentication and controls.
-- Known debt and limitations: No selection of mode or starting parameters; command policy
-  lies with the HA adapter.
-- Unknown rationale: The semantics of future supplier's capabilities and values are unknown.
-- Proposed improvements: typed profiles, capacity validation and independent HA use cases
-  with standard translated controls.
+- Observed behavior: The Max 700 Combo advertises vacuum, mop, simultaneous cleaning, and vacuum followed by mopping. Its room timeline reports started and completed passes.
+- Intentional contract: Preserve per-robot identity and preferences. Validate supported modes and parameters before dispatch.
+- Known debt and limitations: A single test cannot verify the physical effect of every power, moisture, and pass combination.
+- Unknown rationale: Future firmware may add capabilities or use different settings.
+- Proposed improvements: Observe a natural two-pass finish after recharge and verify the resulting room and mission history.
 
-The SDK of Roomba Home 3.4.1 Distinguishes the capacity mask from order values: vacuum 2,
-mop 4 simultaneous 6 and sequential 512. Capacity oMode 550 The four possibilities have been
-announced and they are NOT physical validation. The order parameters include suctionLevel,
-padWetness.padPlate, swScrub, twoPass and carpetBoost. The catches and the SSK extracted are
-closed.
+Roomba uses native operating mode 2 for vacuum, 4 for mop, 6 for
+simultaneous cleaning, and 512 for vacuum then mop. Device capability
+flags describe support. The request carries the selected mode and its
+applicable settings. Signed observations establish outcomes.
+[Directed sequence](../docs/validation.md#directed-vacuum-then-mop) ·
+[Two-pass comparison](../docs/validation.md#earlier-room-visits-during-a-two-pass-clean)
 
 ## 3. Actors, surfaces, and terminology
 
-| Actor | Surface | Outcome |
+| Actor | Surface | Result |
 | --- | --- | --- |
-| Holder | Device and vacuum entity | Choose profile and start, pause or resume. |
-| Automation | select, number and switch vacuum.start | Combine parameters without JSON from the supplier |
-| Maintainer | Suite, SDD and sound evidence | Check contract, malfunctions and physical validation |
+| Operator | Vacuum entity and next-cleaning controls | Start with a verified mode and profile |
+| Routine author | Map card routine editor | Ordered destinations with individual preferences |
+| Automation author | Standard entities and typed Roomba actions | Configure and run a supported profile |
+| Maintainer | Validation and signed observations | Verified command, stages, and outcome |
 
-Requested profile means local preference for the next start. Reported mode means robot data.
-A change of preference doesn't move the robot.
+A requested profile is the preference for a future start. The reported
+mode describes the current robot. The completed mission result describes
+the work the robot recorded.
 
 ## 4. Goals, non-goals, and fixed invariants
 
-- CLN-01: Expand all forms advertised with a physically tested model.
-- CLN-02: allow all valid combinations of power, moisture and SmartScrub and carpet boost
-  announced by the robot.
-- CLN-03: Do not send monitoring parameters vacuuming in mopping and parameters mopping in
-  vacuuming To preserve preferences as they change their way.
-- CLN-04: Keep selection between reloads and re-starts. Validate while regaining preferences
-- CLN-05: never confuse PUBACK with physical success, confirm transitions and later
-  readings.
-- CLN-06: maintain domain and use cases without importation HA, Pato or HTTP.
-- CLN-07: achieve 100% cover of judgements and branches from the component, with no
-  artificial exclusions.
-- CLN-08: check up, controls and telemetry with an Icon on the domestic HA or authorized
-  robot.
-- CLN-09: Validate a complete vacuum-then-mop mission.
-- CLN-10: Verify requested two-pass settings separately from completed
-  passes on a supported robot. Record a natural two-pass finish to confirm
-  the physical behavior.
+- CLN-01: Expose cleaning modes only on a robot that advertises the relevant capability.
+- CLN-02: Validate suction, moisture, SmartScrub, carpet boost, and pass settings against the selected mode and robot.
+- CLN-03: Include only applicable settings in a command and retain the other saved preferences.
+- CLN-04: Preserve valid preferences across restart, reload, and robot reselection.
+- CLN-05: Confirm the physical action from a fresh matching observation.
+- CLN-06: Keep the cleaning domain and application independent of Home Assistant and transport libraries.
+- CLN-07: The complete component MUST maintain 100% statement and branch coverage.
+- CLN-08: Verify controls and reported state on an authorized physical robot.
+- CLN-09: Record both phases and the final outcome of a directed vacuum-then-mop mission.
+- CLN-10: Verify requested two-pass settings and reported pass outcomes separately.
 
-No maps, accounts and mistakes or consumables are deleted. The motion tests are limited to
-the authorized robot and have an automatic final timings. Absence capacity doesn't mean
-compatible.
+Pairing, account changes, floor editing, and replacement of consumables
+have their own scope and validation.
 
 ## 5. Current versus proposed product journey
 
-| Stage | 0.2.0 | Proposal |
-| --- | --- | --- |
-| Prepare | To start always aspires | Choose Mode and parameters for next cleaning |
-| Run | Vacuum, pause and cancel. | Start with profile and resume conserving mission |
-| Check | Informed Mode and Adjustment Sensors | Differentiated frequencies and readings |
-| Reboot HA | No preferences | Reget valid preferences and existing IDs |
+1. Choose a mode and its settings using the next-cleaning controls or the routine editor.
+2. Review the ordered areas and their profiles when cleaning a saved selection.
+3. Start once and observe the reported mission.
+4. Pause or resume that mission. Inspect the completed history after return.
 
 ```mermaid
 stateDiagram-v2
     [*] --> ProfileSelected
     ProfileSelected --> Pending: Start
-    Pending --> CleaningConfirmed: Compatible state read
-    Pending --> Unconfirmed: Failure or timeout
-    CleaningConfirmed --> Paused: Confirm pause
-    Paused --> CleaningConfirmed: Resume the current mission
-    Paused --> Canceled: Confirm cancellation
-    Canceled --> Docked: Confirm return
+    Pending --> Cleaning: Matching state
+    Pending --> Unconfirmed: Confirmation window ends
+    Cleaning --> Paused: Confirmed pause
+    Paused --> Cleaning: Same mission resumes
+    Cleaning --> Charging: Low-battery return
+    Charging --> Cleaning: Automatic resume
+    Cleaning --> Completed: Recorded result
 ```
-
-The textual flow is to choose, send once and check after pausing or resigning. Unconfirmed
-result requires refresher before repeated and never automatically remands an order of
-movement.
 
 ## 6. Functional behavior and state model
 
-The mode is modelled as semantic enum, separate from transport code and support bits. The
-boundaries are obtained from chap with strict integers and high boolean. Each set value MUST
-will be validated before sending. The controls without proven capacity are not established.
-A withdrawal capacity invalids the selection and blocks its sending.
+The domain uses a semantic mode and typed profile. The protocol adapter
+maps them to native values and validates support. Supplied parameters
+must fit their mode and verified ranges. Optional unset parameters
+use the robot's defaults. Mop profiles omit suction and carpet boost.
+Vacuum profiles omit moisture and SmartScrub. A supported profile can
+request two passes.
 
-Unselected optional parameters are omitted and the robot retains its values. The selected
-parameters are included only in applicable modes. Mop without sending power and carpetBoost;
-vacuum does not send moisture or SmartScrub. Two passes are applied to the forms that
-support his model. No sign of an incompatible combination from a catalogue with another
-robot's type.
+The directed command places each destination's settings beside that
+destination. The distinct `ordered` setting preserves the requested
+sequence when supported. Saved routines retain their ordered destination
+list and profiles through read-back.
+[Saved routines](010-saved-cleaning-routines.md)
 
-Pause and resume operate on the same active mission. The profile of a new
-mission does not change an already active one. A return request can
-encounter a short mission that finishes while Home Assistant waits for
-a pause. If the same mission is now idle, connected, and supports
-docking, send the dock step and still confirm arrival. For a directed
-vacuum-then-mop start, put mode 512 and the relevant preferences in the destination's
-parameters. Confirm submission only after a fresh remote mission enters an
-expected cleaning mode. Use the same mission identity to track both phases
-and its final result. [Directed command evidence](../docs/api.md#directed-vacuum-then-mop)
+Pause and resume preserve the current mission and profile. Edits to the
+next profile take effect at the next start. If a pause-before-dock
+request observes that the same mission finished, a valid idle state can
+permit the dock step. Confirm arrival through the normal command contract.
 
-CLN-09 MUST observe vacuuming, mop preparation where applicable, mopping,
-and a final result under the same mission identity. Verify both modes in
-mission history and record the return to the dock. Regional testing requires
-a robot that advertises the mode and a verified directed command.
+A directed vacuum-then-mop request uses mode 512 for the destination
+and includes its applicable settings. Confirm a new mission when Roomba
+reports an expected cleaning mode. Verify both stages and the outcome
+against the same mission identity.
+[API evidence](../docs/api.md#directed-vacuum-then-mop)
 
-CLN-10 correlates the requested regional parameters with current and final
-room events. A return-to-base request can leave an overall success code with
-an interrupted room result. The room event supplies the reported pass
-count. A directed run can also update the robot's reported two-pass setting.
-[Directed two-pass evidence](../docs/validation.md#requested-settings-and-reported-passes)
+A room event's pass count describes recorded progress. A requested
+two-pass profile describes user intent. A natural finish requires the
+signed final outcome. Charging during the same mission preserves the
+reported time already spent on the room.
+[Requested settings and reported passes](../docs/validation.md#requested-settings-and-reported-passes) ·
+[Charging trial](../docs/validation.md#charging-during-the-same-cleaning-mission)
 
 ## 7. User-facing configuration
 
-Initial mode: vacuum, preserving previous behavior. Optional options start without local
-overwriting. A monitoring can show information as a reference if there's no preference and
-the documentation MUST explain that precedence. The preferences are stored by entrance and
-robot with no credentials or supplier's documents, using an outline but validation.
+The next-cleaning controls store per-robot preferences in Home Assistant.
+Unset values use supported defaults. Controls identify which settings
+apply to the next run. In supported device settings, persistent suction,
+double pass, and carpet boost are separate from one-off preferences.
+Confirm persistent settings with a matching reported read.
 
-The profile changes are local and do not alter an ongoing mission. The IU MUST identify
-controls as parameters for next cleaning. No account, robot selection and configuration
-entry version are changed.
-
-The default robot power appears as a configuration number when the robots report valid and
-advertised vacuuming. The writing MUST respect the announced range, demand that a robot be
-connected and at rest with `rw-settings.state.reported.suctionLevel`. The next cleaning
-preferences and existing identifiers are preserved.
-
-`twoPass` and `carpetBoost` they are persistent booleans when the capacity and reading of
-adjustments have been present. The Scriptures MUST check `state.reported` before giving the
-change as confirmed. The surface monitoring for automatic emptying MUST require the current
-surface modality, robot capacity and an empty information base. MUST represent m² and retain
-the existing entity records as well with its preferences.
+Automatic emptying uses the dock's supported frequency modes. A
+custom area threshold is expressed in square metres and requires the
+verified area-based mode.
+[Usage](../docs/usage.md) · [Dock capabilities](007-device-capabilities.md)
 
 ## 8. Clean Architecture design
 
-Domination: modes, capabilities and immutable profile with compatibility policies.
-Application: prepare start, check presconditions and confirm result using semantic ports.
-Provider adapter: serialize the profile and publish once. HA adapter: entities, translations
-and persistency. The coordinator is status composition and exchange, with no supplier
-constants or combination rules.
+`core/cleaning.py` defines modes, capabilities, and immutable profiles.
+`core/cleaning_protocol.py` serializes native parameters.
+`core/application.py` validates preconditions, dispatches through
+`ControlPort`, and confirms the result. The Home Assistant adapter
+owns entities, translations, and preference storage.
 
-If an order with mopping Reforms Preparation of mop in the requested mode, maintain result
-as sent. To confirm at a regular reading the clearance phase of that same mission,
-identified by number and start. The monitoring lasts up to five minutes and allows the user
-To cancel while preparing.
-
-```mermaid
-flowchart LR
-    HA[Entities HA] --> UC[Cases of use and ports]
-    UC --> D[Pure dominion]
-    MQTT[Adapter MQTT] --> UC
-    MQTT --> D
-    C[HA composition] --> HA
-    C --> MQTT
-```
-
-Institutions depend on their use and they have a domain. The adaptors implement ports and
-their composition connects them. Test of imports MUST prevent domain dependencies to HA or
-infrastructure.
+If a mop command reaches a verified preparation phase, retain the sent
+result until the same mission begins the expected cleaning mode. The
+coordinator tracks that state for up to five minutes and retains
+explicit cancel while the robot prepares.
 
 ## 9. UI/UX and content contract
 
-| State | Main message / information | Action |
-| --- | --- | --- |
-| Prepared | Next cleanup: Mop and moisture 2 | Start |
-| Outstanding | Last order: pending and awaiting robot reading | Wait |
-| Confirmed | Cleansing and information: mopping | Peas |
-| Required action | Fitted Robot; conserved profile | Check Connection |
-| Partial | Order accepted and an unconfirmed physical result | Refreshing status |
-| Failed | Non-compatible profile and order not sent | Choose valid option |
-| Completed | At the dock; mission completed according to robot | Prepare next cleanup |
+Use stable labels and accessible control names. The current mission
+readout, selected next profile, and recorded result are separate values.
 
-Labels and options use English, with stable internal values and accessible names. The
-icon is decorative and text also communicates states with dark, mobile issues without
-images. Sensors do not become controls by changing their name only.
+- Pending: The command was sent and the integration awaits a state update.
+- Action required: A reported prerequisite prevents the chosen profile.
+- Blocked: Current capabilities, readiness, or profile validation prevent dispatch.
+- Partial: The broker accepted the command and its physical result remains unconfirmed.
+- Complete: Roomba reports the expected outcome for the operation.
 
 ## 10. Failure, recovery, and cleanup
 
-The orders are serialised on their own. Availability with prior reading is valid. A
-mistransport, cancellation and disposal error leave an unconfirmed result with a retention
-of preferences. No blind retard. Invalid restoration does not provoke movement or be quietly
-accepted. Connections and attached jobs are closed even after canceling HA tasks.
+Validate the restored and selected profile before publishing. Preserve
+the saved profile after a failed or unconfirmed attempt. Commands are
+serialized per robot and are issued once per request. Unload closes
+owned connections and tasks.
 
 ## 11. Security, permissions, and privacy
 
-The physical authorisation shall be limited to the robot indicated by his or her holder.
-Private scripts MUST check name and local SKU without posting IDs. The orders do not support
-JSON, topics or arbitrary commands. Documentation and fixtures are synthetic. Credentials,
-maps and catches are out of the repository.
+Scope physical validation to the approved robot. Apply the integration's
+typed actions and existing entity permissions. Keep raw captures, maps,
+account information, and private robot identifiers out of published
+evidence.
 
 ## 12. Observability and operational UX
 
-Keep last_command_result and informed sensors. Diagnostics include quantity of capabilities
-and preferences, never IDs or names. Public evidence records mode, parameters and relative
-times. It does not declare an unobserved stage complete.
+Expose the last command outcome, reported active mode, and history result
+independently. Record the tested mode, verified parameters, and relative
+timing in reduced evidence. Label auto-recharge and later resumption
+with the robot's actual phase.
 
 ## 13. Compatibility, migration, rollout, and rollback
 
-Keep HA 2026.11.2, SKU X185240, unique_id and current devices. Install with an exclusive
-backup of the component configuration check and reset. Check Recovery and Retirement after
-Loan. Keep earlier package for rollback and do not modify other forms of integration.
+The verified model is SKU X185240 with Home Assistant Core 2026.11.2.
+Upgrade without changing the config entry, per-robot entity IDs, or saved
+preferences. Roll back with a verified component release.
+[Installation](../docs/installation.md)
 
 ## 14. Testing strategy and numeric budget
 
-| Area | New minimum cases | Risk covered |
+| Area | Minimum independent cases | Coverage |
 | --- | ---: | --- |
-| valid master and cartesian product | 30 | Bits, types and ranges |
-| Serialization and transport | 12 | Accurate code, parameter exclusion and closure |
-| Cases of use | 15 | Retirement, confirmation and cancellation |
-| HA and restoration | 20 | Options, translations and services |
-| Total | 77 | Additional cases to previous Suite |
+| Mode and parameter combinations | 30 | Capability flags, bounds, and supported values |
+| Serialization and transport | 12 | Native modes, applicable parameters, and cleanup |
+| Command application | 15 | Readiness, dispatch, and state confirmation |
+| Home Assistant | 20 | Entities, persistence, services, and reload |
+| **Total** | **77** | Independent baseline cases |
 
-Coverage MUST be 100% in judgements and branches of the complete component. The scenarios
-have to check for significant results or errors Ruff, Hassfest and privacy have to pass
-through links with a catalogue. Fitted physical tests cover all four representative modes
-and options, with the complete valid matrix tested without movement. The domestic validation
-MUST record actual results.
+The full suite requires 100% statement and branch coverage. Synthetic
+coverage verifies combinations and failures. Record actual firmware
+and observed settings for physical cases.
 
 ## 15. Documentation and discoverability
 
-Updating README, use and API with architecture. Add instructions for mop and an example of
-automation with generic IDs. To explain local preferences with respect to information
-adjustments, boundaries of sequential mode and without duplication recovery.
+The README and usage guide explain the vacuum entity, presets, ordered
+area profiles, and automations. The validation log records the applicable
+settings and actual mission results.
+[Usage](../docs/usage.md) · [Validation](../docs/validation.md) ·
+[Capabilities](../docs/capabilities.md)
 
 ## 16. Acceptance scenarios
 
-1. Select Mop and start publish mode 4 and confirms compatible activity.
-2. To choose simultaneous or sequential uses 6 or 512 without confusing support with order.
-3. Change vacuum a mop retains chosen power but does not send it to the mop.
-4. Non-range values or absent capabilities do not produce publications.
-5. Two robots have independent preferences and only the target moves.
-6. To leave and resume retains the profile of his mission, even if he changes next.
-7. A transition-free PUBACK remains unconfirmed and isn't automatically retreated.
-8. Reboot and reload preserves IDs, preferences or a single entity by monitoring.
-9. The Suite cover 100% of branches and sentences, with no actual credentials.
-10. A domestic ha displays icon and controls as well with an authorized robot.
-11. Start a saved-zone vacuum-then-mop routine and confirm its regional
-    mode 512. Observe vacuuming, mopping, the return to the dock, and the
-    final history entry under the same mission identity.
+1. Select a supported mop profile and confirm reported mopping after mode 4.
+2. Verify mode 6 and mode 512 under their corresponding capabilities.
+3. Change modes and preserve settings that apply to the previous mode.
+4. Reject an unsupported parameter or mode before publication.
+5. Change preferences for one robot and confine dispatch to that robot.
+6. Resume a paused mission with its original profile after changing the next profile.
+7. Leave an unconfirmed broker receipt pending until fresh state supplies the result or the confirmation window ends.
+8. Reload or restart and preserve entity IDs and valid saved profiles.
+9. Exercise the full synthetic matrix without physical credentials.
+10. Verify installed controls and reported state in Home Assistant.
+11. Run a directed vacuum-then-mop mission and match both phases, return, and history.
+12. Match a two-pass request, observed recharge, automatic resume, and final room result.
 
 ## 17. Requirements traceability
 
-| Requirement | Implementation | Evidence required |
+| Requirement | Component | Verification |
 | --- | --- | --- |
-| CLN-01/02/03 | Domain, serializer and controls | Mast of combinations and physical tests |
-| CLN-04 | HA persistency adapter | Rearm, re-start and invalid values |
-| CLN-05 | Case of using orders | PUBACK, transition and shortterm monitoring |
-| CLN-06 | Ports and composition | Executable restrictions on dependencies |
-| CLN-07 | Suite and CI | cover report 100 |
-| CLN-08 | Deployment and evidence | Fan domestic, modes and entities with icon |
-| CLN-09 | Command application and mission history | Both phases under the same mission identity, final history, and return to dock |
-| CLN-10 | [Live destination settings](008-mission-detail-and-map-card.md) | [Matched room command and default restoration](../docs/validation.md#requested-settings-and-reported-passes) and [signed saved-zone completion verification](../docs/validation.md#saved-zone-passes-and-live-stage-timing). |
+| CLN-01 through CLN-03 | Cleaning domain and serializer | [Cleaning tests](../tests/test_cleaning.py), [Command tests](../tests/test_commands.py) |
+| CLN-04 | Preference storage and HA controls | [Cleaning controls](../tests/ha/test_cleaning_controls.py) |
+| CLN-05 | Command application | [Application tests](../tests/test_application.py) |
+| CLN-06 and CLN-07 | Ports and coverage gates | [Architecture tests](../tests/test_architecture_and_privacy.py), [CI](../.github/workflows/validate.yml) |
+| CLN-08 and CLN-09 | Installed controls and history | [Physical directed sequence](../docs/validation.md#directed-vacuum-then-mop) |
+| CLN-10 | Live and recorded area results | [Two-pass comparison](../docs/validation.md#earlier-room-visits-during-a-two-pass-clean), [Saved zone verification](../docs/validation.md#saved-zone-passes-and-live-stage-timing) |
 
 ## 18. Implementation sequence
 
-To conduct SDK and capabilities, to define domain or contract with closed private probes.
-Implement use cases as well at the same time that they have been put in place for an end of
-their work but also give them more information about how best we can do so by using a
-complete array (if necessary):
+Verify the model and settings from authorized observations. Add typed
+validation and serialization tests. Verify the supported control and
+its physical stages and record any pending outcomes in the capability
+matrix.
 
 ## 19. Definition of Done
 
-- [ ] Four physically contrasted forms and representative options.
-- [x] Controlls of established and restored announced combinations.
-- [x] Cases of separate use and domain with HA or transport by port.
-- [x] 100% cover, high quality testing and monitoring budget.
-- [ ] Documentation, SDDs and updated cataloguing with no private data.
-- [ ] Home installation, recharging and status monitoring with an icon.
+- [x] Publish verified modes and applicable next-cleaning controls.
+- [x] Preserve valid preferences and verify separate ordered area profiles.
+- [x] Verify both phases and the outcome for a physical directed sequence.
+- [x] Run the full synthetic suite and update downstream documentation.
+- [ ] Observe a natural two-pass finish after automatic recharge.
 
 ## 20. References and decisions
 
-[Standard SDD](README.md), [telemetry](005-telemetry-and-problems.md), [orders](004-command-validation.md), [HA vacuum entity](https://contributors.home-assistant.io/core/entities/vacuum/). A vacuum entity is also used for the combined sink with select, number and switch controls under that same device. The announced support guides discovery and physical evidence determines what can be declared proven.
-
-Physical sequence results and the pending automatic-resume scenario
-follow MAP-03. [Mission detail and interactive maps](008-mission-detail-and-map-card.md) ·
-[Directed sequence validation](../docs/validation.md#directed-vacuum-then-mop)
+The standard Home Assistant vacuum entity supplies the combination
+robot's primary controls. Typed settings, map areas, and routines
+extend it under the same robot. The physical automatic-resume scenario
+follows MAP-03.
+[Home Assistant vacuum entity](https://contributors.home-assistant.io/core/entities/vacuum/) ·
+[Mission detail](008-mission-detail-and-map-card.md) ·
+[Native commands](004-command-validation.md) ·
+[Saved routines](010-saved-cleaning-routines.md)
