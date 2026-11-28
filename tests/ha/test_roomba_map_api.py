@@ -4549,7 +4549,7 @@ async def program_recovery(configured, hass_ws_client, picea_archive):
         "name": "Weekly",
         "enabled": False,
         "time": "15:30",
-        "weekdays": [2, 5],
+        "weekdays": (2, 5),
     }
 
     def program(row, settings):

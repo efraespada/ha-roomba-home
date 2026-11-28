@@ -76,11 +76,14 @@ def _copy_fields(kind: str, row: dict) -> dict | None:
     if kind == "routine":
         return {key: row[key] for key in ("icon", "color") if key in row}
     if row.get("time") and (row.get("weekdays") or row.get("frequency") == "once"):
-        return {
+        draft = {
             key: row[key]
             for key in ("frequency", "weekdays", "weekday", "time", "enabled")
             if key in row
         }
+        if "weekdays" in draft:
+            draft["weekdays"] = list(draft["weekdays"])
+        return draft
     return None
 
 

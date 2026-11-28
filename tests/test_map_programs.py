@@ -1,5 +1,6 @@
-"""Only restore missing backed-up map targets from an unchanged program selection."""
+"""Capture portable programs and verify repairs to surviving map selections."""
 
+import json
 from dataclasses import replace
 
 import pytest
@@ -83,6 +84,21 @@ def test_backup_marks_unknown_commands_and_keeps_unresolved_programs_for_relinki
         ],
         "unchecked": ["routine"],
     }
+
+
+def test_weekly_schedule_backup_survives_json_storage_without_changing_value():
+    schedule = {
+        "id": "weekly",
+        "name": "Weekly clean",
+        "regions": [ROOM["id"]],
+        "region_settings": [ROOM],
+        "weekdays": (1, 5),
+        "time": "14:30",
+        "enabled": False,
+    }
+    saved = capture_map_programs(FLOOR, FloorPlan(()), {"schedule": [schedule]}, [])
+    assert saved["items"][0]["draft"]["weekdays"] == [1, 5]
+    assert json.loads(json.dumps(saved)) == saved
 
 
 @pytest.mark.parametrize(
