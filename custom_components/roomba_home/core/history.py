@@ -13,7 +13,7 @@ from .mission_plan import MAX_DESTINATIONS, MissionPlan, mission_plan, present_m
 from .mission_time import MissionTiming, reported_interruptions, with_destination_elapsed
 from .point_maps import Polygon
 from .state import RobotState
-from .telemetry import CLEANING_CYCLES, at, convert, integer
+from .telemetry import CLEANING_CYCLES, at, convert, integer, number
 
 OUTCOMES = {"ok": "completed", "cncl": "cancelled", "inc": "incomplete", "stuck": "stuck"}
 DEFAULT_HISTORY_DAYS = 10
@@ -310,14 +310,44 @@ def _history_rows(response: object, robot_id: str) -> list[dict]:
     ]
 
 
+@dataclass(frozen=True, repr=False)
+class FloorCleaning:
+    finished_at: datetime
+    report_id: str
+
+
+def _last_cleaning_by_floor(rows: list[dict], robot_id: str) -> dict[str, FloorCleaning]:
+    cleanings = {}
+    for row in rows:
+        if at(row, "cmd.command") not in HISTORY_COMMANDS or not number(row.get("sqft")):
+            continue
+        floor_ids = {map_id for map_id, _ in _report_maps(row)}
+        if len(floor_ids) != 1:
+            continue
+        (map_id,) = floor_ids
+        if any(
+            not isinstance(reference, dict) or reference.get("p2map_id") != map_id
+            for reference in row["p2maps"]
+        ):
+            continue
+        finished = datetime.fromtimestamp(row["timestamp"], UTC)
+        previous = cleanings.get(map_id)
+        if previous is None or finished > previous.finished_at:
+            cleanings[map_id] = FloorCleaning(finished, _report_key(row, robot_id))
+    return cleanings
+
+
 def history_metrics(response: object, robot_id: str) -> dict:
     rows = _history_rows(response, robot_id)
     if not rows:
         return {"history_count": 0}
-    return {
+    metrics = {
         "history_count": len(rows),
         **_mission_metrics(max(rows, key=lambda row: row["timestamp"])),
     }
+    if cleanings := _last_cleaning_by_floor(rows, robot_id):
+        metrics["last_cleaning_by_floor"] = cleanings
+    return metrics
 
 
 def _mission_metrics(row: dict) -> dict:
@@ -493,6 +523,13 @@ def _report_timeline(row: dict) -> tuple[dict, ...]:
     return tuple(sorted(timeline, key=lambda event: event["timestamp"]))
 
 
+def _report_key(row: dict, robot_id: str) -> str:
+    identity = row.get("missionId")
+    if not map_identifier(identity):
+        identity = integer(row.get("nMssn"))
+    return sha256(f"{robot_id}:{identity}:{row['timestamp']}".encode()).hexdigest()
+
+
 def mission_reports(response: object, robot_id: str) -> tuple[MissionReport, ...]:
     """Authorize each report against its source robot without returning native identifiers."""
     reports = {}
@@ -501,10 +538,7 @@ def mission_reports(response: object, robot_id: str) -> tuple[MissionReport, ...
     ):
         if at(row, "cmd.command") not in HISTORY_COMMANDS:
             continue
-        identity = row.get("missionId")
-        if not map_identifier(identity):
-            identity = integer(row.get("nMssn"))
-        key = sha256(f"{robot_id}:{identity}:{row['timestamp']}".encode()).hexdigest()
+        key = _report_key(row, robot_id)
         command = row.get("cmd")
         metrics = _mission_metrics(row)
         plan = mission_plan(command)

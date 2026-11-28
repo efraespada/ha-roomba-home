@@ -92,6 +92,18 @@ class RoombaFloorPlan(RoombaEntity, ImageEntity):
             and self._floor is not None
         )
 
+    @property
+    def extra_state_attributes(self):
+        floor, robot = self._floor, self.robot
+        if floor is None or robot is None:
+            return None
+        cleaning = robot.telemetry.get("last_cleaning_by_floor", {}).get(floor.map_id)
+        return {
+            "floor_created_at": floor.created_at,
+            "floor_revision_updated_at": floor.revision_updated_at,
+            "floor_last_cleaning_at": cleaning.finished_at if cleaning is not None else None,
+        }
+
     def _visible_path(self, floor):
         path = self.account.live_path(self.robot_id)
         if path and path.map_version == (floor.map_id, floor.version_id):

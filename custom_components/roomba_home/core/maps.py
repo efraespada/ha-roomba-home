@@ -4,6 +4,7 @@ import json
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256
 from math import tau
@@ -11,6 +12,7 @@ from math import tau
 from .area_preferences import AreaDefaults, read_area_defaults
 from .cleaning import CleaningProfile
 from .errors import ProtocolError
+from .telemetry import convert
 
 _IDENTIFIER = re.compile(r"[A-Za-z0-9_.-]{1,128}")
 SAVED_ZONE_IDS = tuple(str(identifier) for identifier in range(100, 140))
@@ -45,6 +47,8 @@ class PersistentMap:
     name: str | None
     regions: tuple[CleaningRegion, ...]
     orientation: float | None = None
+    created_at: datetime | None = field(default=None, compare=False, kw_only=True)
+    revision_updated_at: datetime | None = field(default=None, compare=False, kw_only=True)
 
     @property
     def geometry_key(self) -> tuple[str, str, tuple[CleaningRegion, ...]]:
@@ -156,6 +160,8 @@ def parse_maps(response: object, robot_id: str) -> tuple[PersistentMap, ...]:
             _name(item.get("name")),
             tuple(regions.values()),
             _read_orientation(item.get("user_orientation_rad")),
+            created_at=convert("timestamp", item.get("create_time")),
+            revision_updated_at=convert("timestamp", item.get("last_p2mapv_ts")),
         )
     return tuple(maps.values())
 

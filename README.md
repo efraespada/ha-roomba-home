@@ -252,9 +252,14 @@ target, 2.69 m² across the passes, and a separate mission total of 2.79 m².
 
 Screenshots use a synthetic floor plan and mission.
 
+The displayed floor offers **Last recorded cleaning** when a recent Roomba
+report identifies that floor and contains measured cleaning area. Open it
+to review the matching report. **Floor details** shows when Roomba created
+the map and last updated its revision. [Floor dates and automation example](docs/usage.md#floor-activity)
+
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.98.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.99.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
