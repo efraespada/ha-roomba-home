@@ -253,11 +253,14 @@ arrow keys pan the recorded map when it has focus. The legend identifies
 travel, vacuuming, mopping, and simultaneous cleaning. Use **Travel path**,
 **Cleaning path**, and **Coverage** to show or hide the layers present in
 the report. If the report includes travel coverage, it stays visible until
-you turn off **Coverage**. The final recorded position stays visible. The
-card shows room names, saved cleaning zones, and restrictions from the archived revision
-when Roomba includes them. Turn on **3D view**
+you turn off **Coverage**. **Furniture** and **Temporary obstacles**
+appear when the selected report supplies those layers. For example, hide
+furniture to follow the path underneath it and keep the recorded obstacles
+visible. The final recorded position, room names, saved cleaning zones,
+and restrictions stay visible. Turn on **3D view**
 when the archive provides walls or furniture. Drag to pan and use the rotate
-button to inspect it from another angle. The archive is scoped to the mission's
+button to inspect it from another angle with the same layer choices.
+The archive is scoped to the mission's
 original revision. A report can still show its measurements and timeline
 after its map becomes unavailable. [Report protocol](api.md#archived-cleaning-reports)
 

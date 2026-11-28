@@ -706,6 +706,8 @@ template.innerHTML = `
             <label hidden><input id="history-travel" type="checkbox" checked> Travel path</label>
             <label hidden><input id="history-unclassified" type="checkbox" checked> Unclassified path</label>
             <label hidden><input id="history-coverage" type="checkbox" checked> <span id="history-coverage-label">Coverage</span></label>
+            <label hidden><input id="history-furniture" type="checkbox" checked> Furniture</label>
+            <label hidden><input id="history-obstacles" type="checkbox" checked> Temporary obstacles</label>
           </div>
           <p class="legend muted" id="history-map-legend"></p>
         </section>
@@ -1247,8 +1249,8 @@ function drawMissionMap(canvas, geometry, view, layers = geometry) {
     drawEstimatedCoverage(ctx, layers.estimated, project, 3, geometry.rooms.flatMap(({ polygons }) => polygons));
   }
   area(geometry.temporary_zones, "#00000000", "#ffffffa0");
-  if (view.elevated) drawElevation(ctx, geometry.walls, geometry.furniture, projection);
-  else area(geometry.furniture.map(({ points }) => [points]), "#43535d", "#8aa1aa");
+  if (view.elevated) drawElevation(ctx, geometry.walls, layers.furniture, projection);
+  else area(layers.furniture.map(({ points }) => [points]), "#43535d", "#8aa1aa");
   area(geometry.requested_areas ?? [], "#f4bf7c28", "#f4bf7c");
   ctx.lineWidth = 2;
   ctx.strokeStyle = "#ff7893";
@@ -1266,7 +1268,7 @@ function drawMissionMap(canvas, geometry, view, layers = geometry) {
     ctx.stroke();
   }
   const finalPoint = geometry.trajectories.at(-1)?.points.at(-1);
-  const markers = [[geometry.docks, "#f0c674"], [geometry.hazards, "#ff8080"]];
+  const markers = [[geometry.docks, "#f0c674"], [layers.hazards, "#ff8080"]];
   if (finalPoint) markers.push([[finalPoint], "#eaf3f9"]);
   for (const [points, color] of markers) {
     ctx.fillStyle = color;
@@ -1466,7 +1468,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("history-zoom-in").onclick = () => this.changeHistoryView(1.25);
     this.$("history-zoom-out").onclick = () => this.changeHistoryView(0.8);
     this.$("history-reset").onclick = () => this.resetHistoryView();
-    for (const layer of [...HISTORY_PATH_LAYERS, "coverage"]) {
+    for (const layer of [...HISTORY_PATH_LAYERS, "coverage", "furniture", "obstacles"]) {
       this.$(`history-${layer}`).onchange = () => this.drawHistoryMap();
     }
     this.$("history-3d").onclick = () => {
@@ -3616,6 +3618,8 @@ class RoombaHomeMapCard extends HTMLElement {
     const showCoverage = shown("coverage", geometry.coverage.length || estimated?.rows.length);
     this.$("history-coverage-label").textContent = estimated ? "Estimated coverage" : "Coverage";
     const coverage = showCoverage ? geometry.coverage : [];
+    const furniture = shown("furniture", geometry.furniture.length) ? geometry.furniture : [];
+    const hazards = shown("obstacles", geometry.hazards.length) ? geometry.hazards : [];
     const modes = new Set([...coverage, ...trajectories].map((layer) => historyMode(layer.modes)).filter(Boolean));
     const travelPath = enabledPaths.includes("travel");
     const legend = [...modes].map((mode) => [
@@ -3626,14 +3630,15 @@ class RoombaHomeMapCard extends HTMLElement {
     if (geometry.keep_out?.length || geometry.virtual_walls?.length) legend.push(["Keep-out area or wall", "#ff7893"]);
     if (geometry.no_mop?.length) legend.push(["No-mop area", "#e8ab6a"]);
     if (geometry.requested_areas?.length) legend.push(["Requested area", "#f4bf7c"]);
+    if (furniture.length) legend.push(["Furniture", view.elevated ? "#7d9aaf" : "#8aa1aa"]);
     if (geometry.docks.length) legend.push(["Dock", "#f0c674"]);
-    if (geometry.hazards.length) legend.push(["Obstacle", "#ff8080"]);
+    if (hazards.length) legend.push(["Obstacle", "#ff8080"]);
     if (geometry.trajectories.length) legend.push(["End of recorded path", "#eaf3f9"]);
     renderMapLegend(this.$("history-map-legend"), legend);
     const canvas = this.$("history-map");
     const ctx = canvas.getContext("2d");
     drawMissionMap(canvas, geometry, { ...view, label: (...args) => this.drawLabel.call({ ctx }, ...args) },
-      { coverage, trajectories, estimated: showCoverage ? estimated : null });
+      { coverage, trajectories, estimated: showCoverage ? estimated : null, furniture, hazards });
   }
 
   resetHistoryView() {

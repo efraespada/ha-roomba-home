@@ -2354,6 +2354,12 @@ function historyGeometry() {
   };
 }
 
+function historyLayerControls(card) {
+  return Object.fromEntries(["cleaning", "travel", "unclassified", "coverage", "furniture", "obstacles"].map((layer) => [
+    layer, Object.assign(card.$(`history-${layer}`), { checked: true, parentElement: {} }),
+  ]));
+}
+
 test("room cleaning scores read the displayed map and retain zero and false measurements", async () => {
   const { card } = mockCard(0);
   card.config = { entity: "vacuum.example_robot" };
@@ -2476,8 +2482,8 @@ test("historical layer controls keep archived restrictions, labels and the last 
   geometry.trajectories.push({ modes: [], points: [[8, 2], [9, 2]] });
   card.historyReport = { geometry };
   card.historyView = { zoom: 1, pan: [0, 0], angle: 0, elevated: false };
-  const inputs = ["cleaning", "travel", "unclassified", "coverage"].map((layer) =>
-    Object.assign(card.$(`history-${layer}`), { checked: true, parentElement: {} }));
+  const { furniture, obstacles, ...paths } = historyLayerControls(card);
+  const inputs = Object.values(paths);
   const paint = [];
   const ctx = {
     fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {},
@@ -2491,11 +2497,13 @@ test("historical layer controls keep archived restrictions, labels and the last 
   const legend = () => card.$("history-map-legend").children.map(({ textContent }) => textContent);
   card.drawHistoryMap();
   assert.ok(inputs.every((input) => !input.parentElement.hidden));
+  assert.equal(furniture.parentElement.hidden, true);
+  assert.equal(obstacles.parentElement.hidden, false);
   assert.deepEqual(labels, ["Área principal"]);
   assert.deepEqual(legend(), ["Mopping", "Travel", "Vacuum and mop", "Unclassified path",
     "Cleaning zone", "Keep-out area or wall", "No-mop area", "Dock", "Obstacle", "End of recorded path"]);
   assert.ok(paint.includes("#4ed9ad44"));
-  inputs[1].checked = false;
+  paths.travel.checked = false;
   card.drawHistoryMap();
   assert.ok(!legend().includes("Travel"));
   assert.ok(legend().includes("Travel coverage"));
@@ -2510,6 +2518,48 @@ test("historical layer controls keep archived restrictions, labels and the last 
   card.drawHistoryMap();
   assert.ok(inputs.every((input) => input.parentElement.hidden));
   assert.ok(!legend().includes("End of recorded path"));
+});
+
+test("historical furniture and obstacles can be hidden independently in 2D and 3D", () => {
+  const { card } = mockCard(0);
+  const geometry = historyGeometry();
+  geometry.furniture = [{ kind: "table/desk", points: [[1, 1], [2, 1], [2, 2], [1, 2], [1, 1]] }];
+  card.historyReport = { geometry };
+  card.historyView = { zoom: 1, pan: [0, 0], angle: 0, elevated: false };
+  const { furniture, obstacles } = historyLayerControls(card);
+  const paint = [];
+  card.$("history-map").getContext = () => ({
+    fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, arc() {},
+    fill() { paint.push(this.fillStyle); }, stroke() { paint.push(this.strokeStyle); },
+  });
+  const draw = (...colors) => {
+    paint.length = 0;
+    card.drawHistoryMap();
+    assert.deepEqual(["#43535d", "#7d9aaf", "#ff8080"].filter((color) => paint.includes(color)), colors);
+    assert.ok(paint.includes("#4ed9ad44") && paint.includes("#eaf3f9"));
+    const labels = card.$("history-map-legend").children.map(({ textContent }) => textContent);
+    assert.equal(labels.includes("Furniture"), furniture.checked);
+    assert.equal(labels.includes("Obstacle"), obstacles.checked);
+  };
+  draw("#43535d", "#ff8080");
+  assert.equal(furniture.parentElement.hidden, false);
+  assert.equal(obstacles.parentElement.hidden, false);
+  furniture.checked = false;
+  draw("#ff8080");
+  furniture.checked = true;
+  obstacles.checked = false;
+  draw("#43535d");
+  card.historyView.elevated = true;
+  draw("#7d9aaf");
+  assert.ok(paint.includes("#89a7bcaa"));
+  furniture.checked = false;
+  obstacles.checked = true;
+  draw("#ff8080");
+  assert.ok(paint.includes("#89a7bcaa"));
+  furniture.checked = true;
+  draw("#7d9aaf", "#ff8080");
+  assert.equal(geometry.furniture.length, 1);
+  assert.equal(geometry.hazards.length, 1);
 });
 
 test("the history panel opens the latest report and shows measurements when geometry is missing", async () => {
@@ -2580,8 +2630,7 @@ test("a requested floor highlights its targets and keeps mission result layers h
     fillRect() {}, fill() { paint.push(this.fillStyle); }, stroke() { paint.push(this.strokeStyle); },
     beginPath() {}, moveTo() {}, lineTo() {}, arc() {}, save() {}, clip() {}, restore() {},
   });
-  const inputs = ["cleaning", "travel", "unclassified", "coverage"].map((layer) =>
-    Object.assign(card.$(`history-${layer}`), { checked: true, parentElement: {} }));
+  const inputs = historyLayerControls(card);
   card.historyView = { zoom: 1, pan: [0, 0], angle: 0, elevated: false };
   card.renderAreaResults = () => {};
   card.$("history-plan").append(mockElement("summary"), mockElement("div"));
@@ -2591,7 +2640,7 @@ test("a requested floor highlights its targets and keeps mission result layers h
   card.renderMissionReport(report);
   assert.equal(card.$("history-map-source").hidden, false);
   assert.match(canvas["aria-label"], /Requested floor plan/);
-  assert.ok(inputs.every((input) => input.parentElement.hidden));
+  assert.ok(Object.values(inputs).every((input) => input.parentElement.hidden));
   assert.ok(card.$("history-map-legend").children.some(({ textContent }) => textContent === "Requested area"));
   assert.ok(paint.includes("#f4bf7c"));
 
@@ -2601,7 +2650,7 @@ test("a requested floor highlights its targets and keeps mission result layers h
   assert.equal(card.$("history-map-source").hidden, false);
   assert.match(card.$("history-map-source").textContent, /From a local map backup/);
   assert.match(canvas["aria-label"], /Saved floor from a local map backup/);
-  assert.ok(inputs.every((input) => input.parentElement.hidden));
+  assert.ok(Object.values(inputs).every((input) => input.parentElement.hidden));
 
   const local = { ...report, geometry_source: "local_capture", geometry: {
     ...context, trajectories: [{ index: 7, points: [[1, 1], [2, 1]], modes: ["vacuuming"] }],
@@ -2613,7 +2662,7 @@ test("a requested floor highlights its targets and keeps mission result layers h
   assert.match(card.$("history-map-source").textContent, /Coverage is estimated from live positions/);
   assert.match(canvas["aria-label"], /Locally recorded route/);
   assert.equal(card.$("history-coverage-label").textContent, "Estimated coverage");
-  assert.equal(inputs[3].parentElement.hidden, false);
+  assert.equal(inputs.coverage.parentElement.hidden, false);
   assert.ok(paint.some((color) => color.endsWith("60")));
 
   const localOnBackup = { ...local, floor_source: "local_backup" };
@@ -2628,15 +2677,15 @@ test("a requested floor highlights its targets and keeps mission result layers h
   card.historyReport = traveling;
   card.renderMissionReport(traveling);
   assert.match(card.$("history-map-source").textContent, /Live positions saved by Home Assistant/);
-  assert.equal(inputs[1].parentElement.hidden, false);
-  assert.equal(inputs[3].parentElement.hidden, true);
+  assert.equal(inputs.travel.parentElement.hidden, false);
+  assert.equal(inputs.coverage.parentElement.hidden, true);
 
   const recorded = { ...report, geometry: archived, geometry_source: "mission_archive" };
   card.historyReport = recorded;
   card.renderMissionReport(recorded);
   assert.equal(card.$("history-map-source").hidden, true);
   assert.match(canvas["aria-label"], /Recorded floor, coverage and robot route/);
-  assert.equal(inputs[3].parentElement.hidden, false);
+  assert.equal(inputs.coverage.parentElement.hidden, false);
   assert.equal(card.$("history-coverage-label").textContent, "Coverage");
 });
 

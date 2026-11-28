@@ -567,6 +567,11 @@ layers `saved_zones`, `keep_out`, `no_mop`, and `virtual_walls` carry the
 geometry from that same archived revision. Trajectory segments keep
 their own boundaries even when their indexes are consecutive.
 
+The card applies furniture and temporary obstacle visibility to the
+returned `furniture` and `hazards` arrays when drawing both camera modes.
+These display controls use the report already loaded in the browser.
+They do not alter its revision, fetch another archive, or send a write.
+
 Home Assistant's authenticated `roomba_home/mission_history` request
 accepts `entity_id`. Supplying a report's `report_id` and optional numeric
 `map_index` requests its detail and selected archive. The response contains
