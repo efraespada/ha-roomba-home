@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.104.3
+
+- Show **Charging during mission** on the robot status and current
+  mission when Roomba reports charging with a cleaning cycle still open.
+
 ## 0.104.2
 
 - Refresh the mission timeline on the next active poll after Roomba
