@@ -7,7 +7,7 @@
   "signed_phases": ["run", "hmMidMsn", "charge"],
   "cleaning_cycle_still_open": true,
   "battery_percent_at_return": 10,
-  "battery_percent_while_charging": [10, 15],
+  "battery_percent_while_charging": [10, 15, 21],
   "mission_error": 0,
   "timeline_offsets_seconds": {
     "room_entries": [46, 1292, 2907],
@@ -21,5 +21,16 @@
     "room_cleaning_seconds_while_charging": 6956,
     "remaining_cleaning_estimate_while_charging": null,
     "room_cleaning_seconds_after_simulated_resumption": 6981
+  },
+  "installed_correction": {
+    "home_assistant_version": "0.104.5",
+    "core_configuration_check_passed": true,
+    "same_mission_number_and_start_after_restart": true,
+    "charging_stage_recovered_after_restart": true,
+    "room_cleaning_seconds_while_charging": [6956, 6956],
+    "seconds_between_home_assistant_samples": 47,
+    "remaining_cleaning_estimate_while_charging": null,
+    "battery_percent": 21,
+    "mission_error": 0
   }
 }
