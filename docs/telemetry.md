@@ -162,8 +162,9 @@ holds at the accumulated cleaning time. A subsequent confirmed stage in
 that room includes the earlier cleaning interval even if Roomba omits it
 from the updated report. A verified pause or resume advances the next
 timeline request when timing is missing or still refers to the previous
-stage. The estimate becomes unknown when verified timing is unavailable
-or an unfinished destination lacks a duration.
+stage. Later room entries keep previous confirmed visits when the
+report includes the departure between them. The estimate becomes unknown
+when verified timing is unavailable or an unfinished destination lacks a duration.
 Overall mission coverage percentage still requires provider verification.
 [View estimates](usage.md#rooms-zones-and-dock) ·
 [Live map evidence](evidence/2026-11-24-live-progress.json)

@@ -1539,6 +1539,12 @@ timing from the new stage timestamp. Merge overlapping area intervals
 from observations and the finished events before counting time. Scope
 observations to the current robot, mission start and number, and exact
 directed plan.
+In a two-pass trial, the live report kept several open room entries
+under different internal map revisions for the same declared room. A
+completed travel or relocation event between entries closes the earlier
+interval at its start. Include those intervals alongside the current
+visit. A new entry alone supplies no departure time. Point-in-time
+room completion records add zero seconds.
 When the robot confirms a pause or resume and the same mission's timeline
 is missing or still shows the previous stage, request it on the next
 active poll. This queues one early read for that robot and transition.

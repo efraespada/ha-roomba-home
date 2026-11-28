@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.104.4
+
+- Retain the time reported for earlier visits to a directed room when the
+  robot leaves and re-enters it. Include those visits in the card and
+  remaining-time sensor, including across a confirmed pause.
+
 ## 0.104.3
 
 - Show **Charging during mission** on the robot status and current
