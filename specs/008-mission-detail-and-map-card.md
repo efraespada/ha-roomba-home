@@ -3,12 +3,12 @@
 - Status: Draft
 - Date: 2026-11-24
 - Catalog capability ID: mission-detail-and-map-card
-- Last verified: 2026-11-26
+- Last verified: 2026-11-28
 - Owners: ha-roomba-home maintainer
 - Scope: Per-destination results, live progress, physical scenario verification, and map-based cleaning selection.
 - Related issues/PRs: Local development and authorized household validation.
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
-- Open decisions blocking readiness: Independently published live coverage, timing across interrupted stages, and additional long-running physical scenarios.
+- Open decisions blocking readiness: Independently published live coverage and timing across automatic recharge and resume.
 
 ## 1. Executive summary
 
@@ -94,7 +94,7 @@ trajectory contains observed positions and retains sequence gaps.
 - MAP-09: Show directed mission destinations, declared order, requested modes, and reported destination outcomes with a completion count.
 - MAP-10: Estimate the remaining time in a directed mission from Roomba's
   durations and verified live stage. Hold the estimate during a confirmed
-  pause in a timed room.
+  pause in a timed room and preserve confirmed room time on resumption.
 - MAP-11: Receive the authorized robot's live position updates continuously and deliver them to the displayed map. Show cleaned areas by the activity reported by Roomba.
 - MAP-12: Show and hide provider-reported temporary obstacles on the live floor plan for the current mission and floor revision.
 - MAP-13: Follow the confirmed mission floor when a robot has several saved maps. Allow the viewer to keep a chosen floor in view.

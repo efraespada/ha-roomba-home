@@ -18,7 +18,18 @@ mission, Android displayed 57 minutes. When Roomba published a new room
 stage, the 0.104.0 sensor jumped to 3,452 seconds and the card showed only
 time in the current stage. The robot returned to the dock after the trial.
 
-![Paused one-room estimate in the installed Home Assistant card](screenshots/roomba-paused-cleaning-estimate.jpg)
+![Paused one-room estimate in the installed Home Assistant 0.104.0 card](screenshots/roomba-paused-cleaning-estimate.jpg)
+
+The installed 0.104.1 passed a repeat of the physical trial. Home Assistant sent
+both controls. During the confirmed pause, the card showed **1:16
+cleaning** and both apps showed 58 minutes. The sensor stayed at 3,433
+seconds across two samples 48 seconds apart. After resumption, the latest
+timeline still showed the pause at the 42-second sample. The integration
+withheld an estimate until a running room report arrived. By the 94-second
+sample, the sensor had fallen to 3,353 seconds and the card showed **2:37
+cleaning**. A second sample 38 seconds later read 3,330 seconds and **3:12
+cleaning**. Both apps showed 56 minutes at the end of the active run.
+[Reduced evidence](evidence/2026-11-28-live-room-resume.json)
 
 The 0.104.1 regression test exercises an updated timeline that keeps the
 original room event but advances the stage timestamp. It verifies that
