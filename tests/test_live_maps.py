@@ -10,11 +10,14 @@ from custom_components.roomba_home.core.cleaning import CleaningMode
 from custom_components.roomba_home.core.errors import ProtocolError
 from custom_components.roomba_home.core.live_maps import (
     MissionPath,
+    MissionTimeline,
     mission_timeline,
     position_batch,
     resolve_live_floor,
 )
 from custom_components.roomba_home.core.maps import CleaningRegion, PersistentMap, RegionKind
+from custom_components.roomba_home.core.mission_areas import AreaResult
+from custom_components.roomba_home.core.mission_plan import mission_plan
 from custom_components.roomba_home.core.point_maps import read_floor_plan
 
 NOW = 1_700_000_000
@@ -41,6 +44,41 @@ def test_live_point_retains_exact_target_and_reported_mode():
     assert point.mode is CleaningMode.MOP
     assert (point.target.map_id, point.target.version_id) == (MAP.map_id, MAP.version_id)
     assert point.target.center == (5.0, 2.0)
+
+
+def test_live_room_timing_rejects_unscoped_and_ambiguous_areas():
+    now = datetime.fromtimestamp(NOW, UTC)
+    started = now - timedelta(seconds=25)
+    plan = mission_plan(
+        POINT_COMMAND | {"command": "start", "regions": [{"type": "rid", "region_id": "room-a"}]}
+    )
+    room = AreaResult((MAP.map_id, "robot-version", "room-a"), NOW - 6, None, 4, None, None)
+    live = MissionTimeline(8, now, "pause", ())
+    assert live.observe_room_timing("pause", started, now) is live
+    cases = (
+        (replace(live, plan=plan), "pause", now),
+        (replace(live, plan=plan, active_rooms=(room,)), "pause", None),
+        (replace(live, plan=plan, active_rooms=(replace(room, timestamp=NOW + 1),)), "pause", now),
+        (replace(live, plan=plan, active_rooms=(replace(room, timestamp=NOW - 28),)), "pause", now),
+        (
+            replace(
+                live,
+                plan=plan,
+                active_rooms=(room, replace(room, identity=(MAP.map_id, "other", "room-b"))),
+            ),
+            "pause",
+            now,
+        ),
+    )
+    for timeline, stage, timestamp in cases:
+        assert timeline.observe_room_timing(stage, started, timestamp) is timeline
+    assert live.timed_destination(now) is None
+    assert live.running_room(now) is None
+
+    newer = replace(room, identity=(MAP.map_id, "newer-revision", "room-a"), timestamp=NOW - 3)
+    duplicate = replace(live, plan=plan, active_rooms=(room, newer))
+    observed = duplicate.observe_room_timing("pause", started, now)
+    assert observed.room_timing.areas == (replace(newer, ended_at=NOW),)
 
 
 def test_live_floor_can_use_a_whole_floor_request_without_a_directed_plan():

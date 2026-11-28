@@ -10,6 +10,23 @@ Max 700 Combo. It showed 59 minutes while locating the room, then 58 and
 Home Assistant continued showing the paused room and its accumulated
 cleaning time. The estimate was absent in that version.
 
+With 0.104.0 installed, Home Assistant paused the same routine and showed
+**About 58 min left**, including **1:23 cleaning** in the room. The sensor
+reported 3,426 seconds on both samples taken 115 seconds apart. Android
+also showed 58 minutes while paused. After Home Assistant resumed the
+mission, Android displayed 57 minutes. When Roomba published a new room
+stage, the 0.104.0 sensor jumped to 3,452 seconds and the card showed only
+time in the current stage. The robot returned to the dock after the trial.
+
+![Paused one-room estimate in the installed Home Assistant card](screenshots/roomba-paused-cleaning-estimate.jpg)
+
+The 0.104.1 regression test exercises an updated timeline that keeps the
+original room event but advances the stage timestamp. It verifies that
+the verified time before the pause is retained on resumption, the sensor
+and card agree, another pause excludes time waiting, overlapping finished
+events do not double-count the same seconds, and a new mission starts
+with independent timing.
+
 During the active interval, Proxyman decoded five successful raw live-map
 announcements and successful duration-matrix reads. The live-map and
 estimate responses contained no mission-wide completion percentage. In

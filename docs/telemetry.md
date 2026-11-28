@@ -156,8 +156,10 @@ available for a complete plan. Remaining time is approximate and may
 differ from Roomba Home's displayed value. The card updates the countdown
 between robot polls from the verified stage timestamp. When the robot is
 paused and the timeline confirms a pause in a timed room, the estimate
-holds at the accumulated cleaning time. It becomes unknown when verified
-timing is unavailable or an unfinished destination lacks a duration.
+holds at the accumulated cleaning time. A subsequent confirmed stage in
+that room includes the earlier cleaning interval even if Roomba omits it
+from the updated report. The estimate becomes unknown when verified timing
+is unavailable or an unfinished destination lacks a duration.
 Overall mission coverage percentage still requires provider verification.
 [View estimates](usage.md#rooms-zones-and-dock) ·
 [Live map evidence](evidence/2026-11-24-live-progress.json)

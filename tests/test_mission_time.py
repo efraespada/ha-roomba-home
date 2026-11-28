@@ -1,5 +1,6 @@
 """Validate timing without assuming estimates for unknown work."""
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -9,6 +10,7 @@ from custom_components.roomba_home.core.mission_areas import AreaResult
 from custom_components.roomba_home.core.mission_plan import mission_plan
 from custom_components.roomba_home.core.mission_time import (
     MissionTiming,
+    RoomTiming,
     estimate_durations,
     estimate_target,
     remaining_duration,
@@ -103,6 +105,46 @@ def test_paused_estimate_uses_confirmed_cleaning_elapsed_and_does_not_count_down
     assert remaining_plan_duration(plan, "pause", pause_started, NOW + timedelta(minutes=2)) == 719
     del destinations[1]["cleaning_elapsed_seconds"]
     assert remaining_plan_duration(plan, "pause", pause_started, NOW) is None
+
+
+def test_room_observations_wait_for_matching_resume_and_exclude_its_pause():
+    started = NOW - timedelta(seconds=100)
+    stamp = int(started.timestamp())
+    plan = mission_plan(
+        COMMAND
+        | {"regions": [{"type": "rid", "region_id": region} for region in ("room-a", "room-b")]}
+    )
+    first = AreaResult(("map", "robot", "room-a"), stamp + 2, None, 4, None, None)
+    second = AreaResult(("map", "robot", "room-b"), stamp + 21, None, 4, None, None)
+    unknown = AreaResult(("map", "robot", "other"), stamp + 2, None, 4, None, None)
+    empty = RoomTiming()
+    assert empty.observe(plan, unknown, "pause", stamp + 3) is empty
+
+    paused = empty.observe(plan, first, "pause", stamp + 9)
+    assert paused.observe(plan, first, "pause", stamp + 9) is paused
+    assert paused.observe(plan, first, "pause", stamp + 11) is paused
+    assert paused.resumed_area(plan, first, stamp + 15) is None
+
+    active = paused.observe(plan, first, "room", stamp + 15)
+    assert active.observe(plan, first, "room", stamp + 16) is active
+    assert active.observe(plan, first, "pause", stamp + 14) is active
+    assert active.resumed_area(plan, first, stamp + 15).timestamp == stamp + 15
+
+    both = active.observe(plan, second, "pause", stamp + 24)
+    assert both.observe(plan, first, "room", stamp + 25) is both
+    assert both.resumed_area(plan, first, stamp + 25) is None
+    assert both.areas == (
+        replace(first, ended_at=stamp + 9),
+        replace(second, ended_at=stamp + 24),
+    )
+    merged = MissionTiming(
+        (replace(first, ended_at=stamp + 18),),
+        ((stamp + 9, stamp + 15),),
+    )
+    assert merged.elapsed(plan, started, NOW, observed_rooms=both) == (10, 3)
+    assert MissionTiming().elapsed(
+        plan, started, started + timedelta(seconds=10), observed_rooms=both
+    ) == (7, None)
 
 
 @pytest.mark.parametrize(
