@@ -894,6 +894,14 @@ the verified model to select original English summaries based on iRobot's
 care material. [Max 700 care schedule](https://homesupport.irobot.com/articles/en_US/Knowledge/70504)
 · [Filter and bin guide](https://homesupport.irobot.com/articles/en_US/Knowledge/70505)
 
+Home Assistant passed its Core configuration check and restarted on 0.92.0.
+The dashboard loaded all three robots and their docks. On the same Max 700
+Combo used for the Android comparison, the three Home Assistant meters and
+hour values matched the native display. The installed panel rendered the
+filter description and guide, kept the dust bag unmetered, and returned
+from the filter reset review with its counter unchanged. No robot started.
+[Installed filter panel](screenshots/roomba-part-guidance.jpg)
+
 ## Touch navigation for floor plans and reports
 
 Isolated Chrome sessions at 358 × 844 and 390 × 844 CSS pixels used
