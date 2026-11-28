@@ -2311,6 +2311,56 @@ async def test_mapping_completion_refreshes_saved_floors_before_the_regular_poll
     assert configured._maps_due == 130
 
 
+async def test_floor_removal_review_reads_only_linked_programs_for_the_current_floor(
+    configured, hass_ws_client, hass_admin_user
+):
+    configured.client.list_cleaning_routines = AsyncMock(
+        return_value=[{"name": "Routine", "id": "fixture-routine", "regions": ["private"]}]
+    )
+    configured.client.list_cleaning_schedules = AsyncMock(
+        return_value=[{"name": "Schedule", "enabled": False, "id": "fixture-schedule"}]
+    )
+    configured.client.remove_floor = AsyncMock()
+    socket = await hass_ws_client()
+    request = {
+        "type": "roomba_home/review_floor_removal",
+        "entity_id": ENTITY,
+        "map_id": MAP.map_id,
+        "version": MAP.version_id,
+        "inventory_id": MAP.inventory_id,
+        "settings_id": MAP.settings_id,
+    }
+    with patch.object(type(hass_admin_user.permissions), "check_entity", return_value=False):
+        await socket.send_json(request | {"id": 1})
+        assert (await socket.receive_json())["error"]["code"] == "unauthorized"
+    await socket.send_json(request | {"id": 2, "settings_id": "stale"})
+    assert (await socket.receive_json())["error"]["code"] == "map_changed"
+    configured.client.list_cleaning_routines.assert_not_awaited()
+    configured.client.list_cleaning_schedules.assert_not_awaited()
+
+    await socket.send_json(request | {"id": 3})
+    assert (await socket.receive_json())["result"] == {
+        "programs": [
+            {"kind": "routine", "name": "Routine"},
+            {"kind": "schedule", "name": "Schedule", "enabled": False},
+        ],
+        "unchecked": [],
+    }
+    for reader in (
+        configured.client.list_cleaning_routines,
+        configured.client.list_cleaning_schedules,
+    ):
+        reader.assert_awaited_once_with("fixture-0", floor_id=MAP.map_id)
+
+    configured.client.list_cleaning_routines.side_effect = ProtocolError("Unconfirmed read")
+    await socket.send_json(request | {"id": 4})
+    assert (await socket.receive_json())["result"] == {
+        "programs": [{"kind": "schedule", "name": "Schedule", "enabled": False}],
+        "unchecked": ["routine"],
+    }
+    configured.client.remove_floor.assert_not_awaited()
+
+
 async def test_remove_floor_requires_control_and_confirmed_current_review(
     configured, hass_ws_client, hass_admin_user
 ):

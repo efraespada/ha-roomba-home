@@ -553,9 +553,15 @@ class RoombaClient:
             raise RoutineNotEditable("The selected robot is not associated.")
         return cleaning_routines(await self._favorite_documents(), robot_id)
 
-    async def list_cleaning_routines(self, robot_id: str) -> list[dict]:
+    async def list_cleaning_routines(
+        self, robot_id: str, *, floor_id: str | None = None
+    ) -> list[dict]:
         rows = await self._associated_routines(robot_id)
-        return [row.action_response() for row in rows.values()]
+        return [
+            row.action_response()
+            for row in rows.values()
+            if floor_id is None or row.command.get("p2map_id") == floor_id
+        ]
 
     async def create_cleaning_routine(
         self, robot_id: str, name: str, target: AreaTarget, *, icon=None, color=None
@@ -718,10 +724,16 @@ class RoombaClient:
             raise ScheduleNotEditable("The selected robot has no unique household")
         return f"/v1/households/{next(iter(households))}/settings/schedule"
 
-    async def list_cleaning_schedules(self, robot_id: str) -> list[dict]:
+    async def list_cleaning_schedules(
+        self, robot_id: str, *, floor_id: str | None = None
+    ) -> list[dict]:
         path = await self._schedule_path(robot_id)
         rows = editable_schedules(await self.request("GET", path), robot_id)
-        return [row.action_response() for row in rows.values()]
+        return [
+            row.action_response()
+            for row in rows.values()
+            if floor_id is None or row.command.get("p2map_id") == floor_id
+        ]
 
     async def update_cleaning_schedule(
         self,

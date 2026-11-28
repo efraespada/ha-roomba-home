@@ -136,6 +136,7 @@ async def async_setup_map_api(hass):
     websocket_api.async_register_command(hass, websocket_cleaning_scores)
     websocket_api.async_register_command(hass, websocket_floor_routines)
     websocket_api.async_register_command(hass, websocket_edit_floor_settings)
+    websocket_api.async_register_command(hass, websocket_review_floor_removal)
     websocket_api.async_register_command(hass, websocket_remove_floor)
     websocket_api.async_register_command(hass, websocket_edit_rooms)
     websocket_api.async_register_command(hass, websocket_edit_zones)
@@ -775,14 +776,27 @@ async def websocket_edit_floor_settings(hass, connection, message):
     )
 
 
+FLOOR_REMOVAL_FIELDS = {
+    vol.Required("entity_id"): cv.entity_id,
+    vol.Required("map_id"): IDENTIFIER,
+    vol.Required("version"): IDENTIFIER,
+    vol.Required("inventory_id"): IDENTIFIER,
+    vol.Required("settings_id"): IDENTIFIER,
+}
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "roomba_home/review_floor_removal", **FLOOR_REMOVAL_FIELDS}
+)
+@websocket_api.async_response
+async def websocket_review_floor_removal(hass, connection, message):
+    await _edit_map(hass, connection, message, "async_review_floor_removal", message["settings_id"])
+
+
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "roomba_home/remove_floor",
-        vol.Required("entity_id"): cv.entity_id,
-        vol.Required("map_id"): IDENTIFIER,
-        vol.Required("version"): IDENTIFIER,
-        vol.Required("inventory_id"): IDENTIFIER,
-        vol.Required("settings_id"): IDENTIFIER,
+        **FLOOR_REMOVAL_FIELDS,
         vol.Required("confirmed"): vol.All(bool, vol.In([True])),
         vol.Optional("remap", default=False): bool,
     }

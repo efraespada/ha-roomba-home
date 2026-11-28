@@ -3007,7 +3007,8 @@ test("floor removal rechecks the reviewed revision and sends only one confirmed 
     floor_settings: { id: "settings-a", name: "Test floor" },
   });
   const calls = [];
-  card._hass = { callWS: (request) => calls.push(request) };
+  card._hass = { callWS: (request) => request.type === "roomba_home/review_floor_removal"
+    ? { programs: [], unchecked: [] } : calls.push(request) };
   card.refresh = async () => {};
   const dialog = card.$("remove-floor-dialog");
   dialog.showModal = function () { this.open = true; };
@@ -3048,6 +3049,7 @@ test("replacing a floor submits one reviewed removal and mapping request", async
   let rejected = true;
   card._hass = {
     async callWS(request) {
+      if (request.type === "roomba_home/review_floor_removal") return { programs: [], unchecked: [] };
       calls.push({ ...request });
       if (rejected) throw new Error("Roomba removed the floor. The replacement mapping run was not confirmed.");
     },
@@ -3087,6 +3089,45 @@ test("replacing a floor submits one reviewed removal and mapping request", async
   });
   assert.equal(card.$("mapping-dialog").open, undefined);
   assert.match(card.$("status").textContent, /removed the floor and started mapping/);
+});
+
+test("the floor removal review lists linked programs and discards results for a closed review", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  Object.assign(card.snapshot, {
+    can_edit_rooms: true, map: { id: "floor-test", version: "revision-a" },
+    inventory_id: "inventory-a", floor_settings: { id: "settings-a", name: "Test floor" },
+  });
+  const dialog = card.$("remove-floor-dialog");
+  dialog.showModal = () => { dialog.open = true; };
+  dialog.close = () => { dialog.open = false; };
+  let respond;
+  card._hass = { callWS(request) {
+    assert.equal(request.type, "roomba_home/review_floor_removal");
+    assert.equal(request.map_id, "floor-test");
+    return new Promise((resolve) => { respond = resolve; });
+  } };
+  const list = card.$("remove-floor-programs");
+  const status = card.$("remove-floor-program-status");
+  const loadPrograms = card.loadFloorRemovalPrograms.bind(card);
+  let loading;
+  card.loadFloorRemovalPrograms = (review) => { loading = loadPrograms(review); };
+  card.reviewFloorRemoval();
+  assert.match(status.textContent, /Checking linked/);
+  respond({ programs: [{ kind: "routine", name: "Kitchen" },
+    { kind: "schedule", name: "Thursday", enabled: false }], unchecked: ["routine"] });
+  await loading;
+  assert.deepEqual(Array.from(list.children, (item) => item.textContent),
+    ["Routine · Kitchen", "Schedule · Thursday · Disabled"]);
+  assert.match(status.textContent, /Could not check linked routines/);
+
+  dialog.close();
+  card.reviewFloorRemoval();
+  dialog.close();
+  respond({ programs: [{ kind: "routine", name: "Stale response" }], unchecked: [] });
+  await loading;
+  assert.equal(list.hidden, true);
+  assert.equal(list.children.length, 0);
 });
 
 test("a clockwise quarter-turn aligns the room, trail, and live heading", () => {
