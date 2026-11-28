@@ -773,6 +773,16 @@ the point-cleaning command after Roomba records it in mission history.
 
 ## Robot settings
 
+Open **Device settings** on the card to see settings for the selected robot
+and its linked dock. Edit a value and use its adjacent **Save** button.
+Each save waits for Roomba confirmation and refreshes the displayed values.
+**Refresh settings** rereads the current device without sending a change.
+
+For example, select **After each routine** under **Auto-empty frequency**
+and save it. To switch to area-based emptying at a different threshold,
+enter a value under **Auto-empty area** in its displayed unit and save it.
+The card refreshes both fields when the dock reports the new setting.
+
 Open the robot's **Device info** in Home Assistant to find its reported
 serial number and installed software version.
 

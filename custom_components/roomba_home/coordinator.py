@@ -2790,7 +2790,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             state = (self.data or {}).get(robot_id)
             if state is None or not self.last_update_success or state.connected is not True:
                 raise action_error("robot_setting_unavailable", "Robot settings are unavailable")
-            if state.cycle != "none" or state.activity not in {"idle", "docked"}:
+            if not robot_settings_idle(state):
                 raise action_error("robot_setting_active", "End the active mission first")
             capabilities = state.capabilities.cleaning
             if not isinstance(setting, RobotSetting) or not setting.accepts(value, capabilities):
@@ -2991,6 +2991,10 @@ def mission_review(robot_id, state: ControlState) -> dict | None:
         return None
     review_id = sha256(repr((robot_id, state.mission_identity)).encode()).hexdigest()
     return {"review_id": review_id, "commands": commands}
+
+
+def robot_settings_idle(state):
+    return state.cycle == "none" and state.activity in {"idle", "docked"}
 
 
 def control_snapshot(state, timeline=None):
