@@ -95,8 +95,13 @@ class RoombaVacuum(RoombaEntity, StateVacuumEntity):
     async def async_list_voice_languages(self):
         return await self.account.async_list_voice_languages(self.robot_id)
 
-    async def async_install_voice_language(self, language):
-        await self.account.async_install_voice_language(self.robot_id, language)
+    async def async_install_voice_language(self, language, reviewed_inventory=None):
+        if reviewed_inventory is None:
+            await self.account.async_install_voice_language(self.robot_id, language)
+        else:
+            await self.account.async_install_voice_language(
+                self.robot_id, language, reviewed_inventory=reviewed_inventory
+            )
 
     async def async_clean_segments(self, segment_ids, **kwargs):
         await self.account.async_command(self.robot_id, Command.VACUUM, segments=segment_ids)

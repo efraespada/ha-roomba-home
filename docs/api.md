@@ -805,6 +805,21 @@ firmware error is reported with its code. The request is sent once and
 confirmation is bounded to ten minutes.
 [Voice installation evidence](evidence/2026-11-25-voice-installation.json)
 
+The card's `roomba_home/voice_downloads` WebSocket command takes the vacuum
+`entity_id` and requires read access. It projects the current, installed,
+and downloadable voice codes, a readiness status, and whether the caller
+has control permission. A single occupied slot reports the code in
+`replaces`. The optional `progress_entity` is the linked software
+deployment sensor when the caller can read it.
+
+For a ready robot, the response includes `reviewed_inventory`, a digest of
+the normalized installed inventory, additional voices, selected voice, and
+slot count. The card passes it to `roomba_home.install_voice_language`
+after confirmation. The action compares it against the fresh device read
+before resolving or publishing a package. A mismatch requires a new
+review. The action also continues to accept automation calls with a
+language code alone.
+
 ### Robot reboot
 
 The direct integration test sent the standard command-channel envelope

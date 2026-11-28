@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.95.0
+
+- Browse and install additional Roomba voices from **Device settings**.
+  Review the selection and any voice it will replace. The card checks the
+  reviewed inventory before installation and refreshes the installed
+  voice selector after Roomba confirms the change.
+
 ## 0.94.0
 
 - Open **Device settings** on the card to edit the robot's name, installed

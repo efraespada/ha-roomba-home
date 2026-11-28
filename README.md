@@ -137,7 +137,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   robot, choose an installed voice, adjust voice volume and the child and
   pet lock, or set the linked dock's emptying, washing, and drying options.
   Home Assistant shows the serial number and activation date reported by Roomba.
-  List and install downloadable voices with the actions or reboot a connected
+  Use **Download voices** to browse the catalog and review a voice
+  installation, including any voice it will replace. Reboot a connected
   robot from its device page.
   Open **Robot software** on the card to see the installed robot and dock
   versions, the last robot update, and Roomba's catalog status.

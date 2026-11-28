@@ -18,7 +18,7 @@ from custom_components.roomba_home.core.errors import (
 )
 from custom_components.roomba_home.core.mqtt import MqttProfile, ShadowReply
 from custom_components.roomba_home.core.settings_protocol import RobotSetting
-from custom_components.roomba_home.core.voice_catalog import VoicePack
+from custom_components.roomba_home.core.voice_catalog import VoicePack, voice_installation
 
 
 @pytest.fixture
@@ -81,8 +81,10 @@ async def test_voice_install_waits_for_fresh_pack_then_selects_if_needed(
     coordinator.client.voice_pack = AsyncMock(return_value=VOICE_PACK)
     coordinator._write_robot_setting = AsyncMock()
     sender.install_voice_pack.side_effect = ProtocolError("lost acknowledgement")
+    initial = voice_replies()
+    reviewed = voice_installation(initial[0].document, initial[1].document).inventory_id
     reader.return_value.read.side_effect = [
-        voice_replies(),
+        initial,
         ProtocolError("temporary read failure"),
         voice_replies(stage=4, identifier=VOICE_ID),
         voice_replies(installed=True, identifier="old-deployment"),
@@ -93,7 +95,9 @@ async def test_voice_install_waits_for_fresh_pack_then_selects_if_needed(
     with patch(
         "custom_components.roomba_home.coordinator.voice_deployment_id", return_value=VOICE_ID
     ):
-        await coordinator.async_install_voice_language("fixture-0", "cs-cz")
+        await coordinator.async_install_voice_language(
+            "fixture-0", "cs-cz", reviewed_inventory=reviewed
+        )
     sender.install_voice_pack.assert_called_once_with(VOICE_ID, VOICE_PACK)
     coordinator.client.voice_pack.assert_awaited_once_with("X185240", "cs-cz")
     if already_selected:
@@ -107,6 +111,21 @@ async def test_voice_install_waits_for_fresh_pack_then_selects_if_needed(
         "es-ES",
         "cs-CZ",
     )
+
+
+async def test_voice_install_rejects_changed_inventory_before_resolving_or_publishing(
+    coordinator, mop_wire
+):
+    sender, reader = mop_wire
+    coordinator.client.voice_pack = AsyncMock()
+    reader.return_value.read.return_value = voice_replies(installed=True)
+    with pytest.raises(HomeAssistantError) as error:
+        await coordinator.async_install_voice_language(
+            "fixture-0", "cs-cz", reviewed_inventory="0" * 64
+        )
+    assert error.value.translation_key == "voice_inventory_changed"
+    coordinator.client.voice_pack.assert_not_awaited()
+    sender.install_voice_pack.assert_not_called()
 
 
 async def test_installing_an_installed_voice_selects_without_another_deployment(

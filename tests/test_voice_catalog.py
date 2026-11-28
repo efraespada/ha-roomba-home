@@ -1,5 +1,6 @@
 """Catalog selection and correlated confirmations for the language installer."""
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -69,6 +70,7 @@ def test_install_confirmation_requires_the_same_deployment_and_installed_invento
     firmware = {"state": {"reported": {"deploymentState": 0, "deploymentId": "voice-a"}}}
     result = voice_installation(settings, firmware)
     assert result.installed == ("es-ES", "cs-CZ")
+    assert result.additional == ("cs-CZ",)
     assert result.selected == "es-ES" and result.slots == 1 and not result.pending
     assert result.result("voice-b", "cs-CZ") is None
     assert result.result("voice-a", "da-DK") is None
@@ -81,3 +83,30 @@ def test_install_confirmation_requires_the_same_deployment_and_installed_invento
     assert voice_installation(settings, firmware).result("voice-a", "cs-CZ") == "failed"
     del firmware["state"]["reported"]["deploymentState"]
     assert voice_installation(settings, firmware).result("voice-a", "cs-CZ") is None
+
+
+def test_review_id_is_stable_for_the_same_inventory_and_changes_with_the_active_voice():
+    observed = voice_installation(
+        {
+            "state": {
+                "reported": {
+                    "langs2": {
+                        "aSlots": 1,
+                        "sLang": "es-ES",
+                        "dLangs": {"langs": ["en-GB", "es-ES"]},
+                        "uLangs": {"langs": ["cs-CZ", "invalid!"]},
+                    }
+                }
+            }
+        },
+        {"state": {"reported": {"deploymentState": 0}}},
+    )
+    assert len(observed.inventory_id) == 64
+    assert (
+        replace(observed, installed=tuple(reversed(observed.installed)), state=4).inventory_id
+        == observed.inventory_id
+    )
+    assert replace(observed, selected="cs-CZ").inventory_id != observed.inventory_id
+    assert replace(observed, selected=None).inventory_id != observed.inventory_id
+    assert replace(observed, slots=2).inventory_id != observed.inventory_id
+    assert replace(observed, additional=()).inventory_id != observed.inventory_id
