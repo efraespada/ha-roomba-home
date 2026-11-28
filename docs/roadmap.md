@@ -104,11 +104,13 @@ that source and requires the same revision as the saved route.
 ## Guided floor replacement
 
 The Android map editor offers **Delete and create a new map** under its
-help for incomplete maps. Home Assistant already supports reviewed floor
-removal and starting a mapping run separately. Verify the app's combined
-flow on a disposable floor to establish the order of operations, behavior
-after a failed start, and what happens to saved routine destinations.
-[Existing mapping and removal verification](validation.md#mapping-and-floor-removal)
+help for incomplete maps. A disposable-floor test verified that the same
+confirmation removes the selected floor and starts mapping. Version
+0.101.0 offers the combined operation and reports partial completion.
+In the native trial, Roomba published a new revision of another saved map
+for the same physical floor. Verify the effect on destinations linked to
+the removed floor using disposable programs.
+[Native replacement trial](validation.md#guided-floor-replacement)
 
 ## Physical automatic dock emptying
 

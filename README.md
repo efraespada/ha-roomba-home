@@ -266,7 +266,7 @@ the map and last updated its revision. [Floor dates and automation example](docs
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.100.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.101.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
@@ -301,6 +301,10 @@ mode. [Side-by-side mopping trial](docs/validation.md#side-by-side-live-mopping)
 - **Floor settings** renames the selected floor or rotates it in 90° steps.
   Choose **Rotate floor** and **Rotate right 90°**, then review and save the
   preview. The saved orientation also applies to the Home Assistant floor image.
+- **Map a floor** shows how to prepare the robot and the rooms before
+  starting a mapping-only run. To recreate the selected floor, open
+  **Remove floor** and choose **Remove and start mapping**.
+  [Mapping and floor replacement](docs/usage.md#map-a-floor)
 - **Map backups** stores a local copy of the current floor for that Roomba.
   Browse saved revisions offline, pin important versions, export a backup,
   or enable automatic snapshots before map edits and removal. Review and

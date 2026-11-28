@@ -44,6 +44,7 @@ from .core.application import (
     ReturnConfirmation,
     execute_control,
     mission_commands,
+    prepare_control,
     skip_review,
 )
 from .core.capabilities import supports_point_clean
@@ -1074,8 +1075,30 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             "Save could not be confirmed. Refresh the map before trying again."
         )
 
-    async def async_remove_floor(self, robot_id, map_id, version, inventory_id, settings_id):
-        async with self._robot_operation(robot_id), self._io_lock:
+    async def async_remove_floor(
+        self, robot_id, map_id, version, inventory_id, settings_id, remap=False
+    ):
+        async with self._robot_operation(robot_id):
+            if not remap:
+                await self._remove_floor(robot_id, map_id, version, inventory_id, settings_id)
+                return
+            adapter = RobotControlAdapter(self, robot_id)
+            profile = self.profile(robot_id)
+            try:
+                prepare_control(Command.START_MAPPING, await adapter.refresh(), profile)
+            except ControlError as error:
+                raise action_error(error.key, error.key) from None
+            await self._remove_floor(robot_id, map_id, version, inventory_id, settings_id)
+            try:
+                await execute_control(adapter, Command.START_MAPPING, profile)
+            except AuthenticationError, ControlError:
+                raise action_error(
+                    "floor_removed_mapping_unconfirmed",
+                    "Roomba removed the floor. The replacement mapping run was not confirmed.",
+                ) from None
+
+    async def _remove_floor(self, robot_id, map_id, version, inventory_id, settings_id):
+        async with self._io_lock:
             floor = await self._editable_floor(robot_id, map_id, version, inventory_id)
             if floor.settings_id != settings_id:
                 raise action_error(

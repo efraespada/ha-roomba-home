@@ -126,6 +126,10 @@ and revision. A saved zone is a provider-confirmed region with its own ID.
 - EDIT-17: Create, move, resize, and remove a virtual wall. Accept two
   distinct ordered endpoints when part of the segment lies inside a visible
   room. Keep the edited wall's identifier and the other policy shapes.
+- EDIT-18: Offer removal and a new mapping run from one explicit review.
+  Check mapping readiness before removing the selected floor. Confirm the
+  removal through the current inventory before starting mapping on the
+  same robot. Report partial completion if mapping is unconfirmed.
 - Bulk edits and cross-floor copies require a verified operations contract.
 - Roomba remains the owner of robot and map data. Editing a map never starts a cleaning mission.
 
@@ -145,14 +149,22 @@ draft, confirm the edit, and verify the resulting revision.
 ## 6. Functional behavior and state model
 
 Mapping starts with a separate confirmed action and requires a connected,
-docked robot with persistent-map support and no running mission. A new
-remote `train` cycle confirms the start. Keep the mapping status through
-pause, and refresh the saved map list after the cycle ends.
+docked robot with persistent-map support and no running mission. The
+confirmation explains floor preparation, dock placement, and returning to
+the dock without repositioning the robot. A new remote `train` cycle
+confirms the start. Keep the mapping status through pause, and refresh the
+saved map list after the cycle ends.
 
 The floor-removal review includes the selected map, archive revision,
 region inventory, and settings. Recheck them against the associated robot's
 current floor list under the map write lock. Send the visibility write once.
 Confirm the removal only after the map disappears from a fresh list.
+The replacement operation holds the per-robot lock during both operations.
+Use the standard mapping readiness, dispatch, and confirmation path. An
+unconfirmed removal ends the sequence. Report a confirmed removal separately
+from an unconfirmed mapping start and leave the refreshed floor list in place.
+The review explains that Roomba can revise a different saved map for the same
+physical floor during mapping.
 
 Start a draft from a specific saved floor and revision. Validate the geometry
 against provider limits, the floor outline, and applicable restrictions.
@@ -373,6 +385,7 @@ screenshots.
 | EDIT-15 | [Furniture recovery](../docs/api.md#local-map-backup-commands) | [Furniture tests](../tests/test_furniture_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-furniture-placements) |
 | EDIT-16 | [Room detail recovery](../docs/api.md#local-map-backup-commands) | [Room tests](../tests/test_room_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-room-names-and-types) |
 | EDIT-17 | [Restriction edits](../docs/api.md#restriction-edits) | [Geometry tests](../tests/test_restriction_edits.py), [authenticated lifecycle](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed wall trial](../docs/validation.md#editing-virtual-walls) |
+| EDIT-18 | [Combined floor removal and mapping](../docs/api.md#mapping-runs-and-floor-removal) | [WebSocket tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [native trial](../docs/validation.md#guided-floor-replacement) |
 
 ## 18. Implementation sequence
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.101.0
+
+- Replace a saved floor from its removal review. Home Assistant checks
+  that the robot can map, verifies removal, and starts the new mapping run.
+  The card reports an unconfirmed mapping start separately from removal.
+
 ## 0.100.0
 
 - See parts due for service on the robot's dashboard card and open

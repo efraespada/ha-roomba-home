@@ -884,6 +884,9 @@
     "map_changed": {
       "message": "The map changed. Review your selection."
     },
+    "floor_removed_mapping_unconfirmed": {
+      "message": "Roomba removed the floor. The replacement mapping run was not confirmed."
+    },
     "routine_not_editable": {
       "message": "Select an editable routine belonging to this robot and valid settings."
     },
