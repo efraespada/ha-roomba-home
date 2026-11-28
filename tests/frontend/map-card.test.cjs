@@ -4271,6 +4271,14 @@ test("live plans show real destination counts, preserve order and disappear when
   });
   assert.equal(results.children[0].children[1].children[0].children[1].textContent,
     "Vacuum · Paused · 0:29 cleaning");
+  card.renderMissionPlan({
+    ...plan, destinations: plan.destinations.map((destination) => destination.kind === "room"
+      ? { ...destination, status: "awaiting_update", cleaning_elapsed_seconds: 29 }
+      : destination),
+  });
+  assert.equal(summary.textContent, "Planned order · 1 of 3 completed");
+  assert.equal(results.children[0].children[1].children[0].children[1].textContent,
+    "Vacuum · Waiting for Roomba update · 0:29 cleaning");
   card.renderMissionPlan({ ...plan, destinations: [
     { kind: "saved_zone", name: "Entry", status: "in_progress", current_pass_number: 2,
       reported_pass_count: 1, confirmed_completed_passes: 1 },

@@ -91,6 +91,7 @@ def present_mission_plan(
     archived: bool = False,
     paused: bool = False,
     active_pass: AreaResult | None = None,
+    awaiting_update: bool = False,
 ) -> dict:
     """Historical callers supply only map revisions linked to the archived mission."""
     names = {
@@ -115,6 +116,8 @@ def present_mission_plan(
             status = "traveling"
         else:
             status = ROOM_STATUSES.get(result.status, "unknown") if result is not None else missing
+        if awaiting_update and status in {"paused", "in_progress", "traveling"}:
+            status = "awaiting_update"
         row = {"kind": destination.kind, "name": names.get(key), "status": status}
         if destination.mode is not None:
             row["mode"] = destination.mode.value

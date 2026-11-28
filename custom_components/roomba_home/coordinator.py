@@ -209,6 +209,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         self._live_room_timing = {}
         self._live_estimates = {}
         self._timeline_due = {}
+        self._timeline_transitions = {}
         self._cancel_live_expiration = None
         self._io_lock = asyncio.Lock()
         self._command_locks = {robot_id: asyncio.Lock() for robot_id in self.selected}
@@ -1361,9 +1362,12 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             number = state.telemetry.get("mission_number")
             started = self._live_mission(state)
             previous, due = self._timeline_due.get(key, (None, 0))
-            if number is not None and (previous != started or now >= due):
+            scheduled = previous != started or now >= due
+            transition = self._timeline_transitions.pop(key, None)
+            if number is not None and (scheduled or transition == (started, number)):
                 requests[key] = number
-                self._timeline_due[key] = (started, now + TIMELINE_INTERVAL)
+                if scheduled:
+                    self._timeline_due[key] = (started, now + TIMELINE_INTERVAL)
         return requests
 
     async def _timeline_metrics(self, state, report, now):
@@ -1375,13 +1379,28 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             self._live_room_timing.pop(key, None)
             self._live_estimates.pop(key, None)
             self._timeline_due.pop(key, None)
+            self._timeline_transitions.pop(key, None)
             return {}
         if report is not None and report.mission_number == number:
             self._live_timelines[key] = (started, report)
         recent = self._current_timeline(state, now)
+        stage_started = self._stage_started_during_mission(recent, started, now) if recent else None
+        awaiting_update = recent is not None and (
+            (state.phase == "run" and recent.stage == "pause")
+            or (state.activity == "paused" and recent.stage != "pause")
+        )
+        previous = (self.data or {}).get(key)
+        if (
+            (stage_started is None or awaiting_update)
+            and previous is not None
+            and (previous.phase, state.phase) in {("run", "stop"), ("stop", "run")}
+            and self._live_mission(previous) == started
+            and previous.telemetry.get("mission_number") == number
+        ):
+            # Request once on the next normal MQTT poll for this verified phase change.
+            self._timeline_transitions[key] = (started, number)
         if recent is None:
             return {}
-        stage_started = self._stage_started_during_mission(recent, started, now)
         if recent.plan is not None:
             recent = self._with_room_timing(key, started, recent).observe_room_timing(
                 self._estimate_stage(state, recent), started, stage_started
@@ -1422,6 +1441,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 zone_maps,
                 paused=paused,
                 active_pass=active_zone,
+                awaiting_update=awaiting_update,
             )
             metrics.update(
                 live_timeline_plan=plan,
@@ -3006,6 +3026,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             self._live_room_timing.clear()
             self._live_estimates.clear()
             self._timeline_due.clear()
+            self._timeline_transitions.clear()
             self._live_paths.clear()
             self._live_floor_pins.clear()
             self._live_coverage.clear()

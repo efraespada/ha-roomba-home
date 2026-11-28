@@ -1538,6 +1538,11 @@ timing from the new stage timestamp. Merge overlapping area intervals
 from observations and the finished events before counting time. Scope
 observations to the current robot, mission start and number, and exact
 directed plan.
+When the robot confirms a pause or resume and the same mission's timeline
+is missing or still shows the previous stage, request it on the next
+active poll. This queues one early read for that robot and transition.
+A regular read already due on that poll satisfies the request. The usual
+deadline stays in place when the early read runs before it.
 The estimate is hidden during stages with unverified timing or when a
 remaining destination lacks a duration. Each floor-plan read calculates
 the estimate from the verified timeline and cached durations without an
