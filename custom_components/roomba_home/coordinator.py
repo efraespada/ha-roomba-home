@@ -537,7 +537,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             if areas := saved_zone_destinations(floor.map_id, plan) | saved_furniture_destinations(
                 floor.map_id, plan
             ):
-                sources, unchecked = await self._read_backup_programs(
+                sources, unchecked = await self._read_map_programs(
                     robot_id, {"routine", "schedule"}
                 )
                 programs = capture_map_programs(areas, sources, unchecked)
@@ -896,7 +896,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             return [], []
         targets = {f"{map_id}:{region_kind}:{row['id']}": row["id"] for row in changes}
         key = "zones" if region_kind is RegionKind.ZONE else "objects"
-        sources, unchecked = await self._read_backup_programs(robot_id, {"routine", "schedule"})
+        sources, unchecked = await self._read_map_programs(robot_id, {"routine", "schedule"})
         dependencies = []
         for kind, programs in sources.items():
             if any(not row.get("regions") for row in programs):
@@ -910,8 +910,9 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         dependencies.sort(key=lambda item: (item["kind"], item["name"] or "", item[key]))
         return dependencies, sorted(unchecked)
 
-    async def _read_backup_programs(self, robot_id, kinds):
+    async def _read_map_programs(self, robot_id, kinds, *, floor_id=None):
         sources, unchecked = {}, []
+        filters = {"floor_id": floor_id} if floor_id is not None else {}
         for kind, read, retry_field in (
             ("routine", self.client.list_cleaning_routines, "_routines_retry_until"),
             ("schedule", self.client.list_cleaning_schedules, "_schedules_retry_until"),
@@ -923,7 +924,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 continue
             try:
                 async with asyncio.timeout(5):
-                    sources[kind] = await read(robot_id)
+                    sources[kind] = await read(robot_id, **filters)
             except AuthenticationError:
                 raise
             except RateLimited as error:
@@ -957,7 +958,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 robot_id, map_id, version, inventory_id, settings_id
             )
             backup = record.get("programs", {"items": [], "unchecked": []})
-            sources, unchecked = await self._read_backup_programs(
+            sources, unchecked = await self._read_map_programs(
                 robot_id, {item["kind"] for item in backup["items"]}
             )
             plan = await self._floor_plan(robot_id, floor)
@@ -1075,6 +1076,31 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             "Save could not be confirmed. Refresh the map before trying again."
         )
 
+    async def _floor_for_removal(self, robot_id, map_id, version, inventory_id, settings_id):
+        floor = await self._editable_floor(robot_id, map_id, version, inventory_id)
+        if floor.settings_id != settings_id:
+            raise action_error("map_changed", "The floor settings changed. Review the map again.")
+        return floor
+
+    async def async_review_floor_removal(
+        self, robot_id, map_id, version, inventory_id, settings_id
+    ):
+        async with self._io_lock:
+            floor = await self._floor_for_removal(
+                robot_id, map_id, version, inventory_id, settings_id
+            )
+            sources, unchecked = await self._read_map_programs(
+                robot_id, {"routine", "schedule"}, floor_id=floor.map_id
+            )
+        programs = []
+        for kind, rows in sources.items():
+            for row in rows:
+                item = {"kind": kind, "name": row.get("name")}
+                if kind == "schedule":
+                    item["enabled"] = row["enabled"]
+                programs.append(item)
+        return {"programs": programs, "unchecked": unchecked}
+
     async def async_remove_floor(
         self, robot_id, map_id, version, inventory_id, settings_id, remap=False
     ):
@@ -1099,11 +1125,9 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
 
     async def _remove_floor(self, robot_id, map_id, version, inventory_id, settings_id):
         async with self._io_lock:
-            floor = await self._editable_floor(robot_id, map_id, version, inventory_id)
-            if floor.settings_id != settings_id:
-                raise action_error(
-                    "map_changed", "The floor settings changed. Review the map again."
-                )
+            floor = await self._floor_for_removal(
+                robot_id, map_id, version, inventory_id, settings_id
+            )
             await self._back_up_before_edit(robot_id, floor)
             self._maps_due = min(self._maps_due, self._clock())
             # A timed-out write may still have reached Roomba. Check the list without retrying it.

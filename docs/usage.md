@@ -372,8 +372,10 @@ data:
 ```
 
 To remove a saved floor, select it and choose **Remove floor**. Review the
-name before confirming. Saved routines and schedules that reference its
-rooms or zones may need new destinations. Removing the floor uses Roomba's
+name and the linked programs before confirming. The review shows each
+schedule's enabled state and reports sources it could not check. Saved
+routines and schedules that reference the floor may need new destinations.
+Removing the floor uses Roomba's
 map visibility setting, and the card refreshes the floor list after Roomba
 confirms the change. [Provider contract](api.md#mapping-runs-and-floor-removal)
 

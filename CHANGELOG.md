@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.102.0
+
+- Review the routines and schedules that Roomba links to a saved floor
+  before removing or replacing it. The card shows each schedule's enabled
+  state and identifies any source it could not check.
+
 ## 0.101.0
 
 - Replace a saved floor from its removal review. Home Assistant checks

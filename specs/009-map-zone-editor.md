@@ -130,6 +130,10 @@ and revision. A saved zone is a provider-confirmed region with its own ID.
   Check mapping readiness before removing the selected floor. Confirm the
   removal through the current inventory before starting mapping on the
   same robot. Report partial completion if mapping is unconfirmed.
+- EDIT-19: Preview Roomba programs linked to the selected floor in the
+  removal review. Match the explicit floor identifier on the selected
+  robot, show enabled states for schedules, and identify unchecked sources.
+  Discard late results for closed or stale reviews.
 - Bulk edits and cross-floor copies require a verified operations contract.
 - Roomba remains the owner of robot and map data. Editing a map never starts a cleaning mission.
 
@@ -386,6 +390,7 @@ screenshots.
 | EDIT-16 | [Room detail recovery](../docs/api.md#local-map-backup-commands) | [Room tests](../tests/test_room_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-room-names-and-types) |
 | EDIT-17 | [Restriction edits](../docs/api.md#restriction-edits) | [Geometry tests](../tests/test_restriction_edits.py), [authenticated lifecycle](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed wall trial](../docs/validation.md#editing-virtual-walls) |
 | EDIT-18 | [Combined floor removal and mapping](../docs/api.md#mapping-runs-and-floor-removal) | [WebSocket tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [native trial](../docs/validation.md#guided-floor-replacement) |
+| EDIT-19 | [Floor removal review](../docs/api.md#mapping-runs-and-floor-removal) | [Client tests](../tests/test_api_client.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 
 ## 18. Implementation sequence
 

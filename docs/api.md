@@ -465,6 +465,14 @@ against the latest associated list, sends one write, and verifies that the
 floor no longer appears in that list. Linked routines and schedules are
 managed separately by Roomba.
 
+`roomba_home/review_floor_removal` reads the selected robot's routines and
+schedules against the reviewed floor's identity, revision, inventory, and
+settings. It matches the explicit floor identifier in each recognized
+program, including a mapped command with no projected regions. It returns
+program names and kinds, the reported enabled state for schedules, and any
+sources that could not be checked. The review requires the same control
+permission as removal and performs only reads.
+
 The optional `remap: true` field on `roomba_home/remove_floor` requests
 the combined replacement flow. Recheck the robot's mapping readiness before
 removing the reviewed floor. Wait for the read-back that confirms removal

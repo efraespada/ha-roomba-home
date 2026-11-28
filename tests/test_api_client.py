@@ -1260,6 +1260,19 @@ async def test_list_editable_weekly_schedules_returns_only_local_selection_field
     }
 
 
+@pytest.mark.parametrize(("floor_id", "count"), [("floor", 1), ("other", 0)])
+async def test_schedule_listing_filters_by_exact_floor_even_without_region_projection(
+    floor_id, count
+):
+    document = fixture_weekly_schedules()
+    options = document["household_schedules"][0]["schedules"][0]["options"]
+    options["commands"][0]["command"]["p2map_id"] = "floor"
+    rows = await client(schedule_http(document=document)).list_cleaning_schedules(
+        "robot-fixture", floor_id=floor_id
+    )
+    assert len(rows) == count
+
+
 async def test_once_schedule_update_preserves_native_command_and_enabled_state():
     before = fixture_weekly_schedules(enabled=True)
     options = before["household_schedules"][0]["schedules"][0]["options"]
@@ -2250,6 +2263,15 @@ async def test_routine_reads_and_removals_reject_foreign_and_default_items():
         with pytest.raises(RoutineNotEditable, match="unavailable"):
             await api.remove_cleaning_routine(ROUTINE_ROBOT, ROUTINE_ID)
     assert all(call[0] != "DELETE" for call in http.calls)
+
+
+async def test_routine_listing_keeps_only_the_associated_floor():
+    linked = provider_routine()
+    other = provider_routine("Other floor", replace(ROUTINE_TARGET, map_id="another"))
+    other["favorite_id"] = "e" * 32
+    http = FakeHttp(login_responses() + [HttpResponse(200, [other, linked])])
+    [selected] = await client(http).list_cleaning_routines(ROUTINE_ROBOT, floor_id="floor")
+    assert selected["name"] == "Example routine"
 
 
 async def test_idempotent_routine_update_and_remove_confirm_full_inventory():
