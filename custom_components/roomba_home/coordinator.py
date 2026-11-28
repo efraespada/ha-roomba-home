@@ -1253,7 +1253,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         plan = state.telemetry.get("live_timeline_plan")
         if plan is None:
             return None
-        stage = report.stage if state.phase == "run" else None
+        stage = self._estimate_stage(state, report)
         started = self._live_mission(state)
         stage_started = self._stage_started_during_mission(report, started, now)
         plan = self._plan_with_elapsed(plan, report, state, started, stage_started, now)
@@ -1265,6 +1265,12 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 ),
             }
         return with_live_area_elapsed(plan, stage, stage_started, now)
+
+    @staticmethod
+    def _estimate_stage(state, report):
+        if report.stage == "pause":
+            return "pause" if state.activity == "paused" else None
+        return report.stage if state.phase == "run" else None
 
     @staticmethod
     def _plan_with_elapsed(plan, report, state, started, stage_started, now):
@@ -1405,7 +1411,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                     plan["estimated_duration_seconds"] = sum(durations)
                 remaining = remaining_plan_duration(
                     self._plan_with_elapsed(plan, recent, state, started, stage_started, now),
-                    recent.stage if state.phase == "run" else None,
+                    self._estimate_stage(state, recent),
                     stage_started,
                     now,
                 )

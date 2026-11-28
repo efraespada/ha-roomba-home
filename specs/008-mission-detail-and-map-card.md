@@ -92,7 +92,9 @@ trajectory contains observed positions and retains sequence gaps.
   Offer an overlay for the current Roomba recommendation. Match its exact
   room IDs and label them in the legend independently of cleaning selection.
 - MAP-09: Show directed mission destinations, declared order, requested modes, and reported destination outcomes with a completion count.
-- MAP-10: Estimate the remaining time for the applicable work in a directed mission using the provider's durations and verified live stage.
+- MAP-10: Estimate the remaining time in a directed mission from Roomba's
+  durations and verified live stage. Hold the estimate during a confirmed
+  pause in a timed room.
 - MAP-11: Receive the authorized robot's live position updates continuously and deliver them to the displayed map. Show cleaned areas by the activity reported by Roomba.
 - MAP-12: Show and hide provider-reported temporary obstacles on the live floor plan for the current mission and floor revision.
 - MAP-13: Follow the confirmed mission floor when a robot has several saved maps. Allow the viewer to keep a chosen floor in view.
@@ -352,8 +354,11 @@ revision. Associate a declared room on the same floor with the command's
 user revision. Resolve remaining work from its confirmed requested profile
 and Roomba's room estimates. Subtract elapsed active room time when the
 stage and destination agree. Keep completed and skipped destinations out
-of the remaining sum. Omit the countdown during interrupted stages, on an
-expired report, or while any remaining destination lacks a verified estimate.
+of the remaining sum. During a confirmed pause, hold the remaining time
+computed from the room's accumulated cleaning time at the pause timestamp.
+Require the robot's paused state and the matching timeline event. Omit the
+countdown during unverified stages, on an expired report, or while any
+remaining destination lacks a verified estimate.
 Recalculate on each floor-plan read from existing verified stage times and
 saved durations. Reading the countdown requires no additional provider
 request and leaves the coordinator snapshot intact.
@@ -540,7 +545,7 @@ features, physical results, and open scenarios.
 | MAP-07 | [Archived report contract](../docs/api.md#archived-cleaning-reports) | [Archive tests](../tests/test_mission_map.py), [authenticated reports](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [device validation](../docs/validation.md#archived-cleaning-reports) |
 | MAP-08 | [Cleaning score contract](../docs/api.md#room-cleaning-score-reads) | [Parser tests](../tests/test_clean_scores.py), [Home Assistant tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [device validation](../docs/validation.md#room-cleaning-scores) |
 | MAP-09 | [Live timeline contract](../docs/api.md#live-mission-destinations) | [Parser tests](../tests/test_mission_plan.py), [Home Assistant tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [device evidence](../docs/validation.md#live-mission-destinations) |
-| MAP-10 | [Estimated time contract](../docs/api.md#estimated-time-remaining) | [Timing tests](../tests/test_mission_time.py), [Home Assistant tests](../tests/ha/test_roomba_map_api.py), and [device evidence](../docs/validation.md#estimated-time-during-a-directed-mission) |
+| MAP-10 | [Estimated time contract](../docs/api.md#estimated-time-remaining) | [Timing tests](../tests/test_mission_time.py), [Home Assistant tests](../tests/ha/test_roomba_map_api.py), [directed timing](../docs/validation.md#estimated-time-during-a-directed-mission), and [paused estimate trial](../docs/validation.md#remaining-time-during-a-pause) |
 | MAP-11 | [Live delivery evidence](../docs/validation.md#continuous-position-and-cleaning-coverage), [coverage replay](../docs/validation.md#live-coverage-reconstruction), and [paired mopping comparison](../docs/validation.md#side-by-side-live-mopping) | [MQTT tests](../tests/test_mqtt.py), [subscription tests](../tests/test_live_stream.py), [renewal tests](../tests/ha/test_live_map_entities.py), [coverage tests](../tests/test_live_coverage.py), [authenticated endpoint tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [household renewal with Android in the background](../docs/validation.md#live-positions-with-android-in-the-background). Native live polygon publication remains open. |
 | MAP-12 | [Physical obstacle comparison](../docs/validation.md#live-temporary-obstacles) | [Snapshot decoder tests](../tests/test_live_route.py), [coordinator tests](../tests/ha/test_live_map_entities.py), [authenticated subscription tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs). Household dashboard verification remains open. |
 | MAP-13 | [Confirmed floor associations from native missions](../docs/validation.md#multiple-saved-floors) | [Parser tests](../tests/test_live_maps.py), [coordinator tests](../tests/ha/test_live_map_entities.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [floor picker tests](../tests/frontend/map-card.test.cjs). An installed multi-floor cleaning trial remains open. |

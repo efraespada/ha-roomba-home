@@ -1455,8 +1455,9 @@ between the verified mission start and observation time.
 Historical `timeline.finEvents` room records contain `p2mapId`, `p2mapvId`,
 `rid`, `area`, `totalArea`, `passCount`, and `status` where reported. The
 integration exposes the raw room area values until their unit is confirmed.
-The native point-cleaning view showed elapsed time. Live coverage, global
-percentage, and a remaining-time reading need further provider evidence.
+The native point-cleaning view showed elapsed time. Mode-tagged position
+samples support the [live route and estimated coverage](#mode-specific-live-coverage).
+A provider field for overall mission percentage remains unverified.
 [Map and timeline evidence](evidence/2026-11-24-live-progress.json)
 
 ### Live mission destinations
@@ -1528,14 +1529,16 @@ still current. Room events from the matched mission may use the robot's
 internal revision. They can identify a declared target on the same map.
 
 The reading sums the durations of pending rooms and subtracts the reported
-time already spent in the active room. The estimate is hidden during stages
-with unverified timing and when a destination lacks a duration. The
-provider's timeline supplied stage times and area outcomes in the observed
-mission. Each floor-plan read recalculates the countdown from the verified
-stage and the cached durations, with no additional Roomba request. It
-stops when the correlated timeline expires. The Android client also
-resolved its countdown locally in the observed trials.
-[Physical timing and replay evidence](validation.md#estimated-time-during-a-directed-mission)
+time already spent in the active room. During a confirmed pause with one
+timed room, the matched `pause` event closes the active interval at its
+timestamp. The estimate holds that accumulated cleaning time while paused.
+The estimate is hidden during stages with unverified timing or when a
+remaining destination lacks a duration. Each floor-plan read calculates
+the estimate from the verified timeline and cached durations without an
+extra Roomba request. It expires with the correlated timeline. Android
+showed the same estimate during cleaning and held it during the pause.
+[Directed timing](validation.md#estimated-time-during-a-directed-mission) ·
+[Paused estimate trial](validation.md#remaining-time-during-a-pause)
 
 ## Saved cleaning routines
 
