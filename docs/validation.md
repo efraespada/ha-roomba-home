@@ -15,7 +15,10 @@ without another confirmation. The trial canceled that second mapping run
 and confirmed that the robot returned to the dock. The original floor was
 the only saved floor at the end. Its identity and 17 destination metadata
 rows matched the baseline, and Roomba published a new active revision
-during the replacement trial. The geometry comparison remains open.
+during the replacement trial. The decompressed native map bundles from
+before and after the trial matched field for field apart from a single
+Unix timestamp in the map header. The original geometry was unchanged in
+this trial.
 
 The Home Assistant tests check failed preflight, acknowledged removal before
 start, reporting of a partial failure, and one confirmed card request.

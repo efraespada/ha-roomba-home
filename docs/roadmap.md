@@ -108,8 +108,8 @@ help for incomplete maps. A disposable-floor test verified that the same
 confirmation removes the selected floor and starts mapping. Version
 0.101.0 offers the combined operation and reports partial completion.
 In the native trial, Roomba published a new revision of another saved map
-for the same physical floor. Verify the effect on destinations linked to
-the removed floor using disposable programs.
+for the same physical floor and retained its geometry. Verify the effect on
+destinations linked to the removed floor using disposable programs.
 [Native replacement trial](validation.md#guided-floor-replacement)
 
 ## Physical automatic dock emptying
