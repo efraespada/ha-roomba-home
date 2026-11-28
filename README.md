@@ -266,7 +266,7 @@ the map and last updated its revision. [Floor dates and automation example](docs
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.103.1` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.104.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
@@ -380,13 +380,16 @@ mode. [Side-by-side mopping trial](docs/validation.md#side-by-side-live-mopping)
   when Roomba supplies them. An unordered run shows **Selected destinations**.
   The card and **Estimated cleaning time remaining** sensor show an
   approximation when Roomba provides a matching estimate for each remaining
-  destination. The card refreshes the countdown between robot updates.
+  destination. The card refreshes the countdown between robot updates and
+  holds the estimate during a confirmed pause in a timed room.
   [Live progress and automation example](docs/usage.md#telemetry-progress-and-problems)
 - **Skip current area** asks for confirmation while Roomba reports the
   current destination. The mission history shows the skipped area.
   [Skip control and automation example](docs/usage.md#skip-the-current-destination)
 
-Overall live coverage percentage still requires provider verification.
+Roomba reports the live path and room progress. The Android trial showed
+remaining minutes and battery percentage during a directed vacuum run.
+A mission-wide cleaning percentage remains unverified.
 [Map and mission details](docs/usage.md#interactive-floor-plan) ·
 [Map editor SDD](specs/009-map-zone-editor.md)
 

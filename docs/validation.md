@@ -1,5 +1,21 @@
 # Roomba Home validation
 
+## Remaining time during a pause
+
+Roomba Home Android 3.4.1 started a saved one-room vacuum routine on a
+Max 700 Combo. It showed 59 minutes while locating the room, then 58 and
+56 minutes while vacuuming. The installed 0.103.1 card also showed
+58 and 56 minutes after receiving the matching room event. Android kept
+56 minutes visible on pause and repeated that value 66 seconds later.
+Home Assistant continued showing the paused room and its accumulated
+cleaning time. The estimate was absent in that version.
+
+During the active interval, Proxyman decoded five successful raw live-map
+announcements and successful duration-matrix reads. The live-map and
+estimate responses contained no mission-wide completion percentage. In
+the observed Android view, the visible percentage labeled the battery.
+[iRobot ClearView map guide](https://homesupport.irobot.com/s/article/20500)
+
 ## Recreating programs from a retired floor
 
 A mapping-only run on a Max 700 Combo produced a disposable second floor

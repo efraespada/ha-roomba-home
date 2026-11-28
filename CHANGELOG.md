@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.104.0
+
+- Keep the remaining-time estimate visible and stable when Roomba confirms
+  a pause in a directed room cleaning. Resume the countdown from the
+  reported cleaning time after the robot starts cleaning again.
+
 ## 0.103.1
 
 - Store weekly schedule days in the same format used by Home Assistant's
