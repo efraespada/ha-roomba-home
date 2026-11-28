@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-28",
+  "model": "X185240",
+  "android_version": "3.4.1",
+  "installed_version": "0.104.1",
+  "mission": {
+    "destination_kinds": ["room"],
+    "mode": "vacuum",
+    "suction_level": 3,
+    "two_pass": false,
+    "planned_seconds": 3509,
+    "pause_and_resume_sent_from_home_assistant": true
+  },
+  "paused": {
+    "remaining_sensor_seconds": [3433, 3433],
+    "seconds_between_samples": 48,
+    "card_cleaning_elapsed_seconds": 76,
+    "card_remaining_minutes": 58,
+    "android_remaining_minutes": 58
+  },
+  "resumed": {
+    "seconds_from_command_to_no_estimate_sample": 42,
+    "seconds_from_command_to_first_measured_estimate": 94,
+    "remaining_sensor_seconds": [3353, 3330],
+    "seconds_between_samples": 38,
+    "card_cleaning_elapsed_seconds": [157, 192],
+    "card_remaining_minutes": 56,
+    "android_initial_remaining_minutes": 57,
+    "android_final_remaining_minutes": 56
+  }
+}
