@@ -103,6 +103,7 @@ from .core.mission_map import read_backed_up_floor, read_mission_map, read_reque
 from .core.mission_plan import present_mission_plan
 from .core.mission_routes import RouteCaptureKey, captured_geometry
 from .core.mission_time import (
+    RoomTiming,
     estimate_durations,
     estimate_target,
     remaining_plan_duration,
@@ -205,6 +206,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         self._live_route_attempts = {}
         self._live_announcements = {}
         self._live_timelines = {}
+        self._live_room_timing = {}
         self._live_estimates = {}
         self._timeline_due = {}
         self._cancel_live_expiration = None
@@ -1256,6 +1258,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         stage = self._estimate_stage(state, report)
         started = self._live_mission(state)
         stage_started = self._stage_started_during_mission(report, started, now)
+        report = self._with_room_timing(state.robot_id, started, report)
         plan = self._plan_with_elapsed(plan, report, state, started, stage_started, now)
         if "estimated_remaining_seconds" in plan:
             plan = {
@@ -1297,6 +1300,12 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         return (
             stage_started if stage_started is not None and started <= stage_started <= now else None
         )
+
+    def _with_room_timing(self, robot_id, started, report):
+        scope, timing = self._live_room_timing.get(robot_id, (None, RoomTiming()))
+        if scope == (started, report.mission_number, report.plan):
+            return replace(report, room_timing=timing)
+        return report
 
     @staticmethod
     def _live_mission(state):
@@ -1363,29 +1372,29 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         number = state.telemetry.get("mission_number")
         if not started:
             self._live_timelines.pop(key, None)
+            self._live_room_timing.pop(key, None)
             self._live_estimates.pop(key, None)
             self._timeline_due.pop(key, None)
             return {}
         if report is not None and report.mission_number == number:
-            previous = self._current_timeline(state)
-            if previous is not None and report.plan == previous.plan:
-                report = replace(report, room_timing=previous.room_timing)
             self._live_timelines[key] = (started, report)
         recent = self._current_timeline(state, now)
         if recent is None:
             return {}
+        stage_started = self._stage_started_during_mission(recent, started, now)
+        if recent.plan is not None:
+            recent = self._with_room_timing(key, started, recent).observe_room_timing(
+                self._estimate_stage(state, recent), started, stage_started
+            )
+            self._live_room_timing[key] = (
+                (started, recent.mission_number, recent.plan),
+                recent.room_timing,
+            )
         maps = self.maps_for_robot(key)
         destinations = recent.plan.destinations if recent.plan else ()
         zone_maps = await self._zone_label_maps(
             key, (*recent.zones, *recent.active_zones, *destinations)
         )
-        stage_started = self._stage_started_during_mission(recent, started, now)
-        observed = recent.observe_room_timing(
-            self._estimate_stage(state, recent), started, stage_started
-        )
-        if observed is not recent:
-            recent = observed
-            self._live_timelines[key] = (started, recent)
         active_zone = recent.timed_destination(stage_started) if recent.stage == "zone" else None
         metrics = {
             "live_timeline_updated": recent.observed_at,
@@ -2994,6 +3003,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 self._cancel_live_expiration = None
             self._live_announcements.clear()
             self._live_timelines.clear()
+            self._live_room_timing.clear()
             self._live_estimates.clear()
             self._timeline_due.clear()
             self._live_paths.clear()

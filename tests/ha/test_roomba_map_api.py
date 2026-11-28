@@ -2764,7 +2764,11 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     }
     pause_report = mission_timeline(pause_document, 17, 51, int(later.timestamp()))
     stopped = replace(state, phase="stop")
-    verified_pause = await configured._timeline_metrics(stopped, pause_report, later)
+    awaiting_pause = await configured._timeline_metrics(state, pause_report, later)
+    assert awaiting_pause["live_estimated_remaining"] is None
+    latest_provider_read = configured._live_timelines[robot]
+    verified_pause = await configured._timeline_metrics(stopped, None, later)
+    assert configured._live_timelines[robot] is latest_provider_read
     assert verified_pause["live_estimated_remaining"] == 467
     paused_state = replace(stopped, telemetry=stopped.telemetry | verified_pause)
     configured.async_set_updated_data({robot: paused_state})
@@ -2823,6 +2827,7 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     assert partial["live_timeline_plan"]["destinations"][0]["estimated_duration_seconds"] == 502
     await configured._timeline_metrics(replace(state, cycle="none"), None, now)
     assert configured._live_estimates == {}
+    assert configured._live_room_timing == {}
 
 
 async def test_floor_plan_totals_saved_zone_time_across_pauses_and_passes(
