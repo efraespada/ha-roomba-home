@@ -1971,6 +1971,18 @@ one outstanding request. The transport tests confirm reboot only after
 the reported disconnect and reconnection and report locate as submitted.
 [Robot settings](usage.md#robot-settings)
 
+Home Assistant passed its Core configuration check and restarted on 0.96.0.
+All three robots returned to the dashboard at their docks. The household
+test used one docked Max 700 Combo with idle dock controls. The Locate
+review identified the selected robot, and the card reported that it sent
+the request. The audible result remains unverified.
+
+The Reboot review identified the same robot. Its map card showed Offline
+while the request was pending. The pending state persisted after closing
+and reopening Device settings. The dialog then reported that the robot
+had disconnected and reconnected. The robot was back at its dock with
+the same six room names and order. [Installed controls](screenshots/roomba-robot-actions.jpg)
+
 ## Robot name and voice language
 
 The 0.32.0 integration adds a configuration text entity for the robot name
