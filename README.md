@@ -171,6 +171,8 @@ instructions. [Maintenance and parts](docs/usage.md#maintenance-and-replacement-
 
 ![Robot activation date sensor in Home Assistant diagnostics](docs/screenshots/roomba-activation-date.jpg)
 
+![Robot and dock versions, last update, and Roomba catalog status in Home Assistant](docs/screenshots/roomba-robot-software.jpg)
+
 ## Cleaning history
 
 ![Installed Home Assistant report excerpt showing a bin emptying stage with zero recorded emptyings](docs/screenshots/roomba-history-emptying.png)

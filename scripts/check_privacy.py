@@ -47,6 +47,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-activation-date.jpg": (
         "c0ca1a16d70dfd84c313cf2aee3fdaaaefe744e970091c4ad22f425e4fa15fa8"
     ),
+    "docs/screenshots/roomba-robot-software.jpg": (
+        "a0d409afb8bd52df7dc739c004e01b73d5d18191b47a8de23a8b1a202a0f8368"
+    ),
     "docs/screenshots/roomba-robot-help.png": (
         "7cbacb2ad7b4aa5b9db65243a4e275eea8637063e29e3d34c44f7ab5dc349f28"
     ),
