@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.96.0
+
+- Review and run **Locate robot** and **Reboot robot** from **Device
+  settings**. The card checks the selected robot and action again before
+  invoking the existing Home Assistant service. Locate reports submission.
+  Reboot waits for a disconnect and reconnection.
+
 ## 0.95.0
 
 - Browse and install additional Roomba voices from **Device settings**.

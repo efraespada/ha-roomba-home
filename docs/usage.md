@@ -831,9 +831,12 @@ The **Last command result** sensor shows whether Roomba confirmed the
 deployment, and the software deployment sensor reports progress and errors.
 [iRobot voice settings](https://homesupport.irobot.com/articles/en_US/Knowledge/11189)
 
-Use **Reboot robot** for a normal restart. The **Last command result**
-sensor confirms the restart when Roomba reports the robot disconnecting
-and then coming back online. A reboot can interrupt dock drying.
+In **Device settings**, choose **Locate robot** or **Reboot robot** and
+review the selected robot before confirming. Locate reports that the
+sound request was submitted. Reboot waits for the robot to disconnect and
+reconnect, and can interrupt cleaning or dock drying. You can close the
+panel while it waits. **Last command result** also reports the outcome on
+the robot device page.
 [iRobot reboot instructions](https://homesupport.irobot.com/articles/en_US/Knowledge/9087)
 
 **Voice volume** accepts whole percentages from 0 to

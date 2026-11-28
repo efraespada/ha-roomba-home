@@ -145,6 +145,11 @@ becoming an indiscriminately false or zero.
   permission and a current connected, idle robot for edits. Use the
   existing entity services and reread the affected settings after each
   confirmed save. Keep the panel usable without maps.
+- CAP-28: Review locate and reboot for the selected robot in Device
+  settings. Reread the control permissions and entity association before
+  invoking the existing service. Report locate submission and confirm a
+  reboot after the robot disconnects and reconnects. Keep a pending action
+  scoped to its originating robot if the panel closes.
 
 No endpoints, maps and empty states are invented with HA entities or capabilities. No
 physical errors are induced and no maps, accounts or data beyond the test have been
@@ -479,6 +484,10 @@ with API operations.
     a changed inventory prevents a write. Validate read-only access,
     a pending deployment, progress, and the resulting installed and
     selected voices after the confirmed installation.
+26. Review Locate robot and Reboot robot before dispatch. Check that the
+    card refuses a changed action target or permission and sends the
+    existing service once. Verify the locate submission and reboot
+    reconnection outcomes, including a timed-out reboot with no repeat.
 
 ## 17. Requirements traceability
 
@@ -510,6 +519,7 @@ with API operations.
 | CAP-25 | Robot activation date sensor | [Native and signed validation](../docs/validation.md#robot-activation-date), [asset client tests](../tests/test_api_client.py), and [entity refresh tests](../tests/ha/test_telemetry_entities.py) |
 | CAP-26 | Reviewed counter reset from the maintenance panel | [Native control comparison](../docs/validation.md#counter-reset-from-the-maintenance-panel), [WebSocket permissions](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 | CAP-27 | Device settings panel with linked entity actions | [Android and card validation](../docs/validation.md#device-settings-on-the-card), [WebSocket permissions](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
+| CAP-28 | Reviewed locate and reboot on the card | [Card validation](../docs/validation.md#locate-and-reboot-from-device-settings), [WebSocket permissions](../tests/ha/test_roomba_map_api.py), [transport tests](../tests/test_application.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 
 CAP-09 includes floor plans, room labels, position, heading, trajectory,
 coverage, and estimates supported by Roomba. Enable the map option to expose

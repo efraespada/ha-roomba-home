@@ -562,6 +562,13 @@ async def test_device_settings_are_scoped_to_associated_entities_and_permissions
     assert result == {
         "robot": robot.name,
         "ready": editable,
+        "actions": {
+            "reboot": registry.async_get_entity_id(
+                "button",
+                DOMAIN,
+                entity_unique_id(configured.config_entry.unique_id, robot_id, "reboot_robot"),
+            )
+        },
         "settings": {
             "robot_name": {
                 "entity_id": name,
@@ -589,6 +596,65 @@ async def test_device_settings_are_scoped_to_associated_entities_and_permissions
             },
         },
     }
+    configured.client.map_geometry.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("case", "actions"),
+    [
+        ("authorized", {"locate", "reboot"}),
+        ("read_only_vacuum", {"reboot"}),
+        ("read_only_button", {"locate"}),
+        ("disconnected", set()),
+        ("stale", set()),
+        ("missing_button", {"locate"}),
+        ("missing_button_state", {"locate"}),
+        ("unavailable_button", {"locate"}),
+    ],
+)
+async def test_device_settings_scope_robot_actions_to_their_authorized_entities(
+    hass, configured, hass_ws_client, hass_admin_user, case, actions
+):
+    robot_id = "fixture-0"
+    robot = configured.data[robot_id]
+    configured.data[robot_id] = replace(
+        robot,
+        connected=case != "disconnected",
+        capabilities=replace(robot.capabilities, locate=True),
+    )
+    configured.last_update_success = case != "stale"
+    configured.show_maps = False
+    registry = entity_registry.async_get(hass)
+    reboot = registry.async_get_entity_id(
+        "button",
+        DOMAIN,
+        entity_unique_id(configured.config_entry.unique_id, robot_id, "reboot_robot"),
+    )
+    assert reboot is not None
+    other = registry.async_get_or_create(
+        "button",
+        DOMAIN,
+        entity_unique_id(configured.config_entry.unique_id, "another", "reboot_robot"),
+        suggested_object_id="another_reboot",
+    ).entity_id
+    hass.states.async_set(other, "unknown")
+    if case == "missing_button":
+        registry.async_remove(reboot)
+    elif case == "missing_button_state":
+        hass.states.async_remove(reboot)
+    elif case == "unavailable_button":
+        hass.states.async_set(reboot, "unavailable")
+    denied = {"read_only_vacuum": ENTITY, "read_only_button": reboot}.get(case)
+    socket = await hass_ws_client()
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda entity, policy: policy == POLICY_READ or entity != denied,
+    ):
+        await socket.send_json(DEVICE_SETTINGS)
+        result = (await socket.receive_json())["result"]
+    expected = {"locate": ENTITY, "reboot": reboot}
+    assert result["actions"] == {key: expected[key] for key in actions}
     configured.client.map_geometry.assert_not_awaited()
 
 
