@@ -662,6 +662,7 @@ async def websocket_floor_plan(hass, connection, message):
         account.live_obstacles(robot_id, path, now),
     )
     position_available = live["position"] is not None
+    last_cleaning = state.telemetry.get("last_cleaning_by_floor", {}).get(floor.map_id)
     response = {
         **overview,
         "mapping": mapping,
@@ -672,6 +673,16 @@ async def websocket_floor_plan(hass, connection, message):
             "name": floor.name,
             "name_max_length": floor_name_limit(floor),
             "orientation": floor.orientation,
+        },
+        "floor_activity": {
+            "created_at": floor.created_at,
+            "revision_updated_at": floor.revision_updated_at,
+            "last_cleaning": {
+                "finished_at": last_cleaning.finished_at,
+                "report_id": last_cleaning.report_id,
+            }
+            if last_cleaning is not None
+            else None,
         },
         "can_edit_rooms": can_control,
         "can_manage_schedules": can_control and state.capabilities.schedules is True,

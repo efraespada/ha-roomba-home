@@ -1174,6 +1174,26 @@ confirmed the original map geometry, saved programs, suction, and
 two-pass setting after the temporary zone was removed.
 [Anonymized timing evidence](evidence/2026-11-26-destination-elapsed.json)
 
+## Floor activity and map timestamps
+
+Roomba Home for Android 3.4.1 displayed a last-cleaned entry on the saved
+floor's home view. Proxyman showed signed map inventory responses with
+integer Unix seconds for both map creation and the latest revision. The
+sampled map inventory and detail responses agreed on the field types.
+Positive-area cleaning reports in the capture identified one saved floor.
+Some canceled or incomplete runs retained measured cleaning area.
+
+The captured general `/v1/user/timeline` responses returned `HKC`
+events with `eCommerce` details. The app requested both the 50-event
+filtered and 100-event expanded forms. The corresponding ten responses
+contained promotional content. Floor cleaning activity uses the signed
+mission records.
+
+The tests verify typed timestamps, stable map review identities, per-floor
+scoping across revisions, zero-area and ambiguous reports, the exact
+history selection, a report that disappears, and independent image
+attribute updates. Map and history evidence remain distinct.
+
 ## Historical map layers
 
 The integration opened 21 signed reports for the Max 700 Combo using each

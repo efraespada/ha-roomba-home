@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.99.0
+
+- See each floor's recorded map creation and revision dates and open its
+  most recent report with positive cleaning area. The matching floor image
+  exposes the same timestamp readings to Home Assistant automations.
+
 ## 0.98.0
 
 - Show or hide recorded furniture and temporary obstacles independently in

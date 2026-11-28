@@ -71,6 +71,13 @@ The most recent historical result includes `mode_statistics`, duration and
 area by mode, and whether the run began at the dock. Total duration, active
 duration, and per-mode readings measure different intervals.
 
+Each opt-in floor image exposes `floor_created_at`,
+`floor_revision_updated_at`, and `floor_last_cleaning_at`. These attributes
+come from Roomba's map inventory and standard mission history. Last
+cleaning requires a report with measured area and one clearly identified
+floor. They can update independently of the image itself.
+[Floor activity and example](usage.md#floor-activity)
+
 Enable **Show saved floor plans and live room updates** in the integration
 options to add a native image for each active, visible saved map. For a robot
 with one such map, the image can show the observed mission path and heading.

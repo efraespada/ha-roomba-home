@@ -36,7 +36,7 @@ from custom_components.roomba_home.core.errors import (
     ProtocolError,
     RateLimited,
 )
-from custom_components.roomba_home.core.history import mission_reports
+from custom_components.roomba_home.core.history import history_metrics, mission_reports
 from custom_components.roomba_home.core.live_coverage import CELL_SIZE
 from custom_components.roomba_home.core.live_maps import (
     MissionPath,
@@ -216,6 +216,66 @@ async def test_history_reads_the_exact_archive_using_read_permission(
         configured.client.map_geometry.assert_awaited_once_with(MAP.map_id, "mission-revision")
         assert configured.maps_for_robot("fixture-0") == (MAP,)
         assert "mission-revision" not in repr(report)
+
+
+async def test_floor_activity_returns_only_the_selected_floors_provider_timestamps_and_report(
+    configured, hass_ws_client, hass_admin_user
+):
+    robot_id = "fixture-0"
+    created = datetime.fromtimestamp(1_700_000_000, UTC)
+    revision = created + timedelta(days=3)
+    ground = replace(MAP, created_at=created, revision_updated_at=revision)
+    upper = replace(MAP, map_id="map-b", name="Upper floor")
+    configured._maps[robot_id] = (ground, upper)
+    reports = [
+        {
+            "timestamp": 1_700_050_100,
+            "robot_id": robot_id,
+            "cmd": {"command": "start"},
+            "sqft": 15,
+            "p2maps": [{"p2map_id": MAP.map_id, "p2mapv_id": "different-revision"}],
+        },
+    ]
+    state = configured.data[robot_id]
+    configured.data[robot_id] = replace(
+        state, telemetry=state.telemetry | history_metrics(reports, robot_id)
+    )
+    socket = await hass_ws_client()
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda _, policy: policy == POLICY_READ,
+    ):
+        for index, floor in enumerate((ground, upper), 1):
+            await socket.send_json(
+                {
+                    "id": index,
+                    "type": "roomba_home/floor_plan",
+                    "entity_id": ENTITY,
+                    "map_id": floor.map_id,
+                    "known_map_id": floor.map_id,
+                    "known_version": floor.version_id,
+                }
+            )
+            response = (await socket.receive_json())["result"]
+            activity = response["floor_activity"]
+            if floor == ground:
+                (report,) = mission_reports(reports, robot_id)
+                assert activity == {
+                    "created_at": created.isoformat(),
+                    "revision_updated_at": revision.isoformat(),
+                    "last_cleaning": {
+                        "finished_at": report.summary()["finished_at"],
+                        "report_id": report.key,
+                    },
+                }
+            else:
+                assert activity == {
+                    "created_at": None,
+                    "revision_updated_at": None,
+                    "last_cleaning": None,
+                }
+    configured.client.map_geometry.assert_not_awaited()
 
 
 async def test_expanded_history_resolves_the_cancelled_report_in_the_same_scope(

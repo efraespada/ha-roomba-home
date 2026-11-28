@@ -173,6 +173,12 @@ trajectory contains observed positions and retains sequence gaps.
   dock action valid while its device and permissions still match. Discard a
   late overview after the selected robot changes. Represent disconnection
   separately from an unavailable connection reading.
+- MAP-30: Present the selected floor's creation, revision update, and last
+  verified cleaning times from Roomba. Require positive cleaned area and
+  an unambiguous saved floor reference for the cleaning shortcut. Open
+  the exact report when present and show an unavailable state if it has
+  expired. Publish the three timestamps on the opt-in floor image and
+  keep map revision and edit identity independent of these timestamps.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -515,6 +521,11 @@ features, physical results, and open scenarios.
     removed. Switch to 3D and rotate. Verify the selected layers, walls,
     coverage, route and final marker are preserved. Open an archive that
     omits a layer and verify that its checkbox is hidden.
+20. Switch between two floors with different reports and map dates. Verify
+    that the current floor's recent measured cleaning opens the exact
+    report even after a map revision change. Verify that a mapping-only
+    or zero-area report leaves the prior cleaning timestamp intact, and
+    test a missing report and the image attributes without redrawing.
 
 ## 17. Requirements traceability
 
@@ -549,6 +560,7 @@ features, physical results, and open scenarios.
 | MAP-27 | [Archive and backup contract](../docs/api.md#archived-cleaning-reports) | [Private backup storage tests](../tests/ha/test_map_history.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed report comparison](../docs/validation.md#backed-up-floor-in-cleaning-history) |
 | MAP-28 | [Dock controls contract](../docs/api.md#manual-dock-controls-on-the-floor-plan) | [Native panel comparison](../docs/validation.md#dock-controls-on-the-floor-plan), [authenticated snapshot tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 | MAP-29 | [Robot overview contract](../docs/api.md#robot-overview-without-a-floor-plan) | [Device status comparison](../docs/validation.md#robot-status-without-a-floor-plan), [authenticated overview tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
+| MAP-30 | [Floor activity contract](../docs/api.md#floor-activity) | [Signed response comparison](../docs/validation.md#floor-activity-and-map-timestamps), [history projection](../tests/test_history.py), [floor image](../tests/ha/test_live_map_entities.py), [authenticated snapshots](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 
 ## 18. Implementation sequence
 

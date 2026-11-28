@@ -66,7 +66,7 @@ their private values stay out of the repository
 | `/v1/households/{id}/settings` | — | Home adjustments |
 | `/v1/households/{id}/settings/schedule` | — | Household schedules |
 | `/v1/user/favorites` | `app_edition` | Favorites |
-| `/v1/user/timeline` | `include_robots`, `details_type_filter`, `limit`, `show_all`, `app_version` | Activity |
+| `/v1/user/timeline` | `include_robots`, `details_type_filter`, `limit`, `show_all`, `app_version` | General app activity. Captured Android responses contained `HKC` events with `eCommerce` details. Cleaning history uses the per-robot mission endpoint. |
 | `/v1/p2maps` | `robotId`, `visible` | Robot maps |
 | `/v1/p2maps/{id}` | — | Map metadata |
 | `/v1/p2maps/livemap` | `robotId`, `rawOnly` | Start of the live map, observed in an app |
@@ -326,6 +326,25 @@ can report faults when `current_mission` and `map` are null. Connected
 robot readings drive fault visibility, and each source retains its own
 code namespace.
 [Physical error comparison](validation.md#household-live-coverage-and-active-errors)
+
+### Floor activity
+
+The signed map inventory uses Unix seconds in `create_time` and
+`last_p2mapv_ts` for creation and the latest revision. The map adapter
+projects them independently of floor geometry, versions, and edit review
+keys. The normal signed mission poll projects the latest positive-area
+`start`, `spot`, or `point_clean` report for each floor. The selected floor
+must have an explicit, unambiguous `p2maps` reference in the mission record.
+A referenced older revision still identifies the same saved floor.
+
+The authenticated floor plan response includes `floor_activity` when a
+floor is present. Its `created_at` and `revision_updated_at` are optional
+UTC timestamps. The optional `last_cleaning` contains `finished_at` and
+the same opaque `report_id` used by `roomba_home/mission_history`. The
+card opens that report only if it is still in the standard report list.
+The snapshot uses existing map and history polling. A missing reading is
+null, and floor-level history is kept out of entity state when maps are
+disabled. The floor image exposes timestamps without report identifiers.
 
 ### Manual dock controls on the floor plan
 

@@ -7,6 +7,46 @@ from custom_components.roomba_home.core.history import history_metrics, mission_
 from custom_components.roomba_home.core.mission_areas import AreaResult
 
 
+def test_last_cleaning_requires_measured_area_and_one_unambiguous_floor():
+    def archive(floor, revision="original"):
+        return {"p2map_id": floor, "p2mapv_id": revision}
+
+    def row(time, scope, **extra):
+        return {
+            "robot_id": "fixture-a",
+            "timestamp": time,
+            "cmd": {"command": "start"},
+            "done": "cncl",
+            "sqft": 7,
+            "p2maps": scope,
+            **extra,
+        }
+
+    ground, upstairs = archive("ground"), archive("upstairs")
+    latest_ground = row(300, [ground, archive("ground", "updated")], nMssn=8)
+    latest_upstairs = row(100, [upstairs], missionId="fixture-mission")
+    records = [
+        row(240, [ground]),
+        latest_ground,
+        row(250, [ground]),
+        latest_upstairs,
+        row(330, [upstairs], sqft=0),
+        row(340, [upstairs], sqft=True),
+        row(350, [upstairs], cmd={"command": "train"}),
+        row(360, [upstairs, ground]),
+        row(370, [upstairs, archive("unknown", [])]),
+        row(375, [upstairs, None]),
+        row(380, None, cmd={"command": "start", "p2map_id": "ground"}),
+        row(390, [ground], robot_id="fixture-b"),
+    ]
+    observed = history_metrics(records, "fixture-a")["last_cleaning_by_floor"]
+    assert set(observed) == {"ground", "upstairs"}
+    for floor, expected in (("ground", latest_ground), ("upstairs", latest_upstairs)):
+        report = mission_reports([expected], "fixture-a")[0]
+        assert observed[floor].report_id == report.key
+        assert observed[floor].finished_at == report.metrics["last_mission_finished"]
+
+
 @pytest.mark.parametrize(
     ("kind", "status", "index", "number"),
     [
