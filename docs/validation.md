@@ -1839,8 +1839,17 @@ counters, and the dust bag without an enabled counter. The frontend
 tests verify one confirmed call, a refreshed usage value, error
 feedback, and isolation when the selected robot changes. The native
 review left the household counters intact.
+
+In the household Home Assistant, Core passed the configuration check
+and restarted with 0.91.0. The dashboard loaded the released maintenance
+card and all three maps. The Max 700 Combo panel showed six reset
+controls and the dust bag reference. **Reset filter counter** opened the
+review for that exact part. **Back** returned to the maintenance list
+with its original counter reading. The trial stopped at the
+review and a confirmed household reset remains open.
 [Panel instructions](usage.md#reset-a-maintenance-counter) ·
-[Card tests](../tests/frontend/map-card.test.cjs)
+[Card tests](../tests/frontend/map-card.test.cjs) ·
+[Installed review](screenshots/roomba-maintenance-reset.jpg)
 
 ## Voice pack installation
 
@@ -3152,7 +3161,8 @@ listed **Robot activation date**. The date matched the native display
 and signed asset read for that same robot. No robot commands were sent.
 
 [Asset contract](api.md#robot-activation-date) ·
-[Entity tests](../tests/ha/test_telemetry_entities.py)
+[Entity tests](../tests/ha/test_telemetry_entities.py) ·
+[Installed sensor label](screenshots/roomba-activation-date.jpg)
 
 ## Estimated time during a directed mission
 

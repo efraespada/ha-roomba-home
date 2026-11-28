@@ -158,6 +158,10 @@ threshold. [Dock settings and automation example](docs/usage.md#dock-settings)
 
 ![Battery and active dock operation shown by the installed Home Assistant card during the map fallback trial](docs/screenshots/roomba-robot-status.jpg)
 
+![Filter counter review in the installed Home Assistant maintenance panel](docs/screenshots/roomba-maintenance-reset.jpg)
+
+![Robot activation date sensor in Home Assistant diagnostics](docs/screenshots/roomba-activation-date.jpg)
+
 ## Cleaning history
 
 ![Installed Home Assistant report excerpt showing a bin emptying stage with zero recorded emptyings](docs/screenshots/roomba-history-emptying.png)
