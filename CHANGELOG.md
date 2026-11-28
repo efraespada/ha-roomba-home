@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.103.0
+
+- Save room-only routines and schedules in local map backups along with
+  programs that use zones and furniture. Recreate a saved program on a
+  current floor by assigning each old area to a new destination. Review its
+  cleaning order, profiles, and schedule timing before saving. New schedules
+  start disabled.
+
 ## 0.102.0
 
 - Review the routines and schedules that Roomba links to a saved floor

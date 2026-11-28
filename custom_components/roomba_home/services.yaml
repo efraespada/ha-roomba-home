@@ -339,6 +339,9 @@ create_cleaning_routine:
       required: true
       selector:
         object:
+    floor:
+      selector:
+        object:
     ordered:
       selector:
         boolean:

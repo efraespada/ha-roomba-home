@@ -212,9 +212,17 @@ class RoombaVacuum(RoombaEntity, StateVacuumEntity):
             ordered=ordered,
         )
 
-    async def async_create_cleaning_routine(self, name, regions, ordered=True, **appearance):
+    async def async_create_cleaning_routine(
+        self, name, regions, ordered=True, floor=None, **appearance
+    ):
+        reviewed = (floor["map_id"], floor["version"], floor.get("inventory_id")) if floor else None
         return await self.account.async_create_cleaning_routine(
-            self.robot_id, name, self._region_selections(regions), ordered=ordered, **appearance
+            self.robot_id,
+            name,
+            self._region_selections(regions),
+            ordered=ordered,
+            reviewed_map=reviewed,
+            **appearance,
         )
 
     async def async_update_cleaning_routine(

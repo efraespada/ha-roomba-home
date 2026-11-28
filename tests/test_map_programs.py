@@ -6,6 +6,7 @@ import pytest
 
 from custom_components.roomba_home.core.cleaning import CleaningCapabilities, CleaningMode
 from custom_components.roomba_home.core.map_programs import (
+    capture_map_programs,
     matching_backup_destinations,
     review_map_program,
     saved_furniture_destinations,
@@ -28,6 +29,60 @@ FLOOR = PersistentMap(
     ),
 )
 CAPABILITIES = CleaningCapabilities(frozenset(CleaningMode), 4, 3)
+
+
+def test_backup_copies_room_only_programs_and_a_one_time_schedule():
+    routine = {
+        "id": "routine",
+        "name": "Early clean",
+        "regions": [ROOM["id"]],
+        "region_settings": [ROOM],
+        "ordered": False,
+        "icon": "🧹",
+        "color": "#CBCBFB",
+    }
+    timing = {"frequency": "once", "weekday": 2, "time": "08:15", "enabled": True}
+    schedule = routine | timing | {"id": "schedule", "ordered": True}
+    sources = {"routine": [routine], "schedule": [schedule]}
+    result = capture_map_programs(FLOOR, FloorPlan(()), sources, [])
+    assert result["unchecked"] == []
+    recorded_routine, recorded_schedule = result["items"]
+    assert recorded_routine["region_settings"] == [ROOM] and recorded_routine["ordered"] is False
+    assert recorded_routine["draft"] == {
+        "area_names": ["Kitchen"],
+        "icon": "🧹",
+        "color": "#CBCBFB",
+    }
+    assert recorded_schedule["draft"] == timing | {"area_names": ["Kitchen"]}
+
+
+def test_backup_marks_unknown_commands_and_keeps_unresolved_programs_for_relinking():
+    unavailable = ROOM | {"id": "map:zid:104"}
+    missing_names = {
+        "id": "schedule",
+        "name": "Morning",
+        "regions": [unavailable["id"]],
+        "region_settings": [unavailable],
+        "weekdays": [2],
+        "time": "08:15",
+    }
+    source = {
+        "routine": [{"regions": None}],
+        "schedule": [missing_names, missing_names | {"id": "other", "regions": ["other:rid:room"]}],
+    }
+    result = capture_map_programs(FLOOR, FloorPlan(()), source, [])
+    assert result == {
+        "items": [
+            {
+                "kind": "schedule",
+                "id": "schedule",
+                "name": "Morning",
+                "ordered": True,
+                "region_settings": [unavailable],
+            }
+        ],
+        "unchecked": ["routine"],
+    }
 
 
 @pytest.mark.parametrize(

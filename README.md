@@ -266,7 +266,7 @@ the map and last updated its revision. [Floor dates and automation example](docs
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.102.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.103.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)
@@ -317,7 +317,9 @@ mode. [Side-by-side mopping trial](docs/validation.md#side-by-side-live-mopping)
   Recover keep-out and no-mop zones, virtual walls, and furniture
   placements from a backup. Recover missing furniture and zone destinations
   in compatible routines or schedules, including their cleaning order and
-  per-area settings.
+  per-area settings. After remapping a floor, use **Recreate a saved
+  program** to assign each backed-up destination to an area on the new floor
+  and open the saved profiles in the editor. Recreated schedules start disabled.
   [Map backups](docs/usage.md#local-map-backups)
 - **Edit rooms** divides a room, merges two adjacent rooms, and edits room
   names and types on a supported Max 700 floor plan. Choose **Divide a

@@ -164,7 +164,10 @@ async def read_backup(hass, connection, message):
                 "format_version": 1,
                 **{key: snapshot[key] for key in fields if key in snapshot},
             }
-        return {"backup": snapshot_summary(snapshot), "geometry": map_geometry(floor, plan)}
+        result = {"backup": snapshot_summary(snapshot), "geometry": map_geometry(floor, plan)}
+        if programs := snapshot.get("programs"):
+            result["program_drafts"] = [item for item in programs["items"] if "draft" in item]
+        return result
 
     await _handle(hass, connection, message, POLICY_READ, load)
 
