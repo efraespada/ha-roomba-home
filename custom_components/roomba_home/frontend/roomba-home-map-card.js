@@ -126,6 +126,12 @@ const HELP_GUIDE_LABELS = {
   reboot: "Reboot the robot",
   serial_number: "Find the serial number",
 };
+const CONNECTION_STATES = {
+  connected: "Connected to Roomba",
+  disconnected: "Disconnected from Roomba",
+  unknown: "Roomba has not reported a connection state",
+  unavailable: "Roomba cloud data is unavailable",
+};
 const HELP_SETUP_ICONS = new Map([
   ["brushes", "mdi:broom"],
   ["water", "mdi:water"],
@@ -248,6 +254,10 @@ template.innerHTML = `
     #history-status:empty, #scores-status:empty { display:none; }
     .measurements { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:8px; }
     .measurements dd { margin:0; font-weight:650; }
+    #device-connection { margin:12px 0; }
+    #device-connection summary { cursor:pointer; }
+    #device-connection .measurements { grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr)); }
+    #device-connection a { color:var(--link-text-color,#8ae0d5); }
     #active-errors { border-inline-start:3px solid var(--warning-color,#ffad55); margin:0 16px 12px;
       padding:6px 10px; overflow-wrap:anywhere; }
     #history-timeline { padding-inline-start:22px; }
@@ -617,6 +627,11 @@ template.innerHTML = `
         </div>
         <p id="device-action-status" class="muted" role="status"></p>
       </section>
+      <details id="device-connection" hidden>
+        <summary>Connection</summary>
+        <dl id="device-connection-metrics" class="measurements"></dl>
+        <div id="device-connection-guide"></div>
+      </details>
       <fieldset id="device-settings-entries" aria-label="Robot and dock settings"></fieldset>
       <div class="actions">
         <button id="open-voice-downloads" hidden>Download voices</button>
@@ -2545,6 +2560,9 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("device-settings-title").textContent = "Device settings";
     const entries = this.$("device-settings-entries");
     entries.replaceChildren();
+    const connection = this.$("device-connection");
+    connection.open = false;
+    this.renderDeviceConnection();
     this.$("open-voice-downloads").hidden = true;
     entries.disabled = this.$("close-device-settings").disabled = false;
     ensureModal(dialog);
@@ -2571,6 +2589,7 @@ class RoombaHomeMapCard extends HTMLElement {
       if (!current()) return;
       context.actions = report.actions ?? {};
       context.robot = report.robot;
+      this.renderDeviceConnection(report.connectivity);
       const review = context.actionReview;
       if (review && (context.actions[review.action] !== review.entity || context.robot !== review.robot)) {
         context.actionReview = null;
@@ -2596,6 +2615,7 @@ class RoombaHomeMapCard extends HTMLElement {
     } catch (error) {
       if (current()) {
         entries.replaceChildren();
+        this.renderDeviceConnection();
         voices.hidden = true;
         context.actions = {};
         context.actionReview = null;
@@ -2609,6 +2629,46 @@ class RoombaHomeMapCard extends HTMLElement {
         this.updateDeviceActions(context);
       }
     }
+  }
+
+  renderDeviceConnection(connection) {
+    const section = this.$("device-connection");
+    const measurements = this.$("device-connection-metrics");
+    const guide = this.$("device-connection-guide");
+    section.hidden = !connection;
+    measurements.replaceChildren();
+    guide.replaceChildren();
+    if (!connection) return;
+
+    const fields = [["Roomba connection", CONNECTION_STATES[connection.state] ?? CONNECTION_STATES.unknown]];
+    const timestamps = {
+      connection_updated_at: "Last Roomba connectivity update",
+      cloud_read: "Last cloud read",
+    };
+    const formatter = new Intl.DateTimeFormat(this._hass.locale?.language || undefined, {
+      dateStyle: "medium", timeStyle: "short", timeZone: this._hass.config?.time_zone,
+    });
+    for (const [key, label] of Object.entries(timestamps)) {
+      if (!Object.hasOwn(connection, key)) continue;
+      const raw = connection[key];
+      const date = raw && new Date(raw);
+      const valid = date && Number.isFinite(date.getTime());
+      fields.push([label, valid ? formatter.format(date) : "Unknown", valid ? raw : null]);
+    }
+    if (Object.hasOwn(connection, "connection_code")) {
+      fields.push(["Roomba connection code", connection.connection_code ?? "Unknown"]);
+    }
+    for (const [label, value, timestamp] of fields) {
+      const row = document.createElement("div");
+      const term = document.createElement("dt");
+      term.textContent = label;
+      const definition = document.createElement("dd");
+      definition.textContent = String(value);
+      if (timestamp) definition.title = timestamp;
+      row.append(term, definition);
+      measurements.append(row);
+    }
+    guide.append(externalLink("iRobot Wi-Fi reconnection guide", "https://homesupport.irobot.com/articles/en_US/Knowledge/10503"));
   }
 
   updateDeviceActions(context) {
