@@ -53,7 +53,7 @@ Roomba Home. Other models require their own captures and tests.
 | Robot reboot | One `reset` command and subsequent `rw-constatus` connection transitions | Reviewed **Reboot robot** in Device settings, the configuration button, and last command status | The Max 700 Combo disconnected, returned to charging, and retained its map and tested settings. [Transport validation](validation.md#robot-reboot-and-voice-catalog) · [Card validation](validation.md#locate-and-reboot-from-device-settings) |
 | Downloadable voice catalog | Public model catalog and the robot's reported installed options | **Download voices** in Device settings and the List robot voices action | Roomba returned 25 downloadable locale codes for the Max 700 Combo. [Validation](validation.md#robot-reboot-and-voice-catalog) |
 | Voice pack installation | Catalog metapackage, language deployment ID, and reported software and voice settings | Reviewed installation from the card and the Install robot voice action | A confirmed download replaced the single additional voice without changing the map or default voices. [Validation](validation.md#voice-pack-installation) |
-| Progress | Phase, cycle, mode, area, start, and elapsed time | Sensors, binary sensor for active cleaning at the dock, and current mission readout above the floor plan | Phase and cycle confirmed through real readings. Physical recharge and resume is pending. [Current mission readout](usage.md#current-mission-readout) |
+| Progress | Phase, cycle, mode, area, start, and elapsed time | Sensors, binary sensor for active cleaning at the dock, and current mission readout above the floor plan | A Max 700 Combo returned with 10% battery and recharged while preserving the mission. Home Assistant 0.104.5 kept the reported room cleaning time after restarting. [Physical validation](validation.md#charging-during-the-same-cleaning-mission) |
 | Live timeline | Correlated report with the current mission number | Accumulated destination cleaning time, area measurements, and a countdown for directed rooms with matching durations | The installed card held the room estimate through a physical pause and included the earlier cleaning time on resumption. Android's zone timer advanced across passes. Overall progress percentage remains unverified. [Room countdown trial](validation.md#remaining-time-during-a-pause) · [Elapsed zone time](validation.md#accumulated-destination-cleaning-time) |
 | Live route activity | Operating modes in `pos_update.cur_path` | Travel, vacuuming, mopping, and combined activity colors in both map views, plus a live activity sensor | Three localized Max 700 missions matched their active modes to archived routes. [Validation](validation.md#wet-cleaning-route-activity) |
 | On mapped carpet | Fresh position and `floorTypes` carpet polygons on the active revision | Binary sensor and floor plan label | The Max 700 reported vacuuming positions on the saved carpet and position samples outside it. Home Assistant matched both to the signed floor. [Carpet trial](validation.md#carpet-boost-and-mapped-surface) |
@@ -107,7 +107,10 @@ data in the Home Assistant harness.
 The suite checks serialization and omission of inactive settings across 384
 valid profiles spanning four modes, four suction levels, three wetness levels,
 and three booleans. The physical effect of several advanced preferences and
-automatic recharge and resume still need verification.
+the remainder of the automatic-resumption scenario still need verification.
+The low-battery return, active charging, and increasing battery have been
+observed under one mission identity.
+[Recharge trial](validation.md#charging-during-the-same-cleaning-mission)
 
 A scheduled room sequence began vacuuming and encountered navigation error
 48 before mopping. The regional schedule retains the requested destination
