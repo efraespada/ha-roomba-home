@@ -2,6 +2,7 @@
 
 import json
 from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
 
@@ -52,6 +53,20 @@ def test_optional_floor_orientation_preserves_or_ignores_provider_value(value, e
     (floor,) = parse_maps([one_map(user_orientation_rad=value)], "example-robot")
     assert floor.orientation == expected
     assert not isinstance(floor.orientation, bool)
+
+
+def test_optional_floor_dates_do_not_change_geometry_or_edit_identity():
+    (before,) = parse_maps(
+        [one_map(create_time=True, last_p2mapv_ts="1600000100")], "example-robot"
+    )
+    (after,) = parse_maps(
+        [one_map(create_time=1_600_000_000, last_p2mapv_ts=1_600_000_100)], "example-robot"
+    )
+    assert before.created_at is None and before.revision_updated_at is None
+    assert after.created_at == datetime.fromtimestamp(1_600_000_000, UTC)
+    assert after.revision_updated_at == datetime.fromtimestamp(1_600_000_100, UTC)
+    assert before == after
+    assert before.settings_id == after.settings_id and before.geometry_key == after.geometry_key
 
 
 def test_nested_capabilities_combine_independent_api_sources():

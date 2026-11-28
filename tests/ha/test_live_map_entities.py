@@ -15,7 +15,7 @@ from custom_components.roomba_home.core.errors import (
     ProtocolError,
     RateLimited,
 )
-from custom_components.roomba_home.core.history import AreaResult, present_zones
+from custom_components.roomba_home.core.history import AreaResult, FloorCleaning, present_zones
 from custom_components.roomba_home.core.live_maps import (
     MissionTimeline,
     Position,
@@ -24,10 +24,58 @@ from custom_components.roomba_home.core.live_maps import (
 )
 from custom_components.roomba_home.core.live_route import raw_route_reference
 from custom_components.roomba_home.core.maps import CleaningRegion, PersistentMap, RegionKind
+from custom_components.roomba_home.image import RoombaFloorPlan
 
 MAP = PersistentMap(
     "map-a", "version.42", "Example floor", (CleaningRegion("room-a", RegionKind.ROOM, "Office"),)
 )
+
+
+async def test_floor_image_attributes_follow_scoped_activity_without_rendering(
+    hass, entry, robot_states
+):
+    hass.config_entries.async_update_entry(entry, options={CONF_SHOW_MAPS: True})
+    robot_id = "fixture-0"
+    created = datetime(2026, 11, 1, tzinfo=UTC)
+    revision = created + timedelta(days=5)
+    floor = replace(MAP, created_at=created, revision_updated_at=revision)
+    robot = replace(robot_states[robot_id], telemetry={"maps_available": True})
+
+    async def first_refresh(account):
+        account._maps = {robot_id: (floor,)}
+        return {robot_id: robot}
+
+    with patch.object(RoombaCoordinator, "_async_update_data", first_refresh):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    account = entry.runtime_data
+    image_id = next(iter(hass.states.async_entity_ids("image")))
+    initial = hass.states.get(image_id)
+    assert initial.attributes["floor_created_at"] == created
+    assert initial.attributes["floor_revision_updated_at"] == revision
+    assert initial.attributes["floor_last_cleaning_at"] is None
+    finished = created + timedelta(days=3)
+    activity = FloorCleaning(finished, "opaque")
+    other = FloorCleaning(finished + timedelta(days=1), "unrelated")
+    account.async_set_updated_data(
+        {
+            robot_id: replace(
+                robot,
+                telemetry=robot.telemetry
+                | {"last_cleaning_by_floor": {floor.map_id: activity, "other": other}},
+            )
+        }
+    )
+    updated = hass.states.get(image_id)
+    assert updated.attributes["floor_last_cleaning_at"] == finished
+    assert updated.state == initial.state
+    assert "opaque" not in repr(updated.attributes)
+    probe = RoombaFloorPlan(account, robot_id, floor)
+    account.async_set_updated_data({})
+    assert probe.extra_state_attributes is None
+    account._maps = {}
+    assert probe.extra_state_attributes is None
 
 
 async def test_live_floor_image_and_room_are_private_opt_in_and_expire(

@@ -38,6 +38,41 @@ show them. The markers expire with the snapshot and clear when the
 mission or floor revision changes. Saved keep-out and no-mop zones have
 their own overlays.
 
+### Floor activity
+
+Choose **Last recorded cleaning** to open the newest recent report for the
+displayed floor when Roomba identifies that floor and reports positive
+cleaned area. A stopped run can qualify if the robot cleaned an area
+before stopping. Mapping-only runs and ambiguous, missing, or unmeasured
+floor results leave earlier verified readings intact. The shortcut uses
+the standard ten-day history. If the selected report has expired, the
+history panel asks you to choose another report.
+
+Expand **Floor details** to see the map's creation and revision update
+times. A revision update can follow a map edit. The corresponding Home
+Assistant floor image exposes the same readings as timestamp attributes.
+For example, notify when that floor's last recorded cleaning changes.
+
+```yaml
+alias: Report a new cleaning on the ground floor
+triggers:
+  - trigger: state
+    entity_id: image.roomba_ground_floor
+    attribute: floor_last_cleaning_at
+conditions:
+  - condition: template
+    value_template: >-
+      {{ trigger.to_state is not none
+         and trigger.to_state.attributes.get('floor_last_cleaning_at') is not none }}
+actions:
+  - action: persistent_notification.create
+    data:
+      message: Roomba recorded cleaning on the ground floor.
+```
+
+The image also exposes `floor_created_at` and `floor_revision_updated_at`.
+[Roomba sources and scoping](api.md#floor-activity)
+
 ### Current mission readout
 
 While Roomba reports an active cleaning mission, the top of the card

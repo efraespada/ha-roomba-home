@@ -1847,6 +1847,8 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 telemetry["last_mission_zones"] = present_zones(zones, zone_maps)
             if self.show_maps:
                 telemetry.update(await self._timeline_metrics(state, timelines.get(key), now))
+            else:
+                telemetry.pop("last_cleaning_by_floor", None)
             if zone_name := telemetry.get("robot_timezone"):
                 zone = await dt_util.async_get_time_zone(zone_name)
                 if zone is None:

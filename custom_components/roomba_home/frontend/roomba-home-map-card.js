@@ -179,7 +179,8 @@ template.innerHTML = `
     .floor-routine-controls:not(:has(> :not([hidden]))) { display:none; }
     #floor-shortcuts { margin:0; max-width:100%; }
     #floor-shortcuts[open] { flex-basis:100%; }
-    #floor-shortcuts summary { cursor:pointer; padding:7px 0; }
+    #floor-shortcuts summary, #floor-date-details summary { cursor:pointer; padding:7px 0; }
+    #floor-date-details[open] { flex-basis:100%; }
     #floor-shortcut-list { display:flex; flex-wrap:wrap; gap:7px; list-style:none; padding:0; margin:8px 0; }
     #floor-shortcut-list li, #floor-shortcut-list button { max-width:100%; }
     #floor-shortcut-list button { text-align:start; overflow-wrap:anywhere; }
@@ -324,6 +325,11 @@ template.innerHTML = `
     </div>
     <p id="mission-control-status" class="muted" role="status" hidden></p>
     <div class="floor-routine-controls">
+      <button id="open-floor-cleaning" hidden></button>
+      <details id="floor-date-details" hidden>
+        <summary>Floor details</summary>
+        <dl id="floor-dates" class="measurements"></dl>
+      </details>
       <button id="show-recommended-rooms" hidden aria-pressed="false">Recommended rooms</button>
       <details id="floor-shortcuts" hidden>
         <summary>Quick routines</summary>
@@ -1389,6 +1395,13 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("confirm-mission-control").onclick = () => this.confirmMissionCommand();
     this.$("mission-control-dialog").onclose = () => { this.missionControlDraft = null; };
     this.$("open-mission-history").onclick = () => this.openMissionHistory();
+    this.$("open-floor-cleaning").onclick = () => {
+      const map = this.snapshot?.map;
+      const report = this.snapshot?.floor_activity?.last_cleaning;
+      if (report && map && (!this.selectedFloor || this.selectedFloor === map.id)) {
+        return this.openMissionHistory(report.report_id);
+      }
+    };
     this.$("open-dock-controls").onclick = () => this.openDockControls();
     this.$("close-dock-controls").onclick = () => this.$("dock-controls-dialog").close();
     this.$("dock-controls-dialog").onclose = () => { this.dockDraft = null; };
@@ -3427,13 +3440,13 @@ class RoombaHomeMapCard extends HTMLElement {
     }
   }
 
-  async openMissionHistory() {
+  async openMissionHistory(preferredReport) {
     if (!this.config || !this._hass) return;
     this.$("history-days").value = String(DEFAULT_HISTORY_DAYS);
     this.$("history-include-short-canceled").checked = false;
     this.$("history-route-settings").open = false;
     this.$("mission-history-dialog").showModal();
-    return this.refreshMissionHistory();
+    return this.refreshMissionHistory(preferredReport, Boolean(preferredReport));
   }
 
   async readRouteSettings(options = {}) {
@@ -3477,7 +3490,7 @@ class RoombaHomeMapCard extends HTMLElement {
     });
   }
 
-  async refreshMissionHistory(preferredReport) {
+  async refreshMissionHistory(preferredReport, requirePreferred = false) {
     const entity = this.config.entity;
     const dialog = this.$("mission-history-dialog");
     const status = this.$("history-status");
@@ -3508,7 +3521,13 @@ class RoombaHomeMapCard extends HTMLElement {
           mission.duration_minutes == null ? "" : `${mission.duration_minutes} min`,
           mission.area_m2 == null ? "" : `${mission.area_m2} m²`].filter(Boolean).join(" · "))));
       this.$("history-selector").hidden = false;
-      selector.value = missions.some(({ id }) => id === preferredReport) ? preferredReport : missions[0].id;
+      const matched = missions.some(({ id }) => id === preferredReport);
+      if (requirePreferred && !matched) {
+        selector.value = "";
+        status.textContent = "This floor's last cleaning report is no longer available.";
+        return;
+      }
+      selector.value = matched ? preferredReport : missions[0].id;
       await this.loadMissionReport(selector.value, 0);
     } catch (error) {
       if (sequence === this.historySequence && dialog.open) status.textContent = error?.message || "Cleaning history is unavailable.";
@@ -3806,6 +3825,7 @@ class RoombaHomeMapCard extends HTMLElement {
     view.hidden = !reported.length;
     this.renderActiveErrors(overview?.active_errors);
     this.renderCurrentMission(overview?.current_mission);
+    this.renderFloorActivity(overview?.floor_activity);
     this.updateMissionControls(overview?.mission_controls);
     this.updateDockControls();
     const canStart = overview?.can_clean_everywhere === true;
@@ -3814,6 +3834,17 @@ class RoombaHomeMapCard extends HTMLElement {
       this.confirmation = null;
       if (this.dialog.open) this.dialog.close();
     }
+  }
+
+  renderFloorActivity(floor) {
+    const report = floor?.last_cleaning;
+    const button = this.$("open-floor-cleaning");
+    button.hidden = !report;
+    button.textContent = report ? `Last recorded cleaning · ${historyTime(report.finished_at)}` : "";
+    const dates = [["Floor created", floor?.created_at], ["Map revision updated", floor?.revision_updated_at]]
+      .filter(([, timestamp]) => timestamp);
+    this.$("floor-date-details").hidden = !dates.length;
+    renderMeasurements(this.$("floor-dates"), dates.map(([label, timestamp]) => [label, historyTime(timestamp)]));
   }
 
   renderCurrentMission(mission) {

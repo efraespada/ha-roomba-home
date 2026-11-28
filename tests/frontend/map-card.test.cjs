@@ -2562,6 +2562,45 @@ test("historical furniture and obstacles can be hidden independently in 2D and 3
   assert.equal(geometry.hazards.length, 1);
 });
 
+test("floor dates and the cleaning report are displayed and cleared independently", () => {
+  const { card } = mockCard(0);
+  const first = "2026-11-02T10:00:00Z", revision = "2026-11-25T12:00:00Z";
+  card.renderFloorActivity({ created_at: first, revision_updated_at: revision });
+  const button = card.$("open-floor-cleaning");
+  const dates = card.$("floor-date-details");
+  assert.equal(button.hidden, true);
+  assert.equal(dates.hidden, false);
+  assert.deepEqual(card.$("floor-dates").children.map((row) => row.querySelector("dt").textContent),
+    ["Floor created", "Map revision updated"]);
+  card.renderFloorActivity({ last_cleaning: { finished_at: first, report_id: "opaque" } });
+  assert.match(button.textContent, /^Last recorded cleaning/);
+  assert.equal(dates.hidden, true);
+  assert.equal(button.hidden, false);
+  card.renderFloorActivity();
+  assert.equal(button.hidden, true);
+  assert.equal(button.textContent, "");
+  assert.deepEqual(card.$("floor-dates").children, []);
+});
+
+test("the floor history shortcut opens only the intended report and never falls back to another floor", async () => {
+  const { card, dialog } = modalCard("mission-history-dialog");
+  card.historySequence = 0;
+  const other = { id: "other-floor", finished_at: "2026-11-26T10:00:00Z" };
+  const selected = { id: "shown-floor", finished_at: "2026-11-25T10:00:00Z" };
+  const loaded = [];
+  let missions = [other, selected];
+  card._hass = { callWS: async () => ({ missions }) };
+  card.loadMissionReport = async (...args) => loaded.push(args);
+  await card.openMissionHistory(selected.id);
+  assert.deepEqual(loaded, [[selected.id, 0]]);
+  dialog.close();
+  missions = [other];
+  await card.openMissionHistory(selected.id);
+  assert.equal(card.$("history-mission").value, "");
+  assert.match(card.$("history-status").textContent, /floor's last cleaning report is no longer available/);
+  assert.deepEqual(loaded, [[selected.id, 0]]);
+});
+
 test("the history panel opens the latest report and shows measurements when geometry is missing", async () => {
   const { card } = mockCard(0);
   const mission = { id: "report-a", finished_at: "2026-11-25T10:00:00Z", map_count: 1, duration_minutes: 2,
