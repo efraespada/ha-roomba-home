@@ -189,6 +189,8 @@ disconnects and reconnects. [Robot settings](docs/usage.md#robot-settings)
 
 ## Maintenance and diagnostics
 
+Parts at their service limit appear as reminders on the robot's card.
+Select a reminder to open **Maintenance**, or dismiss it for this card view.
 Open **Maintenance** to check a part's usage, remaining time, and care
 instructions. [Maintenance and parts](docs/usage.md#maintenance-and-replacement-parts)
 
@@ -261,7 +263,7 @@ the map and last updated its revision. [Floor dates and automation example](docs
 
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
-2. Add `/roomba_home/roomba-home-map-card.js?v=0.99.0` as a **JavaScript module**
+2. Add `/roomba_home/roomba-home-map-card.js?v=0.100.0` as a **JavaScript module**
    in **Settings → Dashboards → Resources**. Set `v` to your installed version
    whenever you upgrade so the browser loads the updated card. Enable Advanced
    Mode in your user profile if Resources is hidden. [Home Assistant resource setup](https://contributors.home-assistant.io/frontend/custom-ui/resources/)

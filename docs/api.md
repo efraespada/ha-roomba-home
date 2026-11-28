@@ -103,6 +103,14 @@ command reads the coordinator snapshot. The card's bar uses `usage`.
 Its display converts remaining minute values of 60 or more to whole hours.
 The WebSocket and sensors retain minute precision.
 
+`roomba_home/robot_overview` and `roomba_home/floor_plan` include a
+`maintenance_reminders` list from the same robot snapshot. Rows contain
+`part`, `remaining`, `count_type`, and `category` from the typed part
+projection. A reported usage of 100% or a known remaining count of zero
+qualifies. Dock rows require a recognized dock. The list is empty when
+the account refresh has failed or the signed counters are unavailable.
+These reads use the existing entity permissions and refresh schedule.
+
 Each row also includes `can_reset`. It is true when a supported counter is
 available and the caller has control permission for the same vacuum.
 The dashboard submits `roomba_home.reset_maintenance_counter` with the

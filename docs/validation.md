@@ -1,5 +1,18 @@
 # Roomba Home validation
 
+## Maintenance reminders
+
+Roomba Home Android 3.4.1 showed a roller mop reminder on the Max 700
+Combo's floor homepage. Selecting it opened Robot status and its parts
+list. Two matching signed `GET /v1/robots/{id}/parts` replies decoded in
+Proxyman returned part `148` with `counter: 100`,
+`count_type: combo_missions`, `count_remaining: 0`, and
+`counter_category: replacement`. The trial only opened the parts list.
+
+The tests compare the floor plan and robot overview payloads, check that
+unavailable counters and dock parts with missing capabilities are hidden,
+and verify the card opens Maintenance and dismisses a single reminder.
+
 ## Side-by-side live mopping
 
 The installed 0.86.1 card and Android displayed the same Max 700 Combo

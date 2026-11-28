@@ -2,6 +2,7 @@ import pytest
 
 from custom_components.roomba_home.core.maintenance import (
     maintenance_parts,
+    maintenance_reminders,
     parts_catalog_url,
     project_part_references,
 )
@@ -11,6 +12,37 @@ GB_FILTER_URL = FILTER_URL.replace("/ES/", "/GB/")
 GUIDE_URL = "https://prod-help-content.care.irobotapi.com/web/es/70517.html"
 MODEL = "X185240"
 FILTER_DESCRIPTION_ID = "robot_health_filter_dmc"
+
+
+@pytest.mark.parametrize("dock_recognized", [True, False])
+def test_maintenance_reminders_use_only_supported_part_counters(dock_recognized):
+    telemetry = {
+        "part_67_usage": 99,
+        "part_67_remaining": 2,
+        "part_72_usage": 100,
+        "part_72_category": "replacement",
+        "part_148_remaining": 0,
+        "part_148_count_type": "combo_missions",
+        "part_202_usage": 100,
+        "part_202_count_type": "pad_washes_used",
+        "part_202_category": "maintenance",
+        "part_999_usage": 100,
+        "part_references": {"147": {"part_sku": "fixture"}},
+    }
+    expected = [
+        {"part": "filter", "remaining": None, "count_type": None, "category": "replacement"},
+        {"part": "mop_roller", "remaining": 0, "count_type": "combo_missions", "category": None},
+    ]
+    if dock_recognized:
+        expected.append(
+            {
+                "part": "dock_washing_system",
+                "remaining": None,
+                "count_type": "pad_washes_used",
+                "category": "maintenance",
+            }
+        )
+    assert maintenance_reminders(telemetry, dock_recognized=dock_recognized) == expected
 
 
 @pytest.mark.parametrize(

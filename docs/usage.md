@@ -1038,6 +1038,12 @@ for the verified Max 700 Combo model. Other models return a null
 
 ## Maintenance and replacement parts
 
+The robot's card shows a maintenance reminder when Roomba reports 100%
+usage or zero remaining for a supported part. Select the reminder to open
+**Maintenance** and check the available care instructions. **Dismiss** hides
+only that reminder in the current card view. It appears again when you
+reload the card or Roomba reports that the part is due again.
+
 Choose **Maintenance** on the dashboard card to see the usage bar and the
 amount remaining for each part with a reported counter. For example, a
 filter with 125 minutes remaining shows **2 h remaining**. Hover over the
