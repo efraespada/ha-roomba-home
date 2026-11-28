@@ -151,6 +151,8 @@ threshold. [Dock settings and automation example](docs/usage.md#dock-settings)
 
 ![Auto-empty frequency selector set to Every 25 m² on the installed Home Assistant dock](docs/screenshots/roomba-dock-auto-empty.png)
 
+![Dock controls in the installed Home Assistant map card, with mop drying in progress](docs/screenshots/roomba-dock-controls.jpg)
+
 ## Cleaning history
 
 ![Installed Home Assistant report excerpt showing a bin emptying stage with zero recorded emptyings](docs/screenshots/roomba-history-emptying.png)
