@@ -51,6 +51,7 @@ def current_mission(state: RobotState, now: datetime) -> dict | None:
     return {
         "activity": state.activity,
         "phase": state.phase,
+        "charging_at_dock": state.mission_at_dock,
         "mode": reported_cleaning_mode(state.mode),
         "elapsed_seconds": state.mission_elapsed(now),
         "cleaned_area_m2": state.telemetry.get("mission_area"),
