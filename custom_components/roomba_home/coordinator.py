@@ -2315,11 +2315,40 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             "downloadable": sorted(set(catalog) - installed),
         }
 
-    async def async_install_voice_language(self, robot_id, language):
+    async def async_voice_downloads(self, robot_id):
+        report = await self.async_list_voice_languages(robot_id)
+        robot = (self.data or {}).get(robot_id)
+        details = self._details.get(robot_id, {})
+        observed = voice_installation(
+            details.get("rw-settings", {}), details.get("rw-software", {})
+        )
+        current = observed.selected.lower() if observed.selected else None
+        status = "unavailable"
+        if (
+            robot is not None
+            and self.last_update_success
+            and sorted({code.lower() for code in observed.installed}) == report["installed"]
+            and current == report["current"]
+        ):
+            status = (
+                observed.download_status
+                if robot.connected is True
+                and robot.activity == "docked"
+                and robot_settings_idle(robot)
+                else "dock_required"
+            )
+        additional = sorted({code.lower() for code in observed.additional})
+        return report | {
+            "status": status,
+            "reviewed_inventory": observed.inventory_id if status == "ready" else None,
+            "replaces": additional[0] if observed.slots == 1 and len(additional) == 1 else None,
+        }
+
+    async def async_install_voice_language(self, robot_id, language, *, reviewed_inventory=None):
         async with self._robot_operation(robot_id):
             await self._refresh_for_command()
             try:
-                await self._install_voice_language(robot_id, language)
+                await self._install_voice_language(robot_id, language, reviewed_inventory)
             except AuthenticationError as error:
                 raise ConfigEntryAuthFailed("Authentication required") from error
             except OSError, RoombaError:
@@ -2327,7 +2356,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                     "voice_install_unavailable", "Voice installation unavailable"
                 ) from None
 
-    async def _install_voice_language(self, robot_id, language):
+    async def _install_voice_language(self, robot_id, language, reviewed_inventory):
         async with self._io_lock:
             robot = (self.data or {}).get(robot_id)
             if robot is None or not self.last_update_success or robot.connected is not True:
@@ -2339,16 +2368,20 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             session = await self.client.ensure_session()
             sender = MqttCommandSender(session, robot_id)
             observed = await self._read_voice_installation(robot_id, sender)
+            if reviewed_inventory is not None and reviewed_inventory != observed.inventory_id:
+                raise action_error(
+                    "voice_inventory_changed", "The installed voices changed. Review again."
+                )
             # Selecting an already installed voice must not start another deployment.
             installed = next(
                 (code for code in observed.installed if code.lower() == language), None
             )
             if installed is None:
-                if not observed.slots or observed.state is None:
+                if observed.download_status == "unavailable":
                     raise action_error(
                         "voice_install_unavailable", "Voice installation unavailable"
                     )
-                if observed.pending or 0 < observed.state < 100:
+                if observed.download_status == "busy":
                     raise action_error("voice_install_busy", "A software deployment is in progress")
                 pack = await self.client.voice_pack(robot.sku, language)
                 if pack is None:

@@ -131,6 +131,7 @@ def async_setup_services(hass):
         entity_domain=VACUUM_DOMAIN,
         schema={
             vol.Required("language"): vol.All(str, vol.Match(r"[a-z]{2}(?:[-_][a-z]{2})?\Z")),
+            vol.Optional("reviewed_inventory"): vol.All(str, vol.Match(r"[0-9a-f]{64}\Z")),
         },
         func="async_install_voice_language",
     )

@@ -79,6 +79,7 @@ MAINTENANCE = {"id": 1, "type": "roomba_home/maintenance", "entity_id": ENTITY}
 ROBOT_HELP = {"id": 1, "type": "roomba_home/robot_help", "entity_id": ENTITY}
 SOFTWARE = {"id": 1, "type": "roomba_home/software_status", "entity_id": ENTITY}
 DEVICE_SETTINGS = {"id": 1, "type": "roomba_home/device_settings", "entity_id": ENTITY}
+VOICE_DOWNLOADS = {"id": 1, "type": "roomba_home/voice_downloads", "entity_id": ENTITY}
 SCORES = {
     "id": 1,
     "type": "roomba_home/cleaning_scores",
@@ -606,6 +607,114 @@ async def test_device_settings_require_the_selected_vacuum_and_allow_a_missing_r
     configured.data = {}
     await socket.send_json(DEVICE_SETTINGS | {"id": 4})
     assert (await socket.receive_json())["error"]["code"] == "device_settings_unavailable"
+
+
+@pytest.mark.parametrize(
+    ("mode", "status"),
+    [
+        ("ready", "ready"),
+        ("read_only", "ready"),
+        ("busy", "busy"),
+        ("away", "dock_required"),
+        ("missing_details", "unavailable"),
+        ("selected_changed", "unavailable"),
+        ("no_extra", "ready"),
+    ],
+)
+async def test_voice_downloads_use_roomba_inventory_status_and_the_selected_robot_permissions(
+    hass, configured, hass_ws_client, hass_admin_user, mode, status
+):
+    robot_id = "fixture-0"
+    extra = ["cs-CZ"] if mode != "no_extra" else []
+    installed = ["es-ES", *extra]
+    robot = replace(
+        configured.data[robot_id],
+        phase="stop" if mode == "away" else "charge",
+        telemetry={"voice_language": "es-ES", "installed_voice_languages": tuple(installed)},
+    )
+    configured.data[robot_id] = robot
+    configured.show_maps = False
+    if mode != "missing_details":
+        configured._details[robot_id] = {
+            "rw-settings": {
+                "state": {
+                    "reported": {
+                        "langs2": {
+                            "aSlots": 1,
+                            "sLang": "cs-CZ" if mode == "selected_changed" else "es-ES",
+                            "dLangs": {"langs": ["es-ES"]},
+                            "uLangs": {"langs": extra},
+                        }
+                    }
+                }
+            },
+            "rw-software": {"state": {"reported": {"deploymentState": 4 if mode == "busy" else 0}}},
+        }
+    catalog = configured.client.voice_catalog = AsyncMock(return_value=("cs-cz", "es-es", "da-dk"))
+    progress = (
+        entity_registry.async_get(hass)
+        .async_get_or_create(
+            "sensor",
+            DOMAIN,
+            entity_unique_id(
+                configured.config_entry.unique_id, robot_id, "software_deployment_state"
+            ),
+            suggested_object_id="software_deployment",
+        )
+        .entity_id
+    )
+    read_only = mode == "read_only"
+    socket = await hass_ws_client()
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda entity, policy: (
+            entity == ENTITY
+            and (policy == POLICY_READ or not read_only)
+            or entity == progress
+            and policy == POLICY_READ
+            and not read_only
+        ),
+    ):
+        await socket.send_json(VOICE_DOWNLOADS)
+        report = (await socket.receive_json())["result"]
+    assert report["current"] == "es-es" and report["installed"] == sorted(
+        s.lower() for s in installed
+    )
+    assert report["downloadable"] == (["cs-cz", "da-dk"] if not extra else ["da-dk"])
+    assert report["status"] == status
+    if status == "ready":
+        assert len(report["reviewed_inventory"]) == 64
+    else:
+        assert report["reviewed_inventory"] is None
+    assert report["replaces"] == ("cs-cz" if extra and mode != "missing_details" else None)
+    assert report["can_install"] is not read_only
+    assert report["progress_entity"] == (None if read_only else progress)
+    catalog.assert_awaited_once_with(robot.sku)
+    configured.client.map_geometry.assert_not_awaited()
+
+
+async def test_voice_downloads_reject_an_unrelated_vacuum_and_mask_catalog_failure(
+    configured,
+    hass_ws_client,
+):
+    state = configured.data["fixture-0"]
+    configured.data["fixture-0"] = replace(
+        state,
+        telemetry={"installed_voice_languages": ("es-ES",)},
+    )
+    catalog = configured.client.voice_catalog = AsyncMock(
+        side_effect=ProtocolError("Private catalog data")
+    )
+    socket = await hass_ws_client()
+    await socket.send_json(VOICE_DOWNLOADS | {"entity_id": "vacuum.other"})
+    assert (await socket.receive_json())["error"]["code"] == "device_settings_unavailable"
+    catalog.assert_not_awaited()
+    await socket.send_json(VOICE_DOWNLOADS | {"id": 2})
+    assert (await socket.receive_json())["error"] == {
+        "code": "voice_catalog_unavailable",
+        "message": "Could not read robot voices",
+    }
 
 
 async def test_remembered_preferences_follow_verified_destinations_and_refresh_without_geometry(

@@ -842,6 +842,9 @@
     "voice_install_busy": {
       "message": "A Roomba software deployment is already in progress."
     },
+    "voice_inventory_changed": {
+      "message": "The installed voices changed. Review the download again."
+    },
     "unsupported_voice_pack": {
       "message": "Choose a voice available in this robot model's catalog."
     },

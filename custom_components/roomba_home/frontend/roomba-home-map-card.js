@@ -88,10 +88,15 @@ const DEVICE_SETTINGS = {
 const DEVICE_SETTING_CHOICES = {
   every_25_m2: "Every 25 m²", every_50_m2: "Every 50 m²",
   three_hours: "3 hours", four_hours: "4 hours", five_hours: "5 hours",
-  "es-xl": "Spanish (Latin America)", "zh-hk": "Cantonese",
+  "es-es": "Spanish (Spain)", "es-xl": "Spanish (Latin America)", "zh-hk": "Cantonese",
 };
 const VOICE_DISPLAY = typeof Intl.DisplayNames === "function"
   ? new Intl.DisplayNames("en", { type: "language" }) : null;
+const VOICE_DOWNLOAD_STATUS = {
+  dock_required: "Keep the robot connected and on its charging dock to install a voice.",
+  busy: "Roomba is already processing a software deployment.",
+  unavailable: "Roomba's voice installation status is unavailable.",
+};
 const HELP_ARTICLE_LABELS = {
   error: "Error",
   charging_error: "Charging error",
@@ -197,6 +202,11 @@ template.innerHTML = `
     .device-setting label { display:grid; flex:1; min-width:0; gap:4px; }
     .device-setting input, .device-setting select { box-sizing:border-box; width:100%; min-width:0; }
     #device-settings-status:empty { display:none; }
+    #voice-downloads-dialog { width:min(28rem, calc(100vw - 3rem)); max-width:none; }
+    #device-settings-dialog .actions, #voice-downloads-dialog .actions { flex-wrap:wrap; }
+    #voice-download-status:empty, #voice-current:empty { display:none; }
+    #voice-chooser label { display:grid; gap:6px; }
+    #voice-choice { width:100%; }
     #dock-action-list { display:grid; gap:8px; margin:12px 0; }
     #dock-action-list button { text-align:start; }
     #dock-action-status:empty { display:none; }
@@ -581,8 +591,27 @@ template.innerHTML = `
       <p id="device-settings-status" class="muted" role="status"></p>
       <fieldset id="device-settings-entries" aria-label="Robot and dock settings"></fieldset>
       <div class="actions">
+        <button id="open-voice-downloads" hidden>Download voices</button>
         <button id="refresh-device-settings">Refresh settings</button>
         <button id="close-device-settings">Close</button>
+      </div>
+    </dialog>
+    <dialog id="voice-downloads-dialog" aria-labelledby="voice-downloads-title">
+      <h3 id="voice-downloads-title">Download voices</h3>
+      <p id="voice-current" class="muted"></p>
+      <p id="voice-download-status" class="muted" role="status"></p>
+      <div id="voice-chooser" hidden>
+        <label for="voice-choice">Voice to download
+          <select id="voice-choice"></select>
+        </label>
+      </div>
+      <p id="voice-download-review" hidden></p>
+      <div class="actions">
+        <button id="refresh-voice-downloads">Refresh list</button>
+        <button id="review-voice-download">Review installation</button>
+        <button id="back-voice-download" hidden>Back</button>
+        <button id="confirm-voice-download" class="primary" hidden>Install voice</button>
+        <button id="close-voice-downloads">Close</button>
       </div>
     </dialog>
     <dialog id="mission-history-dialog" aria-labelledby="mission-history-title">
@@ -1253,6 +1282,11 @@ function historyLabel(value) {
   return value ? value.replaceAll("_", " ").replace(/^./, (first) => first.toUpperCase()) : "Unknown";
 }
 
+function voiceName(code) {
+  const locale = code.replaceAll("_", "-");
+  return DEVICE_SETTING_CHOICES[locale] ?? VOICE_DISPLAY?.of(locale) ?? code;
+}
+
 class RoombaHomeMapCard extends HTMLElement {
   constructor() {
     super();
@@ -1345,6 +1379,17 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("device-settings-dialog").oncancel = (event) => {
       if (this.deviceSettings?.pending) event.preventDefault();
     };
+    this.$("open-voice-downloads").onclick = () => this.openVoiceDownloads();
+    this.$("close-voice-downloads").onclick = () => this.$("voice-downloads-dialog").close();
+    this.$("refresh-voice-downloads").onclick = () => this.loadVoiceDownloads(this.voiceDownloads);
+    this.$("voice-choice").onchange = () => this.updateVoiceDownloadControls(this.voiceDownloads);
+    this.$("review-voice-download").onclick = () => this.reviewVoiceDownload();
+    this.$("back-voice-download").onclick = () => {
+      this.voiceDownloads.review = null;
+      this.updateVoiceDownloadControls(this.voiceDownloads);
+      this.$("review-voice-download").focus();
+    };
+    this.$("confirm-voice-download").onclick = () => this.confirmVoiceDownload();
     this.$("open-cleaning-scores").onclick = () => this.openCleaningScores();
     this.$("close-cleaning-scores").onclick = () => this.$("cleaning-scores-dialog").close();
     this.$("close-mission-history").onclick = () => this.$("mission-history-dialog").close();
@@ -1643,6 +1688,8 @@ class RoombaHomeMapCard extends HTMLElement {
     if (this.$("maintenance-dialog").open) this.$("maintenance-dialog").close();
     if (this.$("robot-help-dialog").open) this.$("robot-help-dialog").close();
     if (this.$("robot-software-dialog").open) this.$("robot-software-dialog").close();
+    if (this.$("voice-downloads-dialog").open) this.$("voice-downloads-dialog").close();
+    this.voiceDownloads = null;
     if (this.$("device-settings-dialog").open) this.$("device-settings-dialog").close();
     this.deviceSettings = null;
     if (this.$("dock-controls-dialog").open) this.$("dock-controls-dialog").close();
@@ -1678,12 +1725,13 @@ class RoombaHomeMapCard extends HTMLElement {
   set hass(hass) {
     const first = !this._hass;
     this._hass = hass;
+    if (this.voiceDownloads?.pending) this.showVoiceDownloadProgress(this.voiceDownloads);
     if (first) this.refresh();
   }
 
   connectedCallback() {
     // Moving a card can remove its dialog from the top layer while leaving it open.
-    for (const id of ["robot-help-dialog", "robot-software-dialog", "device-settings-dialog"]) {
+    for (const id of ["robot-help-dialog", "robot-software-dialog", "device-settings-dialog", "voice-downloads-dialog"]) {
       const dialog = this.$(id);
       if (dialog.open) ensureModal(dialog);
     }
@@ -2456,6 +2504,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("device-settings-title").textContent = "Device settings";
     const entries = this.$("device-settings-entries");
     entries.replaceChildren();
+    this.$("open-voice-downloads").hidden = true;
     entries.disabled = this.$("close-device-settings").disabled = false;
     ensureModal(dialog);
     await this.loadDeviceSettings(context);
@@ -2467,14 +2516,17 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   async loadDeviceSettings(context, feedback = "") {
+    const request = context.request = Symbol();
+    const current = () => this.currentDeviceSettings(context) && context.request === request;
     const status = this.$("device-settings-status");
     const refresh = this.$("refresh-device-settings");
+    const voices = this.$("open-voice-downloads");
     const entries = this.$("device-settings-entries");
-    refresh.disabled = entries.disabled = true;
+    refresh.disabled = entries.disabled = voices.disabled = true;
     status.textContent = feedback || "Loading device settings…";
     try {
       const report = await this._hass.callWS({ type: "roomba_home/device_settings", entity_id: context.entity });
-      if (!this.currentDeviceSettings(context)) return;
+      if (!current()) return;
       const groups = [];
       for (const [group, fields] of Object.entries(DEVICE_SETTINGS)) {
         const rows = Object.entries(fields).flatMap(([key, label]) => report.settings[key]
@@ -2488,17 +2540,19 @@ class RoombaHomeMapCard extends HTMLElement {
       }
       this.$("device-settings-title").textContent = report.robot ? `${report.robot} settings` : "Device settings";
       entries.replaceChildren(...groups);
+      voices.hidden = !report.settings.voice_language;
       const availability = !groups.length ? "No device settings are available."
         : report.ready ? "" : "Settings can be changed when the robot is connected and idle.";
       status.textContent = [feedback, availability].filter(Boolean).join(" ");
     } catch (error) {
-      if (this.currentDeviceSettings(context)) {
+      if (current()) {
         entries.replaceChildren();
+        voices.hidden = true;
         const message = error?.message || "Device settings are unavailable.";
         status.textContent = [feedback, message].filter(Boolean).join(" ");
       }
     } finally {
-      if (this.currentDeviceSettings(context)) refresh.disabled = entries.disabled = context.pending;
+      if (current()) refresh.disabled = entries.disabled = voices.disabled = context.pending;
     }
   }
 
@@ -2518,8 +2572,8 @@ class RoombaHomeMapCard extends HTMLElement {
     if (choices) {
       if (value == null) input.append(option("", "Unavailable"));
       for (const choice of choices) {
-        const name = DEVICE_SETTING_CHOICES[choice] ?? (key === "voice_language"
-          ? VOICE_DISPLAY?.of(choice) ?? choice : historyLabel(choice));
+        const name = key === "voice_language" ? voiceName(choice)
+          : DEVICE_SETTING_CHOICES[choice] ?? historyLabel(choice);
         const entry = option(choice, name);
         if (choice === "custom_area") entry.disabled = true;
         input.append(entry);
@@ -2568,13 +2622,14 @@ class RoombaHomeMapCard extends HTMLElement {
     if (!this.currentDeviceSettings(context) || context.pending) return;
     const close = this.$("close-device-settings");
     const refresh = this.$("refresh-device-settings");
+    const voices = this.$("open-voice-downloads");
     const entries = this.$("device-settings-entries");
     const status = this.$("device-settings-status");
     const action = {
       text: ["set_value", { value }], number: ["set_value", { value: Number(value) }],
       select: ["select_option", { option: value }], switch: [value === "on" ? "turn_on" : "turn_off", {}],
     }[domain];
-    context.pending = close.disabled = refresh.disabled = entries.disabled = true;
+    context.pending = close.disabled = refresh.disabled = entries.disabled = voices.disabled = true;
     status.textContent = "Waiting for Roomba to confirm…";
     let confirmed = false;
     try {
@@ -2587,8 +2642,127 @@ class RoombaHomeMapCard extends HTMLElement {
       if (this.currentDeviceSettings(context)) status.textContent = error?.message || "Roomba did not save the setting.";
     } finally {
       if (this.currentDeviceSettings(context)) {
-        context.pending = close.disabled = refresh.disabled = entries.disabled = false;
+        context.pending = close.disabled = refresh.disabled = entries.disabled = voices.disabled = false;
         if (confirmed) (this.$(`device-setting-${key}`) ?? close).focus();
+      }
+    }
+  }
+
+  async openVoiceDownloads() {
+    if (!this.config || !this._hass) return;
+    const dialog = this.$("voice-downloads-dialog");
+    ensureModal(dialog);
+    const entity = this.config.entity;
+    const context = this.voiceDownloads?.entity === entity ? this.voiceDownloads
+      : this.voiceDownloads = { entity, report: null, review: null, pending: false, loading: false };
+    if (context.pending) {
+      this.showVoiceDownloadProgress(context);
+      return;
+    }
+    await this.loadVoiceDownloads(context, context.feedback);
+  }
+
+  currentVoiceDownloads(context) {
+    return context && this.$("voice-downloads-dialog").open && this.voiceDownloads === context &&
+      this.config.entity === context.entity;
+  }
+
+  async loadVoiceDownloads(context, feedback = "") {
+    if (!this.currentVoiceDownloads(context) || context.loading || context.pending) return;
+    context.loading = true;
+    context.report = context.review = null;
+    context.feedback = "";
+    const status = this.$("voice-download-status");
+    const choices = this.$("voice-choice");
+    this.$("voice-current").textContent = "";
+    status.textContent = feedback || "Loading Roomba voices…";
+    this.updateVoiceDownloadControls(context);
+    try {
+      const report = await this._hass.callWS({ type: "roomba_home/voice_downloads", entity_id: context.entity });
+      if (!this.currentVoiceDownloads(context)) return;
+      context.report = report;
+      this.$("voice-current").textContent = report.current ? `Current voice · ${voiceName(report.current)}` : "";
+      const voices = report.downloadable.map((code) => [voiceName(code), code]);
+      voices.sort(([a], [b]) => a.localeCompare(b, "en"));
+      choices.replaceChildren(option("", "Choose a voice"), ...voices.map(([name, code]) => option(code, name)));
+      choices.value = "";
+      const availability = !voices.length ? "No additional voices are available for this robot."
+        : !report.can_install ? "Voice installation requires control access to this robot."
+        : VOICE_DOWNLOAD_STATUS[report.status];
+      status.textContent = [feedback, availability].filter(Boolean).join(" ");
+    } catch (error) {
+      if (this.currentVoiceDownloads(context)) {
+        status.textContent = [feedback, error?.message || "The voice catalog is unavailable."].filter(Boolean).join(" ");
+      }
+    } finally {
+      context.loading = false;
+      if (this.currentVoiceDownloads(context)) this.updateVoiceDownloadControls(context);
+    }
+  }
+
+  updateVoiceDownloadControls(context) {
+    const { report, review, loading, pending } = context;
+    const choice = this.$("voice-choice");
+    const available = report?.can_install && report.status === "ready" && Boolean(report.reviewed_inventory);
+    this.$("voice-chooser").hidden = !!review || !report?.downloadable.length;
+    choice.disabled = loading || pending;
+    const reviewButton = this.$("review-voice-download");
+    reviewButton.hidden = !!review || !available || !report?.downloadable.length;
+    reviewButton.disabled = !report?.downloadable.includes(choice.value);
+    this.$("voice-download-review").hidden = !review;
+    this.$("back-voice-download").hidden = !review || pending;
+    this.$("confirm-voice-download").hidden = !review || pending;
+    this.$("refresh-voice-downloads").disabled = loading || pending;
+  }
+
+  reviewVoiceDownload() {
+    const context = this.voiceDownloads;
+    if (!this.currentVoiceDownloads(context)) return;
+    const { report } = context;
+    const language = this.$("voice-choice").value;
+    if (!report?.can_install || report.status !== "ready" || !report.reviewed_inventory ||
+        !report.downloadable.includes(language)) return;
+    const name = voiceName(language);
+    context.review = { language, name, inventory: report.reviewed_inventory };
+    const replacement = report.replaces ? ` This replaces ${voiceName(report.replaces)} in the download slot.` : "";
+    this.$("voice-download-review").textContent = `Install and select ${name}?${replacement}`;
+    this.updateVoiceDownloadControls(context);
+    this.$("back-voice-download").focus();
+  }
+
+  showVoiceDownloadProgress(context) {
+    if (!this.currentVoiceDownloads(context)) return;
+    const code = this._hass.states?.[context.report?.progress_entity]?.state;
+    const status = this.$("voice-download-status");
+    status.textContent = code === "3" ? "Roomba reports downloading the voice…"
+      : code === "4" ? "Roomba reports installing the voice…"
+      : "Waiting for Roomba to confirm the voice installation…";
+  }
+
+  async confirmVoiceDownload() {
+    const context = this.voiceDownloads;
+    if (!context?.review || context.pending || !this.currentVoiceDownloads(context)) return;
+    const { language, name, inventory } = context.review;
+    context.pending = true;
+    this.updateVoiceDownloadControls(context);
+    this.showVoiceDownloadProgress(context);
+    try {
+      await this._hass.callService("roomba_home", "install_voice_language",
+        { language, reviewed_inventory: inventory }, { entity_id: context.entity });
+      context.feedback = `${name} installed and selected.`;
+      const parent = this.deviceSettings;
+      if (parent?.entity === context.entity && !parent.pending && this.currentDeviceSettings(parent)) {
+        parent.drafts.delete("voice_language");
+        await this.loadDeviceSettings(parent);
+      }
+    } catch (error) {
+      context.feedback = error?.message || "Roomba did not confirm voice installation.";
+    } finally {
+      context.pending = false;
+      context.review = null;
+      if (this.currentVoiceDownloads(context)) {
+        await this.loadVoiceDownloads(context, context.feedback);
+        if (this.currentVoiceDownloads(context)) this.$("close-voice-downloads").focus();
       }
     }
   }
