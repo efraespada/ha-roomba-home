@@ -331,6 +331,7 @@ uses the same current-state shadow as the vacuum and sensors.
 | Field | Source |
 | --- | --- |
 | `activity`, `phase` | Projected activity and reported `cleanMissionStatus.phase` |
+| `charging_at_dock` | The same open-cycle charge observation as **Docked with active cleaning**. Unknown phase or cycle yields null. |
 | `mode` | Semantic form of the currently reported `operatingMode` |
 | `elapsed_seconds` | Time since `mssnStrtTm`, using the same seconds calculation as the mission elapsed sensor |
 | `cleaned_area_m2` | Reported `cleanMissionStatus.sqft` converted to square metres, including a reported zero |

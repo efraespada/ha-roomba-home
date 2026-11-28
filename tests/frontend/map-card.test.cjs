@@ -4193,6 +4193,14 @@ test("mission header shows reported totals and phase without a destination plan"
   assert.deepEqual(rows(), [["Phase", "Needs attention"]]);
   card.renderCurrentMission({ phase: "hmPostMsn", activity: "error", error_code: 48 });
   assert.deepEqual(rows(), [["Phase", "Returning to dock"]]);
+  card.updateRobotOverview({
+    robot_status: { connected: true, activity: "docked", battery_pct: 14 },
+    current_mission: { ...current, phase: "charge", activity: "docked", charging_at_dock: true,
+      elapsed_seconds: 120, cleaned_area_m2: 3.8 },
+  });
+  assert.equal(card.$("robot-status").textContent, "Charging during mission · Battery 14%");
+  assert.deepEqual(rows(), [["Phase", "Charging during mission"], ["Mode", "Vacuum"],
+    ["Time since start", "2:00"], ["Reported area", "3.8 m²"]]);
   card.renderCurrentMission({ phase: "charge", activity: "error", error_code: 48 });
   assert.deepEqual(rows(), [["Phase", "At dock"]]);
   card.renderCurrentMission({ activity: "error" });

@@ -42,6 +42,7 @@ const ROBOT_ACTIVITY = {
   idle: "Idle", docked: "At dock", cleaning: "Cleaning", paused: "Paused",
   returning: "Returning to dock", error: "Needs attention", mapping: "Mapping",
 };
+const CHARGING_DURING_MISSION = "Charging during mission";
 const DOCK_ACTIVITY = {
   wash_mop: "Washing mop and tray", dry_mop: "Drying mop",
   empty_bin: "Emptying bin", refill_tank: "Refilling tank",
@@ -4009,7 +4010,8 @@ class RoombaHomeMapCard extends HTMLElement {
     const status = overview?.robot_status;
     const reported = [];
     if (status?.connected === true) {
-      reported.push(ROBOT_ACTIVITY[status.activity] ?? "Connected");
+      reported.push(overview.current_mission?.charging_at_dock === true
+        ? CHARGING_DURING_MISSION : (ROBOT_ACTIVITY[status.activity] ?? "Connected"));
       for (const [action, label] of Object.entries(DOCK_ACTIVITY)) {
         if (overview.dock_controls?.[action]?.active === true) reported.push(label);
       }
@@ -4052,7 +4054,8 @@ class RoombaHomeMapCard extends HTMLElement {
       evac: "Emptying bin", padDry: "Drying mop", mapupd: "Updating map" };
     const activityLabels = { cleaning: "Cleaning", returning: "Returning to dock", docked: "At dock",
       paused: "Paused", error: "Needs attention" };
-    const phase = phaseLabels[mission?.phase] ?? activityLabels[mission?.activity];
+    const phase = mission?.charging_at_dock === true
+      ? CHARGING_DURING_MISSION : (phaseLabels[mission?.phase] ?? activityLabels[mission?.activity]);
     const elapsed = mission?.elapsed_seconds;
     const area = mission?.cleaned_area_m2;
     const values = [

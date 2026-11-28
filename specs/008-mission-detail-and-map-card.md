@@ -121,6 +121,8 @@ trajectory contains observed positions and retains sequence gaps.
 - MAP-19: Show the selected robot's current mission phase, mode, time
   since start, and reported cleaned area above its floor plan. Keep the
   summary available without a saved floor or a correlated destination plan.
+  Show **Charging during mission** in the mission phase and robot status
+  when the same reported condition turns on **Docked with active cleaning**.
   Omit missing readings and clear the summary at mission end or disconnect.
 - MAP-20: Offer pause, explicit resume, cancellation, and return from the
   floor plan to users with vacuum control permission. Bind the operation to

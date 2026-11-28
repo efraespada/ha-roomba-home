@@ -86,6 +86,11 @@ destination timeline shows cleaning time in each area when its events
 are available. The current readout clears when the mission ends or the
 robot disconnects. Completed measurements remain in **Cleaning history**.
 
+When Roomba reports charging with a cleaning cycle still open, the robot
+status and mission phase show **Charging during mission**. The separate
+**Docked with active cleaning** binary sensor exposes the same condition
+for automations.
+
 Active errors appear above the map with the Roomba code, its source, and
 its known description. For example, **Mission error** shows
 **48 · Path blocked** while the mission readout shows **Returning to dock**.
