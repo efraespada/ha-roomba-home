@@ -63,8 +63,10 @@ response leaves the count at zero. A failed read leaves the count unknown.
 The robot reports cleaned area in square feet, converted to m². The elapsed
 time includes pauses and the return to the dock. It measures elapsed time since
 mission start. **Docked with active cleaning** tracks a `charge` phase with an
-open cleaning cycle. The vacuum stays `docked` while polling continues at the
-active rate. Physical recharge and resume remains a separate test.
+open cleaning cycle. The card shows **Charging during mission** in both
+its phase and robot status. The vacuum stays `docked` while polling
+continues at the active rate. Physical recharge and resume remains a
+separate test.
 [Max 700 recharge and resume](https://homesupport.irobot.com/articles/en_US/Knowledge/70501)
 
 The most recent historical result includes `mode_statistics`, duration and

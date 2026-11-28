@@ -2076,6 +2076,7 @@ async def test_current_mission_is_covered_before_the_first_saved_floor_and_witho
     expected = {
         "activity": "cleaning",
         "phase": "run",
+        "charging_at_dock": False,
         "mode": "vacuum",
         "elapsed_seconds": 65,
         "cleaned_area_m2": 0,
@@ -2122,6 +2123,7 @@ async def test_current_mission_is_covered_before_the_first_saved_floor_and_witho
         assert (await socket.receive_json())["result"]["current_mission"] == {
             "phase": "stuck",
             "activity": "error",
+            "charging_at_dock": False,
             "mode": None,
             "elapsed_seconds": None,
             "cleaned_area_m2": None,
@@ -2135,6 +2137,16 @@ async def test_current_mission_is_covered_before_the_first_saved_floor_and_witho
             configured.data[robot] = state
             await socket.send_json(query | {"id": identifier})
             assert (await socket.receive_json())["result"]["current_mission"] is None
+
+        configured.data[robot] = replace(cleaning, cycle="clean", phase="charge")
+        await socket.send_json(query | {"id": 7})
+        snapshot = (await socket.receive_json())["result"]
+        assert snapshot["current_mission"] == expected | {
+            "phase": "charge",
+            "activity": "docked",
+            "charging_at_dock": True,
+            "elapsed_seconds": 85,
+        }
 
 
 async def test_active_errors_remain_visible_after_the_mission_and_without_a_floor(

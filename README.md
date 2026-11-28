@@ -386,6 +386,9 @@ mode. [Side-by-side mopping trial](docs/validation.md#side-by-side-live-mopping)
   If Roomba's motion state updates first, the affected row shows
   **Waiting for Roomba update** while Home Assistant requests the new stage.
   [Live progress and automation example](docs/usage.md#telemetry-progress-and-problems)
+- The status and current mission readout show **Charging during mission**
+  when Roomba reports charging with the cleaning cycle still open.
+  [Current mission readout](docs/usage.md#current-mission-readout)
 - **Skip current area** asks for confirmation while Roomba reports the
   current destination. The mission history shows the skipped area.
   [Skip control and automation example](docs/usage.md#skip-the-current-destination)

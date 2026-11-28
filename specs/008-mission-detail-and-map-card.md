@@ -121,6 +121,8 @@ trajectory contains observed positions and retains sequence gaps.
 - MAP-19: Show the selected robot's current mission phase, mode, time
   since start, and reported cleaned area above its floor plan. Keep the
   summary available without a saved floor or a correlated destination plan.
+  Show **Charging during mission** in the mission phase and robot status
+  when the same reported condition turns on **Docked with active cleaning**.
   Omit missing readings and clear the summary at mission end or disconnect.
 - MAP-20: Offer pause, explicit resume, cancellation, and return from the
   floor plan to users with vacuum control permission. Bind the operation to
@@ -481,7 +483,10 @@ features, physical results, and open scenarios.
 3. Start a confirmed room selection and observe provider state. Reject unknown, excluded, or stale choices.
 4. Observe vacuuming, mopping, the same mission identity, and a final outcome.
 5. Observe a saved-zone mission with the matching history destination and return.
-6. Observe a low-battery return, charging, and automatic resumption of the same mission.
+6. Observe a low-battery return, charging, and automatic resumption of the
+   same mission. Match the mission number and start time across the three
+   phases. Compare the Android and Home Assistant readouts during charging,
+   and check the completed report's recharge count and charging time.
 7. On a supported map, switch to 3D. Rotate the camera and select an area.
    Toggle furniture and open an editor. Verify the normal coordinate controls
    and that cancelling restores the 3D view with the same saved floor orientation.
