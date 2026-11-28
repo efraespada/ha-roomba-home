@@ -35,6 +35,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-dock-controls.jpg": (
         "b403707827720f2c4b31db72ee923364d04885c9ea8ae876d553096c96e94d1b"
     ),
+    "docs/screenshots/roomba-robot-status.jpg": (
+        "bc7a794485e0d3e6123d213b75ff7ef33cbd6caf6fe0ccceadcaa11f7a9b9a13"
+    ),
     "docs/screenshots/roomba-robot-help.png": (
         "7cbacb2ad7b4aa5b9db65243a4e275eea8637063e29e3d34c44f7ab5dc349f28"
     ),

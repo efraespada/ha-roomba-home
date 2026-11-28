@@ -3093,7 +3093,16 @@ unknown connection, a mapping mission, and error 48. The tests verify
 permissions and confirm that the overview requests no geometry. The card
 tests check that a review remains usable through repeated map failures,
 and that a late reply for a different robot cannot update the card.
-[Overview contract](api.md#robot-overview-without-a-floor-plan)
+
+The household installation passed the configuration check, restarted Core,
+and loaded all three cards on 0.89.0. For one Chrome refresh, the selected
+Max 700 Combo card received a simulated `map_unavailable` error. The card
+hid the floor and loaded the real `roomba_home/robot_overview` response
+from Home Assistant. It displayed the reported docked activity, active
+mop drying, and battery. **Dock controls** and **Clean everywhere** stayed
+available. The next normal refresh restored the floor on the same card.
+[Overview contract](api.md#robot-overview-without-a-floor-plan) ·
+[Installed card status](screenshots/roomba-robot-status.jpg)
 
 ## Robot serial number
 
