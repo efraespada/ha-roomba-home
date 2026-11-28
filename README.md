@@ -391,6 +391,9 @@ mode. [Side-by-side mopping trial](docs/validation.md#side-by-side-live-mopping)
   [Skip control and automation example](docs/usage.md#skip-the-current-destination)
 
 ![Paused directed cleaning estimate in Home Assistant](docs/screenshots/roomba-paused-cleaning-estimate.jpg)
+![The room countdown after resuming in Home Assistant](docs/screenshots/roomba-resumed-cleaning-estimate.jpg)
+
+[Physical pause and resume trial](docs/validation.md#timeline-updates-on-pause-and-resume)
 
 Roomba reports the live path and room progress. The Android trial showed
 remaining minutes and battery percentage during a directed vacuum run.

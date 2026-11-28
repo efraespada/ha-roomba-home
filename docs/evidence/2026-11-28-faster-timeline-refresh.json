@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-28",
+  "model": "X185240",
+  "android_version": "3.4.1",
+  "installed_version": "0.104.2",
+  "mission": {
+    "destination_kinds": ["room"],
+    "mode": "vacuum",
+    "suction_level": 3,
+    "two_pass": false,
+    "planned_seconds": 3509
+  },
+  "pause_from_android": {
+    "seconds_to_first_paused_sample": 15,
+    "remaining_sensor_seconds": [3442, 3442],
+    "seconds_between_samples": 34,
+    "card_cleaning_elapsed_seconds": 67
+  },
+  "resume_from_home_assistant": {
+    "seconds_from_command_to_last_paused_sample": 15,
+    "seconds_from_command_to_first_running_sample": 27,
+    "seconds_from_command_to_last_running_sample": 53,
+    "remaining_sensor_seconds": [3431, 3405],
+    "card_cleaning_elapsed_seconds": [82, 107],
+    "card_remaining_minutes_at_end": 57,
+    "android_remaining_minutes_at_end": 57
+  },
+  "proxyman": {
+    "successful_raw_live_map_announcements": 6,
+    "matched_room_and_profile_estimate_seconds": 3509,
+    "mission_percentage_key_in_reviewed_map_and_estimate_responses": false
+  },
+  "cleanup": {
+    "test_robot_returned_to_dock": true,
+    "three_robots_at_dock": true
+  }
+}
