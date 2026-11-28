@@ -838,6 +838,8 @@ template.innerHTML = `
     <dialog id="remove-floor-dialog" aria-labelledby="remove-floor-title">
       <h3 id="remove-floor-title">Remove saved floor?</h3>
       <p id="remove-floor-description"></p>
+      <ul id="remove-floor-programs" aria-label="Linked routines and schedules" hidden></ul>
+      <p id="remove-floor-program-status" class="muted" role="status"></p>
       <p id="remove-and-remap-description" hidden>To map the floor again, clear obstacles, open the doors you want to include, and leave the robot on its dock. Roomba starts mapping after removal. It can update another saved map if it recognizes the same floor.</p>
       <div class="actions">
         <button id="cancel-remove-floor">Keep floor</button>
@@ -1554,7 +1556,11 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("map-impact").onclick = () => this.reviewMapImpact();
     this.$("edit-floor").onclick = () => this.openFloorEditor();
     this.$("review-remove-floor").onclick = () => this.reviewFloorRemoval();
-    this.$("cancel-remove-floor").onclick = () => this.$("remove-floor-dialog").close();
+    const removeFloorDialog = this.$("remove-floor-dialog");
+    this.$("cancel-remove-floor").onclick = () => removeFloorDialog.close();
+    removeFloorDialog.onclose = () => {
+      if (!removeFloorDialog.open) this.removalDraft = null;
+    };
     this.$("remove-floor").onclick = () => this.removeFloor();
     this.$("remove-and-remap").onclick = () => this.removeFloor(true);
     this.$("close-floor-editor").onclick = () => {
@@ -3754,6 +3760,36 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("remove-floor-description").textContent =
       `Remove ${name} from Roomba? Its saved rooms and zones will no longer be available to routines and schedules.`;
     this.$("remove-floor-dialog").showModal();
+    void this.loadFloorRemovalPrograms(review);
+  }
+
+  async loadFloorRemovalPrograms(review) {
+    const list = this.$("remove-floor-programs");
+    const status = this.$("remove-floor-program-status");
+    const current = () => this.removalDraft === review && this.$("remove-floor-dialog").open &&
+      this.config.entity === review.entity_id;
+    list.hidden = true;
+    list.replaceChildren();
+    status.textContent = "Checking linked routines and schedules…";
+    try {
+      const { programs, unchecked } = await this._hass.callWS({
+        ...review, type: "roomba_home/review_floor_removal",
+      });
+      if (!current()) return;
+      list.replaceChildren(...programs.map(({ kind, name, enabled }) => {
+        const item = document.createElement("li");
+        const label = kind === "schedule" ? "Schedule" : "Routine";
+        const state = kind === "schedule" ? (enabled ? " · Enabled" : " · Disabled") : "";
+        item.textContent = `${label} · ${name || "Unnamed"}${state}`;
+        return item;
+      }));
+      list.hidden = !programs.length;
+      status.textContent = unchecked.length
+        ? `Could not check linked ${unchecked.map((kind) => `${kind}s`).join(" and ")}.`
+        : programs.length ? "" : "Roomba returned no linked routines or schedules for this floor.";
+    } catch {
+      if (current()) status.textContent = "Could not check linked routines and schedules.";
+    }
   }
 
   async removeFloor(remap = false) {
