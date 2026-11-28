@@ -227,6 +227,8 @@ A mop-only household test verified the native mopping layer after the robot retu
 
 ![Native mopping legend in an archived Home Assistant report](docs/screenshots/roomba-archived-mopping.jpg)
 
+![Furniture and temporary obstacle controls in the installed Home Assistant history map](docs/screenshots/roomba-recorded-map-layers.jpg)
+
 Expand **Results by area** to
 see the reported target size and the area measured in completed passes for
 a saved zone. In a verified two-pass vacuum run, Roomba reported a 2.51 m²

@@ -1207,6 +1207,15 @@ report, 3D walls, cleaning coverage, saved restrictions, and final position
 are retained. A report without a layer hides its corresponding control.
 [ClearView map history](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
 
+Home Assistant passed its Core configuration check and restarted on 0.98.0.
+The three robots reappeared at their docks. The same Max 700 Combo report
+loaded recorded furniture and obstacles. The installed card removed each
+layer's legend entry independently, retained coverage and the final path
+marker, and kept both choices on switching to 3D. Re-enabling each layer
+returned its legend entry. The trial restored the original overhead view
+with both layers shown. No robot commands or map writes were issued.
+[Installed history map controls](screenshots/roomba-recorded-map-layers.jpg)
+
 ## Editing virtual walls
 
 On a docked Max 700 Combo, the coordinator created a horizontal wall,
