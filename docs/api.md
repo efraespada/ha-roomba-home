@@ -78,7 +78,8 @@ their private values stay out of the repository
 The public parts catalog is `GET /v2/{locale}/{market}/{sku}/parts` on
 `content-prod.iot.irobotapi.com`. The integration selects the account's
 country and the Home Assistant language. The catalog maps part codes to
-names, counter availability, replacement SKUs, and optional URLs.
+name and description keys, counter availability, replacement SKUs, and
+optional URLs.
 A separate signed read provides the robot's usage percentage `counter`,
 unit `count_type`, and quantities `count_used` and `count_remaining`.
 Negative `minutes_remaining` is treated as unavailable.
@@ -88,13 +89,19 @@ vacuum `entity_id` and requires entity read permission. It returns
 `robot`, `counters_available`, and a bounded `parts` list. Each row
 includes a part code, a normalized part name, dock association, and
 available counter values and type. Catalog references use the optional
-`part_sku`, `replacement_url`, and `maintenance_guide_url` fields. Validate
+`part_sku`, `replacement_url`, `maintenance_guide_url`, and
+`part_description` fields. Validate
 the HTTPS catalog route for the configured market and matching SKU before
 publishing a replacement link. For Spain, iRobot's store resolves a short
 product URL built from that SKU. Other directory links retain the catalog
 locale and omit marketing parameters. Care guides use verified iRobot hosts
-and paths. Catalog references can remain available while signed counters
-are unavailable. The command reads the coordinator snapshot.
+and paths. For the verified Max 700 Combo, the part code and exact catalog
+description key select a short English care summary. A validated regional
+guide takes precedence over the official English support article. Catalog
+references can remain available while signed counters are unavailable. The
+command reads the coordinator snapshot. The card's bar uses `usage`.
+Its display converts remaining minute values of 60 or more to whole hours.
+The WebSocket and sensors retain minute precision.
 
 Each row also includes `can_reset`. It is true when a supported counter is
 available and the caller has control permission for the same vacuum.

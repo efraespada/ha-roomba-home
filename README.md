@@ -128,9 +128,10 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   Review map dependencies before
   editing destinations.
   [Saved routine actions](docs/usage.md#saved-cleaning-routines) · [Cleaning schedules](docs/usage.md#cleaning-schedules)
-- **Maintenance and alerts.** Open **Maintenance** to see consumables, part
-  references, and links to iRobot's shop or care guides. Review and reset a
-  supported counter in the panel after servicing a part. Automate robot and
+- **Maintenance and alerts.** Open **Maintenance** to see part usage bars,
+  remaining hours or cycles, and links to iRobot's shop and care guides.
+  Expand **About this part** for an explanation of its role and care. Review
+  and reset a supported counter after servicing a part. Automate robot and
   dock problem alerts and mission-finished events. [Maintenance and parts](docs/usage.md#maintenance-and-replacement-parts)
 - **Robot settings.** Rename the robot and choose from its installed voices.
   Home Assistant shows the serial number and activation date reported by Roomba.

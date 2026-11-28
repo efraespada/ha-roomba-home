@@ -963,11 +963,17 @@ for the verified Max 700 Combo model. Other models return a null
 
 ## Maintenance and replacement parts
 
-Choose **Maintenance** on the dashboard card to see Roomba's usage percentage
-and remaining count for each reported part. The dust bag has a replacement
-reference even though its catalog counter is disabled. The mop and dock
-washing systems link to their care guides. Existing consumable sensors
-include the available reference and link attributes.
+Choose **Maintenance** on the dashboard card to see the usage bar and the
+amount remaining for each part with a reported counter. For example, a
+filter with 125 minutes remaining shows **2 h remaining**. Hover over the
+count to see the precise minutes or use the filter's remaining-life sensor
+in an automation. Other parts keep their reported count units. The dust bag
+has a replacement reference and its catalog counter is disabled.
+
+Expand **About this part** for a description of its role and cleaning or
+replacement advice. **Maintenance guide** opens the regional catalog guide
+when one is available and the verified iRobot support article otherwise.
+The existing consumable sensors also expose available part references.
 
 The **iRobot shop** link uses the market configured for the account. In
 Spain it opens the official product page by part number. In other markets

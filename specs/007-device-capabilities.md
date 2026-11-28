@@ -45,7 +45,7 @@ model catalogs where applicable.
 | Robot serial in the About screen | Verified asset lookup and Home Assistant device metadata |
 | Automatic pad washing, emptying by routine or area, voice language and volume, child and pet lock, locate, and reboot | Implemented device or dock controls. The emptying selector uses the three [confirmed Android choices](../docs/api.md#automatic-dock-emptying) and retains the area number for custom thresholds. |
 | Dock controls from the floor plan and robot page | The floor plan card opens controls for the same linked dock buttons and reports which operations are running. [Native panel comparison](../docs/validation.md#dock-controls-on-the-floor-plan) |
-| Component use and remaining life, including maintenance resets | Implemented; three displayed hour values matched the API's remaining minutes |
+| Component use and remaining life, including maintenance resets | Implemented; three Android hour values and usage bars matched signed values |
 | Battery and activity on the robot page | Reported in the map card header and its device-only overview. [Overview validation](../docs/validation.md#robot-status-without-a-floor-plan) |
 | Change Wi-Fi | The Max 700 Combo app asks for confirmation before clearing its current Wi-Fi configuration. Provisioning and recovery require separate verification. |
 | Factory reset and remove robot | App entry point observed; account removal, device reset, and recovery require verification |
@@ -99,6 +99,9 @@ becoming an indiscriminately false or zero.
 - CAP-19: Show part SKUs and verified market-scoped replacement and care
   links beside the signed robot and dock counters. Keep catalog references
   available if the counter read fails. Require read access to the linked robot.
+  Show usage bars from the signed percentage and format remaining time in
+  hours without changing sensor precision. Offer part descriptions when a
+  verified model and part match the catalog's description key.
 - CAP-20: Expose the native automatic emptying choices on the linked dock.
   Preserve the existing area number, unit conversion, and raw code sensor.
   Verify changes through the same signed settings shadow and require a
@@ -429,8 +432,11 @@ with API operations.
 19. Open the maintenance view for a Max 700 Combo before enabling maps.
     Verify that replacement references match the model catalog, the filter
     shares its signed usage with the existing sensor, and the dust bag can
-    show a link with its counter disabled. Check access denials, unavailable
-    counters, and wrong-market or mismatched SKU links.
+    show a link with its counter disabled. Compare displayed hours and bar
+    values with Android for the three timed parts. Expand filter guidance
+    and verify that an available regional guide takes precedence. Check
+    access denials, unavailable counters, wrong-market or mismatched SKU
+    links, and unrecognized model or description IDs.
 20. Set per-routine emptying, then the 50 m² preset. Set per-routine
     emptying again and write a custom area while the number displays an
     unknown value. Restore the 25 m² preset. Confirm each signed frequency

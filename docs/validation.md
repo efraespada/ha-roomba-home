@@ -878,6 +878,22 @@ its shop reference with the usage counter disabled. Chrome rendered the
 anonymized report at 358 and 900 pixels and verified all seven links.
 [Anonymized catalog evidence](evidence/2026-11-26-maintenance-catalog.json)
 
+### Part descriptions and usage bars
+
+With a docked Max 700 Combo, Android displayed whole hours alongside a
+colored bar for the main brushes, filter, and edge-sweeping brushes. A
+read-only Proxyman capture matched all three hour values to
+`count_remaining` in minutes, rounded down to hours. The colored width
+matched `counter`, the percentage used, in all three rows. The dust bag's
+catalog entry disabled its counter. No part counter was reset.
+
+The expanded filter row offered an explanation of the part's role. The
+public catalog returned a description identifier for each of seven parts
+and two regional guide URLs. The integration uses those identifiers and
+the verified model to select original English summaries based on iRobot's
+care material. [Max 700 care schedule](https://homesupport.irobot.com/articles/en_US/Knowledge/70504)
+· [Filter and bin guide](https://homesupport.irobot.com/articles/en_US/Knowledge/70505)
+
 ## Touch navigation for floor plans and reports
 
 Isolated Chrome sessions at 358 × 844 and 390 × 844 CSS pixels used

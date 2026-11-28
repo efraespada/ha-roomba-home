@@ -232,7 +232,37 @@ test("maintenance shows provider links, zero, and a dust bag with no counter", a
   assert.equal(shopLink.rel, "noopener noreferrer");
   assert.equal(shopLink["aria-label"], "iRobot shop for dust bag");
   assert.equal(filter.querySelector("p").textContent, "0% used · 10 min remaining");
+  assert.equal(filter.querySelector("meter").value, 0);
+  assert.equal(bag.querySelector("meter"), undefined);
   assert.equal(washer.querySelector("a").href, guide);
+});
+
+test("maintenance displays signed usage, native hours and part guidance", async () => {
+  const { card } = maintenanceCard();
+  const guide = "https://homesupport.irobot.com/articles/en_US/Knowledge/70505";
+  card._hass = { callWS: async () => ({ robot: "Roomba", counters_available: true, parts: [
+    { part: "filter", usage: 20, remaining: 125, count_type: "minutes",
+      part_description: "The filter traps fine debris.", maintenance_guide_url: guide },
+    { part: "mop_roller", usage: 100, remaining: 0, count_type: "combo_missions" },
+    { part: "dust_bag", remaining: 80, count_type: "fixture" },
+  ] }) };
+  await card.openMaintenance();
+  const [filter, roller, bag] = card.$("maintenance-parts").children;
+  assert.equal(filter.querySelector("p").textContent, "20% used · 2 h remaining");
+  assert.equal(filter.querySelector("p").title, "125 min remaining");
+  const meter = filter.querySelector("meter");
+  assert.equal(meter.max, 100);
+  assert.equal(meter.value, 20);
+  assert.equal(meter["aria-label"], "Filter usage");
+  const guidance = filter.querySelector("details");
+  assert.equal(guidance.querySelector("summary").textContent, "About this part");
+  assert.equal(guidance.querySelector("summary")["aria-label"], "About this part (Filter)");
+  assert.equal(guidance.querySelector("p").textContent, "The filter traps fine debris.");
+  assert.equal(filter.querySelector("a").href, guide);
+  assert.equal(roller.querySelector("meter").value, 100);
+  assert.equal(roller.querySelector("p").textContent, "100% used · 0 combo missions remaining");
+  assert.equal(roller.querySelector("details"), undefined);
+  assert.equal(bag.querySelector("p"), undefined);
 });
 
 test("maintenance ignores a reply after closing and reopening on a different robot", async () => {
