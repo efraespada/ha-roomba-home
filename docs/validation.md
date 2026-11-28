@@ -634,6 +634,20 @@ docked, ready, and at 100% charge with error code zero. Reconnection and
 pairing remain separate validation scenarios.
 [iRobot reconnection guide](https://homesupport.irobot.com/articles/en_US/Knowledge/10503)
 
+### Connection details in Device settings
+
+On the Max 700 Combo, the Android Wi-Fi screen offered **Reconnect or
+change Wi-Fi** and instructions for persistent connection problems. It
+displayed no signal, channel, or access point measurements. Opening it
+did not change the robot's configuration.
+
+Home Assistant's WebSocket tests cover a connected or disconnected robot,
+a missing connection state, and an account refresh failure. A read remains
+available without map geometry and includes only the selected robot's
+authorized items. The card tests verify distinct status texts, local time
+formatting, the zero code, missing readings, and clearing the old panel
+when the selected robot changes.
+
 ## Robot help after moving a card
 
 A Chromium browser reproduced the modal losing its top-layer state when the

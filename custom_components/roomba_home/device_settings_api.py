@@ -66,8 +66,24 @@ def websocket_device_settings(hass, connection, message):
     permissions = connection.user.permissions
     registry = entity_registry.async_get(hass)
     entry_id = vacuum.account.config_entry.unique_id
-    connected = vacuum.account.last_update_success and robot.connected is True
+    updated = vacuum.account.last_update_success
+    connected = updated and robot.connected is True
     ready = connected and robot_settings_idle(robot)
+    connectivity = {
+        "state": {True: "connected", False: "disconnected", None: "unknown"}[robot.connected]
+        if updated
+        else "unavailable"
+    }
+    for key, value in (
+        ("connection_updated_at", robot.telemetry.get("connection_updated_at")),
+        ("cloud_read", robot.observed_at),
+        ("connection_code", robot.telemetry.get("connection_code") if updated else None),
+    ):
+        sensor_id = registry.async_get_entity_id(
+            "sensor", DOMAIN, entity_unique_id(entry_id, vacuum.robot_id, key)
+        )
+        if sensor_id and permissions.check_entity(sensor_id, POLICY_READ):
+            connectivity[key] = value
     actions = {}
     if connected:
         vacuum_id = message["entity_id"]
@@ -113,7 +129,13 @@ def websocket_device_settings(hass, connection, message):
         }
     connection.send_result(
         message["id"],
-        {"robot": robot.name, "ready": ready, "settings": settings, "actions": actions},
+        {
+            "robot": robot.name,
+            "ready": ready,
+            "settings": settings,
+            "actions": actions,
+            "connectivity": connectivity,
+        },
     )
 
 

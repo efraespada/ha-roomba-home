@@ -47,7 +47,7 @@ model catalogs where applicable.
 | Dock controls from the floor plan and robot page | The floor plan card opens controls for the same linked dock buttons and reports which operations are running. [Native panel comparison](../docs/validation.md#dock-controls-on-the-floor-plan) |
 | Component use and remaining life, including maintenance resets | Implemented; three Android hour values and usage bars matched signed values |
 | Battery and activity on the robot page | Reported in the map card header and its device-only overview. [Overview validation](../docs/validation.md#robot-status-without-a-floor-plan) |
-| Change Wi-Fi | The Max 700 Combo app asks for confirmation before clearing its current Wi-Fi configuration. Provisioning and recovery require separate verification. |
+| Wi-Fi settings and reconnection | The card shows Roomba connection diagnostics and links the vendor's reconnection guide. The Max 700 Combo app asks for confirmation before clearing its Wi-Fi configuration. Provisioning and recovery require separate verification. |
 | Factory reset and remove robot | App entry point observed; account removal, device reset, and recovery require verification |
 | Part SKUs and replacement or care links | Validated model catalog projected on existing sensors and in the maintenance view |
 | General user guide and robot help | The card and an action expose the verified manual, setup links, diagnostic code lookup, and four-step Max 700 Combo preparation checklist. |
@@ -150,6 +150,12 @@ becoming an indiscriminately false or zero.
   invoking the existing service. Report locate submission and confirm a
   reboot after the robot disconnects and reconnects. Keep a pending action
   scoped to its originating robot if the panel closes.
+- CAP-29: Show the selected robot's Roomba connection state, metadata time,
+  last cloud read, and numeric code in Device settings. Distinguish an
+  explicit disconnection, a missing provider state, and an account refresh
+  failure. Preserve authorized historical timestamps during an outage.
+  Respect each diagnostic entity's read permissions and use the existing
+  Roomba coordinator without an extra provider request or map dependency.
 
 No endpoints, maps and empty states are invented with HA entities or capabilities. No
 physical errors are induced and no maps, accounts or data beyond the test have been
@@ -488,6 +494,11 @@ with API operations.
     card refuses a changed action target or permission and sends the
     existing service once. Verify the locate submission and reboot
     reconnection outcomes, including a timed-out reboot with no repeat.
+27. Expand Connection in Device settings while connected and with maps
+    disabled. Compare the timestamps and raw code to the same robot's
+    diagnostic readings. Exercise missing data, a denied sensor, an
+    explicit disconnection, and a failed cloud refresh. Confirm the
+    reconnection guide opens independently of device control permission.
 
 ## 17. Requirements traceability
 
@@ -520,6 +531,7 @@ with API operations.
 | CAP-26 | Reviewed counter reset from the maintenance panel | [Native control comparison](../docs/validation.md#counter-reset-from-the-maintenance-panel), [WebSocket permissions](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 | CAP-27 | Device settings panel with linked entity actions | [Android and card validation](../docs/validation.md#device-settings-on-the-card), [WebSocket permissions](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 | CAP-28 | Reviewed locate and reboot on the card | [Card validation](../docs/validation.md#locate-and-reboot-from-device-settings), [WebSocket permissions](../tests/ha/test_roomba_map_api.py), [transport tests](../tests/test_application.py), and [card tests](../tests/frontend/map-card.test.cjs) |
+| CAP-29 | Roomba connection diagnostics in Device settings | [Native and card validation](../docs/validation.md#connection-details-in-device-settings), [WebSocket permissions](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 
 CAP-09 includes floor plans, room labels, position, heading, trajectory,
 coverage, and estimates supported by Roomba. Enable the map option to expose

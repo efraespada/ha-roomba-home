@@ -12,6 +12,14 @@ valid and `connected` as the fallback. It stays readable when Roomba explicitly
 reports a disconnection. Missing or invalid metadata leaves the sensor unknown.
 Both sensors use Roomba data.
 
+On the map card, open **Device settings** and expand **Connection** to see
+these readings together without enabling the **Last cloud read** sensor.
+The card shows the reported status and connection code separately, retains
+the last available timestamps during a cloud outage, and follows each
+diagnostic entity's read permissions. The supported shadow provides cloud
+connectivity. The observed fields do not provide Wi-Fi signal level, channel,
+or access point identity. [Card usage](usage.md#robot-settings)
+
 ## What can be consulted
 
 - Mission activity, phase, cycle, operating mode, origin, area, start time,

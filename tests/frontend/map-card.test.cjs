@@ -461,6 +461,53 @@ test("device settings use the typed services, keep other drafts and read back sa
   ]);
 });
 
+test("device settings distinguish Roomba connection states and preserve zero and timestamps", async () => {
+  const { card, dialog } = modalCard("device-settings-dialog");
+  const lastUpdate = "2026-01-02T03:00:00+00:00";
+  const lastRead = "2026-01-02T04:00:00+00:00";
+  let connectivity = { state: "disconnected", connection_code: 0, connection_updated_at: lastUpdate, cloud_read: lastRead };
+  card._hass = {
+    locale: { language: "en-GB" }, config: { time_zone: "Europe/Madrid" },
+    callWS: async () => ({ ready: false, settings: {}, connectivity }),
+  };
+  const section = card.$("device-connection");
+  const measurements = card.$("device-connection-metrics");
+  const values = () => Object.fromEntries(measurements.children.map(({ children: [term, value] }) => [term.textContent, value]));
+  await card.openDeviceSettings();
+  assert.equal(section.hidden, false);
+  assert.equal(section.open, false);
+  assert.equal(values()["Roomba connection"].textContent, "Disconnected from Roomba");
+  assert.equal(values()["Roomba connection code"].textContent, "0");
+  assert.match(values()["Last Roomba connectivity update"].textContent, /04:00/);
+  assert.equal(values()["Last Roomba connectivity update"].title, lastUpdate);
+  assert.match(values()["Last cloud read"].textContent, /05:00/);
+  const [guide] = card.$("device-connection-guide").children;
+  assert.match(guide.href, /^https:\/\/homesupport\.irobot\.com\//);
+  assert.equal(guide.rel, "noopener noreferrer");
+
+  section.open = true;
+  connectivity = { state: "unavailable", cloud_read: lastRead, connection_code: null };
+  await card.loadDeviceSettings(card.deviceSettings);
+  assert.equal(section.open, true);
+  assert.equal(values()["Roomba connection"].textContent, "Roomba cloud data is unavailable");
+  assert.equal(values()["Last cloud read"].title, lastRead);
+  assert.equal(values()["Last Roomba connectivity update"], undefined);
+  assert.equal(values()["Roomba connection code"].textContent, "Unknown");
+  connectivity = { state: "unknown", connection_updated_at: "invalid date", cloud_read: null };
+  await card.loadDeviceSettings(card.deviceSettings);
+  assert.equal(values()["Roomba connection"].textContent, "Roomba has not reported a connection state");
+  assert.equal(values()["Last Roomba connectivity update"].textContent, "Unknown");
+  assert.equal(values()["Last cloud read"].textContent, "Unknown");
+
+  dialog.close();
+  card.config.entity = "vacuum.other";
+  connectivity = undefined;
+  await card.openDeviceSettings();
+  assert.equal(section.hidden, true);
+  assert.equal(section.open, false);
+  assert.deepEqual(measurements.children, []);
+});
+
 test("device settings guard pending edits and isolate a failed or late response", async () => {
   const { card, dialog } = modalCard("device-settings-dialog");
   const settings = { child_pet_lock: { entity_id: "switch.lock", value: "off", attributes: {}, editable: true } };

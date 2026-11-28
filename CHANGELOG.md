@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.97.0
+
+- Open **Connection** in **Device settings** to inspect Roomba's reported
+  connection, its last provider update, the last cloud read, and the
+  connection code. The panel distinguishes a robot disconnection from
+  unavailable cloud data and links iRobot's Wi-Fi reconnection guide.
+
 ## 0.96.0
 
 - Review and run **Locate robot** and **Reboot robot** from **Device
