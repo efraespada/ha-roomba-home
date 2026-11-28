@@ -165,6 +165,13 @@ threshold. [Dock settings and automation example](docs/usage.md#dock-settings)
 
 ![Battery and active dock operation shown by the installed Home Assistant card during the map fallback trial](docs/screenshots/roomba-robot-status.jpg)
 
+## Robot voices
+
+In **Device settings**, open **Download voices** to review a language before
+installing it. [Voice settings and automation examples](docs/usage.md#robot-settings)
+
+![Voice installation review on the installed Home Assistant card](docs/screenshots/roomba-voice-download.jpg)
+
 ## Maintenance and diagnostics
 
 Open **Maintenance** to check a part's usage, remaining time, and care
