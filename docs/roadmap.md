@@ -55,7 +55,12 @@ reads retained the edited map and name.
    [Restriction recovery validation](validation.md#recovering-map-restrictions) ·
    [Furniture recovery validation](validation.md#recovering-furniture-placements) ·
    [Room details and boundary trial](validation.md#recovering-room-names-and-types)
-3. **Investigate full restoration.** Verify a provider operation for
+3. **Recreate a backed-up program on a current floor.** Version 0.103.0
+   captures room-only programs and saves portable drafts with area names,
+   order, profiles, and schedule timing. Assign every destination to a current
+   area and use the normal editor to save the new program. New schedules
+   start disabled. [Recreate a saved program](usage.md#recreate-a-saved-program)
+4. **Investigate full restoration.** Verify a provider operation for
    importing or reactivating an entire floor after its remote revision is
    gone. Use a disposable floor to prove that the restored map reappears
    in Roomba, that its geometry and destinations are intact, and that the
@@ -112,8 +117,9 @@ for the same physical floor and retained its geometry. Version 0.102.0
 lists the programs linked to the exact floor before removal. In a separate
 native trial, removing a disposable floor made its routine and enabled
 schedule disappear from the signed program lists and preserved all other
-records. Establish whether Roomba can recover those programs when a floor
-is restored before offering recovery of retired-floor programs.
+records. A local backup can provide a draft for recreating a program on a
+new map. Verify whether an entire retired floor and its original programs
+can be reactivated together before adding direct recovery.
 [Native replacement trial](validation.md#guided-floor-replacement) ·
 [Linked program trial](validation.md#floor-removal-and-linked-programs)
 

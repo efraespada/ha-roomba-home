@@ -1220,6 +1220,10 @@
           "name": "Regions and preferences",
           "description": "Ordered list of regions from one current floor plan with optional cleaning settings."
         },
+        "floor": {
+          "name": "Reviewed floor",
+          "description": "Map ID, version, and inventory ID shown when choosing the cleaning regions."
+        },
         "icon": {
           "name": "Icon",
           "description": "Emoji or printable symbol shown for this routine."

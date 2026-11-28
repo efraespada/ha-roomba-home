@@ -1234,6 +1234,7 @@ test("one-off preferences can become a named routine with their order choice int
   assert.deepEqual(requests[1], ["create_cleaning_routine", {
     name: "Room preferences", ordered: false,
     regions: [{ id: "room-b" }, { id: "room-a", mode: "mop" }],
+    floor: { map_id: "fixture-map", version: "v1", inventory_id: "inventory" },
   }, card.config.entity]);
 });
 
@@ -1271,6 +1272,7 @@ test("edit or duplicate a routine's icon and color without changing its cleaning
   await card.saveRoutine();
   assert.deepEqual(requests[1], ["create_cleaning_routine", {
     name: "Kitchen routine (copy)", regions: original.region_settings, icon: "🧹", color: "#FDF4A9",
+    floor: { map_id: "fixture-map", version: "v1", inventory_id: "inventory" },
   }]);
 
   card.cleaningEditor = true;
@@ -1890,6 +1892,97 @@ test("program recovery previews settings and confirms only the selected program"
     ...requests[0], confirmed: true, kind: "schedule", program_id: "schedule", review_id: "schedule-review",
   });
   assert.equal(card.$("map-backups-status").textContent, "Cleaning destinations restored.");
+});
+
+test("recreate archived programs on a different floor through the reviewed program editors", async () => {
+  const card = cleaningSelectionCard();
+  card.snapshot.can_manage_schedules = true;
+  card.snapshot.floor_settings.name = "Current floor";
+  const dialog = card.$("map-backups-dialog");
+  dialog.showModal = () => { dialog.open = true; };
+  dialog.close = () => { dialog.open = false; };
+  const saved = { id: "f".repeat(64), map_id: "retired", version: "older" };
+  const settings = [
+    { id: "retired:rid:former-a", mode: "mop", wetness_level: 2, two_pass: true },
+    { id: "retired:zid:100", mode: "vacuum", suction_level: 3 },
+  ];
+  const area_names = ["Former room", "Former zone"];
+  const programs = [
+    { kind: "routine", id: "routine", name: "Archived routine", ordered: false,
+      region_settings: settings, draft: { area_names, icon: "🧹", color: "#CBCBFB" } },
+    { kind: "schedule", id: "schedule", name: "Archived schedule", ordered: true,
+      region_settings: settings, draft: { area_names, time: "14:30", weekdays: [4], enabled: true } },
+  ];
+  card._hass = { callWS: async ({ type }) => type === "roomba_home/map_backups"
+    ? { snapshots: [saved], can_manage: true, retention: 5 }
+    : { backup: saved, geometry: { regions: [region] }, program_drafts: programs } };
+  card.drawMapBackup = () => {};
+  const actions = [];
+  card.callAction = async (command, data) => {
+    actions.push([command, JSON.parse(JSON.stringify(data))]);
+    if (command === "list_cleaning_schedules") return { schedules: [] };
+    if (command === "list_cleaning_routines") return { routines: [] };
+    return { id: "new-program", name: data.name, region_settings: data.regions,
+      time: data.time, weekdays: data.weekdays, enabled: false };
+  };
+
+  const assign = (from, id) => {
+    const control = card.$("map-backup-copy-areas").children[from].children[0].children[0];
+    control.value = id;
+    control.onchange();
+  };
+  await card.openMapBackups();
+  assert.equal(card.$("review-map-backup-programs").hidden, true);
+  assert.equal(card.$("copy-map-backup-program").hidden, false);
+  card.openMapBackupProgramCopy();
+  assert.match(card.$("map-backup-copy-floor").textContent, /Current floor/);
+  assert.equal(card.$("continue-map-backup-copy").disabled, true);
+  assign(0, "room-b");
+  assign(1, "room-b");
+  assert.match(card.$("map-backup-copy-status").textContent, /different destination/);
+  await card.openCopiedProgramEditor();
+  assert.deepEqual(actions, []);
+  assign(1, "zone-b");
+  await card.openCopiedProgramEditor();
+  assert.equal(card.routineDraft.ordered, false);
+  assert.equal(card.routineDraft.icon, "🧹");
+  assert.equal(card.routineDraft.color, "#CBCBFB");
+  assert.deepEqual(actions.map(([command]) => command), ["list_cleaning_routines"]);
+  await card.saveRoutine();
+  const mapped = [{ ...settings[0], id: "room-b" }, { ...settings[1], id: "zone-b" }];
+  const floor = { map_id: "fixture-map", version: "v1", inventory_id: "inventory" };
+  assert.deepEqual(actions[1], ["create_cleaning_routine", {
+    name: "Archived routine", regions: mapped, ordered: false, floor,
+    icon: "🧹", color: "#CBCBFB",
+  }]);
+  card.routineDialog.close();
+
+  await card.openMapBackups();
+  card.openMapBackupProgramCopy();
+  card.chooseMapBackupProgram("1");
+  assign(0, "room-b");
+  assign(1, "zone-b");
+  assert.match(card.$("map-backup-copy-status").textContent, /starts disabled/);
+  card.snapshot.map.version = "new revision";
+  card.updateMapBackupControls(card.backups);
+  assert.equal(card.$("map-backup-copy").hidden, true);
+  await card.openCopiedProgramEditor();
+  assert.equal(actions.length, 2);
+  card.snapshot.map.version = "v1";
+  card.openMapBackupProgramCopy();
+  card.chooseMapBackupProgram("1");
+  assign(0, "room-b");
+  assign(1, "zone-b");
+  await card.openCopiedProgramEditor();
+  assert.equal(card.routineDraft.time, "14:30");
+  assert.deepEqual(actions.map(([command]) => command), [
+    "list_cleaning_routines", "create_cleaning_routine", "list_cleaning_schedules",
+  ]);
+  await card.saveSchedule();
+  assert.deepEqual(actions[3], ["create_cleaning_schedule", {
+    name: "Archived schedule", regions: mapped, floor, frequency: "weekly", weekdays: [4], time: "14:30",
+  }]);
+  assert.equal(card.routineDraft.saved.enabled, false);
 });
 
 test("Smart recommendations update supported rooms independently in the existing order", async () => {

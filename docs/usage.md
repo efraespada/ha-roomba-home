@@ -783,6 +783,23 @@ The review lists programs with missing zones, changed settings, or
 unsupported selections so you can inspect them before editing the program.
 [Recovery roadmap](roadmap.md#local-map-history-and-recovery)
 
+### Recreate a saved program
+
+Before retiring a floor, capture or pin a backup while its routines and
+schedules are still available. On the replacement floor, open **Map
+backups**, pick the earlier backup, and choose **Recreate a saved program**.
+Assign each saved area to a distinct current room, zone, or supported
+furniture destination. For example, map an entry zone's two-pass vacuum
+profile and a kitchen's mop profile to their new destinations. The order
+and both profiles carry into the editor. Choose **Continue to editor** and
+review the draft before saving it to Roomba.
+
+A weekly schedule carries its days and time. A one-time schedule carries
+its local start time for the next occurrence. The recreated schedule starts
+disabled. Enable it independently after checking the destinations and time.
+This flow needs a backup containing a portable program draft, first saved
+in 0.103.0, and a current floor on the same robot.
+
 ## Clean a map point
 
 Choose **Clean a point** on a supported floor plan and select a cleaning

@@ -134,6 +134,12 @@ and revision. A saved zone is a provider-confirmed region with its own ID.
   removal review. Match the explicit floor identifier on the selected
   robot, show enabled states for schedules, and identify unchecked sources.
   Discard late results for closed or stale reviews.
+- EDIT-20: Capture portable routine and schedule drafts, including room-only
+  programs, appearance, timing, and per-area profiles. Recreate a program
+  from a backup by explicitly assigning each saved area to a distinct current
+  destination. Preserve listed order or automatic ordering and check the
+  reviewed floor at save. Use the current program editor and start new
+  schedules disabled.
 - Bulk edits and cross-floor copies require a verified operations contract.
 - Roomba remains the owner of robot and map data. Editing a map never starts a cleaning mission.
 
@@ -269,6 +275,10 @@ map layers, and the published revision. A program recovery review binds
 each confirmation to one program, its active floor, and the proposed ordered
 destinations and profiles. Later changes to surviving destinations prevent
 the recovery, and partial reads identify the unavailable program source.
+For a recreated program, change area identifiers only after the operator
+has assigned every saved area. Discard the assignment when the displayed
+floor or its destination inventory changes. The backup remains usable after
+the old floor and its programs leave the Roomba inventory.
 Complete floor recovery requires proof
 that Roomba restores the archive to its usable floor inventory. Reading
 the exact bytes of an inactive revision establishes archive availability.
@@ -391,6 +401,7 @@ screenshots.
 | EDIT-17 | [Restriction edits](../docs/api.md#restriction-edits) | [Geometry tests](../tests/test_restriction_edits.py), [authenticated lifecycle](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed wall trial](../docs/validation.md#editing-virtual-walls) |
 | EDIT-18 | [Combined floor removal and mapping](../docs/api.md#mapping-runs-and-floor-removal) | [WebSocket tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [native trial](../docs/validation.md#guided-floor-replacement) |
 | EDIT-19 | [Floor removal review](../docs/api.md#mapping-runs-and-floor-removal) | [Client tests](../tests/test_api_client.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [installed and native trial](../docs/validation.md#floor-removal-and-linked-programs) |
+| EDIT-20 | [Recreate saved programs](../docs/usage.md#recreate-a-saved-program) | [Capture policy tests](../tests/test_map_programs.py), [WebSocket and creation tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 
 ## 18. Implementation sequence
 
