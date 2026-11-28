@@ -1933,6 +1933,15 @@ changes. Card tests cover the explicit review, phase display, one request,
 reopening during a download, and a fresh read after confirmation or failure.
 [Voice settings](usage.md#robot-settings)
 
+Home Assistant passed its Core configuration check and restarted on 0.95.0.
+The three robots reappeared docked. On the household test robot, the card
+showed the current Spanish voice and 12 additional options. It opened the
+review for Danish and returned to the selector with **Back**. Reopening
+device settings showed the original active voice. The household trial
+ended at the review. The physical installation and pack replacement
+evidence above came from the official app and the integration transport.
+[Installed voice review](screenshots/roomba-voice-download.jpg)
+
 ## Robot reboot and voice catalog
 
 The 0.33.0 integration adds a configuration button for reboot. The app
