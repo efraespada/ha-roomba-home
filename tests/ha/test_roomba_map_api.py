@@ -2757,6 +2757,26 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     paused = await configured._timeline_metrics(replace(state, phase="stop"), None, now)
     assert paused["live_estimated_remaining"] is None
     assert paused["live_timeline_plan"]["estimated_duration_seconds"] == 502
+
+    paused_at = now + timedelta(seconds=12)
+    pause_document = document | {
+        "event": [*document["event"], {"type": "pause", "ts": int(paused_at.timestamp())}]
+    }
+    pause_report = mission_timeline(pause_document, 17, 51, int(later.timestamp()))
+    stopped = replace(state, phase="stop")
+    verified_pause = await configured._timeline_metrics(stopped, pause_report, later)
+    assert verified_pause["live_estimated_remaining"] == 467
+    paused_state = replace(stopped, telemetry=stopped.telemetry | verified_pause)
+    configured.async_set_updated_data({robot: paused_state})
+    frozen = await snapshot(later, 5)
+    assert frozen["estimated_remaining_seconds"] == 467
+    assert frozen["destinations"][0]["status"] == "paused"
+    assert frozen["destinations"][0]["cleaning_elapsed_seconds"] == 35
+    assert "stage_elapsed_seconds" not in frozen["destinations"][0]
+    assert await snapshot(later + timedelta(minutes=1), 6) == frozen
+    configured.async_set_updated_data({robot: replace(paused_state, phase="run")})
+    assert (await snapshot(later, 7))["estimated_remaining_seconds"] is None
+
     configured.client.cleaning_time_estimates.assert_awaited_once()
     document["cmd"]["regions"].append({"type": "zid", "region_id": "zone-a"})
     mixed = mission_timeline(document, 17, 51, int(now.timestamp()))

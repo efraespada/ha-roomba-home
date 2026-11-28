@@ -91,6 +91,20 @@ def test_countdown_waits_for_timed_work_and_a_verified_stage(
     assert remaining_duration(statuses, durations, stage, stage_started, NOW) == expected
 
 
+def test_paused_estimate_uses_confirmed_cleaning_elapsed_and_does_not_count_down():
+    pause_started = NOW - timedelta(seconds=15)
+    destinations = [
+        {"status": "finished"},
+        {"status": "paused", "estimated_duration_seconds": 500, "cleaning_elapsed_seconds": 31},
+        {"status": "pending", "estimated_duration_seconds": 250},
+    ]
+    plan = {"destinations": destinations}
+    assert remaining_plan_duration(plan, "pause", pause_started, NOW) == 719
+    assert remaining_plan_duration(plan, "pause", pause_started, NOW + timedelta(minutes=2)) == 719
+    del destinations[1]["cleaning_elapsed_seconds"]
+    assert remaining_plan_duration(plan, "pause", pause_started, NOW) is None
+
+
 @pytest.mark.parametrize(
     ("stage", "offset", "statuses", "elapsed"),
     [

@@ -11,7 +11,7 @@ from .telemetry import integer
 
 PENDING = {"pending", "traveling"}
 RESOLVED = {"finished", "skipped"}
-COUNTDOWN_STAGES = {"start", "reloc", "travel", "room"}
+COUNTDOWN_STAGES = {"start", "reloc", "travel", "room", "pause"}
 ACTIVE_AREA_STAGES = {"room", "zone"}
 INTERRUPTIONS = ("pause", "charge", "padWash")
 
@@ -145,6 +145,7 @@ def remaining_plan_duration(
 ) -> int | None:
     """Apply the same countdown to a freshly projected or cached plan."""
     destinations = plan["destinations"]
+    active_status = "paused" if stage == "pause" else "in_progress"
     return remaining_duration(
         tuple(item["status"] for item in destinations),
         tuple(item.get("estimated_duration_seconds") for item in destinations),
@@ -155,7 +156,7 @@ def remaining_plan_duration(
             (
                 item.get("cleaning_elapsed_seconds")
                 for item in destinations
-                if item["status"] == "in_progress"
+                if item["status"] == active_status
             ),
             None,
         ),
@@ -190,24 +191,28 @@ def remaining_duration(
     """Calculate an approximate time for remaining, explicitly timed work."""
     if stage not in COUNTDOWN_STAGES:
         return None
-    active = destination_statuses.count("in_progress")
-    if stage == "room":
-        if active != 1 or stage_started is None or stage_started > now:
+    active_status = "paused" if stage == "pause" else "in_progress"
+    elapsed = 0
+    if stage in {"room", "pause"}:
+        if (
+            destination_statuses.count(active_status) != 1
+            or stage_started is None
+            or stage_started > now
+        ):
             return None
-        elapsed = (
-            int((now - stage_started).total_seconds())
-            if elapsed_seconds is None
-            else elapsed_seconds
-        )
-    else:
-        elapsed = 0
+        if elapsed_seconds is not None:
+            elapsed = elapsed_seconds
+        elif stage == "room":
+            elapsed = int((now - stage_started).total_seconds())
+        else:
+            return None
     total = 0
     for status, duration in zip(destination_statuses, durations, strict=True):
         if status in RESOLVED:
             continue
-        if duration is None or status not in PENDING | {"in_progress"}:
+        if duration is None or status not in PENDING | {active_status}:
             return None
-        if status == "in_progress":
+        if status == active_status:
             duration -= elapsed
             if duration <= 0:
                 return None
