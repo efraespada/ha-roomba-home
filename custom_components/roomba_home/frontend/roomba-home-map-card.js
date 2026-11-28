@@ -85,6 +85,18 @@ const DEVICE_SETTINGS = {
     automatic_mop_detergent: "Automatic cleaning solution", mop_drying_duration: "Mop drying duration",
   },
 };
+const DEVICE_ACTIONS = {
+  locate: {
+    label: "Locate robot", domain: "vacuum", service: "locate",
+    prompt: (robot) => `Play the location sound on ${robot}?`,
+    pending: "Sending the locate request…", success: "Locate request submitted. Listen for the robot.",
+  },
+  reboot: {
+    label: "Reboot robot", domain: "button", service: "press",
+    prompt: (robot) => `Reboot ${robot}? A reboot can interrupt cleaning or dock drying.`,
+    pending: "Waiting for Roomba to disconnect and reconnect…", success: "Roomba disconnected and reconnected.",
+  },
+};
 const DEVICE_SETTING_CHOICES = {
   every_25_m2: "Every 25 m²", every_50_m2: "Every 50 m²",
   three_hours: "3 hours", four_hours: "4 hours", five_hours: "5 hours",
@@ -202,6 +214,8 @@ template.innerHTML = `
     .device-setting label { display:grid; flex:1; min-width:0; gap:4px; }
     .device-setting input, .device-setting select { box-sizing:border-box; width:100%; min-width:0; }
     #device-settings-status:empty { display:none; }
+    #device-action-buttons { display:flex; flex-wrap:wrap; gap:8px; }
+    #device-action-status:empty { display:none; }
     #voice-downloads-dialog { width:min(28rem, calc(100vw - 3rem)); max-width:none; }
     #device-settings-dialog .actions, #voice-downloads-dialog .actions { flex-wrap:wrap; }
     #voice-download-status:empty, #voice-current:empty { display:none; }
@@ -589,6 +603,20 @@ template.innerHTML = `
     <dialog id="device-settings-dialog" aria-labelledby="device-settings-title">
       <h3 id="device-settings-title">Device settings</h3>
       <p id="device-settings-status" class="muted" role="status"></p>
+      <section id="device-actions" aria-label="Robot actions" hidden>
+        <div id="device-action-buttons">
+          ${Object.entries(DEVICE_ACTIONS).map(([action, { label }]) =>
+            `<button id="device-action-${action}" hidden>${label}</button>`).join("")}
+        </div>
+        <div id="device-action-review" role="group" aria-labelledby="device-action-prompt" hidden>
+          <p id="device-action-prompt"></p>
+          <div class="actions">
+            <button id="back-device-action">Back</button>
+            <button id="confirm-device-action" class="primary"></button>
+          </div>
+        </div>
+        <p id="device-action-status" class="muted" role="status"></p>
+      </section>
       <fieldset id="device-settings-entries" aria-label="Robot and dock settings"></fieldset>
       <div class="actions">
         <button id="open-voice-downloads" hidden>Download voices</button>
@@ -1379,6 +1407,17 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("device-settings-dialog").oncancel = (event) => {
       if (this.deviceSettings?.pending) event.preventDefault();
     };
+    for (const action of Object.keys(DEVICE_ACTIONS)) {
+      this.$(`device-action-${action}`).onclick = () => this.reviewDeviceAction(action);
+    }
+    this.$("back-device-action").onclick = () => {
+      const context = this.deviceSettings;
+      const previous = context.actionReview?.action;
+      context.actionReview = null;
+      this.updateDeviceActions(context);
+      if (previous) this.$(`device-action-${previous}`).focus();
+    };
+    this.$("confirm-device-action").onclick = () => this.confirmDeviceAction();
     this.$("open-voice-downloads").onclick = () => this.openVoiceDownloads();
     this.$("close-voice-downloads").onclick = () => this.$("voice-downloads-dialog").close();
     this.$("refresh-voice-downloads").onclick = () => this.loadVoiceDownloads(this.voiceDownloads);
@@ -2500,7 +2539,9 @@ class RoombaHomeMapCard extends HTMLElement {
       ensureModal(dialog);
       return;
     }
-    const context = this.deviceSettings = { entity: this.config.entity, drafts: new Map(), pending: false };
+    const context = this.deviceSettings = {
+      entity: this.config.entity, drafts: new Map(), pending: false, actions: {}, actionReview: null,
+    };
     this.$("device-settings-title").textContent = "Device settings";
     const entries = this.$("device-settings-entries");
     entries.replaceChildren();
@@ -2511,7 +2552,7 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   currentDeviceSettings(context) {
-    return this.$("device-settings-dialog").open && this.deviceSettings === context &&
+    return context && this.$("device-settings-dialog").open && this.deviceSettings === context &&
       this.config.entity === context.entity;
   }
 
@@ -2522,11 +2563,19 @@ class RoombaHomeMapCard extends HTMLElement {
     const refresh = this.$("refresh-device-settings");
     const voices = this.$("open-voice-downloads");
     const entries = this.$("device-settings-entries");
-    refresh.disabled = entries.disabled = voices.disabled = true;
+    context.loading = refresh.disabled = true;
+    this.updateDeviceActions(context);
     status.textContent = feedback || "Loading device settings…";
     try {
       const report = await this._hass.callWS({ type: "roomba_home/device_settings", entity_id: context.entity });
       if (!current()) return;
+      context.actions = report.actions ?? {};
+      context.robot = report.robot;
+      const review = context.actionReview;
+      if (review && (context.actions[review.action] !== review.entity || context.robot !== review.robot)) {
+        context.actionReview = null;
+        context.actionMessage = "The robot action changed. Review it again.";
+      }
       const groups = [];
       for (const [group, fields] of Object.entries(DEVICE_SETTINGS)) {
         const rows = Object.entries(fields).flatMap(([key, label]) => report.settings[key]
@@ -2548,11 +2597,86 @@ class RoombaHomeMapCard extends HTMLElement {
       if (current()) {
         entries.replaceChildren();
         voices.hidden = true;
+        context.actions = {};
+        context.actionReview = null;
         const message = error?.message || "Device settings are unavailable.";
         status.textContent = [feedback, message].filter(Boolean).join(" ");
       }
     } finally {
-      if (current()) refresh.disabled = entries.disabled = voices.disabled = context.pending;
+      if (current()) {
+        context.loading = false;
+        refresh.disabled = context.pending;
+        this.updateDeviceActions(context);
+      }
+    }
+  }
+
+  updateDeviceActions(context) {
+    if (!this.currentDeviceSettings(context)) return;
+    const active = this.deviceActionRequests?.get(context.entity);
+    const { actions = {}, actionReview: review } = context;
+    const busy = context.pending || context.loading || Boolean(active);
+    this.$("device-actions").hidden = !Object.keys(actions).length && !active && !context.actionMessage;
+    for (const action of Object.keys(DEVICE_ACTIONS)) {
+      const button = this.$(`device-action-${action}`);
+      button.hidden = !actions[action] || !!review;
+      button.disabled = busy;
+    }
+    this.$("device-action-review").hidden = !review;
+    this.$("confirm-device-action").disabled = busy;
+    this.$("device-action-status").textContent = active ? DEVICE_ACTIONS[active].pending : context.actionMessage ?? "";
+    this.$("device-settings-entries").disabled = this.$("open-voice-downloads").disabled = busy || !!review;
+  }
+
+  reviewDeviceAction(action) {
+    const context = this.deviceSettings;
+    if (!this.currentDeviceSettings(context) || context.pending || context.loading ||
+        this.deviceActionRequests?.has(context.entity)) return;
+    const entity = context.actions?.[action];
+    if (!Object.hasOwn(DEVICE_ACTIONS, action) || !entity) return;
+    context.actionReview = { action, entity, robot: context.robot };
+    context.actionMessage = "";
+    const details = DEVICE_ACTIONS[action];
+    this.$("device-action-prompt").textContent = details.prompt(context.robot || "this robot");
+    this.$("confirm-device-action").textContent = details.label;
+    this.updateDeviceActions(context);
+    this.$("back-device-action").focus();
+  }
+
+  async confirmDeviceAction() {
+    const context = this.deviceSettings;
+    const review = context?.actionReview;
+    if (!review || !this.currentDeviceSettings(context) || context.pending || context.loading ||
+        this.deviceActionRequests?.has(context.entity) || context.actions[review.action] !== review.entity ||
+        context.robot !== review.robot) return;
+    if (this.voiceDownloads?.pending && this.voiceDownloads.entity === context.entity) {
+      context.actionMessage = "Wait for Roomba to finish the voice installation.";
+      this.updateDeviceActions(context);
+      return;
+    }
+    const details = DEVICE_ACTIONS[review.action];
+    const requests = this.deviceActionRequests ??= new Map();
+    requests.set(context.entity, review.action);
+    context.actionReview = null;
+    this.updateDeviceActions(context);
+    let result;
+    try {
+      const latest = await this._hass.callWS({ type: "roomba_home/device_settings", entity_id: context.entity });
+      if (this.config.entity !== context.entity || latest.robot !== review.robot || latest.actions?.[review.action] !== review.entity) {
+        throw new Error("The robot action changed. Review it again.");
+      }
+      await this._hass.callService(details.domain, details.service, {}, { entity_id: review.entity });
+      result = details.success;
+    } catch (error) {
+      result = error?.message || "Roomba did not confirm the robot action.";
+    } finally {
+      requests.delete(context.entity);
+    }
+    const current = this.deviceSettings;
+    if (current?.entity === context.entity && this.currentDeviceSettings(current)) {
+      current.actionMessage = result;
+      await this.loadDeviceSettings(current);
+      if (this.currentDeviceSettings(current)) this.$("close-device-settings").focus();
     }
   }
 
@@ -2619,17 +2743,17 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   async saveDeviceSetting(context, key, label, domain, entity, value) {
-    if (!this.currentDeviceSettings(context) || context.pending) return;
+    if (!this.currentDeviceSettings(context) || context.pending || context.loading ||
+        context.actionReview || this.deviceActionRequests?.has(context.entity)) return;
     const close = this.$("close-device-settings");
     const refresh = this.$("refresh-device-settings");
-    const voices = this.$("open-voice-downloads");
-    const entries = this.$("device-settings-entries");
     const status = this.$("device-settings-status");
     const action = {
       text: ["set_value", { value }], number: ["set_value", { value: Number(value) }],
       select: ["select_option", { option: value }], switch: [value === "on" ? "turn_on" : "turn_off", {}],
     }[domain];
-    context.pending = close.disabled = refresh.disabled = entries.disabled = voices.disabled = true;
+    context.pending = close.disabled = refresh.disabled = true;
+    this.updateDeviceActions(context);
     status.textContent = "Waiting for Roomba to confirm…";
     let confirmed = false;
     try {
@@ -2642,7 +2766,8 @@ class RoombaHomeMapCard extends HTMLElement {
       if (this.currentDeviceSettings(context)) status.textContent = error?.message || "Roomba did not save the setting.";
     } finally {
       if (this.currentDeviceSettings(context)) {
-        context.pending = close.disabled = refresh.disabled = entries.disabled = voices.disabled = false;
+        context.pending = close.disabled = refresh.disabled = false;
+        this.updateDeviceActions(context);
         if (confirmed) (this.$(`device-setting-${key}`) ?? close).focus();
       }
     }

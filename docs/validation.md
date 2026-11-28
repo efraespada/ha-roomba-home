@@ -1960,6 +1960,17 @@ current voice remained Spanish (Spain). The suite passed 1,904 Python
 tests with 100% statement and branch coverage and 16 dashboard tests.
 [Reboot and voice catalog evidence](evidence/2026-11-25-reboot-and-voice-catalog.json)
 
+### Locate and reboot from Device settings
+
+The Android settings list showed separate Locate and Reboot controls.
+The map card uses the standard Home Assistant locate action on the linked
+vacuum and presses the existing reboot button. Tests verify permissions,
+unavailable devices, exact entity scopes, and a fresh read before dispatch.
+The card tests cover the review, failure, and closing and reopening during
+one outstanding request. The transport tests confirm reboot only after
+the reported disconnect and reconnection and report locate as submitted.
+[Robot settings](usage.md#robot-settings)
+
 ## Robot name and voice language
 
 The 0.32.0 integration adds a configuration text entity for the robot name
