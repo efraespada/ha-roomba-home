@@ -1,5 +1,40 @@
 # Roomba Home validation
 
+## Recreating programs from a retired floor
+
+A mapping-only run on a Max 700 Combo produced a disposable second floor
+with three rooms. Home Assistant saved a routine and a weekly schedule for
+two of its rooms. The first area used vacuuming at suction level 2. The
+second used mopping at wetness level 2 with two passes. The routine used a
+custom icon and color. The schedule was set for Thursday at 14:30 and was
+enabled before the final backup.
+
+On 0.103.0, Home Assistant wrote a readable snapshot and reported a save
+error because the weekly days changed from a tuple to a list during JSON
+storage. The 0.103.1 card confirmed a fresh snapshot with **Floor backup
+saved locally**. The saved copy exposed both programs in their original
+area order.
+
+After **Delete map** in Roomba Home Android 3.4.1, the live program lists
+omitted both source programs. On the remaining floor, the operator opened
+the saved copy and explicitly assigned the first area to a dining table and
+the second to a room. The installed card saved the new routine and a
+disabled schedule. Independent Proxyman reads confirmed the new floor and
+destination types, identical per-area preferences in the same order, the
+routine appearance, and the schedule's original days and start time. Roomba
+reported the recreated schedule disabled even though the archived source
+was enabled.
+
+The recreated programs and both temporary backups were removed. All six
+existing favorites and five existing schedules matched their original
+records and order. The original floor remained the only active floor for
+the test robot. Its geometry and destination metadata matched the
+baseline. The decompressed archive differed only by its header timestamp.
+All three cards reported **At dock** at the end.
+[Reduced evidence](evidence/2026-11-28-recreated-backup-programs.json)
+
+![Replacing two archived destinations in the installed Home Assistant card](screenshots/roomba-rebuild-program-destinations.jpg)
+
 ## Floor removal and linked programs
 
 On a Max 700 Combo, a mapping-only run created a second, disposable

@@ -119,6 +119,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-floor-removal-programs.jpg": (
         "888623b9e4eadd39f73058df68d59125edc8c1e04fdb9f7590d855b68a97db92"
     ),
+    "docs/screenshots/roomba-rebuild-program-destinations.jpg": (
+        "6501783003a27fc300b73dfb9012f0dc863790213f1613c333205c4e6ac208b9"
+    ),
 }
 PATTERNS = {
     "private-key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),

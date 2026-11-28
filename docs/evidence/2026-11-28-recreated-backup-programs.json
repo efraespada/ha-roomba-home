@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-28",
+  "model": "X185240",
+  "android_version": "3.4.1",
+  "integration_version": "0.103.1",
+  "source_trial": {
+    "both_programs_used_two_ordered_rooms": true,
+    "distinct_area_profiles": 2,
+    "source_weekly_schedule_enabled_before_capture": true,
+    "installed_backup_confirmed": true,
+    "retired_floor_programs_absent_from_live_lists": true
+  },
+  "recreated_programs": {
+    "destination_kinds_in_order": ["furniture", "room"],
+    "routine_area_profiles_and_appearance_match": true,
+    "schedule_area_profiles_and_timing_match": true,
+    "schedule_enabled": false,
+    "independently_confirmed_in_native_provider_reads": true
+  },
+  "cleanup": {
+    "temporary_programs_and_backups_removed": true,
+    "existing_favorite_records_unchanged": 6,
+    "existing_schedule_records_unchanged": 5,
+    "existing_program_order_unchanged": true,
+    "original_floor_identity_and_destinations_unchanged": true,
+    "original_map_binary_changes": ["header_timestamp"],
+    "test_robot_has_one_active_floor": true,
+    "three_robots_at_dock": true
+  }
+}

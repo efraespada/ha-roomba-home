@@ -800,6 +800,8 @@ disabled. Enable it independently after checking the destinations and time.
 This flow needs a backup containing a portable program draft, first saved
 in 0.103.0, and a current floor on the same robot.
 
+![Assigning two destinations in the installed Home Assistant card](screenshots/roomba-rebuild-program-destinations.jpg)
+
 ## Clean a map point
 
 Choose **Clean a point** on a supported floor plan and select a cleaning
