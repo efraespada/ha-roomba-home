@@ -21,7 +21,16 @@ those cleaning seconds. A simulated pause in the same room holds the
 corrected estimate and keeps both preceding visits. A separate test
 rejects a missing departure or a departure outside the interval between
 two entries.
+
+Home Assistant 0.104.4 was installed during the same run. The mission
+number and start time matched after Core restarted. When the new timeline
+arrived, the card showed 11 minutes remaining and just over 106 minutes
+of accumulated vacuuming. At the next comparison, Roomba Home showed
+9 minutes and Home Assistant reported 556 seconds 15 seconds later.
+R2-D2 reported 20% battery and zero errors at those samples.
 [Reduced signed evidence](evidence/2026-11-28-two-pass-room-intervals.json)
+
+![The installed Home Assistant card during the two-pass vacuum run](screenshots/roomba-two-pass-cleaning-estimate.jpg)
 
 ## Timeline updates on pause and resume
 

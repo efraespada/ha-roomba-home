@@ -128,6 +128,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-resumed-cleaning-estimate.jpg": (
         "c830370b55e7ed13dff083483f1dad053dbf27e90fe975f81282319d9e40433f"
     ),
+    "docs/screenshots/roomba-two-pass-cleaning-estimate.jpg": (
+        "f1f05089a4fc44e6fd885e2a919b6d992acfac841f3cbc36bcd461d969a9697f"
+    ),
 }
 PATTERNS = {
     "private-key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),

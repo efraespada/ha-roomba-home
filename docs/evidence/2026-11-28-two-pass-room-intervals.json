@@ -27,5 +27,17 @@
     "latest_stage_elapsed_seconds": 2293,
     "total_room_elapsed_seconds": 4996,
     "remaining_seconds": 2022
+  },
+  "installed_correction": {
+    "home_assistant_version": "0.104.4",
+    "core_configuration_check_passed": true,
+    "same_mission_number_and_start_after_restart": true,
+    "initial_card_remaining_minutes": 11,
+    "accumulated_cleaning_seconds_in_screenshot": 6363,
+    "android_remaining_minutes": 9,
+    "home_assistant_remaining_sensor_seconds": 556,
+    "seconds_between_the_two_app_samples": 15,
+    "battery_percent": 20,
+    "mission_error": 0
   }
 }
