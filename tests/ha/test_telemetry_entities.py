@@ -1,6 +1,6 @@
 import json
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -12,10 +12,10 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.roomba_home.binary_sensor import RoombaMetricBinary
 from custom_components.roomba_home.const import (
+    ASSET_REFRESH_SECONDS,
     DOMAIN,
     PARTS_SECONDS,
     POLL_SECONDS,
-    SERIAL_REFRESH_SECONDS,
 )
 from custom_components.roomba_home.coordinator import RoombaCoordinator
 from custom_components.roomba_home.core.actions import Command
@@ -27,6 +27,7 @@ from custom_components.roomba_home.core.errors import (
     ProtocolError,
     RateLimited,
 )
+from custom_components.roomba_home.core.models import RobotAsset
 from custom_components.roomba_home.core.telemetry import DETAIL_SHADOWS
 from custom_components.roomba_home.core.transport import HttpResponse
 from custom_components.roomba_home.diagnostics import async_get_config_entry_diagnostics
@@ -504,7 +505,7 @@ async def reader(hass, entry, cloud_session):
     coordinator.client.ensure_session = AsyncMock(return_value=cloud_session)
     coordinator.client.request = AsyncMock(return_value={"parts": []})
     coordinator.client.http.request = AsyncMock(return_value=HttpResponse(200, {"parts": []}))
-    coordinator.client.robot_serial_number = AsyncMock(return_value="EXAMPLE-SERIAL")
+    coordinator.client.robot_asset = AsyncMock(return_value=RobotAsset("EXAMPLE-SERIAL", None))
 
     def read(session, shadows=None):
         if shadows == DETAIL_SHADOWS:
@@ -605,11 +606,17 @@ async def test_part_references_update_the_existing_sensor_attributes(hass, entry
     assert state.attributes["replacement_url"] == href
 
 
-async def test_robot_serials_update_device_registry_and_survive_optional_failures(
+async def test_robot_assets_update_the_device_and_date_sensor_and_survive_optional_failures(
     hass, entry, reader
 ):
-    serials = reader.client.robot_serial_number
-    serials.side_effect = ["EXAMPLE-123", ProtocolError("Unavailable"), "EXAMPLE-321"]
+    assets = reader.client.robot_asset
+    first_date = date(2024, 2, 29)
+    second_date = date(2024, 6, 1)
+    assets.side_effect = [
+        RobotAsset("EXAMPLE-123", first_date),
+        ProtocolError("Unavailable"),
+        RobotAsset("EXAMPLE-321", None),
+    ]
     with patch("custom_components.roomba_home.coordinator.RoombaCoordinator", return_value=reader):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
@@ -623,35 +630,57 @@ async def test_robot_serials_update_device_registry_and_survive_optional_failure
     robot = device("fixture-0")
     assert robot.serial_number == "EXAMPLE-123"
     assert device("fixture-1").serial_number is None
-    assert reader._serials_due == 100 + PARTS_SECONDS
-    assert {call.args for call in serials.await_args_list} == {
+    activation_sensor = entity_id(hass, entry, "activation_date")
+    activation = hass.states.get(activation_sensor)
+    assert activation.state == first_date.isoformat()
+    assert activation.attributes["device_class"] == "date"
+    assert er.async_get(hass).async_get(activation_sensor).device_id == robot.id
+    assert entity_id(hass, entry, "activation_date", robot="fixture-1") is None
+    assert entity_id(hass, entry, "activation_date", robot="fixture-2") is None
+    assert reader._assets_due == 100 + PARTS_SECONDS
+    assert {call.args for call in assets.await_args_list} == {
         ("fixture-0",),
         ("fixture-1",),
         ("fixture-2",),
     }
     report = await async_get_config_entry_diagnostics(hass, entry)
     assert "EXAMPLE-123" not in json.dumps(report)
+    assert first_date.isoformat() not in json.dumps(report)
     assert "EXAMPLE-123" not in str(hass.states.get("vacuum.robot_0").attributes)
+    assert first_date.isoformat() not in str(hass.states.get("vacuum.robot_0").attributes)
     await reader.async_refresh()
-    assert serials.await_count == 3
+    assert assets.await_count == 3
 
-    serials.side_effect = RateLimited(120)
+    assets.side_effect = RateLimited(120)
     reader._clock = lambda: 100 + PARTS_SECONDS
     await reader.async_refresh()
-    assert serials.await_count == 4
-    assert reader._serials_due == 220 + PARTS_SECONDS
+    assert assets.await_count == 4
+    assert reader._assets_due == 220 + PARTS_SECONDS
     assert device("fixture-0").serial_number == "EXAMPLE-123"
     assert device("fixture-1").serial_number is None
+    assert hass.states.get(activation_sensor).state == first_date.isoformat()
 
-    serials.side_effect = ["EXAMPLE-456", "EXAMPLE-789", "EXAMPLE-321"]
+    assets.side_effect = [
+        RobotAsset("EXAMPLE-456", None),
+        RobotAsset("EXAMPLE-789", second_date),
+        RobotAsset("EXAMPLE-321", None),
+    ]
     reader._clock = lambda: 220 + PARTS_SECONDS
     await reader.async_refresh()
     assert reader.last_update_success
     assert device("fixture-0").id == robot.id
     assert device("fixture-0").serial_number == "EXAMPLE-456"
     assert device("fixture-1").serial_number == "EXAMPLE-789"
-    assert reader._serials_due == 220 + PARTS_SECONDS + SERIAL_REFRESH_SECONDS
-    reader._serials.clear()
+    assert hass.states.get(activation_sensor).state == first_date.isoformat()
+    second_sensor = entity_id(hass, entry, "activation_date", robot="fixture-1")
+    assert hass.states.get(second_sensor).state == second_date.isoformat()
+    assert reader._assets_due == 220 + PARTS_SECONDS + ASSET_REFRESH_SECONDS
+    reader.async_set_updated_data(
+        {**reader.data, "fixture-0": replace(reader.data["fixture-0"], connected=False)}
+    )
+    await hass.async_block_till_done()
+    assert hass.states.get(activation_sensor).state == first_date.isoformat()
+    reader._assets.clear()
     registry.async_get_or_create_from_info(
         config_entry_id=entry.entry_id,
         device_info=RoombaVacuum(reader, "fixture-0").device_info,

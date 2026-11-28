@@ -711,6 +711,16 @@ with backoff. The selected robots keep their stable registry identities.
 [Android and signed API validation](validation.md#robot-serial-number) ·
 [Home Assistant device registry](https://contributors.home-assistant.io/core/integrations/device-registry/)
 
+### Robot activation date
+
+The same signed asset response includes `min_utc_reg_date` as integer
+Unix seconds. The client projects the UTC calendar day after checking the
+associated `RobotID`. The first valid date creates a date sensor on the
+robot device. A missing or invalid date preserves the preceding verified
+date in memory during a successful refresh. A failed asset lookup keeps
+the existing serial and date and follows the asset retry schedule.
+[Android and signed API comparison](validation.md#robot-activation-date)
+
 ### Robot name and voice language
 
 The Max 700 reports its current name at `rw-settings.state.reported.name`.

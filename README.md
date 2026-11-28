@@ -133,11 +133,11 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   counters after servicing a part, and automate robot and dock problem alerts
   and mission-finished events. [Maintenance and parts](docs/usage.md#maintenance-and-replacement-parts)
 - **Robot settings.** Rename the robot and choose from its installed voices.
-  The robot's device information includes the serial number reported by Roomba.
+  Home Assistant shows the serial number and activation date reported by Roomba.
   List and install downloadable voices, adjust voice volume and the child
   and pet lock, or reboot a connected robot from its device page.
   Read the installed firmware, last update, and Roomba's update status.
-  [Robot setting actions](docs/usage.md#robot-settings) · [Software status](docs/usage.md#robot-software-status)
+  [Robot setting actions](docs/usage.md#robot-settings) · [Activation date](docs/usage.md#robot-activation-date) · [Software status](docs/usage.md#robot-software-status)
 - **Multiple robots.** Choose the robots to manage in a single account.
   Preferences and entity IDs survive deselection and re-enabling.
 

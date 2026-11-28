@@ -3117,6 +3117,22 @@ responses. The public evidence records the match and format.
 [Registry tests](../tests/ha/test_telemetry_entities.py) ·
 [iRobot serial-number guide](https://homesupport.irobot.com/s/article/274)
 
+## Robot activation date
+
+Opening **Settings → About** on the docked Max 700 Combo displayed a
+registration day. Proxyman recorded successful connection and signed
+inventory reads while the app loaded. An independent signed asset lookup
+for the same robot returned `min_utc_reg_date` as an integer at midnight
+UTC. Its calendar day matched the native display. No robot commands were
+sent during the comparison.
+
+The client tests check UTC boundaries, missing and malformed dates,
+association validation, and preservation of the serial lookup. Home
+Assistant tests check late discovery, per-robot dates, a disconnected
+robot, provider rate limits, and omitted dates after a verified value.
+[Asset contract](api.md#robot-activation-date) ·
+[Entity tests](../tests/ha/test_telemetry_entities.py)
+
 ## Estimated time during a directed mission
 
 During a physical single-room vacuum mission, Android showed approximately

@@ -17,6 +17,7 @@ from .entity import RoombaEntity, discover_entities
 DOCK_STATE_SOURCES = {key: source for source, (key, _, _) in DOCK_FIELDS.items()}
 DOCK_ERROR_SOURCES = {f"{source}_error": source for source in DOCK_FIELDS}
 DERIVED_METRICS = {
+    "activation_date": (None, SensorDeviceClass.DATE),
     "connection_updated_at": (None, SensorDeviceClass.TIMESTAMP),
     "current_room": (None, None),
     "live_route_activity": (None, SensorDeviceClass.ENUM),
@@ -187,7 +188,12 @@ class RoombaMetricSensor(RoombaEntity, SensorEntity):
         metric = BY_KEY.get(key)
         if key in DERIVED_METRICS:
             self._attr_native_unit_of_measurement, self._attr_device_class = DERIVED_METRICS[key]
-        if key in {"connection_updated_at", "last_mission_initiator", "last_mission_error"}:
+        if key in {
+            "activation_date",
+            "connection_updated_at",
+            "last_mission_initiator",
+            "last_mission_error",
+        }:
             self._attr_entity_category = EntityCategory.DIAGNOSTIC
         if key == "last_mission_outcome":
             self._attr_options = list(OUTCOMES.values())
@@ -220,7 +226,7 @@ class RoombaMetricSensor(RoombaEntity, SensorEntity):
 
     @property
     def available(self):
-        if self.key == "connection_updated_at":
+        if self.key in {"activation_date", "connection_updated_at"}:
             return self.coordinator.last_update_success and self.robot is not None
         return super().available
 
