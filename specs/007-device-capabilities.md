@@ -126,6 +126,11 @@ becoming an indiscriminately false or zero.
   retain its last verified value when a later asset read omits the date
   or fails. Keep the date usable when the account can refresh and the
   robot is disconnected. Exclude it from diagnostic exports.
+- CAP-26: Offer reviewed maintenance counter resets from the card for a
+  supported part with an available counter. Require control access to
+  the selected vacuum, identify the part in the review, and use the
+  existing Home Assistant reset action once after confirmation. Refresh
+  the displayed counters and scope the result to the dialog that sent it.
 
 No endpoints, maps and empty states are invented with HA entities or capabilities. No
 physical errors are induced and no maps, accounts or data beyond the test have been
@@ -471,6 +476,7 @@ with API operations.
 | CAP-23 | Dock controls and state on the floor plan | [Native panel comparison](../docs/validation.md#dock-controls-on-the-floor-plan), [linked dock entity tests](../tests/ha/test_dock_and_history.py), and [map snapshot tests](../tests/ha/test_roomba_map_api.py) |
 | CAP-24 | Device status and controls without map geometry | [Overview validation](../docs/validation.md#robot-status-without-a-floor-plan) and [overview tests](../tests/ha/test_roomba_map_api.py) |
 | CAP-25 | Robot activation date sensor | [Native and signed validation](../docs/validation.md#robot-activation-date), [asset client tests](../tests/test_api_client.py), and [entity refresh tests](../tests/ha/test_telemetry_entities.py) |
+| CAP-26 | Reviewed counter reset from the maintenance panel | [Native control comparison](../docs/validation.md#counter-reset-from-the-maintenance-panel), [WebSocket permissions](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 
 CAP-09 includes floor plans, room labels, position, heading, trajectory,
 coverage, and estimates supported by Roomba. Enable the map option to expose

@@ -96,6 +96,14 @@ locale and omit marketing parameters. Care guides use verified iRobot hosts
 and paths. Catalog references can remain available while signed counters
 are unavailable. The command reads the coordinator snapshot.
 
+Each row also includes `can_reset`. It is true when a supported counter is
+available and the caller has control permission for the same vacuum.
+The dashboard submits `roomba_home.reset_maintenance_counter` with the
+reviewed part, `confirmed: true`, and that vacuum as the target. The
+existing action rereads the signed parts before a write, sends one reset,
+and confirms the selected counter reaches zero. The dashboard refreshes
+its snapshot after the action returns.
+
 The Android SDK resets a single maintenance counter with a signed
 `POST /v1/robots/{id}/parts` and `{"parts":[{"part_id":"72","counter":0}]}`.
 The response contains the associated `robot_id` and reset rows in `parts`.

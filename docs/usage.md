@@ -977,10 +977,14 @@ a saved map.
 
 ## Reset a maintenance counter
 
-After replacing a part or cleaning a washing system, run **Reset maintenance
-counter** on the robot's vacuum entity. Choose the part and confirm that the
-work is complete. The integration rereads the selected counter from Roomba
-and updates the corresponding robot or dock sensor after confirmation.
+After servicing a part, open **Maintenance** on the floor plan card and
+choose **Reset counter** beside that part. Review its name and confirm the
+reset. Home Assistant rereads the selected counter from Roomba and updates
+the panel and its sensor. The button requires control access to the robot
+and a currently available counter. The maintenance panel also works before
+the robot has a saved map.
+
+The same action is available to automations through the robot's vacuum entity.
 
 ```yaml
 action: roomba_home.reset_maintenance_counter

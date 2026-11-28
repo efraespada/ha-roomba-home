@@ -306,8 +306,9 @@ async def test_30_day_history_requires_same_period_and_filter_for_detail(
 
 
 @pytest.mark.parametrize("counters_available", [True, False])
+@pytest.mark.parametrize("can_control", [True, False])
 async def test_maintenance_requires_only_read_access_and_works_without_maps(
-    configured, hass_ws_client, hass_admin_user, counters_available
+    configured, hass_ws_client, hass_admin_user, counters_available, can_control
 ):
     robot = configured.data["fixture-0"]
     catalog = {
@@ -336,7 +337,9 @@ async def test_maintenance_requires_only_read_access_and_works_without_maps(
     with patch.object(
         type(hass_admin_user.permissions),
         "check_entity",
-        side_effect=lambda entity, policy: entity == ENTITY and policy == POLICY_READ,
+        side_effect=lambda entity, policy: (
+            entity == ENTITY and (policy == POLICY_READ or can_control and policy == POLICY_CONTROL)
+        ),
     ):
         await socket.send_json(MAINTENANCE)
         report = (await socket.receive_json())["result"]
@@ -345,7 +348,9 @@ async def test_maintenance_requires_only_read_access_and_works_without_maps(
     assert [part["part"] for part in report["parts"]] == ["filter", "dust_bag"]
     assert report["parts"][0]["replacement_url"] == catalog["72"]["replacement_url"]
     assert report["parts"][0]["usage"] == (0 if counters_available else None)
+    assert report["parts"][0]["can_reset"] is (counters_available and can_control)
     assert report["parts"][1]["usage"] is None and report["parts"][1]["dock"] is True
+    assert report["parts"][1]["can_reset"] is False
     configured.client.map_geometry.assert_not_awaited()
 
 
