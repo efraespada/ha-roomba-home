@@ -84,8 +84,10 @@ class RoombaVacuum(RoombaEntity, StateVacuumEntity):
     async def async_start_mapping(self, confirmed):
         await self.account.async_command(self.robot_id, Command.START_MAPPING)
 
-    async def async_get_software_status(self):
-        return await self.account.async_get_software_status(self.robot_id)
+    async def async_get_software_status(self, *, allow_unavailable_catalog=False):
+        return await self.account.async_get_software_status(
+            self.robot_id, allow_unavailable_catalog=allow_unavailable_catalog
+        )
 
     async def async_get_robot_help(self):
         return await self.account.async_get_robot_help(self.robot_id)

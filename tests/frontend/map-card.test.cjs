@@ -370,18 +370,92 @@ test("maintenance reports a rejected reset and ignores a late result for another
   assert.equal(card.$("maintenance-status").textContent, "");
 });
 
-function robotHelpCard() {
+function modalCard(id) {
   const { card } = mockCard(0);
-  const dialog = card.$("robot-help-dialog");
+  const dialog = card.$(id);
   dialog.open = false;
   dialog.modal = false;
   dialog.matches = (selector) => selector === ":modal" && dialog.modal;
   dialog.showModal = () => { dialog.open = dialog.modal = true; };
   dialog.close = () => { dialog.open = dialog.modal = false; };
-  card.helpSequence = 0;
   card.config = { entity: "vacuum.example" };
   return { card, dialog };
 }
+
+function robotHelpCard() {
+  const fixture = modalCard("robot-help-dialog");
+  fixture.card.helpSequence = 0;
+  return fixture;
+}
+
+function robotSoftwareCard() {
+  const fixture = modalCard("robot-software-dialog");
+  fixture.card.softwareSequence = 0;
+  return fixture;
+}
+
+test("robot software shows the native build label, local update day and dock firmware", async () => {
+  const { card, dialog } = robotSoftwareCard();
+  const installed = "p25-705+9.3.6+I5.3.149";
+  const updated = "2026-11-25T02:30:00+00:00";
+  const calls = [];
+  card._hass = {
+    locale: { language: "en-US" }, config: { time_zone: "America/New_York" },
+    callWS: async (query) => {
+      calls.push({ ...query });
+      return { installed_version: installed, last_installed_at: updated, dock_version: "42",
+        status: "up_to_date", catalog_versions: [] };
+    },
+  };
+  await card.openRobotSoftware();
+  await card.openRobotSoftware();
+  assert.equal(dialog.open, true);
+  assert.deepEqual(calls, [{ type: "roomba_home/software_status", entity_id: "vacuum.example" }]);
+  const groups = card.$("software-versions").children;
+  assert.deepEqual(groups.map((group) => group.children.map(({ textContent }) => textContent)), [
+    ["Robot version", "9.3.6 (I5.3.149)"], ["Last update", "Nov 24, 2026"], ["Dock version", "42"],
+  ]);
+  assert.equal(groups[0].querySelector("dd").title, installed);
+  assert.equal(groups[1].querySelector("dd").title, updated);
+  assert.equal(card.$("robot-software-status").textContent, "Roomba reports that the robot is up to date.");
+  assert.equal(card.$("refresh-robot-software").disabled, false);
+});
+
+test("robot software shows unavailable and catalog candidates as separate states", async () => {
+  const { card } = robotSoftwareCard();
+  const result = { installed_version: "9.3.6", last_installed_at: null, dock_version: null,
+    status: "unavailable", catalog_versions: [] };
+  card._hass = { callWS: async () => result };
+  await card.openRobotSoftware();
+  const list = card.$("software-versions");
+  assert.deepEqual(list.children.map((group) => group.querySelector("dd").textContent), ["9.3.6", "Unavailable"]);
+  assert.equal(card.$("robot-software-status").textContent, "The Roomba software catalog is unavailable.");
+  Object.assign(result, { status: "catalog_candidates", catalog_versions: ["9.3.7", "9.4.0"] });
+  await card.loadRobotSoftware();
+  assert.equal(list.children.at(-1).querySelector("dt").textContent, "Catalog versions");
+  assert.equal(list.children.at(-1).querySelector("dd").textContent, "9.3.7, 9.4.0");
+  assert.match(card.$("robot-software-status").textContent, /Roomba manages availability/);
+});
+
+test("robot software ignores a late response for a different robot and can retry", async () => {
+  const { card, dialog } = robotSoftwareCard();
+  let complete;
+  card._hass = { callWS: () => new Promise((resolve) => { complete = resolve; }) };
+  const old = card.openRobotSoftware();
+  assert.equal(card.$("refresh-robot-software").disabled, true);
+  dialog.close();
+  card.config.entity = "vacuum.next";
+  card._hass.callWS = async () => { throw new Error("Robot software is unavailable."); };
+  await card.openRobotSoftware();
+  complete({ installed_version: "old", catalog_versions: [], status: "up_to_date" });
+  await old;
+  assert.deepEqual(card.$("software-versions").children, []);
+  assert.equal(card.$("robot-software-status").textContent, "Robot software is unavailable.");
+  assert.equal(card.$("refresh-robot-software").disabled, false);
+  card._hass.callWS = async () => ({ installed_version: "9.3.7", catalog_versions: [], status: "up_to_date" });
+  await card.loadRobotSoftware();
+  assert.equal(card.$("software-versions").children[0].querySelector("dd").textContent, "9.3.7");
+});
 
 test("robot help opens the model manual and distinguishes article families with the same code", async () => {
   const { card, dialog } = robotHelpCard();

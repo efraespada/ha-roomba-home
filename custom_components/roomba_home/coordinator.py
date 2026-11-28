@@ -2243,7 +2243,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                     pass
                 raise action_error("part_reset_unconfirmed", "Roomba did not confirm the reset")
 
-    async def async_get_software_status(self, robot_id):
+    async def async_get_software_status(self, robot_id, *, allow_unavailable_catalog=False):
         if self._closed or robot_id not in self.selected:
             raise action_error("not_configured", "Robot is not configured")
         state = (self.data or {}).get(robot_id)
@@ -2254,16 +2254,22 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             raise action_error("software_status_unavailable", "Robot software is unavailable")
         dock = state.telemetry.get("dock_firmware")
         updated = state.telemetry.get("software_updated_at")
-        try:
-            candidates = await self.client.firmware_candidates(state.sku, installed, dock)
-        except OSError, RoombaError:
-            raise action_error(
-                "software_status_unavailable", "Could not read software status"
-            ) from None
-        return {
+        report = {
             "installed_version": installed,
             "last_installed_at": updated.isoformat() if updated is not None else None,
             "dock_version": dock,
+            "status": "unavailable",
+            "catalog_versions": [],
+        }
+        try:
+            candidates = await self.client.firmware_candidates(state.sku, installed, dock)
+        except OSError, RoombaError:
+            if allow_unavailable_catalog:
+                return report
+            raise action_error(
+                "software_status_unavailable", "Could not read software status"
+            ) from None
+        return report | {
             "status": "catalog_candidates" if candidates else "up_to_date",
             "catalog_versions": list(candidates),
         }

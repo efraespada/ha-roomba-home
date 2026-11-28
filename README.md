@@ -137,7 +137,8 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   Home Assistant shows the serial number and activation date reported by Roomba.
   List and install downloadable voices, adjust voice volume and the child
   and pet lock, or reboot a connected robot from its device page.
-  Read the installed firmware, last update, and Roomba's update status.
+  Open **Robot software** on the card to see the installed robot and dock
+  versions, the last robot update, and Roomba's catalog status.
   [Robot setting actions](docs/usage.md#robot-settings) · [Activation date](docs/usage.md#robot-activation-date) · [Software status](docs/usage.md#robot-software-status)
 - **Multiple robots.** Choose the robots to manage in a single account.
   Preferences and entity IDs survive deselection and re-enabling.
