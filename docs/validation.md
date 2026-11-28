@@ -3130,6 +3130,13 @@ The client tests check UTC boundaries, missing and malformed dates,
 association validation, and preservation of the serial lookup. Home
 Assistant tests check late discovery, per-robot dates, a disconnected
 robot, provider rate limits, and omitted dates after a verified value.
+
+In the household Home Assistant, the 0.90.0 package passed the
+configuration check and Core restarted. Roomba Home reported version
+0.90.0 with six associated devices. The test robot's **Diagnostics**
+listed **Robot activation date**. The date matched the native display
+and signed asset read for that same robot. No robot commands were sent.
+
 [Asset contract](api.md#robot-activation-date) ·
 [Entity tests](../tests/ha/test_telemetry_entities.py)
 
