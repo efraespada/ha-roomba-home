@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.94.0
+
+- Open **Device settings** on the card to edit the robot's name, installed
+  voice, voice volume, and child and pet lock, as well as the dock's
+  emptying, washing, solution, and drying settings. The card uses the
+  existing Home Assistant entities and rereads each confirmed change.
+
 ## 0.93.0
 
 - Open **Robot software** on the card to see the installed robot and dock

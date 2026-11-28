@@ -50,6 +50,7 @@ from custom_components.roomba_home.core.live_route import RawRouteReference
 from custom_components.roomba_home.core.map_snapshots import capture_snapshot
 from custom_components.roomba_home.core.maps import CleaningRegion, PersistentMap, RegionKind
 from custom_components.roomba_home.core.point_maps import PointTarget
+from custom_components.roomba_home.entity import entity_unique_id
 from custom_components.roomba_home.live_stream import MapWatch
 from custom_components.roomba_home.map_api import live_geometry
 from custom_components.roomba_home.map_history import map_history
@@ -77,6 +78,7 @@ ROUTE_SETTINGS = {"id": 1, "type": "roomba_home/mission_route_settings", "entity
 MAINTENANCE = {"id": 1, "type": "roomba_home/maintenance", "entity_id": ENTITY}
 ROBOT_HELP = {"id": 1, "type": "roomba_home/robot_help", "entity_id": ENTITY}
 SOFTWARE = {"id": 1, "type": "roomba_home/software_status", "entity_id": ENTITY}
+DEVICE_SETTINGS = {"id": 1, "type": "roomba_home/device_settings", "entity_id": ENTITY}
 SCORES = {
     "id": 1,
     "type": "roomba_home/cleaning_scores",
@@ -502,6 +504,108 @@ async def test_software_panel_rejects_denied_unrelated_and_unavailable_robots(
     await socket.send_json(SOFTWARE | {"id": 4})
     assert (await socket.receive_json())["error"]["code"] == "software_status_unavailable"
     provider.assert_not_awaited()
+
+
+@pytest.mark.parametrize("cycle", ["none", "clean"])
+async def test_device_settings_are_scoped_to_associated_entities_and_permissions(
+    hass, configured, hass_ws_client, hass_admin_user, cycle
+):
+    configured.show_maps = False
+    robot_id = "fixture-0"
+    robot = replace(configured.data[robot_id], connected=True, cycle=cycle, reported_name="unknown")
+    configured.data[robot_id] = robot
+    registry = entity_registry.async_get(hass)
+
+    def register(domain, key, value, attributes=None, owner=robot_id):
+        entity = registry.async_get_or_create(
+            domain,
+            DOMAIN,
+            entity_unique_id(configured.config_entry.unique_id, owner, key),
+            suggested_object_id=f"{owner}_{key}",
+        )
+        if value is not None:
+            hass.states.async_set(entity.entity_id, value, attributes or {})
+        return entity.entity_id
+
+    name = register("text", "robot_name", "unknown", {"min": 1, "max": 63})
+    area_attributes = {"min": 10, "max": 1000, "step": 1, "unit_of_measurement": "m²"}
+    area = register("number", "auto_evacuation_area", "unknown", area_attributes)
+    frequency = register(
+        "select",
+        "auto_empty_frequency",
+        "after_each_routine",
+        {
+            "options": ["after_each_routine", "every_25_m2"],
+            "private": "omitted",
+        },
+    )
+    switch = register("switch", "child_pet_lock", "unavailable")
+    denied = register("number", "voice_volume", "50")
+    register("select", "mop_wash_frequency", None)
+    register("select", "voice_language", "en-gb", owner="unrelated")
+
+    socket = await hass_ws_client()
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda entity, policy: (
+            entity != denied
+            and policy == POLICY_READ
+            or entity != frequency
+            and policy == POLICY_CONTROL
+        ),
+    ):
+        await socket.send_json(DEVICE_SETTINGS)
+        result = (await socket.receive_json())["result"]
+    editable = cycle == "none"
+    assert result == {
+        "robot": robot.name,
+        "ready": editable,
+        "settings": {
+            "robot_name": {
+                "entity_id": name,
+                "value": "unknown",
+                "editable": editable,
+                "attributes": {"min": 1, "max": 63},
+            },
+            "auto_evacuation_area": {
+                "entity_id": area,
+                "value": None,
+                "editable": editable,
+                "attributes": area_attributes,
+            },
+            "auto_empty_frequency": {
+                "entity_id": frequency,
+                "value": "after_each_routine",
+                "editable": False,
+                "attributes": {"options": ["after_each_routine", "every_25_m2"]},
+            },
+            "child_pet_lock": {
+                "entity_id": switch,
+                "value": None,
+                "editable": False,
+                "attributes": {},
+            },
+        },
+    }
+    configured.client.map_geometry.assert_not_awaited()
+
+
+async def test_device_settings_require_the_selected_vacuum_and_allow_a_missing_registry(
+    hass, configured, hass_ws_client, hass_admin_user
+):
+    socket = await hass_ws_client()
+    with patch.object(type(hass_admin_user.permissions), "check_entity", return_value=False):
+        await socket.send_json(DEVICE_SETTINGS)
+        assert (await socket.receive_json())["error"]["code"] == "unauthorized"
+    with patch.dict(hass.data, {DATA_COMPONENT: None}):
+        await socket.send_json(DEVICE_SETTINGS | {"id": 2})
+        assert (await socket.receive_json())["error"]["code"] == "device_settings_unavailable"
+    await socket.send_json(DEVICE_SETTINGS | {"id": 3})
+    assert (await socket.receive_json())["result"]["settings"] == {}
+    configured.data = {}
+    await socket.send_json(DEVICE_SETTINGS | {"id": 4})
+    assert (await socket.receive_json())["error"]["code"] == "device_settings_unavailable"
 
 
 async def test_remembered_preferences_follow_verified_destinations_and_refresh_without_geometry(

@@ -464,6 +464,24 @@ candidate list. The response-only action reports the catalog failure as
 an error. A stale or missing installed robot version is unavailable on
 both surfaces. The card works with maps disabled.
 
+### Device settings panel
+
+`roomba_home/device_settings` takes a vacuum `entity_id`. The response
+contains `robot`, `ready`, and a `settings` mapping of supported settings
+to their associated Home Assistant entities. Each row includes
+`entity_id`, `value`, `editable`, and the relevant text length, select
+options, or number range and unit in `attributes`. The lookup uses the
+selected robot's account and unique ID. It omits disabled, missing, or
+unreadable entities. `ready` requires a current connected and idle robot.
+An editable setting also requires control access to its underlying entity.
+
+The panel dispatches `text.set_value`, `number.set_value`,
+`select.select_option`, or `switch.turn_on`/`switch.turn_off` to the
+associated setting entity. The service checks the device state and waits
+for Roomba confirmation. After success the card rereads the settings,
+including related values such as emptying frequency and area. The panel
+requires no map geometry.
+
 ### Robot help catalog
 
 Roomba's public endpoint serves the owner’s manual, support links and
