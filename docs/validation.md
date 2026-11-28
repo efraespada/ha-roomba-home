@@ -1804,6 +1804,13 @@ with current installed versions. Card tests cover the display time zone,
 catalog retry, and a delayed response after changing the selected robot.
 [Software panel instructions](usage.md#robot-software-status)
 
+Home Assistant passed its Core configuration check and restarted on 0.93.0.
+The three robots reappeared docked. The installed card showed the same
+robot build, dock firmware, calendar day, and up-to-date status as Android
+for the checked robot. **Check again** returned the same result. The test
+sent no robot or dock commands.
+[Installed software panel](screenshots/roomba-robot-software.jpg)
+
 ## Mapping and floor removal
 
 On a docked Max 700 Combo, the official Android app started a mapping-only
