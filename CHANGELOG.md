@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.92.0
+
+- Show the reported part usage as a bar and the remaining time as whole
+  hours in **Maintenance**. Expand the card's part descriptions for care
+  tips and open the matching iRobot guides.
+
 ## 0.91.0
 
 - Review and reset a supported part counter directly in **Maintenance**.

@@ -9,6 +9,8 @@ from custom_components.roomba_home.core.maintenance import (
 FILTER_URL = "https://directory.irobotapi.com/v1/ecom/pdp-app/ES/4849940"
 GB_FILTER_URL = FILTER_URL.replace("/ES/", "/GB/")
 GUIDE_URL = "https://prod-help-content.care.irobotapi.com/web/es/70517.html"
+MODEL = "X185240"
+FILTER_DESCRIPTION_ID = "robot_health_filter_dmc"
 
 
 @pytest.mark.parametrize(
@@ -21,7 +23,7 @@ GUIDE_URL = "https://prod-help-content.care.irobotapi.com/web/es/70517.html"
     ],
 )
 def test_parts_catalog_uses_the_market_and_requested_language(country, language, suffix):
-    assert parts_catalog_url(country, language, "X185240").endswith(suffix)
+    assert parts_catalog_url(country, language, MODEL).endswith(suffix)
 
 
 def test_catalog_only_exposes_supported_part_references_and_cleans_query_parameters():
@@ -39,14 +41,14 @@ def test_catalog_only_exposes_supported_part_references_and_cleans_query_paramet
             {"part_id": "212", "sku": "../not-an-identifier"},
         ]
     }
-    assert project_part_references(catalog, "ES") == {
+    assert project_part_references(catalog, "ES", model=MODEL) == {
         "72": {
             "part_sku": "4849940",
             "replacement_url": "https://www.irobot.es/es_ES/4849940.html",
         },
         "202": {"maintenance_guide_url": GUIDE_URL},
     }
-    assert project_part_references({}, "ES") == {}
+    assert project_part_references({}, "ES", model=MODEL) == {}
 
 
 @pytest.mark.parametrize(
@@ -71,7 +73,7 @@ def test_catalog_only_exposes_supported_part_references_and_cleans_query_paramet
 )
 def test_a_replacement_url_requires_the_matching_roomba_sku_and_market(url, market):
     result = project_part_references(
-        {"parts": [{"part_id": "72", "sku": "4849940", "buy_url": url}]}, market
+        {"parts": [{"part_id": "72", "sku": "4849940", "buy_url": url}]}, market, model=MODEL
     )
     assert result == {"72": {"part_sku": "4849940"}}
 
@@ -90,9 +92,55 @@ def test_localized_directory_preserves_only_a_supported_locale_and_skips_unknown
             {"part_id": "202", "guide_url": GUIDE_URL.replace("70517.html", "other.html")},
         ]
     }
-    assert project_part_references(catalog, "GB") == {
+    assert project_part_references(catalog, "GB", model=MODEL) == {
         "72": {"part_sku": "4849940", "replacement_url": GB_FILTER_URL + expected_suffix}
     }
+
+
+@pytest.mark.parametrize(
+    ("code", "description_id", "article"),
+    [
+        ("147", "robot_health_bag_dmc", "40350"),
+        ("71", "robot_health_main_brushes_description_705_dmc", "70507"),
+        ("72", FILTER_DESCRIPTION_ID, "70505"),
+        ("67", "robot_health_side_brush_dmc", "31044"),
+        ("148", "robot_health_roller_description_705_dmc", "70508"),
+        ("212", "robot_health_roller_mop_washing_system_description_705_dmc", None),
+        ("202", "robot_health_dock_washing_system_description_705_dmc", None),
+    ],
+)
+def test_catalog_projects_verified_part_guidance(code, description_id, article):
+    row = {"part_id": code, "robot_health_description_id": description_id}
+    result = project_part_references({"parts": [row]}, "ES", model=MODEL)[code]
+    assert result["part_description"]
+    if article is None:
+        assert "maintenance_guide_url" not in result
+    else:
+        assert result["maintenance_guide_url"] == (
+            f"https://homesupport.irobot.com/articles/en_US/Knowledge/{article}"
+        )
+
+
+@pytest.mark.parametrize(
+    ("model", "description_id"),
+    [("another-model", FILTER_DESCRIPTION_ID), (MODEL, "other_description"), (MODEL, ["fixture"])],
+)
+def test_catalog_guidance_requires_the_verified_model_and_description_id(model, description_id):
+    row = {"part_id": "72", "robot_health_description_id": description_id, "guide_url": GUIDE_URL}
+    assert project_part_references({"parts": [row]}, "ES", model=model) == {
+        "72": {"maintenance_guide_url": GUIDE_URL}
+    }
+
+
+def test_catalog_guidance_keeps_the_models_regional_guide_when_one_is_available():
+    row = {
+        "part_id": "72",
+        "robot_health_description_id": FILTER_DESCRIPTION_ID,
+        "guide_url": GUIDE_URL,
+    }
+    result = project_part_references({"parts": [row]}, "ES", model=MODEL)["72"]
+    assert result["part_description"].startswith("The filter traps fine debris")
+    assert result["maintenance_guide_url"] == GUIDE_URL
 
 
 @pytest.mark.parametrize("counters_available", [True, False])

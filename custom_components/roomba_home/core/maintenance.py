@@ -3,6 +3,7 @@
 import re
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
+from ..compatibility import VALIDATED_MODEL
 from .telemetry import DOCK_PARTS, PARTS, RESETTABLE_PARTS
 
 CATALOG_ROOT = "https://content-prod.iot.irobotapi.com/v2"
@@ -11,6 +12,51 @@ LANGUAGE = re.compile(r"[a-z]{2,3}")
 LOCALE = re.compile(r"[a-z]{2,3}-[a-z]{2}")
 PART_SKU = re.compile(r"[A-Za-z0-9-]{3,24}")
 GUIDE_PATH = re.compile(r"/web/[a-z]{2,3}/[0-9]{4,10}\.html")
+SUPPORT_ARTICLE = "https://homesupport.irobot.com/articles/en_US/Knowledge/"
+MAX_700_PART_GUIDANCE = {
+    "147": (
+        "robot_health_bag_dmc",
+        "The dust bag collects debris when the dock empties the robot. Replace it when "
+        "the dock or Roomba Home indicates that the bag is full.",
+        "40350",
+    ),
+    "71": (
+        "robot_health_main_brushes_description_705_dmc",
+        "The two main brushes lift debris into the robot's bin. Clear hair and debris "
+        "from the brushes and beneath their end caps.",
+        "70507",
+    ),
+    "72": (
+        "robot_health_filter_dmc",
+        "The filter traps fine debris from the air passing through the bin. Brush it "
+        "clean and follow the guide when rinsing its removable mesh screen.",
+        "70505",
+    ),
+    "67": (
+        "robot_health_side_brush_dmc",
+        "The edge-sweeping brushes move debris from walls and corners into the robot's "
+        "path. Fit each brush on the side marked for it in the guide.",
+        "31044",
+    ),
+    "148": (
+        "robot_health_roller_description_705_dmc",
+        "The mop roller scrubs hard floors. Remove hair and dirt from the roller and "
+        "follow the guide for cleaning or replacement.",
+        "70508",
+    ),
+    "212": (
+        "robot_health_roller_mop_washing_system_description_705_dmc",
+        "The robot removes dirty water from the roller while it mops. Clean the scraper "
+        "and the robot's dirty-water path as shown in the guide.",
+        None,
+    ),
+    "202": (
+        "robot_health_dock_washing_system_description_705_dmc",
+        "The dock washes the mop roller in its wash basin. Remove residue from the basin "
+        "and follow the guide to put it back in place.",
+        None,
+    ),
+}
 
 
 def parts_catalog_url(country: str, language: str, model: str) -> str:
@@ -57,7 +103,7 @@ def _guide_url(value: object) -> str | None:
     return None
 
 
-def project_part_references(catalog: dict, market: str) -> dict[str, dict]:
+def project_part_references(catalog: dict, market: str, *, model: str) -> dict[str, dict]:
     parts = catalog.get("parts")
     if not isinstance(parts, list):
         return {}
@@ -74,6 +120,12 @@ def project_part_references(catalog: dict, market: str) -> dict[str, dict]:
                 fields["replacement_url"] = url
         if guide := _guide_url(part.get("guide_url")):
             fields["maintenance_guide_url"] = guide
+        guidance = MAX_700_PART_GUIDANCE.get(code) if model == VALIDATED_MODEL else None
+        if guidance and part.get("robot_health_description_id") == guidance[0]:
+            _, description, article = guidance
+            fields["part_description"] = description
+            if article:
+                fields.setdefault("maintenance_guide_url", SUPPORT_ARTICLE + article)
         if fields:
             references[code] = fields
     return references

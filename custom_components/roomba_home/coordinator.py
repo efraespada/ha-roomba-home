@@ -1785,7 +1785,9 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             documents = await self._executor(self._read, session)
         observed_at = datetime.now(UTC)
         await self._optional_sources(session, self._clock())
-        part_references = project_part_references(self._part_catalog, self.client.country)
+        part_references = project_part_references(
+            self._part_catalog, self.client.country, model=SUPPORTED_SKU
+        )
         result = {}
         for robot_id, details in session.raw["robots"].items():
             if robot_id not in self.selected or details.get("sku") != SUPPORTED_SKU:

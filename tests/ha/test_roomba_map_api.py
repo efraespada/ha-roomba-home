@@ -316,6 +316,8 @@ async def test_maintenance_requires_only_read_access_and_works_without_maps(
         "72": {
             "part_sku": "4849940",
             "replacement_url": "https://directory.irobotapi.com/v1/ecom/pdp-app/ES/4849940",
+            "maintenance_guide_url": "https://homesupport.irobot.com/articles/en_US/Knowledge/70505",
+            "part_description": "The filter traps fine debris.",
         },
     }
     configured.show_maps = False
@@ -347,6 +349,8 @@ async def test_maintenance_requires_only_read_access_and_works_without_maps(
     assert report["counters_available"] is counters_available
     assert [part["part"] for part in report["parts"]] == ["filter", "dust_bag"]
     assert report["parts"][0]["replacement_url"] == catalog["72"]["replacement_url"]
+    assert report["parts"][0]["part_description"] == catalog["72"]["part_description"]
+    assert report["parts"][0]["maintenance_guide_url"] == catalog["72"]["maintenance_guide_url"]
     assert report["parts"][0]["usage"] == (0 if counters_available else None)
     assert report["parts"][0]["can_reset"] is (counters_available and can_control)
     assert report["parts"][1]["usage"] is None and report["parts"][1]["dock"] is True

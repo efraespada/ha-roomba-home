@@ -172,6 +172,9 @@ template.innerHTML = `
     #maintenance-parts { list-style:none; padding:0; margin:12px 0; }
     #maintenance-parts li { padding:10px 0; border-top:1px solid var(--divider-color,#647382); }
     #maintenance-parts p { margin:4px 0; }
+    #maintenance-parts meter { display:block; width:100%; height:10px; margin:6px 0; }
+    #maintenance-parts details { margin:8px 0; }
+    #maintenance-parts summary { cursor:pointer; }
     #maintenance-parts a { color:var(--link-text-color,#8ae0d5); display:inline-block; margin-inline-end:12px; }
     #maintenance-status:empty { display:none; }
     #robot-help-dialog li { margin-block:6px; }
@@ -2121,16 +2124,38 @@ class RoombaHomeMapCard extends HTMLElement {
         const name = document.createElement("strong");
         name.textContent = historyLabel(part.part);
         row.append(name);
+        const unit = MAINTENANCE_UNITS[part.count_type];
+        const remaining = part.remaining == null || !unit ? null : `${part.remaining} ${unit}`;
+        const hours = part.count_type === "minutes" && part.remaining >= 60;
+        const remainingCount = hours ? `${Math.floor(part.remaining / 60)} h` : remaining;
         const details = [
           part.usage == null ? null : `${part.usage}% used`,
-          part.remaining == null ? null : `${part.remaining} ${MAINTENANCE_UNITS[part.count_type]} remaining`,
+          remainingCount && `${remainingCount} remaining`,
           part.part_sku ? `Part ${part.part_sku}` : null,
         ].filter(Boolean);
         if (details.length) {
+          const counter = document.createElement("p");
+          counter.className = "muted";
+          counter.textContent = details.join(" · ");
+          if (hours) counter.title = `${remaining} remaining`;
+          row.append(counter);
+        }
+        if (part.usage != null) {
+          const meter = document.createElement("meter");
+          meter.max = 100;
+          meter.value = part.usage;
+          meter.setAttribute("aria-label", `${name.textContent} usage`);
+          row.append(meter);
+        }
+        if (part.part_description) {
+          const guidance = document.createElement("details");
+          const summary = document.createElement("summary");
+          summary.textContent = "About this part";
+          summary.setAttribute("aria-label", `About this part (${name.textContent})`);
           const description = document.createElement("p");
-          description.className = "muted";
-          description.textContent = details.join(" · ");
-          row.append(description);
+          description.textContent = part.part_description;
+          guidance.append(summary, description);
+          row.append(guidance);
         }
         for (const [label, url] of [
           ["iRobot shop", part.replacement_url], ["Maintenance guide", part.maintenance_guide_url],
