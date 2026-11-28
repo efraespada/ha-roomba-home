@@ -41,7 +41,7 @@ model catalogs where applicable.
 
 | Android surface | Integration status |
 |---|---|
-| Robot name, model, software version, last software update | Device and firmware entities present |
+| Robot name, model, software version, last software update | Device and firmware entities, with the robot and dock software and update status in the card |
 | Robot serial in the About screen | Verified asset lookup and Home Assistant device metadata |
 | Automatic pad washing, emptying by routine or area, voice language and volume, child and pet lock, locate, and reboot | Implemented device or dock controls. The emptying selector uses the three [confirmed Android choices](../docs/api.md#automatic-dock-emptying) and retains the area number for custom thresholds. |
 | Dock controls from the floor plan and robot page | The floor plan card opens controls for the same linked dock buttons and reports which operations are running. [Native panel comparison](../docs/validation.md#dock-controls-on-the-floor-plan) |
@@ -89,7 +89,10 @@ becoming an indiscriminately false or zero.
 - CAP-13: Expose a normal reboot with connection-cycle confirmation and list the model's downloadable voices.
 - CAP-14: Install and select a catalog voice with a correlated software status and voice inventory.
 - CAP-15: Reset a supported robot or dock counter after completed maintenance.
-- CAP-16: Expose installed software and its reported installation time, and check Roomba's public firmware catalog for that model and version.
+- CAP-16: Expose installed robot and dock software and the reported robot
+  installation time. Check Roomba's public firmware catalog on demand in
+  the card or a response-only action. Require read access for the card and
+  preserve current installed values in the card when the catalog is unavailable.
 - CAP-17: Expose the provider-reported serial on the associated Home Assistant device.
 - CAP-18: Manage weekly and one-time schedules from the floor plan. Show
   the recognized destination order and per-area settings and let the owner
@@ -453,6 +456,11 @@ with API operations.
     to show brush placement, filling the dock, charging, and preparing
     the rooms in that order. Check that the read-only action and card
     agree and that an unverified SKU omits the checklist.
+23. Open Robot software for the selected vacuum and verify the robot build,
+    dock version, update day, and catalog status against Android. Check
+    the retry control, catalog candidates, catalog failures, and denied
+    reads. Exercise the view with maps disabled and a different device
+    selected before an outstanding read returns.
 
 ## 17. Requirements traceability
 
@@ -472,7 +480,7 @@ with API operations.
 | CAP-13 | Reboot button and voice catalog action | [Physical validation](../docs/evidence/2026-11-25-reboot-and-voice-catalog.json), [control tests](../tests/test_application.py), and [Home Assistant actions](../tests/ha/test_cleaning_controls.py) |
 | CAP-14 | Install voice action and software status | [Installation evidence](../docs/evidence/2026-11-25-voice-installation.json), [protocol tests](../tests/test_voice_catalog.py), and [coordinator tests](../tests/ha/test_coordinator.py) |
 | CAP-15 | Confirmed reset of one maintenance counter | [Maintenance validation](../docs/validation.md#maintenance-counter-reset), [signed request tests](../tests/test_api_client.py), and [Home Assistant action tests](../tests/ha/test_cleaning_controls.py) |
-| CAP-16 | Firmware timestamp sensor and catalog status action | [Device validation](../docs/validation.md#robot-software-status), [catalog tests](../tests/test_api_client.py), and [Home Assistant action tests](../tests/ha/test_cleaning_controls.py) |
+| CAP-16 | Firmware timestamp sensor, catalog action, and read-only software card | [Device validation](../docs/validation.md#robot-software-status), [catalog tests](../tests/test_api_client.py), [action tests](../tests/ha/test_cleaning_controls.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 | CAP-17 | Robot device registry serial number | [Android and API comparison](../docs/validation.md#robot-serial-number), [signed lookup tests](../tests/test_api_client.py), and [registry refresh tests](../tests/ha/test_telemetry_entities.py) |
 | CAP-18 | Schedule editor and typed Home Assistant actions | [Schedule API](../docs/api.md#cloud-schedule-frequency-and-ownership), [action tests](../tests/ha/test_schedules.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed trial](../docs/validation.md#schedule-editor-and-per-area-settings) |
 | CAP-19 | Maintenance view and part sensor attributes | [Catalog parser tests](../tests/test_maintenance.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [catalog validation](../docs/validation.md#maintenance-catalog-and-links) |

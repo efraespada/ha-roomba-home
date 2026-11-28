@@ -76,6 +76,7 @@ HISTORY = {"id": 1, "type": "roomba_home/mission_history", "entity_id": ENTITY}
 ROUTE_SETTINGS = {"id": 1, "type": "roomba_home/mission_route_settings", "entity_id": ENTITY}
 MAINTENANCE = {"id": 1, "type": "roomba_home/maintenance", "entity_id": ENTITY}
 ROBOT_HELP = {"id": 1, "type": "roomba_home/robot_help", "entity_id": ENTITY}
+SOFTWARE = {"id": 1, "type": "roomba_home/software_status", "entity_id": ENTITY}
 SCORES = {
     "id": 1,
     "type": "roomba_home/cleaning_scores",
@@ -435,6 +436,72 @@ async def test_robot_help_rejects_denied_or_unrelated_entities_and_masks_errors(
         "code": "robot_help_unavailable",
         "message": "Could not read Roomba robot help",
     }
+
+
+@pytest.mark.parametrize(
+    ("catalog", "versions", "status"),
+    [
+        ((), [], "up_to_date"),
+        (("9.3.7",), ["9.3.7"], "catalog_candidates"),
+        (ApiError(503), [], "unavailable"),
+    ],
+)
+async def test_software_panel_uses_read_permission_and_preserves_installed_versions(
+    configured, hass_ws_client, hass_admin_user, catalog, versions, status
+):
+    configured.show_maps = False
+    robot = configured.data["fixture-0"]
+    installed = "p25-705+9.3.6+I5.3.149"
+    updated = datetime(2026, 11, 25, 11, 22, tzinfo=UTC)
+    configured.data["fixture-0"] = replace(
+        robot,
+        telemetry={
+            "software_version": installed,
+            "dock_firmware": "42",
+            "software_updated_at": updated,
+        },
+    )
+    provider = configured.client.firmware_candidates = AsyncMock()
+    if isinstance(catalog, Exception):
+        provider.side_effect = catalog
+    else:
+        provider.return_value = catalog
+    socket = await hass_ws_client()
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda entity, policy: entity == ENTITY and policy == POLICY_READ,
+    ):
+        await socket.send_json(SOFTWARE)
+        result = (await socket.receive_json())["result"]
+    assert result == {
+        "installed_version": installed,
+        "last_installed_at": updated.isoformat(),
+        "dock_version": "42",
+        "status": status,
+        "catalog_versions": versions,
+    }
+    provider.assert_awaited_once_with(robot.sku, installed, "42")
+    configured.client.map_geometry.assert_not_awaited()
+
+
+async def test_software_panel_rejects_denied_unrelated_and_unavailable_robots(
+    hass, configured, hass_ws_client, hass_admin_user
+):
+    provider = configured.client.firmware_candidates = AsyncMock()
+    socket = await hass_ws_client()
+    with patch.object(type(hass_admin_user.permissions), "check_entity", return_value=False):
+        await socket.send_json(SOFTWARE)
+        assert (await socket.receive_json())["error"]["code"] == "unauthorized"
+    await socket.send_json(SOFTWARE | {"id": 2, "entity_id": "vacuum.other"})
+    assert (await socket.receive_json())["error"]["code"] == "software_status_unavailable"
+    with patch.dict(hass.data, {DATA_COMPONENT: None}):
+        await socket.send_json(SOFTWARE | {"id": 3})
+        assert (await socket.receive_json())["error"]["code"] == "software_status_unavailable"
+    configured.last_update_success = False
+    await socket.send_json(SOFTWARE | {"id": 4})
+    assert (await socket.receive_json())["error"]["code"] == "software_status_unavailable"
+    provider.assert_not_awaited()
 
 
 async def test_remembered_preferences_follow_verified_destinations_and_refresh_without_geometry(

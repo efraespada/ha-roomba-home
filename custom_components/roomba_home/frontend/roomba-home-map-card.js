@@ -69,6 +69,11 @@ const MAINTENANCE_UNITS = {
   minutes: "min", missions: "missions", combo_missions: "combo missions",
   evacs: "emptying cycles", pad_washes_used: "wash cycles", sqft: "m²",
 };
+const SOFTWARE_STATUS = {
+  up_to_date: "Roomba reports that the robot is up to date.",
+  catalog_candidates: "The catalog lists other versions. Roomba manages availability for this robot.",
+  unavailable: "The Roomba software catalog is unavailable.",
+};
 const HELP_ARTICLE_LABELS = {
   error: "Error",
   charging_error: "Charging error",
@@ -165,7 +170,8 @@ template.innerHTML = `
     #routine-dialog { width:min(34rem, calc(100vw - 3rem)); max-width:none; }
     #mission-history-dialog { width:min(55rem, calc(100vw - 3rem)); max-width:none; }
     #cleaning-scores-dialog { width:min(36rem, calc(100vw - 3rem)); max-width:none; }
-    #maintenance-dialog, #robot-help-dialog, #dock-controls-dialog { width:min(28rem, calc(100vw - 3rem)); max-width:none; }
+    #maintenance-dialog, #robot-help-dialog, #dock-controls-dialog, #robot-software-dialog { width:min(28rem, calc(100vw - 3rem)); max-width:none; }
+    #software-versions dd { overflow-wrap:anywhere; }
     #dock-action-list { display:grid; gap:8px; margin:12px 0; }
     #dock-action-list button { text-align:start; }
     #dock-action-status:empty { display:none; }
@@ -246,6 +252,7 @@ template.innerHTML = `
       <button id="open-dock-controls" hidden>Dock controls</button>
       <button id="open-maintenance">Maintenance</button>
       <button id="open-robot-help">Robot help</button>
+      <button id="open-robot-software">Robot software</button>
     </header>
     <dl id="active-errors" class="measurements" role="status" aria-label="Active errors" hidden></dl>
     <dl id="current-mission" class="measurements" aria-label="Current mission" hidden></dl>
@@ -533,6 +540,15 @@ template.innerHTML = `
         <div id="help-article" aria-live="polite"></div>
       </div>
       <div class="actions"><button id="close-robot-help">Close</button></div>
+    </dialog>
+    <dialog id="robot-software-dialog" aria-labelledby="robot-software-title">
+      <h3 id="robot-software-title">Robot software</h3>
+      <dl id="software-versions" class="measurements"></dl>
+      <p id="robot-software-status" class="muted" role="status"></p>
+      <div class="actions">
+        <button id="refresh-robot-software">Check again</button>
+        <button id="close-robot-software">Close</button>
+      </div>
     </dialog>
     <dialog id="mission-history-dialog" aria-labelledby="mission-history-title">
       <h3 id="mission-history-title">Recent cleaning reports</h3>
@@ -1222,6 +1238,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.scoreSequence = 0;
     this.maintenanceSequence = 0;
     this.helpSequence = 0;
+    this.softwareSequence = 0;
     this.$("floor-shortcuts").ontoggle = () => this.loadFloorShortcuts();
     this.$("refresh-floor-shortcuts").onclick = () => this.loadFloorShortcuts(true);
     this.$("maps").onchange = (event) => {
@@ -1284,6 +1301,9 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("confirm-maintenance-reset").onclick = () => this.confirmMaintenanceReset();
     this.$("open-robot-help").onclick = () => this.openRobotHelp();
     this.$("close-robot-help").onclick = () => this.$("robot-help-dialog").close();
+    this.$("open-robot-software").onclick = () => this.openRobotSoftware();
+    this.$("refresh-robot-software").onclick = () => this.loadRobotSoftware();
+    this.$("close-robot-software").onclick = () => this.$("robot-software-dialog").close();
     this.$("open-cleaning-scores").onclick = () => this.openCleaningScores();
     this.$("close-cleaning-scores").onclick = () => this.$("cleaning-scores-dialog").close();
     this.$("close-mission-history").onclick = () => this.$("mission-history-dialog").close();
@@ -1581,6 +1601,7 @@ class RoombaHomeMapCard extends HTMLElement {
     if (this.$("mission-history-dialog").open) this.$("mission-history-dialog").close();
     if (this.$("maintenance-dialog").open) this.$("maintenance-dialog").close();
     if (this.$("robot-help-dialog").open) this.$("robot-help-dialog").close();
+    if (this.$("robot-software-dialog").open) this.$("robot-software-dialog").close();
     if (this.$("dock-controls-dialog").open) this.$("dock-controls-dialog").close();
     if (this.$("map-backups-dialog").open) this.$("map-backups-dialog").close();
     if (this.$("cleaning-scores-dialog").open) this.$("cleaning-scores-dialog").close();
@@ -1618,9 +1639,11 @@ class RoombaHomeMapCard extends HTMLElement {
   }
 
   connectedCallback() {
-    const help = this.$("robot-help-dialog");
     // Moving a card can remove its dialog from the top layer while leaving it open.
-    if (help.open) ensureModal(help);
+    for (const id of ["robot-help-dialog", "robot-software-dialog"]) {
+      const dialog = this.$(id);
+      if (dialog.open) ensureModal(dialog);
+    }
     this.timer = window.setInterval(() => { this.draw(); this.refresh(); }, 5000);
     this.refresh();
   }
@@ -2318,6 +2341,64 @@ class RoombaHomeMapCard extends HTMLElement {
         ? "" : "Roomba has no help articles for this model.";
     } catch (error) {
       if (current()) status.textContent = error?.message || "Robot help is unavailable.";
+    }
+  }
+
+  async openRobotSoftware() {
+    if (!this.config || !this._hass) return;
+    const dialog = this.$("robot-software-dialog");
+    if (dialog.open) {
+      ensureModal(dialog);
+      return;
+    }
+    ensureModal(dialog);
+    await this.loadRobotSoftware();
+  }
+
+  async loadRobotSoftware() {
+    const { entity } = this.config;
+    const dialog = this.$("robot-software-dialog");
+    const status = this.$("robot-software-status");
+    const versions = this.$("software-versions");
+    const refresh = this.$("refresh-robot-software");
+    const sequence = ++this.softwareSequence;
+    const current = () => dialog.open && sequence === this.softwareSequence && entity === this.config.entity;
+    status.textContent = "Checking Roomba software…";
+    refresh.disabled = true;
+    versions.replaceChildren();
+    try {
+      const report = await this._hass.callWS({ type: "roomba_home/software_status", entity_id: entity });
+      if (!current()) return;
+      const installed = report.installed_version;
+      const build = /^p25-705\+([0-9.]+)\+(I[0-9.]+)$/.exec(installed);
+      const lastUpdate = report.last_installed_at && new Date(report.last_installed_at);
+      const date = lastUpdate && Number.isFinite(lastUpdate.getTime())
+        ? new Intl.DateTimeFormat(this._hass.locale?.language || undefined, {
+          dateStyle: "medium", timeZone: this._hass.config?.time_zone,
+        }).format(lastUpdate)
+        : "Unavailable";
+      const fields = [
+        ["Robot version", build ? `${build[1]} (${build[2]})` : installed, installed],
+        ["Last update", date, report.last_installed_at],
+        ["Dock version", report.dock_version],
+        ["Catalog versions", report.catalog_versions.join(", ")],
+      ];
+      for (const [label, value, original] of fields) {
+        if (!value) continue;
+        const group = document.createElement("div");
+        const term = document.createElement("dt");
+        term.textContent = label;
+        const definition = document.createElement("dd");
+        definition.textContent = value;
+        if (original && original !== value) definition.title = original;
+        group.append(term, definition);
+        versions.append(group);
+      }
+      status.textContent = SOFTWARE_STATUS[report.status] ?? SOFTWARE_STATUS.unavailable;
+    } catch (error) {
+      if (current()) status.textContent = error?.message || "Robot software is unavailable.";
+    } finally {
+      if (current()) refresh.disabled = false;
     }
   }
 
