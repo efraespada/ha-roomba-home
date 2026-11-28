@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-28",
+  "model": "X185240",
+  "android_version": "3.4.1",
+  "installed_version_at_comparison": "0.104.2",
+  "mission": {
+    "destination_kind": "room",
+    "mode": "vacuum",
+    "suction_level": 4,
+    "two_pass": true,
+    "planned_seconds": 7018,
+    "android_remaining_minutes": 46,
+    "home_assistant_remaining_sensor_seconds": 5479,
+    "seconds_between_the_two_app_samples": 14,
+    "mission_error": 0
+  },
+  "signed_timeline_offsets_seconds": {
+    "room_entries": [46, 1292, 2907],
+    "all_entries_matched_same_declared_room": true,
+    "distinct_robot_map_revisions_for_entries": 3,
+    "travel_intervals_between_entries": [[1195, 1262], [2846, 2877]],
+    "zero_length_room_checkpoints": [338, 1023, 1481, 4675]
+  },
+  "replay": {
+    "sample_offset_seconds": 5200,
+    "completed_room_intervals_seconds": [[46, 1195], [1292, 2846]],
+    "latest_stage_elapsed_seconds": 2293,
+    "total_room_elapsed_seconds": 4996,
+    "remaining_seconds": 2022
+  }
+}

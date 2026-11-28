@@ -4,12 +4,19 @@ from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
+from itertools import pairwise
 
 from .errors import ProtocolError
 from .furniture_targets import furniture_links
 from .maps import PersistentMap, RegionKind, map_identifier
 from .mission_areas import REGION_TARGETS, ROOM_STATUSES, AreaResult, command_region_kind
-from .mission_plan import MAX_DESTINATIONS, MissionPlan, mission_plan, present_mission_plan
+from .mission_plan import (
+    MAX_DESTINATIONS,
+    MissionPlan,
+    destination_key,
+    mission_plan,
+    present_mission_plan,
+)
 from .mission_time import MissionTiming, reported_interruptions, with_destination_elapsed
 from .point_maps import Polygon
 from .state import RobotState
@@ -168,12 +175,40 @@ def _correlate_zones(results: tuple[AreaResult, ...], command: object) -> tuple[
     return tuple(identified)
 
 
-def mission_timing(events: object, command: object) -> MissionTiming:
+def _reentered_room_intervals(
+    active_events: object, finished_events: list, plan: MissionPlan
+) -> Iterable[AreaResult]:
+    declared = {("room", item.identity) for item in plan.destinations if item.kind == "room"}
+    entries = {}
+    for area in _area_events(active_events, "room", "rid"):
+        key = destination_key(plan, area)
+        if key in declared and area.status is None and area.ended_at is None:
+            entries.setdefault(key, {})[area.timestamp] = area
+    departures = sorted(reported_interruptions(finished_events, stages=("travel", "reloc")))
+    for visits in entries.values():
+        for entered, reentered in pairwise(sorted(visits)):
+            departure = next(
+                (start for start, end in departures if entered < start <= end <= reentered), None
+            )
+            if departure is not None:
+                # A later entrance alone cannot tell us when the earlier work stopped.
+                yield replace(visits[entered], ended_at=departure)
+
+
+def mission_timing(
+    events: object,
+    command: object,
+    *,
+    active_events: object = None,
+    plan: MissionPlan | None = None,
+) -> MissionTiming:
     """Preserve every timed area event before the outcome projection deduplicates them."""
     if not isinstance(events, list):
         return MissionTiming()
     rooms = tuple(_area_events(events, "room", "rid"))
     zones = _correlate_zones(tuple(_area_events(events, "zone", "zid")), command)
+    if plan is not None:
+        rooms += tuple(_reentered_room_intervals(active_events, events, plan))
     return MissionTiming((*rooms, *zones), reported_interruptions(events))
 
 

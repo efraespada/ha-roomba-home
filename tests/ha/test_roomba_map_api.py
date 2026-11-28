@@ -2844,6 +2844,126 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     assert configured._live_room_timing == {}
 
 
+async def test_two_pass_room_keeps_reported_work_across_travel_and_reentry(
+    configured, hass_ws_client
+):
+    robot = "fixture-0"
+    now = datetime.now(UTC).replace(microsecond=0)
+    started = now - timedelta(seconds=5200)
+    stamp = int(started.timestamp())
+    ready = configured.data[robot]
+    state = replace(
+        ready,
+        phase="run",
+        cycle="clean",
+        telemetry=ready.telemetry | {"mission_started": started, "mission_number": 53},
+    )
+    command = {
+        "command": "start",
+        "p2map_id": MAP.map_id,
+        "user_p2mapv_id": MAP.version_id,
+        "regions": [
+            {
+                "type": "rid",
+                "region_id": "room-a",
+                "params": {"operatingMode": 2, "suctionLevel": 4, "twoPass": True},
+            }
+        ],
+    }
+
+    def room(begin, revision, passes):
+        return {
+            "type": "room",
+            "ts": stamp + begin,
+            "room": {
+                "rid": "room-a",
+                "p2mapId": MAP.map_id,
+                "p2mapvId": revision,
+                "passCount": passes,
+                "area": 693,
+            },
+        }
+
+    def span(kind, begin, end):
+        return {"type": kind, "ts": stamp + begin, "ets": stamp + end}
+
+    first_checkpoint = room(338, "checkpoint", 1)
+    first_checkpoint["ets"] = first_checkpoint["ts"]
+    first_checkpoint["room"].update(status=1, totalArea=0)
+    document = {
+        "timelineRequestId": 17,
+        "nMssn": 53,
+        "cmd": command,
+        "event": [
+            room(2907, "latest", 1),
+            room(1292, "second", 1),
+            room(46, "first", 0),
+        ],
+        "finEvents": [
+            span("reloc", 2902, 2909),
+            span("travel", 2846, 2877),
+            span("disc", 1333, 1351),
+            span("reloc", 1286, 1294),
+            span("travel", 1195, 1262),
+            first_checkpoint,
+            span("travel", 46, 46),
+        ],
+    }
+    configured.client.cleaning_time_estimates = AsyncMock(
+        return_value={
+            "regions": [
+                {
+                    "id": "map-a:rid:room-a",
+                    "estimates": [
+                        {
+                            "duration_seconds": 7018,
+                            "mode": "vacuum",
+                            "suction_level": 4,
+                            "two_pass": True,
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+    report = mission_timeline(document, 17, 53, int(now.timestamp()))
+    running = await configured._timeline_metrics(state, report, now)
+    assert running["live_estimated_remaining"] == 2022
+    configured.async_set_updated_data({robot: replace(state, telemetry=state.telemetry | running)})
+    socket = await hass_ws_client()
+    request = {"id": 1, "type": "roomba_home/floor_plan", "entity_id": ENTITY}
+
+    async def snapshot(clock, request_id):
+        with patch("custom_components.roomba_home.map_api.datetime", wraps=datetime) as clock_api:
+            clock_api.now.return_value = clock
+            await socket.send_json(request | {"id": request_id})
+            reply = await socket.receive_json()
+            assert reply["success"], reply.get("error")
+            return reply["result"]["live_plan"]
+
+    plan = await snapshot(now, 1)
+    assert plan["estimated_remaining_seconds"] == 2022
+    assert plan["destinations"][0]["stage_elapsed_seconds"] == 2293
+    assert plan["destinations"][0]["cleaning_elapsed_seconds"] == 4996
+
+    then = now + timedelta(seconds=60)
+    paused = document | {
+        "event": [*document["event"], {"type": "pause", "ts": int(then.timestamp())}]
+    }
+    stopped = replace(state, phase="stop")
+    metrics = await configured._timeline_metrics(
+        stopped, mission_timeline(paused, 17, 53, int(then.timestamp())), then
+    )
+    assert metrics["live_estimated_remaining"] == 1962
+    configured.async_set_updated_data(
+        {robot: replace(stopped, telemetry=state.telemetry | metrics)}
+    )
+    held = await snapshot(then + timedelta(seconds=45), 2)
+    assert held["estimated_remaining_seconds"] == 1962
+    assert held["destinations"][0]["status"] == "paused"
+    assert held["destinations"][0]["cleaning_elapsed_seconds"] == 5056
+
+
 async def test_floor_plan_totals_saved_zone_time_across_pauses_and_passes(
     configured, hass_ws_client
 ):

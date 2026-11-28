@@ -131,10 +131,12 @@ class MissionTiming:
         )
 
 
-def reported_interruptions(events: list) -> tuple[Interval, ...]:
+def reported_interruptions(
+    events: list, *, stages: tuple[str, ...] = INTERRUPTIONS
+) -> tuple[Interval, ...]:
     result = []
     for event in events:
-        if isinstance(event, dict) and event.get("type") in INTERRUPTIONS:
+        if isinstance(event, dict) and event.get("type") in stages:
             start = integer(event.get("ts"), 32_503_680_000)
             end = integer(event.get("ets"), 32_503_680_000)
             if start is not None and end is not None:
