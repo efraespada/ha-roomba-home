@@ -7,7 +7,7 @@ They are not evidence that every physical failure was induced and tested.
 from dataclasses import dataclass
 
 from .dock import DOCK_COMPONENT_CAPABILITIES, DOCK_FIELDS, component_fault
-from .telemetry import DOCK_PARTS, PARTS, PHASE_PROBLEMS, PHASES, integer
+from .telemetry import DOCK_PARTS, PARTS, PHASE_PROBLEMS, PHASES, integer, maintenance_due
 
 READINESS_CONDITIONS = "readiness_conditions"
 FLAG_REASONS = {
@@ -115,7 +115,7 @@ def observations(state):
         usage = values.get(f"part_{part}_usage")
         remaining = values.get(f"part_{part}_remaining")
         if usage is not None or remaining is not None:
-            result["part_" + part] = int((usage is not None and usage >= 100) or remaining == 0)
+            result["part_" + part] = int(maintenance_due(usage, remaining))
     return result
 
 
