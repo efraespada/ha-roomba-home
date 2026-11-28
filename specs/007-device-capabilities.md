@@ -120,6 +120,12 @@ becoming an indiscriminately false or zero.
 - CAP-24: Expose the available robot and dock state independently of map
   availability. Preserve read and control permissions, and distinguish
   unknown connectivity from a reported disconnection.
+- CAP-25: Expose the UTC activation day from the signed assets of an
+  associated robot as a date sensor. Reuse the serial number lookup and
+  refresh schedule. Discover the sensor on the first valid response and
+  retain its last verified value when a later asset read omits the date
+  or fails. Keep the date usable when the account can refresh and the
+  robot is disconnected. Exclude it from diagnostic exports.
 
 No endpoints, maps and empty states are invented with HA entities or capabilities. No
 physical errors are induced and no maps, accounts or data beyond the test have been
@@ -464,6 +470,7 @@ with API operations.
 | CAP-22 | Max 700 Combo first-clean checklist | [Android comparison](../docs/validation.md#first-clean-preparation), [model tests](../tests/test_help_catalog.py), [action tests](../tests/ha/test_cleaning_controls.py), and [panel tests](../tests/frontend/map-card.test.cjs) |
 | CAP-23 | Dock controls and state on the floor plan | [Native panel comparison](../docs/validation.md#dock-controls-on-the-floor-plan), [linked dock entity tests](../tests/ha/test_dock_and_history.py), and [map snapshot tests](../tests/ha/test_roomba_map_api.py) |
 | CAP-24 | Device status and controls without map geometry | [Overview validation](../docs/validation.md#robot-status-without-a-floor-plan) and [overview tests](../tests/ha/test_roomba_map_api.py) |
+| CAP-25 | Robot activation date sensor | [Native and signed validation](../docs/validation.md#robot-activation-date), [asset client tests](../tests/test_api_client.py), and [entity refresh tests](../tests/ha/test_telemetry_entities.py) |
 
 CAP-09 includes floor plans, room labels, position, heading, trajectory,
 coverage, and estimates supported by Roomba. Enable the map option to expose

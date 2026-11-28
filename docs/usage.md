@@ -847,6 +847,21 @@ actions:
       entity_id: switch.example_robot_child_and_pet_lock
 ```
 
+## Robot activation date
+
+Open the robot device's **Diagnostics** in Home Assistant and select **Robot
+activation date**. The date is the UTC calendar day reported by Roomba for
+that robot. It is available during a successful account refresh even if the
+robot is disconnected. The sensor appears after Roomba supplies a valid date.
+
+Add it to an Entities card using the entity ID from the device page.
+
+```yaml
+type: entities
+entities:
+  - entity: sensor.example_robot_robot_activation_date
+```
+
 ## Robot software status
 
 The robot's diagnostics show its installed firmware and the last update time

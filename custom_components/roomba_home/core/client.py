@@ -34,7 +34,14 @@ from .history import DEFAULT_HISTORY_DAYS, MissionReport, history_metrics, missi
 from .live_route import RawRouteReference
 from .map_programs import program_selection
 from .maps import AreaTarget, PersistentMap, map_identifier, parse_maps
-from .models import AppProfile, CloudSession, LoginDetails, relative_api_path, trusted_url
+from .models import (
+    AppProfile,
+    CloudSession,
+    LoginDetails,
+    RobotAsset,
+    relative_api_path,
+    trusted_url,
+)
 from .quick_routines import QUICK_ROUTINE_LIMIT, read_quick_routines, saved_quick_routines
 from .routines import (
     APP_EDITION,
@@ -258,6 +265,10 @@ class RoombaClient:
         return robots
 
     async def robot_serial_number(self, robot_id: str) -> str:
+        return (await self.robot_asset(robot_id)).serial_number
+
+    async def robot_asset(self, robot_id: str) -> RobotAsset:
+        """Read the verified serial number and optional UTC activation date."""
         session = await self.ensure_session()
         if robot_id not in session.raw["robots"]:
             raise ProtocolError("An associated robot is required.")
@@ -269,7 +280,8 @@ class RoombaClient:
             or not re.fullmatch(r"[A-Za-z0-9-]{1,64}", serial)
         ):
             raise ProtocolError("Expected a serial number for the selected robot.")
-        return serial
+        registered = convert("timestamp", document.get("min_utc_reg_date"))
+        return RobotAsset(serial, registered.date() if registered is not None else None)
 
     async def robot_parts(self, robot_id: str) -> dict[str, Any]:
         parts = await self.request("GET", f"/v1/robots/{robot_id}/parts")

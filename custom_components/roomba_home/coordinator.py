@@ -23,6 +23,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     ACTIVE_POLL_SECONDS,
+    ASSET_REFRESH_SECONDS,
     CONF_PROFILE,
     CONF_SHOW_MAPS,
     DETAIL_SECONDS,
@@ -32,7 +33,6 @@ from .const import (
     MAPS_SECONDS,
     PARTS_SECONDS,
     POLL_SECONDS,
-    SERIAL_REFRESH_SECONDS,
     SUPPORTED_SKU,
     selected_robots,
 )
@@ -218,7 +218,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         self._clock = monotonic
         self._details_due = 0
         self._parts_due = 0
-        self._serials_due = 0
+        self._assets_due = 0
         self._maps_due = 0
         self._maps_retry_until = 0
         self._estimates_retry_until = 0
@@ -231,7 +231,7 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         self._read_retry_until = 0
         self._details = {}
         self._parts = {}
-        self._serials = {}
+        self._assets = {}
         self._part_catalog = {}
         self._maps = {}
         self._maps_available = {}
@@ -256,7 +256,8 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         return self._robot_updates[robot_id]
 
     def robot_serial_number(self, robot_id):
-        return self._serials.get(robot_id)
+        asset = self._assets.get(robot_id)
+        return asset.serial_number if asset is not None else None
 
     def profile(self, robot_id):
         if robot_id in self.profiles:
@@ -399,26 +400,29 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                     break
                 except Exception as error:
                     _LOGGER.debug("Part refresh failed: %s", type(error).__name__)
-        if now >= self._serials_due:
-            await self._refresh_robot_serials(session, now)
+        if now >= self._assets_due:
+            await self._refresh_robot_assets(session, now)
 
-    async def _refresh_robot_serials(self, session, now):
-        self._serials_due = now + SERIAL_REFRESH_SECONDS
+    async def _refresh_robot_assets(self, session, now):
+        self._assets_due = now + ASSET_REFRESH_SECONDS
         for robot_id, details in session.raw["robots"].items():
             if robot_id not in self.selected or details.get("sku") != SUPPORTED_SKU:
                 continue
             try:
                 async with asyncio.timeout(4):
-                    serial = await self.client.robot_serial_number(robot_id)
+                    asset = await self.client.robot_asset(robot_id)
             except RateLimited as error:
-                self._serials_due = now + error.retry_after
+                self._assets_due = now + error.retry_after
                 break
             except Exception as error:
-                self._serials_due = min(self._serials_due, now + PARTS_SECONDS)
-                _LOGGER.debug("Robot serial refresh failed: %s", type(error).__name__)
+                self._assets_due = min(self._assets_due, now + PARTS_SECONDS)
+                _LOGGER.debug("Robot asset refresh failed: %s", type(error).__name__)
                 continue
-            self._serials[robot_id] = serial
-            self._sync_robot_device(robot_id, serial_number=serial)
+            previous = self._assets.get(robot_id)
+            if previous is not None and asset.activation_date is None:
+                asset = replace(asset, activation_date=previous.activation_date)
+            self._assets[robot_id] = asset
+            self._sync_robot_device(robot_id, serial_number=asset.serial_number)
 
     async def _executor(self, function, *args):
         future = self.hass.async_add_executor_job(function, *args)
@@ -1807,6 +1811,9 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
                 "details_available": bool(self._details.get(robot_id)),
                 "parts_available": bool(self._parts.get(robot_id)),
             }
+            asset = self._assets.get(robot_id)
+            if asset is not None and asset.activation_date is not None:
+                telemetry["activation_date"] = asset.activation_date
             result[robot_id] = replace(
                 state,
                 telemetry=telemetry,
