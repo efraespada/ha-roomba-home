@@ -1445,6 +1445,97 @@ async def test_dock_controls_use_the_linked_buttons_and_signed_component_status(
     assert await controls(6) == {key: {"active": False, "entity_id": None} for key in expected}
 
 
+async def test_robot_overview_is_available_without_maps_and_reuses_the_current_account_state(
+    hass, configured, hass_ws_client, hass_admin_user
+):
+    robot_id = "fixture-0"
+    robot = configured.data[robot_id]
+    vacuum_status = replace(robot, phase="charge", cycle="none", connected=True, battery=0)
+    configured.async_set_updated_data({robot_id: vacuum_status})
+    client = await hass_ws_client()
+
+    async def request(request_id, command="robot_overview", entity=ENTITY):
+        await client.send_json(
+            {"id": request_id, "type": f"roomba_home/{command}", "entity_id": entity}
+        )
+        return await client.receive_json()
+
+    floor = (await request(1, "floor_plan"))["result"]
+    expected = {"connected": True, "battery_pct": 0, "activity": "docked"}
+    assert floor["robot_status"] == expected
+    assert floor["can_clean_everywhere"] is True
+    configured.client.map_geometry.reset_mock()
+
+    with patch.object(configured, "show_maps", False):
+        assert (await request(2, "floor_plan"))["error"]["code"] == "map_unavailable"
+        current = (await request(3))["result"]
+        assert floor["robot"] == current["robot"]
+        assert current["robot_status"] == expected
+        assert current["can_clean_everywhere"] is True
+        assert "map" not in current
+        configured.client.map_geometry.assert_not_called()
+
+        with patch.object(
+            type(hass_admin_user.permissions),
+            "check_entity",
+            side_effect=lambda _, policy: policy == POLICY_READ,
+        ):
+            assert (await request(4))["result"] == current | {"can_clean_everywhere": False}
+
+        with patch.object(type(hass_admin_user.permissions), "check_entity", return_value=False):
+            assert (await request(5))["error"]["code"] == "unauthorized"
+
+        failed_mission = replace(
+            vacuum_status,
+            phase="stuck",
+            cycle="clean",
+            error=48,
+            telemetry=vacuum_status.telemetry
+            | {"mission_number": 13, "mission_started": datetime.now(UTC)},
+        )
+        configured.async_set_updated_data({robot_id: failed_mission})
+        blocked = (await request(6))["result"]
+        assert blocked["robot_status"]["activity"] == "error"
+        assert blocked["current_mission"]["error_code"] == 48
+        assert blocked["can_clean_everywhere"] is False
+        assert blocked["mission_controls"]["commands"] == ["stop"]
+        assert blocked["active_errors"][0] == {
+            "source": "mission",
+            "code": 48,
+            "reason": "path_blocked",
+        }
+
+        mapping = replace(vacuum_status, phase="run", cycle="train")
+        configured.async_set_updated_data({robot_id: mapping})
+        assert (await request(7))["result"]["robot_status"]["activity"] == "mapping"
+        configured.async_set_updated_data({robot_id: replace(mapping, phase="stop")})
+        assert (await request(8))["result"]["robot_status"]["activity"] == "paused"
+
+        configured.async_set_updated_data({robot_id: replace(vacuum_status, connected=False)})
+        assert (await request(9))["result"]["robot_status"] == {
+            "connected": False,
+            "battery_pct": None,
+            "activity": None,
+        }
+        configured.last_update_success = False
+        unavailable = (await request(10))["result"]
+        assert unavailable["robot_status"] == {
+            "connected": None,
+            "battery_pct": None,
+            "activity": None,
+        }
+        assert unavailable["current_mission"] is None
+        assert not unavailable["dock_controls"] and not unavailable["active_errors"]
+
+    assert (await request(11, entity="vacuum.other"))["error"][
+        "code"
+    ] == "robot_overview_unavailable"
+    with patch.dict(hass.data, {DATA_COMPONENT: None}):
+        assert (await request(12))["error"]["code"] == "robot_overview_unavailable"
+    configured.async_set_updated_data({})
+    assert (await request(13))["error"]["code"] == "robot_overview_unavailable"
+
+
 async def test_current_mission_is_covered_before_the_first_saved_floor_and_without_an_itinerary(
     configured, hass_ws_client, hass_admin_user
 ):

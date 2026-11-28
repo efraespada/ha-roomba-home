@@ -642,6 +642,15 @@ page. Read access lets you see reported progress. Sending an action also
 requires control access to the robot and the corresponding dock button.
 Only supported actions appear. A temporarily unavailable action stays disabled.
 
+The map card header shows the robot's reported battery, activity, and
+current dock operations. If the map cannot load, the card continues to
+show fresh robot and dock data through the same Roomba integration.
+For example, check whether the mop is drying, inspect an active fault,
+or use **Clean everywhere** on a ready robot without reopening its map.
+An explicit disconnection shows **Offline**. A missing connection reading
+shows **Connectivity unknown**. The card omits the battery and activity
+until Roomba reports that the robot is connected again.
+
 On the Max 700 Combo dock, **Wash mop** can interrupt active drying. The
 wash starts from the dock and the component state reports its progress.
 Use **Dry mop** to start drying again after a manual wash finishes.

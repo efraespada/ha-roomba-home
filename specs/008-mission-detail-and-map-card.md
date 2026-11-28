@@ -165,6 +165,13 @@ trajectory contains observed positions and retains sequence gaps.
   robot's linked dock. Require control access to both entities. Remove a
   review if that button becomes unavailable or changes identity. Display
   the running operation and the command result independently.
+- MAP-29: Present the current reported battery, activity, and dock operations
+  in the card header. If floor plan data is unavailable, load the robot
+  overview from the same account state without fetching geometry. Keep faults
+  and permitted device controls reachable. Keep a reviewed whole-area or
+  dock action valid while its device and permissions still match. Discard a
+  late overview after the selected robot changes. Represent disconnection
+  separately from an unavailable connection reading.
 - All device data MUST originate from Roomba. Home Assistant supplies permissions, presentation, and automation.
 - Fixtures use synthetic house data. Installed interface screenshots show only the relevant controls and values without private geometry or identifiers.
 
@@ -534,6 +541,7 @@ features, physical results, and open scenarios.
 | MAP-26 | [Local recording contract](../docs/api.md#local-route-recording) | [Private storage tests](../tests/ha/test_mission_route_store.py), [authenticated report and replay tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), [isolated archive replay](../docs/validation.md#local-route-recording-replay), and [household recording persistence](../docs/validation.md#household-vacuum-route-after-clearing-error-48) |
 | MAP-27 | [Archive and backup contract](../docs/api.md#archived-cleaning-reports) | [Private backup storage tests](../tests/ha/test_map_history.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed report comparison](../docs/validation.md#backed-up-floor-in-cleaning-history) |
 | MAP-28 | [Dock controls contract](../docs/api.md#manual-dock-controls-on-the-floor-plan) | [Native panel comparison](../docs/validation.md#dock-controls-on-the-floor-plan), [authenticated snapshot tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
+| MAP-29 | [Robot overview contract](../docs/api.md#robot-overview-without-a-floor-plan) | [Device status comparison](../docs/validation.md#robot-status-without-a-floor-plan), [authenticated overview tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 
 ## 18. Implementation sequence
 

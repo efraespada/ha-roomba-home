@@ -86,12 +86,42 @@ def _dock_controls(hass, vacuum, state, permissions, can_control):
     return controls
 
 
+def _robot_overview(hass, vacuum, state, permissions, can_control, now):
+    updated = vacuum.account.last_update_success
+    connected = state.connected if updated else None
+    activity = state.activity if connected is True else None
+    if state.mapping is True and activity == "cleaning":
+        activity = "mapping"
+    return {
+        "robot": state.name,
+        "robot_status": {
+            "connected": connected,
+            "activity": activity,
+            "battery_pct": state.battery if connected is True else None,
+        },
+        "current_mission": current_mission(state, now) if updated else None,
+        "mission_controls": mission_review(vacuum.robot_id, control_snapshot(state))
+        if updated and can_control
+        else None,
+        "dock_controls": _dock_controls(hass, vacuum, state, permissions, can_control)
+        if updated
+        else {},
+        "active_errors": active_device_errors(state) if updated else [],
+        "can_clean_everywhere": can_control
+        and connected is True
+        and activity in {"docked", "idle"}
+        and state.cycle == "none"
+        and bool(state.capabilities.cleaning.modes),
+    }
+
+
 async def async_setup_map_api(hass):
     from .map_history_api import async_register_map_history
 
     path = Path(__file__).with_name("frontend") / "roomba-home-map-card.js"
     await hass.http.async_register_static_paths([StaticPathConfig(CARD_URL, str(path), False)])
     websocket_api.async_register_command(hass, websocket_floor_plan)
+    websocket_api.async_register_command(hass, websocket_robot_overview)
     websocket_api.async_register_command(hass, websocket_live_positions)
     websocket_api.async_register_command(hass, websocket_mission_history)
     websocket_api.async_register_command(hass, websocket_maintenance)
@@ -510,6 +540,30 @@ async def websocket_robot_help(hass, connection, message):
 
 
 @websocket_api.websocket_command(
+    {vol.Required("type"): "roomba_home/robot_overview", vol.Required("entity_id"): cv.entity_id}
+)
+@websocket_api.async_response
+async def websocket_robot_overview(hass, connection, message):
+    entity_id = message["entity_id"]
+    permissions = connection.user.permissions
+    if not permissions.check_entity(entity_id, POLICY_READ):
+        connection.send_error(message["id"], websocket_api.ERR_UNAUTHORIZED, "Access denied.")
+        return
+    component = hass.data.get(DATA_COMPONENT)
+    vacuum = component.get_entity(entity_id) if component else None
+    if not isinstance(vacuum, RoombaVacuum) or (state := vacuum.robot) is None:
+        connection.send_error(
+            message["id"], "robot_overview_unavailable", "Robot status is unavailable."
+        )
+        return
+    can_control = permissions.check_entity(entity_id, POLICY_CONTROL)
+    connection.send_result(
+        message["id"],
+        _robot_overview(hass, vacuum, state, permissions, can_control, datetime.now(UTC)),
+    )
+
+
+@websocket_api.websocket_command(
     {
         vol.Required("type"): "roomba_home/floor_plan",
         vol.Required("entity_id"): cv.entity_id,
@@ -544,35 +598,20 @@ async def websocket_floor_plan(hass, connection, message):
         return
     can_control = connection.user.permissions.check_entity(entity_id, POLICY_CONTROL)
     cleaning = state.capabilities.cleaning
-    can_clean_everywhere = (
-        can_control
-        and bool(cleaning.modes)
-        and state.connected is True
-        and state.activity in {"docked", "idle"}
-        and state.cycle == "none"
-    )
     mapping = {
         "can_start": can_control and state.capabilities.persistent_maps is True,
         "activity": (state.activity or "mapping") if state.mapping is True else None,
     }
     now = datetime.now(UTC)
-    mission = current_mission(state, now)
-    controls = mission_review(robot_id, control_snapshot(state)) if can_control else None
-    dock_controls = _dock_controls(hass, vacuum, state, connection.user.permissions, can_control)
-    errors = active_device_errors(state)
+    overview = _robot_overview(hass, vacuum, state, connection.user.permissions, can_control, now)
     if not maps:
         connection.send_result(
             message["id"],
             {
-                "robot": state.name,
+                **overview,
                 "map": None,
                 "maps": [],
                 "mapping": mapping,
-                "current_mission": mission,
-                "mission_controls": controls,
-                "dock_controls": dock_controls,
-                "active_errors": errors,
-                "can_clean_everywhere": can_clean_everywhere,
             },
         )
         return
@@ -594,12 +633,8 @@ async def websocket_floor_plan(hass, connection, message):
     )
     position_available = live["position"] is not None
     response = {
-        "robot": state.name,
+        **overview,
         "mapping": mapping,
-        "current_mission": mission,
-        "mission_controls": controls,
-        "dock_controls": dock_controls,
-        "active_errors": errors,
         "map": {"id": floor.map_id, "version": floor.version_id},
         "inventory_id": inventory_id,
         "floor_settings": {
@@ -610,7 +645,6 @@ async def websocket_floor_plan(hass, connection, message):
         },
         "can_edit_rooms": can_control,
         "can_manage_schedules": can_control and state.capabilities.schedules is True,
-        "can_clean_everywhere": can_clean_everywhere,
         "can_clean_point": can_clean_point,
         "point_modes": [mode for mode in CleaningMode if mode in (cleaning.modes or ())]
         if can_clean_point

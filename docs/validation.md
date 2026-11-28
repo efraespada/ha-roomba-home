@@ -3080,6 +3080,21 @@ dock command from this panel remains unverified.
 [Dock controls SDD](../specs/008-mission-detail-and-map-card.md) ·
 [Installed dock panel](screenshots/roomba-dock-controls.jpg)
 
+### Robot status without a floor plan
+
+The native Max 700 Combo device screen displayed the robot's battery and
+its active drying operation when opened from the map. The Home Assistant
+card now shows these readings in its header and can retain the device
+controls when a floor plan is unavailable.
+
+Home Assistant service tests verify the same reported battery with maps
+enabled or disabled, including zero percent, explicit disconnection, an
+unknown connection, a mapping mission, and error 48. The tests verify
+permissions and confirm that the overview requests no geometry. The card
+tests check that a review remains usable through repeated map failures,
+and that a late reply for a different robot cannot update the card.
+[Overview contract](api.md#robot-overview-without-a-floor-plan)
+
 ## Robot serial number
 
 The authenticated asset lookup returned a 21-character serial and the

@@ -324,6 +324,19 @@ The card uses Home Assistant's `button.press` after the user reviews the
 selected action. The existing button and application command policy check
 the current device state and observe the result from Roomba.
 
+### Robot overview without a floor plan
+
+The Home Assistant `roomba_home/robot_overview` WebSocket message accepts
+the linked vacuum's `entity_id`. It returns the same robot fields included
+in `roomba_home/floor_plan` without a map lookup. `robot_status` includes
+`connected`, `activity`, and `battery_pct`. An explicit disconnection is
+`false`; unavailable connection information is `null`. Activity and battery
+require a connected robot. The response includes `current_mission`,
+`mission_controls`, `dock_controls`, `active_errors`, and
+`can_clean_everywhere` under their existing capability and permission checks.
+The device overview uses the latest Roomba account state already held by
+the Home Assistant coordinator. It makes no separate Roomba request.
+
 ### Reviewed mission controls
 
 For a user with control permission, `roomba_home/floor_plan` returns
