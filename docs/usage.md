@@ -351,9 +351,11 @@ that the user ended the room before a pass was reported.
 
 Choose **Map a floor** in the card and confirm once the robot is on its dock
 and the area is ready to explore. This action is also available before the
-first map is saved. Roomba explores the floor in a mapping-only cycle and
-publishes the completed map after returning to the dock. At the model's map
-limit, Roomba may replace the oldest map.
+first map is saved. Clear obstacles and open the doors to the areas you
+want to include. Keep the dock in place and let the robot return on its
+own. Roomba explores the floor without cleaning, may stop to recharge,
+and publishes the completed map after returning to the dock. At the
+model's map limit, Roomba may replace the oldest map.
 [iRobot ClearView guide](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
 
 The **Mapping in progress** binary sensor stays on if a mapping run is
@@ -374,6 +376,14 @@ name before confirming. Saved routines and schedules that reference its
 rooms or zones may need new destinations. Removing the floor uses Roomba's
 map visibility setting, and the card refreshes the floor list after Roomba
 confirms the change. [Provider contract](api.md#mapping-runs-and-floor-removal)
+
+For a floor you want to recreate, prepare the floor and dock the robot.
+In the removal review, choose **Remove and start mapping**. The same
+confirmation removes the selected floor, verifies the new inventory,
+and starts a mapping run. The status tells you if the floor was removed
+and the mapping start is unconfirmed. Check the robot's status before
+starting another run. Roomba can update another saved map if it recognizes
+the same physical floor. [Replacement trial](validation.md#guided-floor-replacement)
 
 ## Choose a cleaning mode and preferences
 

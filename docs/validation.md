@@ -1,5 +1,28 @@
 # Roomba Home validation
 
+## Guided floor replacement
+
+Roomba Home Android 3.4.1 showed a mapping preparation guide and started a
+mapping-only cycle on a docked Max 700 Combo. It published a second floor
+under its own identifier and accepted the test name. The original floor
+kept its active revision throughout creation and naming of that floor.
+
+**Delete and create a new map** displayed a removal confirmation that
+mentioned associated schedules and routines. After confirmation, Proxyman
+decoded one HTTP 200 `POST /v1/p2maps/{id}/settings` with `visible: false`
+for the disposable floor. The app then reported mapping on the same robot
+without another confirmation. The trial canceled that second mapping run
+and confirmed that the robot returned to the dock. The original floor was
+the only saved floor at the end. Its identity and 17 destination metadata
+rows matched the baseline, and Roomba published a new active revision
+during the replacement trial. The decompressed native map bundles from
+before and after the trial matched field for field apart from a single
+Unix timestamp in the map header. The original geometry was unchanged in
+this trial.
+
+The Home Assistant tests check failed preflight, acknowledged removal before
+start, reporting of a partial failure, and one confirmed card request.
+
 ## Maintenance reminders
 
 Roomba Home Android 3.4.1 showed a roller mop reminder on the Max 700

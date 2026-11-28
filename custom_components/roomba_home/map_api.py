@@ -784,11 +784,14 @@ async def websocket_edit_floor_settings(hass, connection, message):
         vol.Required("inventory_id"): IDENTIFIER,
         vol.Required("settings_id"): IDENTIFIER,
         vol.Required("confirmed"): vol.All(bool, vol.In([True])),
+        vol.Optional("remap", default=False): bool,
     }
 )
 @websocket_api.async_response
 async def websocket_remove_floor(hass, connection, message):
-    await _edit_map(hass, connection, message, "async_remove_floor", message["settings_id"])
+    await _edit_map(
+        hass, connection, message, "async_remove_floor", message["settings_id"], message["remap"]
+    )
 
 
 @websocket_api.websocket_command(
