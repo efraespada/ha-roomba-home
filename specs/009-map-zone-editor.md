@@ -390,7 +390,7 @@ screenshots.
 | EDIT-16 | [Room detail recovery](../docs/api.md#local-map-backup-commands) | [Room tests](../tests/test_room_edits.py), [authenticated routes](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed recovery](../docs/validation.md#recovering-room-names-and-types) |
 | EDIT-17 | [Restriction edits](../docs/api.md#restriction-edits) | [Geometry tests](../tests/test_restriction_edits.py), [authenticated lifecycle](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed wall trial](../docs/validation.md#editing-virtual-walls) |
 | EDIT-18 | [Combined floor removal and mapping](../docs/api.md#mapping-runs-and-floor-removal) | [WebSocket tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [native trial](../docs/validation.md#guided-floor-replacement) |
-| EDIT-19 | [Floor removal review](../docs/api.md#mapping-runs-and-floor-removal) | [Client tests](../tests/test_api_client.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
+| EDIT-19 | [Floor removal review](../docs/api.md#mapping-runs-and-floor-removal) | [Client tests](../tests/test_api_client.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [installed and native trial](../docs/validation.md#floor-removal-and-linked-programs) |
 
 ## 18. Implementation sequence
 
