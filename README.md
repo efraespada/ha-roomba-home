@@ -156,6 +156,8 @@ timestamps and see the reported connection code. For example, a newer
 cloud read can confirm Roomba still reports the robot as disconnected.
 [Connection controls and readings](docs/usage.md#robot-settings)
 
+![Connection status and code on the installed Home Assistant card, with household timestamps redacted](docs/screenshots/roomba-connection-details.jpg)
+
 ## Dock settings
 
 Open the robot's linked dock in Home Assistant to set its automatic
