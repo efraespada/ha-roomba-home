@@ -1,130 +1,119 @@
 # Architecture and decisions
 
-The structure refers to the model of My Verisure: API isolated from framework, account
-configuration and several devices as separate evidence for product expectations. Your
-authentication protocol isn't re-used.
+The integration follows My Verisure's organization of account
+configuration and per-device monitoring. Roomba-specific protocol
+adapters implement regional discovery, authentication, and signed cloud
+requests. Home Assistant owns configuration entries, registries, and user
+interfaces.
 
 ```mermaid
 flowchart TD
-    CLI[Validation tools] --> HTTP[Session and API client]
-    CLI --> MQ[Retirement adapter MQTT]
-    HTTP --> PORT[Port HttpTransport]
-    AIO[Aiohttp adapter] --> PORT
-    HTTP --> MODEL[Models and validation of boundaries]
-    MQ --> MODEL
-    MQ --> PAHO[Peat and TLS]
-    HA[Adapter Home Assistant] --> HTTP
-    HA --> MQ
-    HA --> CMD[Issuer of orders]
-    CMD --> PAHO
+    HA[Home Assistant configuration and platforms] --> C[Account coordinator]
+    CLI[Local validation tools] --> API[Native HTTP client]
+    CLI --> MQ[Bounded MQTT reader]
+    C --> API
+    C --> MQ
+    C --> STREAM[Scoped live position stream]
+    C --> UC[Command application]
+    C --> MP[Typed state, map, and mission projections]
+    API --> P[HttpTransport]
+    AIO[Aiohttp adapter] -.-> P
+    MQ --> PAHO[Paho over TLS]
+    STREAM --> PAHO
+    UC --> CT[ControlPort]
+    ADAPTER[RobotControlAdapter] -.-> CT
+    C --> ADAPTER
+    ADAPTER --> MQTT_COMMAND[Native command issuer]
+    MQTT_COMMAND --> PAHO
 ```
 
-textual equivalent: tools make up HTTP and MQTT customers. HTTP depends on an injected port
-and aiohttp implements it. Both customers use private models. The adapter Home Assistant
-consumes these customers and doesn't change their contracts.
+The protocol and domain modules in `core/` have no Home Assistant or CLI
+dependencies. The integration and developer tools supply the transports
+and lifecycle decisions at their respective entry points.
 
-| Component | Current liability |
+| Component | Responsibility |
 | --- | --- |
-| `core/models.py` | Session, implementation profile and destination validation |
-| `core/client.py` | Access, exclusion from concurrent renovations and HTTP signature |
-| `core/transport.py` | HTTP TLS, response limits and time |
-| `core/mqtt.py` | WebSocket connection, tokens and shadows scattering |
-| `core/commands.py` | Fitted vocabulary and unique sending with receipt of the broker |
-| `core/cleaning.py` | Unchanging modalities, capabilities and preferences without infrastructure |
-| `core/cleaning_protocol.py` | Translation of support bits and native parameters |
-| `core/application.py` | Preconditions, resumption and confirmation through Control Port |
-| `core/preferences.py` | Stylish persistency contract with no HA dependencies |
-| `core/state.py` | Pure activity projection, connectivity and unknown values |
-| `coordinator.py` | HA composition, consultation and exclusion of the port's control |
-| `config_flow.py` and platforms | Account, selection and status |
-| `tools/` | Private inputs and standardized reports |
-| `specs/` | Contracts, risks and testing with each capacity |
+| `core/models.py` | Private session values, native app profile, and destination validation |
+| `core/client.py` | Discovery, single-flight authentication, signing, and typed HTTP operations |
+| `core/transport.py` | HTTP timeouts, response limits, TLS transport, and redirect policy |
+| `core/mqtt.py` | Scoped named shadows and bounded live position and timeline observations |
+| `core/mqtt_live.py` and `live_stream.py` | Separately authenticated position subscriptions and watch lifecycle |
+| `core/commands.py` | Serialize and issue a supported native command |
+| `core/cleaning.py` and `core/cleaning_protocol.py` | Semantic profiles, capabilities, and translation to native settings |
+| `core/application.py` | Control preconditions, dispatch, and confirmation through a port |
+| `core/preferences.py` | Per-robot cleaning preference persistence contract |
+| `core/state.py` and `core/telemetry.py` | Activity, availability, typed readings, and unknown state |
+| `coordinator.py` | Account composition, polling, state projection, operation scope, and cleanup |
+| Home Assistant platforms and WebSocket APIs | Entities, interactive cards, validation, and permissions |
+| `tools/` | Explicit local validation and reduced reports |
+| `specs/` | Capability contracts, acceptance scenarios, and traceability |
 
-The core doesn't matter Home Assistant. The adaptors MQTT are blockers and the co-ordinator
-runs them in an executor, serializing consultations or orders so as to avoid opening
-customers with it client_id At once. Each operation closes its connection. When canceling,
-its closed closure is expected and the thread isn't abandoned.
+## Polling and confirmation
 
-The regular consultation is every 60 second. Each robot processes his or her serial orders.
-During a confirmation call, another robot can run an order and simultaneous checks share the
-reading of his current account. The transition will be checked every five seconds with a
-period of 40 seconds or 120 To come back. A failed reading cuts the confirmation and
-preserves unconfirmed result. The recovery period after a reading failure or an 429 applies
-to both the scheduled consultation and status refresher applying for order. The endpoint's
-limit of maps is shared between his scheduled consultation and directed cleanliness. The
-complete cleanup orders preserve their own access to the robot's status.
+The coordinator schedules one account poll every 60 seconds at rest or
+every 15 seconds during activity. It reads optional device information
+on separate cadences and preserves eligible partial results. A
+disconnected robot, missing data, and a verified zero remain distinct.
+Paho runs outside the Home Assistant event loop. The coordinator
+serializes operations sharing a broker client identity and waits for
+owned work to close when an entry unloads.
 
-A production of mop in the requested mode registers an initial result as sent and releases a
-robot's command shift. The regular readings can confirm the cleaning phase by comparing
-number and start of mission. When an error, another mission or end of time have been
-detected and the result remains unconfirmed. To send another order replaces the following of
-an earlier command.
+The MQTT transport acknowledges a publication separately from the robot's
+physical result. The command application reads again every five seconds
+within the initial confirmation window. Start, pause, and stop use 40
+seconds. Dock arrival uses 120 seconds. A same-mission return with
+confirmed progress can continue under the regular poll. Provider
+backoff applies to scheduled reads and confirmation reads. Commands
+with an unconfirmed outcome are not automatically republished.
 
-In 0.2.0 the consultation goes to 15 seconds during activity of the robot or its base. The
-four slow shadows are consulted every five minutes and consumptionates them each thirty. His
-faults leave those fields unknown without hiding a valid quick reading. `core/telemetry.py`
-projects an explicit list of fields; `core/problems.py` It categorizes origins and changes.
-The event platform resets its baseline to avoid repeated warnings after recharging. They
-never turn raw documents into entity attributes.
+The live map uses mission timelines from authorized active polls. A
+separate authenticated subscription can also deliver positions between
+polls. Each live map measurement requires a matching robot, mission,
+and map scope. The coordinator expires stale data and retains proven room time
+across a pause, a re-entry, or a completed trip to charge. The exposed
+estimate requires Roomba's duration and a supported active stage.
+[MQTT state](../specs/002-mqtt-state.md) ·
+[Command validation](../specs/004-command-validation.md) ·
+[Current mission and maps](../specs/008-mission-detail-and-map-card.md)
 
-## Decisions
+## Identity and ownership
 
-1. **Modern native API.** Gigya's been validated → iRobot → AWS SigV4, without transferring
-   assumptions from earlier Roomba integrations.
-2. **A separate client from the app.** A `app_id` its own and stable generates customers
-   MQTT different. The test shown that to change only `device_id` That's bad.
-3. **Do not match transport and result.** HTTP 200, MQTT CONNACK and a PUBINK represent
-   different phases, with an order confirmed only by evidence of application or posterior
-   status.
-4. **Unknown explicit information.** A missing Shadow is an unavailable capacity, no zero
-   battery and robot disconnected. An old snapshot doesn't set currently available.
-5. **Initial periodic consultation.** The proven conduct is stated as cloud_polling. No
-   persistent stream and no event reconnection are announced.
-6. **Private and stable identities.** The account uses a CognitoId hash and each robot
-   retains its identity by re-authenticating or recharging. Names and IDs do not come out in
-   diagnoses; account data are preserved only with HA's private configuration.
+The config flow hashes the provider account ID for a stable entry
+identity. Each selected robot keeps its registry identity across
+reloading and reauthentication. Docks are associated child devices
+when supported. Credentials and the app profile belong to the private
+config entry. Diagnostics disclose model, counts, and problem
+classifications without private account or map data.
+[Integration lifecycle](../specs/003-home-assistant.md) ·
+[Security](../SECURITY.md)
 
-## Scope and evolution
-
-The local version 0.1.0 already includes Loading, Reloading and resuscitation. 2026.11.2.
-His reading was contrasted with his actual account and orders to a physical robot using an
-independent client. It was also installed on the HA Green 2026.11.2 domestic server with
-three devices, twelve entities and recharging as well to its confirmed monitoring cycle from
-ha.
-
-Prolonged renewal after natural expiry, a stream of events with version management and re-establishment are pending. See [Current SDD](../specs/003-home-assistant.md). The extension of information and events is governed by [Telemetery SDD](../specs/005-telemetry-and-problems.md).
-
-## Profiles and monitoring 0.3.0
-
-The cleanup domain doesn't know HA, Paho or the supplier's JSON keys. The application
-receives a semantic status, prepares an agenda and uses `ControlPort` to refresh with once
-or after the result. The adapter links a robot from the coordinator with that port. Import
-tests prevent domain or use cases from dependent on transport, composition and HA.
-
-The preferences are saved at options of the HA entry per robot, as semantic values. To
-restore them doesn't issue an order. The select, number and switch controls modify the next
-cleanup. The serializer omits parameters from inactive modes without deleting preferences. A
-start about a paused mission becomes an abstract and does not send up new profile.
+## Cleaning profiles and device capabilities
 
 ```mermaid
 flowchart LR
-    UI[HA Platforms] --> C[Composition and preferences]
+    UI[Home Assistant controls] --> C[Composition and preferences]
     C --> U[execute_control]
-    U --> P[Control]
-    U --> D[Cleanup dominion]
-    A[RobotControlAdapter] --> P
+    U --> P[ControlPort]
+    U --> D[Cleaning domain]
+    A[RobotControlAdapter] -.-> P
     C --> A
-    A --> MQ[MQTT and later reading]
+    A --> MQ[MQTT and confirmation reads]
 ```
 
-In text: The platforms call for composition, the case of use depends on a port and an
-adapter connects with his or her supplier. The account coordinator renews session and common
-information. Each robot's co-ordinator leaks and reuses the information for its entities. At
-the end of that period MQTT, an accepted robot's responses are preserved even if another
-computer with a same connection did not respond. If you miss all reading, HA program the
-next attempt with exponential waiting 60 a 900 seconds.
+Cleaning profiles are semantic values. The serializer sends only
+settings applicable to the selected mode. Changing a saved preference
+does not start a mission. Resuming a paused mission preserves its
+running profile.
 
-`DeviceCapabilities` It brings together tipades of cleanliness, base and maps with information sources. `DockSnapshot` It combines the equipment's status and capabilities to validate maintenance orders. The issuer serializes known orders and the application confirms their transitions. When the robot recognizes its base, Home Assistant it registers as a child device. Readings have been shown to explain `dock.known` and basic capabilities but omits manufacturing identifier `dock.id`. The child device is identified by its association with the robot and preserves a group if they replace their base. The sensors and controls share the coordinator of that robot, while maintaining their `unique_id` To associate with the child device. [Registration of children's devices Home Assistant](https://contributors.home-assistant.io/core/integrations/device-registry/#child-devices)
+`DeviceCapabilities` combines typed cleaning, docking, and map support.
+`DockSnapshot` combines capabilities and current state before a
+maintenance command. Home Assistant identifies a recognized dock through
+its robot association and keeps that child device stable. Its entities use
+the same robot coordinator and retain their registry identities.
+[Cleaning profiles](../specs/006-cleaning-profiles.md) ·
+[Device capabilities](../specs/007-device-capabilities.md)
+
+## Maps and directed cleaning
 
 `maps.py` validates associated active maps and their regions. The adapter
 rereads the map before an area command to validate the revision and

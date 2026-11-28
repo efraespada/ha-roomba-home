@@ -3,11 +3,11 @@
   "capabilities": [
     {
       "id": "native-api",
-      "title": "Native access and HTTP reads",
+      "title": "Native authentication and signed HTTP requests",
       "status": "as-built-baseline",
-      "scope": "Research client, authentication, signing, and reads without Home Assistant",
+      "scope": "Regional discovery, authentication, session renewal, and signed HTTP requests for Home Assistant and local validation",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-23",
+      "lastVerified": "2026-11-28",
       "specs": [
         "specs/001-native-api.md"
       ],
@@ -29,17 +29,18 @@
       "documentation": [
         "docs/api.md",
         "docs/development.md",
+        "docs/installation.md",
         "docs/validation.md",
         "SECURITY.md"
       ]
     },
     {
       "id": "mqtt-state",
-      "title": "Modern robot state via MQTT",
+      "title": "Robot state and live observations over MQTT",
       "status": "as-built-baseline",
-      "scope": "Bounded reads of named shadows",
+      "scope": "Bounded named-shadow reads, separately authorized position subscriptions, and correlated mission timelines",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-23",
+      "lastVerified": "2026-11-28",
       "specs": [
         "specs/002-mqtt-state.md"
       ],
@@ -48,10 +49,17 @@
         "tools/validate_mqtt.py"
       ],
       "code": [
-        "custom_components/roomba_home/core/mqtt.py"
+        "custom_components/roomba_home/core/mqtt.py",
+        "custom_components/roomba_home/core/mqtt_live.py",
+        "custom_components/roomba_home/core/live_maps.py",
+        "custom_components/roomba_home/core/live_route.py",
+        "custom_components/roomba_home/live_stream.py"
       ],
       "tests": [
-        "tests/test_mqtt.py"
+        "tests/test_mqtt.py",
+        "tests/test_live_stream.py",
+        "tests/test_live_maps.py",
+        "tests/ha/test_live_map_entities.py"
       ],
       "documentation": [
         "docs/api.md",
@@ -98,9 +106,9 @@
       "id": "home-assistant",
       "title": "Home Assistant integration and confirmed control",
       "status": "as-built-baseline",
-      "scope": "Account setup and options, per-robot entities, polling, and confirmed commands",
+      "scope": "Account configuration, per-robot and dock registry lifecycle, typed observations, and confirmed control",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-23",
+      "lastVerified": "2026-11-28",
       "specs": [
         "specs/003-home-assistant.md"
       ],
@@ -135,6 +143,7 @@
         "docs/usage.md",
         "docs/evidence/2026-11-23-home-assistant.json",
         "docs/evidence/2026-11-23-quality.json",
+        "docs/evidence/2026-11-28-active-recharge.json",
         "docs/branding.md"
       ]
     },
@@ -144,7 +153,7 @@
       "status": "proposed",
       "scope": "Typed telemetry, consumables, problem events, provider connectivity timestamps, and mission results",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-23",
+      "lastVerified": "2026-11-28",
       "specs": [
         "specs/005-telemetry-and-problems.md"
       ],
@@ -177,16 +186,17 @@
         "docs/validation.md",
         "docs/evidence/2026-11-23-telemetry.json",
         "docs/evidence/2026-11-23-telemetry-quality.json",
-        "docs/evidence/2026-11-23-temporary-zone-history.json"
+        "docs/evidence/2026-11-23-temporary-zone-history.json",
+        "docs/evidence/2026-11-28-active-recharge.json"
       ]
     },
     {
       "id": "cleaning-profiles",
-      "title": "Cleaning modes and profiles",
+      "title": "Cleaning modes and per-area profiles",
       "status": "proposed",
-      "scope": "Capability-based mode and parameter combinations, next-cleaning controls, and physical confirmation",
+      "scope": "Capability-based modes, next-cleaning settings, ordered per-area profiles, and physical confirmation",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-25",
+      "lastVerified": "2026-11-28",
       "specs": [
         "specs/006-cleaning-profiles.md"
       ],
@@ -232,7 +242,7 @@
       "status": "proposed",
       "scope": "Shared discovery, device coordination, dock actions, regions, recovery, live map position, and cleaning schedules",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-25",
+      "lastVerified": "2026-11-28",
       "specs": [
         "specs/007-device-capabilities.md"
       ],

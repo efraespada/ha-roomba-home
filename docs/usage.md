@@ -93,6 +93,24 @@ for automations. If the live timeline identifies one open room and the
 completed trip to the dock, that room keeps its verified cleaning time.
 The cleaning estimate is hidden during this charging phase.
 
+This automation creates a local notification when the robot begins charging
+in an open cleaning mission. Replace the entity ID with the binary sensor
+on your robot device.
+
+```yaml
+alias: Notify when the attic Roomba recharges mid-mission
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.attic_roomba_docked_with_active_cleaning
+    from: "off"
+    to: "on"
+actions:
+  - action: persistent_notification.create
+    data:
+      title: "Roomba charging during a mission"
+      message: "The attic Roomba is charging with its cleaning mission still open."
+```
+
 Active errors appear above the map with the Roomba code, its source, and
 its known description. For example, **Mission error** shows
 **48 · Path blocked** while the mission readout shows **Returning to dock**.

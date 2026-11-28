@@ -10,39 +10,39 @@ debt or convert unknown historic intent into a design decision.
 
 | Capability ID | Status | Scope | Primary SDD | Evidence |
 |---|---|---|---|---|
-| `native-api` | As-built baseline | Research client, authentication, signing, and reads without Home Assistant | [Native access and HTTP reads](./001-native-api.md) | 12 paths · 2026-11-23 |
-| `mqtt-state` | As-built baseline | Bounded reads of named shadows | [Modern robot state via MQTT](./002-mqtt-state.md) | 7 paths · 2026-11-23 |
+| `native-api` | As-built baseline | Regional discovery, authentication, session renewal, and signed HTTP requests for Home Assistant and local validation | [Native authentication and signed HTTP requests](./001-native-api.md) | 13 paths · 2026-11-28 |
+| `mqtt-state` | As-built baseline | Bounded named-shadow reads, separately authorized position subscriptions, and correlated mission timelines | [Robot state and live observations over MQTT](./002-mqtt-state.md) | 14 paths · 2026-11-28 |
 | `native-commands` | As-built baseline | Single native command dispatch and physical verification, including the current destination skip | [Native commands and physical validation](./004-command-validation.md) | 14 paths · 2026-11-25 |
-| `home-assistant` | As-built baseline | Account setup and options, per-robot entities, polling, and confirmed commands | [Home Assistant integration and confirmed control](./003-home-assistant.md) | 23 paths · 2026-11-23 |
-| `telemetry-and-problems` | Proposed | Typed telemetry, consumables, problem events, provider connectivity timestamps, and mission results | [Telemetry&#44; progress&#44; and problem events](./005-telemetry-and-problems.md) | 21 paths · 2026-11-23 |
-| `cleaning-profiles` | Proposed | Capability-based mode and parameter combinations, next-cleaning controls, and physical confirmation | [Cleaning modes and profiles](./006-cleaning-profiles.md) | 26 paths · 2026-11-25 |
-| `device-capabilities` | Proposed | Shared discovery, device coordination, dock actions, regions, recovery, live map position, and cleaning schedules | [Capability&#45;driven integration](./007-device-capabilities.md) | 40 paths · 2026-11-25 |
+| `home-assistant` | As-built baseline | Account configuration, per-robot and dock registry lifecycle, typed observations, and confirmed control | [Home Assistant integration and confirmed control](./003-home-assistant.md) | 24 paths · 2026-11-28 |
+| `telemetry-and-problems` | Proposed | Typed telemetry, consumables, problem events, provider connectivity timestamps, and mission results | [Telemetry&#44; progress&#44; and problem events](./005-telemetry-and-problems.md) | 22 paths · 2026-11-28 |
+| `cleaning-profiles` | Proposed | Capability-based modes, next-cleaning settings, ordered per-area profiles, and physical confirmation | [Cleaning modes and per&#45;area profiles](./006-cleaning-profiles.md) | 26 paths · 2026-11-28 |
+| `device-capabilities` | Proposed | Shared discovery, device coordination, dock actions, regions, recovery, live map position, and cleaning schedules | [Capability&#45;driven integration](./007-device-capabilities.md) | 40 paths · 2026-11-28 |
 | `mission-detail-and-map-card` | Proposed | Per-room history and cleaning scores, archived reports, live progress and route recovery, dashboard selection, and household checks | [Mission Detail and Interactive Floor Maps](./008-mission-detail-and-map-card.md) | 32 paths · 2026-11-26 |
 | `map-zone-editor` | Proposed | Floor settings, rooms, cleaning zones, restrictions and furniture, local floor backups, and settings and zone recovery | [Map and Zone Editor](./009-map-zone-editor.md) | 39 paths · 2026-11-25 |
 | `saved-cleaning-routines` | Implemented | Editing and launching supported one-robot routines and one-off cleanings with per-area profiles, order, remembered settings, estimates, and routine appearance | [Saved Cleaning Routines](./010-saved-cleaning-routines.md) | 34 paths · 2026-11-26 |
 
 ## Evidence map
 
-### `native-api` — Native access and HTTP reads
+### `native-api` — Native authentication and signed HTTP requests
 
 - Owner: ha-roomba-home maintainer
-- Last verified: 2026-11-23
+- Last verified: 2026-11-28
 - Specifications: [`specs/001-native-api.md`](./001-native-api.md)
 - Workflows: Not applicable for this capability.
 - Entrypoints: [`tools/validate_api.py`](../tools/validate_api.py) · [`tools/bootstrap_profile.py`](../tools/bootstrap_profile.py)
 - Core code: [`custom_components/roomba_home/core/client.py`](../custom_components/roomba_home/core/client.py) · [`custom_components/roomba_home/core/models.py`](../custom_components/roomba_home/core/models.py) · [`custom_components/roomba_home/core/transport.py`](../custom_components/roomba_home/core/transport.py)
 - Tests: [`tests/test_api_client.py`](../tests/test_api_client.py) · [`tests/test_transport_and_tools.py`](../tests/test_transport_and_tools.py) · [`tests/test_architecture_and_privacy.py`](../tests/test_architecture_and_privacy.py)
-- User documentation: [`docs/api.md`](../docs/api.md) · [`docs/development.md`](../docs/development.md) · [`docs/validation.md`](../docs/validation.md) · [`SECURITY.md`](../SECURITY.md)
+- User documentation: [`docs/api.md`](../docs/api.md) · [`docs/development.md`](../docs/development.md) · [`docs/installation.md`](../docs/installation.md) · [`docs/validation.md`](../docs/validation.md) · [`SECURITY.md`](../SECURITY.md)
 
-### `mqtt-state` — Modern robot state via MQTT
+### `mqtt-state` — Robot state and live observations over MQTT
 
 - Owner: ha-roomba-home maintainer
-- Last verified: 2026-11-23
+- Last verified: 2026-11-28
 - Specifications: [`specs/002-mqtt-state.md`](./002-mqtt-state.md)
 - Workflows: Not applicable for this capability.
 - Entrypoints: [`tools/validate_mqtt.py`](../tools/validate_mqtt.py)
-- Core code: [`custom_components/roomba_home/core/mqtt.py`](../custom_components/roomba_home/core/mqtt.py)
-- Tests: [`tests/test_mqtt.py`](../tests/test_mqtt.py)
+- Core code: [`custom_components/roomba_home/core/mqtt.py`](../custom_components/roomba_home/core/mqtt.py) · [`custom_components/roomba_home/core/mqtt_live.py`](../custom_components/roomba_home/core/mqtt_live.py) · [`custom_components/roomba_home/core/live_maps.py`](../custom_components/roomba_home/core/live_maps.py) · [`custom_components/roomba_home/core/live_route.py`](../custom_components/roomba_home/core/live_route.py) · [`custom_components/roomba_home/live_stream.py`](../custom_components/roomba_home/live_stream.py)
+- Tests: [`tests/test_mqtt.py`](../tests/test_mqtt.py) · [`tests/test_live_stream.py`](../tests/test_live_stream.py) · [`tests/test_live_maps.py`](../tests/test_live_maps.py) · [`tests/ha/test_live_map_entities.py`](../tests/ha/test_live_map_entities.py)
 - User documentation: [`docs/api.md`](../docs/api.md) · [`docs/architecture.md`](../docs/architecture.md) · [`docs/development.md`](../docs/development.md) · [`docs/validation.md`](../docs/validation.md)
 
 ### `native-commands` — Native commands and physical validation
@@ -59,29 +59,29 @@ debt or convert unknown historic intent into a design decision.
 ### `home-assistant` — Home Assistant integration and confirmed control
 
 - Owner: ha-roomba-home maintainer
-- Last verified: 2026-11-23
+- Last verified: 2026-11-28
 - Specifications: [`specs/003-home-assistant.md`](./003-home-assistant.md)
 - Workflows: [`.github/workflows/validate.yml`](../.github/workflows/validate.yml)
 - Entrypoints: [`custom_components/roomba_home/__init__.py`](../custom_components/roomba_home/__init__.py) · [`custom_components/roomba_home/config_flow.py`](../custom_components/roomba_home/config_flow.py)
 - Core code: [`custom_components/roomba_home/coordinator.py`](../custom_components/roomba_home/coordinator.py) · [`custom_components/roomba_home/core/state.py`](../custom_components/roomba_home/core/state.py) · [`custom_components/roomba_home/vacuum.py`](../custom_components/roomba_home/vacuum.py) · [`custom_components/roomba_home/sensor.py`](../custom_components/roomba_home/sensor.py) · [`custom_components/roomba_home/binary_sensor.py`](../custom_components/roomba_home/binary_sensor.py) · [`custom_components/roomba_home/diagnostics.py`](../custom_components/roomba_home/diagnostics.py) · [`custom_components/roomba_home/brand/icon.png`](../custom_components/roomba_home/brand/icon.png) · [`custom_components/roomba_home/brand/icon@2x.png`](../custom_components/roomba_home/brand/icon%402x.png)
 - Tests: [`tests/ha/test_flow.py`](../tests/ha/test_flow.py) · [`tests/ha/test_coordinator.py`](../tests/ha/test_coordinator.py) · [`tests/ha/test_entities.py`](../tests/ha/test_entities.py) · [`tests/test_state.py`](../tests/test_state.py)
-- User documentation: [`docs/index.md`](../docs/index.md) · [`docs/architecture.md`](../docs/architecture.md) · [`docs/validation.md`](../docs/validation.md) · [`docs/installation.md`](../docs/installation.md) · [`docs/usage.md`](../docs/usage.md) · [`docs/evidence/2026-11-23-home-assistant.json`](../docs/evidence/2026-11-23-home-assistant.json) · [`docs/evidence/2026-11-23-quality.json`](../docs/evidence/2026-11-23-quality.json) · [`docs/branding.md`](../docs/branding.md)
+- User documentation: [`docs/index.md`](../docs/index.md) · [`docs/architecture.md`](../docs/architecture.md) · [`docs/validation.md`](../docs/validation.md) · [`docs/installation.md`](../docs/installation.md) · [`docs/usage.md`](../docs/usage.md) · [`docs/evidence/2026-11-23-home-assistant.json`](../docs/evidence/2026-11-23-home-assistant.json) · [`docs/evidence/2026-11-23-quality.json`](../docs/evidence/2026-11-23-quality.json) · [`docs/evidence/2026-11-28-active-recharge.json`](../docs/evidence/2026-11-28-active-recharge.json) · [`docs/branding.md`](../docs/branding.md)
 
 ### `telemetry-and-problems` — Telemetry&#44; progress&#44; and problem events
 
 - Owner: ha-roomba-home maintainer
-- Last verified: 2026-11-23
+- Last verified: 2026-11-28
 - Specifications: [`specs/005-telemetry-and-problems.md`](./005-telemetry-and-problems.md)
 - Workflows: [`.github/workflows/validate.yml`](../.github/workflows/validate.yml)
 - Entrypoints: [`custom_components/roomba_home/sensor.py`](../custom_components/roomba_home/sensor.py) · [`custom_components/roomba_home/binary_sensor.py`](../custom_components/roomba_home/binary_sensor.py) · [`custom_components/roomba_home/event.py`](../custom_components/roomba_home/event.py)
 - Core code: [`custom_components/roomba_home/core/telemetry.py`](../custom_components/roomba_home/core/telemetry.py) · [`custom_components/roomba_home/core/problems.py`](../custom_components/roomba_home/core/problems.py) · [`custom_components/roomba_home/core/history.py`](../custom_components/roomba_home/core/history.py) · [`custom_components/roomba_home/coordinator.py`](../custom_components/roomba_home/coordinator.py) · [`custom_components/roomba_home/entity.py`](../custom_components/roomba_home/entity.py)
 - Tests: [`tests/test_telemetry.py`](../tests/test_telemetry.py) · [`tests/test_problems.py`](../tests/test_problems.py) · [`tests/test_history.py`](../tests/test_history.py) · [`tests/ha/test_dock_and_history.py`](../tests/ha/test_dock_and_history.py) · [`tests/ha/test_telemetry_entities.py`](../tests/ha/test_telemetry_entities.py)
-- User documentation: [`docs/telemetry.md`](../docs/telemetry.md) · [`docs/usage.md`](../docs/usage.md) · [`docs/architecture.md`](../docs/architecture.md) · [`docs/validation.md`](../docs/validation.md) · [`docs/evidence/2026-11-23-telemetry.json`](../docs/evidence/2026-11-23-telemetry.json) · [`docs/evidence/2026-11-23-telemetry-quality.json`](../docs/evidence/2026-11-23-telemetry-quality.json) · [`docs/evidence/2026-11-23-temporary-zone-history.json`](../docs/evidence/2026-11-23-temporary-zone-history.json)
+- User documentation: [`docs/telemetry.md`](../docs/telemetry.md) · [`docs/usage.md`](../docs/usage.md) · [`docs/architecture.md`](../docs/architecture.md) · [`docs/validation.md`](../docs/validation.md) · [`docs/evidence/2026-11-23-telemetry.json`](../docs/evidence/2026-11-23-telemetry.json) · [`docs/evidence/2026-11-23-telemetry-quality.json`](../docs/evidence/2026-11-23-telemetry-quality.json) · [`docs/evidence/2026-11-23-temporary-zone-history.json`](../docs/evidence/2026-11-23-temporary-zone-history.json) · [`docs/evidence/2026-11-28-active-recharge.json`](../docs/evidence/2026-11-28-active-recharge.json)
 
-### `cleaning-profiles` — Cleaning modes and profiles
+### `cleaning-profiles` — Cleaning modes and per&#45;area profiles
 
 - Owner: ha-roomba-home maintainer
-- Last verified: 2026-11-25
+- Last verified: 2026-11-28
 - Specifications: [`specs/006-cleaning-profiles.md`](./006-cleaning-profiles.md)
 - Workflows: Not applicable for this capability.
 - Entrypoints: [`custom_components/roomba_home/select.py`](../custom_components/roomba_home/select.py) · [`custom_components/roomba_home/number.py`](../custom_components/roomba_home/number.py) · [`custom_components/roomba_home/switch.py`](../custom_components/roomba_home/switch.py) · [`custom_components/roomba_home/button.py`](../custom_components/roomba_home/button.py)
@@ -92,7 +92,7 @@ debt or convert unknown historic intent into a design decision.
 ### `device-capabilities` — Capability&#45;driven integration
 
 - Owner: ha-roomba-home maintainer
-- Last verified: 2026-11-25
+- Last verified: 2026-11-28
 - Specifications: [`specs/007-device-capabilities.md`](./007-device-capabilities.md)
 - Workflows: Not applicable for this capability.
 - Entrypoints: [`custom_components/roomba_home/vacuum.py`](../custom_components/roomba_home/vacuum.py) · [`custom_components/roomba_home/button.py`](../custom_components/roomba_home/button.py) · [`custom_components/roomba_home/services.py`](../custom_components/roomba_home/services.py) · [`custom_components/roomba_home/services.yaml`](../custom_components/roomba_home/services.yaml)

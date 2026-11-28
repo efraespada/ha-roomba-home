@@ -1,234 +1,230 @@
-# Extended Telemetry, Progress and Robot Problems
+# Robot telemetry, progress, and problems
 
 - Status: Draft
 - Date: 2026-11-23
 - Catalog capability ID: telemetry-and-problems
-- Last verified: 2026-11-23
+- Last verified: 2026-11-28
 - Owners: ha-roomba-home maintainer
-- Scope: Telemetry, progress, consumables, and problem and mission events.
-- Related issues/PRs: Local development requested by the account owner.
+- Scope: Typed state, progress, connectivity, dock telemetry, consumables, and problem and mission events
+- Related issues/PRs: Household state and live mission validation
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
-- Open decisions blocking readiness: None for typed, verified fields.
+- Open decisions blocking readiness: Additional provider fields need verified type, units, and meaning.
 
 ## 1. Executive summary
 
-The incumbent requests all useful information available from each robot and its progress, as
-well with his or her problems being detected. Each robot preserves its HA device. The
-addition of sensors, binary sensor and an event entity per robot are added. Each parameter
-does not become a separate device
+Expose useful Roomba observations under the existing robot and dock devices.
+Publish typed sensors and local events for current state, mission history,
+supplies, connectivity, and problems. Keep original entity identities
+through updates.
 
 ## 2. Problem, current behavior, and evidence
 
-- Observed behavior: 0.1.0 only exposes vacuum, battery and service error code.
-- Intentional contract: preserve existing identities and verified physical orders.
-- Known debt and limitations: The cloud consultation can omit short transitions, with no
-  total percentage or ETA observed.
-- Unknown rationale: Not all future supplier code are available.
-- Proposed improvements: Expand tipped data, progress or problems without issuing raw
-  documents.
+- Observed behavior: The current integration projects typed robot and dock state and distinguishes live cleaning from history. A low-battery trial observed the same cleaning mission while the robot charged.
+- Intentional contract: Use only Roomba observations and confirmed physical transitions for telemetry.
+- Known debt and limitations: Polling can miss short transitions. A mission-wide coverage percentage still needs provider evidence.
+- Unknown rationale: Some provider values, including the exact meaning of `lastDisconnect`, remain unverified.
+- Proposed improvements: Add fields after establishing source, validity, and lifetime on their supported model.
 
-The catches have mission, base and adjustments with firmware. They contain statistics as
-well at least seven consumables by modern robot The catalogs and types of the official SDK
-allow them to contrast consumables names with status code of the dock. The catches and code
-extracted remains outside the repository.
+The native shadows report mission, dock, settings, firmware, and statistics.
+The signed parts service and model catalog provide consumable readings and
+names. The archived mission results provide prior measurements and errors.
+[Telemetry reference](../docs/telemetry.md) ·
+[Household errors](../docs/validation.md#household-live-coverage-and-active-errors) ·
+[Active recharge](../docs/validation.md#charging-during-the-same-cleaning-mission)
 
 ## 3. Actors, surfaces, and terminology
 
-| Actor | Surface | Necessity |
+| Actor | Surface | Result |
 | --- | --- | --- |
-| Holder | HA device | Consult information and progress |
-| Automation | Sensors and event entity | Detect problem, change and resolution |
-| Maintainer | Diagnostics | Distinguish data loss, transport and physical damage |
+| Operator | Robot and dock devices | Current state, progress, and maintenance |
+| Automation author | Sensors, binary sensors, and events | Typed observations and transitions |
+| Maintainer | Diagnostic download | Model, source health, and problem classifications |
 
-An information setting is read-only. Unknown code isn't confirmed health. A cloud reading
-doesn't prove physical presence or freshness of the robot.
+Current state describes the active robot. History describes a completed
+or ended run. The cloud receipt time and provider update time have
+separate meanings.
 
 ## 4. Goals, non-goals, and fixed invariants
 
-- TEL-01: Keep one device per robot and stable entity identities.
-- TEL-02: Expose mission, progress, dock, settings, firmware, statistics, and consumables with verified units.
-  With saved floor plans enabled, expose the last fresh route activity as an
-  enum sensor on the robot. Source the value from the direct position batch
-  and clear it when that batch expires or the mission ends.
-- TEL-03: Distinguish missing, zero, false, unsupported, and failed reads.
-- TEL-04: Emit a distinct detection, change, or resolution for each problem source.
-- TEL-05: Poll fast state separately from slow data. Optional failures leave the vacuum usable.
-- TEL-06: Keep room names, maps, mission IDs, credentials, and raw documents out of diagnostics and public evidence.
-- TEL-07: Expose Roomba's connectivity attribute timestamp.
-- TEL-08: Emit one event for each newly observed, recognized result from mission history.
+- TEL-01: The integration MUST preserve robot, dock, and entity identities.
+- TEL-02: Published readings MUST have a verified source, type, unit, and availability rule.
+- TEL-03: Projection MUST distinguish unknown, unsupported, failed, false, and zero values.
+- TEL-04: Problem events MUST distinguish detection, code change, and resolution by source.
+- TEL-05: Polling MUST separate fast state from slower telemetry and tolerate eligible partial failures.
+- TEL-06: Diagnostics and public evidence MUST omit credentials, identifiers, names, floor geometry, and raw documents.
+- TEL-07: Connectivity time MUST use the metadata of the field that supplied the connection state.
+- TEL-08: Mission history MUST emit one event for each newly observed recognized outcome.
 
-Settings writes, consumable resets, fault clearing, and cleaning controls are
-covered separately and require physical evidence.
+Settings changes, consumable resets, and physical controls have separate
+capability and confirmation contracts.
 
 ## 5. Current versus proposed product journey
 
-| Stage | Current | Enlargement |
-| --- | --- | --- |
-| Watch robot | 4 entities | Entities separated by useful and tested data |
-| Following mission | General | phase, cycle and mode with an information area or startup |
-| Review Base | Not available | Expand, complete with washing or drying. |
-| Maintenance | Not available | Use and quantity remaining per consumable |
-| Automate errors | Mission code | Added problem and events by source |
+| Surface | Current behavior |
+| --- | --- |
+| Robot | Status, charge, connectivity, and verified measurements |
+| Mission | Reported phase, mode, elapsed time, area, and history |
+| Dock | Child device, available controls, maintenance, and problem sources |
+| Automations | Entity-based triggers and local mission or problem events |
+
+Additional readings follow the same typed contract and are attached to
+their existing device.
 
 ## 6. Functional behavior and state model
 
-Fast reads use `ro-currentstate` and `rw-constatus`. Slow reads use
-`rw-settings`, `rw-software`, `ro-stats`, and `rw-schedule`. Consumables use
-the signed parts GET and the model's catalog. The active interval is 15
-seconds and the idle interval is 60 seconds. Slow data refresh every 300
-seconds and consumables every 1800 seconds. The projection declares fields,
-types, ranges, and units. Missing fields leave discovered entities registered
-with unknown values. Negative remaining counts remain unavailable.
+Fast reads use `ro-currentstate` and `rw-constatus` every 15 seconds
+while active and every 60 seconds at rest. The slower group includes
+`rw-settings`, `rw-software`, `ro-stats`, and `rw-schedule`. It refreshes
+every 300 seconds. Parts refresh every 1,800 seconds. A missing field
+leaves its existing entity unavailable. A negative remaining count is
+unavailable.
 
-Robot and dock problems are distinguished by source. Events contain the source,
-code, and classification. A missing source or disconnected robot does not
-clear a previous problem. Unknown codes retain their numeric value.
+A fresh position batch can supply the last route activity when saved
+maps are enabled. Clear that reading when the batch expires or the
+mission ends. Publish area values with their verified units. An estimated
+cleaning time requires a supported mapped plan and a verified active stage.
+[Live maps](008-mission-detail-and-map-card.md)
 
-TEL-07 MUST take the timestamp from
-`rw-constatus.metadata.reported.<field>.timestamp`. The selected field is the
-same one used for connectivity, preferring valid integer `connectedv2` and using
-a boolean `connected` as fallback. The timestamp was observed for three robots.
-Missing or invalid metadata leaves the sensor unknown. **Last cloud read**
-continues to report receipt time in Home Assistant. The connectivity update
-sensor reuses the existing shadow read. The integer `ro-currentstate.lastDisconnect`
-was observed with the same value for two devices. Its meaning still needs
-verification against a connectivity transition.
+TEL-07 uses `rw-constatus.metadata.reported.<field>.timestamp`. Prefer a
+valid integer `connectedv2`, otherwise use a valid boolean `connected`.
+Select the timestamp for that same field. Missing metadata leaves the
+timestamp unknown. **Last cloud read** records Home Assistant receipt
+time. An explicitly disconnected robot can retain a known provider
+connectivity timestamp. Keep the observed `ro-currentstate.lastDisconnect`
+field unassigned until its meaning is verified against a transition.
 
-TEL-08 MUST emit `mission_finished` when a newer result with a recognized
-outcome is observed. Its attributes include the result, modes, area, duration,
-and error code when present. The first successful read establishes a baseline.
-The entity restores its history cursor across reloads and uses the finish
-timestamp to deduplicate older or repeated reads. A failed read or a result
-with no recognized outcome leaves the previous cursor in place.
+TEL-08 emits `mission_finished` when a new recognized history result is
+available. Include mode, result, area, duration, and error fields when
+available. Establish a baseline on the first successful read. Restore
+the cursor across reloads and deduplicate by finish timestamp. An
+unrecognized result or failed read preserves the existing cursor.
 
 ## 7. User-facing configuration
 
-The existing account and selection are preserved. No need to reconfigure robots. The
-extension adds entities under current arrangements. The adjustments are presented as
-information sensors with no controls involving unvalidated textures. The user can disable
-entities from the HA registry.
+Telemetry is attached to the selected devices in the existing entry.
+Home Assistant's entity registry controls enabled and disabled entities.
+The map option enables eligible live measurements. Settings changes are
+available through the separately verified controls.
 
 ## 8. Clean Architecture design
 
-The core projects fields and classifies problems regardless of HA. The orchestral
-coordinator sources, cadences and partial faults. The platforms translate this projection
-into an entity. The event entity retains its base line between recharges and does not
-interpret supplier's document on their own.
+`core/telemetry.py` projects typed metrics. `core/problems.py` classifies
+faults and their sources. The Home Assistant coordinator owns scheduling
+and partial results. Platforms render the typed state. Event entities
+track their own baselines and cursors across reloads.
 
 ## 9. UI/UX and content contract
 
-Entity names use English. Fields with unverified meanings retain their code labels.
-Operating and diagnostic data are separated. The area is expressed as m² and no figure of
-complete or ETA. The events allow automations by entity and source of the problem.
+Use English translation keys, published units, and explicit availability.
+Expose raw numeric codes for unknown provider errors. Keep current
+alerts and historical outcomes in distinct sensors and records.
+
+- Pending: A scheduled observation or mission result is still awaited.
+- Action required: A reported problem gives a matching code and source.
+- Blocked: An unavailable prerequisite prevents a control.
+- Partial: Valid fields remain available when an optional read fails.
+- Complete: The current reading or a recognized history outcome is available.
 
 ## 10. Failure, recovery, and cleanup
 
-A status defect MQTT affects availability. A malfunction of consumables or adjustments leave
-these values unknown and retries at his next window without concealing the valid fast
-status. Session limits and expires. Rearm and download remove listeners, close jobs as in
-the initial version.
-
-Recovery from a source does not result in false resolution if the data that demonstrated
-this problem remains missing.
+A required read failure affects availability as defined by the
+coordinator. An optional failure leaves the corresponding data
+unavailable and preserves eligible fast state. Resolve a previous fault
+only after valid state for the same source confirms the change. Unloading
+removes listeners and closes owned work.
 
 ## 11. Security, permissions, and privacy
 
-No authentication destinations and credentials are added to the public catalogue. No actual
-documents, names or IDs are included in tests and guides. The events belong to local HA and
-do not send messages with mobile phones, mail or other outside destinations. The
-implementation does not cause physical malfunctions to prove them.
+Use validated Roomba data for device observations. Problem and mission
+events are local to Home Assistant. Diagnostic documentation uses reduced
+evidence and generic examples. Use synthetic responses to test failure
+codes and transitions.
 
 ## 12. Observability and operational UX
 
-Each robot has an added problem and event with source or code. The bug sensors retain the
-supplier's number. The diagnoses show quantity of metric and available sources with no
-account data. The report distinguishes actual readings and error tests with synthetic data.
+Track current faults by robot or dock source. Recognized dock entities
+use the child device while the existing robot event retains its identity.
+Expose detected, changed, and cleared states from confirmed source
+observations. Keep an unknown source from clearing an earlier warning.
 
-A recognized base MUST have its own child device event entity with basic code and
-maintenance of their consumables. The existing event of the robot MUST will preserve his or
-her identity and all its origins. A state other than a component and an explicitly
-incompatible capacity MUST will be out of its diagnosis. A valid status transition from that
-same component can solve an earlier event.
-
-The order of last cleanup MUST come from `cmd.command` from the registered mission. A known
-code is published and an entity's availability remains. The live cycle and track command are
-independent reading. The coordinates and map identifiers are excluded from historic
-telemetry.
+Use `cmd.command` for the last recorded mission command when it is
+recognized. The active cycle, live activity, and recorded outcome are
+independent observations. History errors describe the recorded mission
+and have no effect on guards for the current robot state.
 
 ## 13. Compatibility, migration, rollout, and rollback
 
-HA 2026.11.2 and SKU X185240 That's the initial range. Do not change the config entry
-version and existing unique_id versions. It installs itself about 0.1.0 with copies of
-rollback, configuration check Reinitiation and review of domestic HA entities. The first
-version's evidence retains its original quantity and date.
+Home Assistant Core 2026.11.2 and SKU X185240 were tested. Existing robot,
+dock, and entity IDs survive updates. Optional fields remain unavailable
+where Roomba lacks a matching observation. Roll back using a verified
+component release and the existing configuration entry.
+[Installation](../docs/installation.md)
 
 ## 14. Testing strategy and numeric budget
 
-| Area | Minimum new cases | Risk |
+| Area | Minimum independent cases | Coverage |
 | --- | ---: | --- |
-| Projection of telemetry and parts | 25 | Types, ranges and units with privacy or absent fields |
-| Classification and transitions of problems | 20 | Duples, unknown code and false resolution |
-| HA and Coordination | 20 | Partial availability, cadences and events |
-| Total | 65 | Other cases, additional to the existing suite |
+| Readings and parts | 25 | Types, ranges, units, and missing data |
+| Problem transitions | 20 | Scope, deduplication, and confirmed resolution |
+| Home Assistant lifecycle | 20 | Polling, partial failure, entities, and events |
+| **Total** | **65** | Independent baseline cases |
 
-100% cover of judgements and branches in the complete component; full suite, Ruff with
-Hassfest's privacy or catalogue. Reactual reading of the three robots and monitoring for
-upgrade at domestic HA. Physical malfunctions are simulated in Harness.
+The full suite requires 100% statement and branch coverage. Keep
+synthetic failure tests separate from the household validation record.
 
 ## 15. Documentation and discoverability
 
-Updating README, use and installation of an API with architecture. Add entity inventory and
-problem automation examples with generic identifiers. To register this SDD and all its
-evidence in the catalogue.
+The telemetry reference documents source fields and units. Usage gives
+examples for alerts and mission events. The installed trials record
+the visible Home Assistant state.
+[Telemetry](../docs/telemetry.md) · [Usage](../docs/usage.md) ·
+[Validation](../docs/validation.md)
 
 ## 16. Acceptance scenarios
 
-1. Updating preserves all three devices and the original twelve entities.
-2. A field absent does not become zero or miss.
-3. Progress shows an area and information start with no percentage invented.
-4. A basic problem isn't attributed to the robot's engine.
-5. To repeat the same error in ten consultations produces a single event of appearance.
-6. Switching code produces a change and explicit normal phone production.
-7. An optional defect does not invalidate the vacuum or erase a known error.
-8. Reloading preserves entity identities and does not repeat active alerts.
-9. Diagnostics and package do not contain private data of the campaign.
-10. Repeating a read does not change the connectivity timestamp. The legacy
-    boolean uses its own metadata. Explicitly disconnected robots can report
-    their last update.
-11. A late, recognized history result emits once. Reloading or reading the
-    same mission again preserves the event state and does not re-emit it.
+1. Upgrade a configured account and preserve existing robot and dock IDs.
+2. Show valid zero and false without substituting them for missing data.
+3. Show reported mission area and elapsed time. Apply the estimate only in supported stages.
+4. Preserve a dock fault's source and distinguish it from a robot fault.
+5. Emit detection once when the same fault repeats.
+6. Emit a code change and a confirmed resolution from the same source.
+7. Keep valid fast state when a slow read fails.
+8. Reload without repeating prior events or changing entity IDs.
+9. Export diagnostics with private fields omitted.
+10. Reuse unchanged provider metadata across reads and use the selected field's timestamp after fallback.
+11. Emit a late history result once and preserve its cursor across reloads.
 
 ## 17. Requirements traceability
 
-| Requirement | Expected implementation | Evidence |
+| Requirement | Component | Verification |
 | --- | --- | --- |
-| TEL-01/02 | Projection, Platforms and Device Record | Test of entity and actual installation |
-| TEL-03 | Pure Valids and Optional Sources | Type and partial failure tests |
-| TEL-04 | Clasifier and event entity | synthetic HA transitions |
-| TEL-05 | Coordinator | Controlled clocks and actual reading |
-| TEL-06 | Extent and diagnostics | Scanner and testing with lure fields |
-| TEL-07 | Metadata projection and timestamp sensor | Captures, precedence and fallback tests, and disconnected sensor test |
-| TEL-08 | Per-robot mission event | Synthetic history updates, missing outcomes, cancellation, errors, and reload |
+| TEL-01 through TEL-03 | Projection and entity platforms | [Home Assistant telemetry](../tests/ha/test_telemetry_entities.py) |
+| TEL-04 | Problem classifier and event entity | [Problem transitions](../tests/ha/test_telemetry_entities.py) |
+| TEL-05 | Coordinator | [Scheduling and failures](../tests/ha/test_coordinator.py) |
+| TEL-06 | Diagnostics and evidence | [Privacy](../tests/test_architecture_and_privacy.py) |
+| TEL-07 | Connectivity projection and timestamp sensor | [Telemetry entities](../tests/ha/test_telemetry_entities.py) |
+| TEL-08 | History projection and event cursor | [Mission events](../tests/ha/test_telemetry_entities.py) |
 
 ## 18. Implementation sequence
 
-To inventory evidence, to project fields and select problems. No robots are modified to
-create deliberate mistakes during this campaign.
+Record the authorized source and establish scope, type, units, and
+validity. Add projection and failure tests. Expose the reading through
+the existing device and verify it in the normal Home Assistant surface.
 
 ## 19. Definition of Done
 
-- [x] Inventory of data and documented entities with provenance or boundaries.
-- [x] Expand fields, consumables with problems implemented.
-- [x] Unduplicated events with maintenance between reloads, tested.
-- [x] Retirement and quality monitoring budget.
-- [ ] Controlled domestic update and well-known evidence.
+- [x] Publish typed readings with documented source, units, and availability.
+- [x] Preserve existing entities and event baselines through reloads.
+- [x] Exercise confirmed events and partial failures with synthetic data.
+- [x] Verify the telemetry and active problem surface on the household installation.
 
 ## 20. References and decisions
 
-The historic diagnosis is obtained from the last mission of his robot itself. The parser preserves `done=stuck` and the last valid code of `timeline.finEvents` with `type=error`. That track record has its own sensors and does not participate in the blocking of orders by current faults. [Evidence of an error that persists in the record](../docs/evidence/2026-11-23-schedule-dispatch.json)
-
-When detecting the end of a mission, integration looks at his or her robot's history and retries once if registration isn't shown. The retirement period of the account with a demand limit is respected. The target sensor exposes only the classification and number of known regions. [Evidence of destination and error](../docs/evidence/2026-11-23-temporary-zone-history.json)
-
-[API observed](../docs/api.md), [HA adapter](003-home-assistant.md), [SDD standard](README.md), [HA event entities](https://contributors.home-assistant.io/core/entities/event/). Standard dataset entities are chosen to provide a record and automations, with the supplier's private documents not becoming generic attributes.
-
-Per-room history follows MAP-01. [Mission detail and interactive maps](008-mission-detail-and-map-card.md)
+Recorded faults preserve the recognized outcome and last valid reported
+error in the mission timeline. The coordinator can retry once when a
+mission result appears late, subject to shared provider backoff. The
+historical target sensor exposes the kind and number of known destinations.
+[Historical fault evidence](../docs/evidence/2026-11-23-schedule-dispatch.json) ·
+[Destination evidence](../docs/evidence/2026-11-23-temporary-zone-history.json) ·
+[Home Assistant integration](003-home-assistant.md) ·
+[Mission detail](008-mission-detail-and-map-card.md)

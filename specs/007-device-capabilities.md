@@ -3,37 +3,32 @@
 - Status: Draft
 - Date: 2026-11-23
 - Catalog capability ID: device-capabilities
-- Last verified: 2026-11-27
+- Last verified: 2026-11-28
 - Owners: ha-roomba-home maintainer
-- Scope: A central discovery, robot co-ordination and advanced base with clear regions.
-- Related issues/PRs: Extension requested by the incumbent and local development.
+- Scope: Capability discovery, per-robot state, map controls, and verified dock operations.
+- Related issues/PRs: Android capability comparison and household integration validation.
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
-- Open decisions blocking readiness: Automatic recharge and resume, the effect of every regional setting, physical automatic emptying at the selected frequency, and the device setup and removal contracts.
+- Open decisions blocking readiness: Physical completion after automatic recharge, the effect of every regional setting, automatic emptying at the configured threshold, and device setup and removal contracts.
 
 ## 1. Executive summary
 
-Integration MUST adapt to the actual capabilities of each device, including vacuuming,
-mopping and maintenance. A list of models isn't good enough. Each operational function
-requires evidence of its detection, contract and presconditions. The Unknown MUST be
-preserved as unknown.
+The integration adapts vacuuming, mopping, maintenance, and map controls
+to verified device capabilities. Each operation requires a supported
+provider contract and current preconditions. Unknown support remains
+unknown in the UI and guards.
 
 ## 2. Problem, current behavior, and evidence
 
-- Observed behavior: information and consultation shared by account; filter X185240,
-  advanced telemetry with monitoring profiles per chap undergoing development.
-- Intentional contract: existing IDs, privacy and strict validation with an absence of a blind
-  reattempt to move.
-- Known debt and limitations: complete central model missing, device co-ordines with basic
-  orders or regional monitoring as well at explicit recovery backoff.
-- Unknown rationale: The modern contract for the previous generation association isn't
-  presumed.
-- Proposed improvements: extend from tested responses and SDK to preserve an evidence
-  matrix.
+- Observed behavior: The account coordinator reads associated Max 700 Combo robots and their recognized docks. A two-pass run reported an active recharge under the same mission identity.
+- Intentional contract: Preserve existing identifiers, scope every operation, and confirm it from fresh provider evidence.
+- Known debt and limitations: Some device behaviors require additional physical verification under representative settings.
+- Unknown rationale: Other models and firmware may expose different capability values and state transitions.
+- Proposed improvements: Extend the verified capability matrix with physical or protocol evidence for each supported operation.
 
-The account contains three X185240 and an association R981040. Eight modern shadows, pieces
-and catalogue have been read. The authorized robot has an active map with 6 rooms and a
-fleeting region. The SDK distinguishes command codes, regions and basic capabilities. To get
-to know an enum doesn't prove availability in all models.
+The observed inventory included three X185240 robots and a legacy model.
+Signed reads confirmed the modern shadow inventory, parts data, and map
+destinations. Provider capability flags determine which controls apply.
+[Active recharge](../docs/validation.md#charging-during-the-same-cleaning-mission)
 
 The Android device review confirmed the following Max 700 Combo surfaces.
 The comparison uses signed robot data and the manufacturer's public
@@ -56,31 +51,25 @@ model catalogs where applicable.
 
 ## 3. Actors, surfaces, and terminology
 
-| Actor | Surface | Necessity |
+| Actor | Surface | Result |
 | --- | --- | --- |
-| Holder | HA device | Reliable and compatible useful controls |
-| Automation | Standard or registered actions | Validated parameters, misinterpretation |
-| Maintainer | Matrix, SDDs and Suite & Evidence | Differentiate implemented, inferred and tested with an outstanding |
+| Operator | Robot and dock devices | Available settings and controls |
+| Automation author | Standard entities and typed actions | Validated parameters and confirmed state |
+| Maintainer | Capability matrix and physical evidence | Observed support, implemented controls, and pending tests |
 
-Reported capacity, verified contract and physical validation are different facts. Absence,
-non-compatible and unknown but temporarily unavailable MUST to be represented without
-becoming an indiscriminately false or zero.
+Reported support, a verified command contract, and physical validation
+have distinct meanings. Preserve the difference between unsupported,
+unavailable, unknown, and a verified false or zero.
 
 ## 4. Goals, non-goals, and fixed invariants
 
-- CAP-01: centralizing cleaning skills, preferences and maps as well with regions.
-- CAP-02: To derive and supported_features of evidence and avoid incompatible operational
-  controls.
-- CAP-03: share session / API and coordinate status with device availability without
-  multiplying unnecessary applications.
-- CAP-04: To implement verified operations at the base, to locate and power with appropriate
-  HA interfaces.
-- CAP-05: reconcilate status and after-command settings, recoup readings with an exponential
-  backoff.
-- CAP-06: To preserve IDs and functionalities, document unknown contracts with information
-  necessary to complete them.
-- CAP-07: achieve 100% cover of judgments and branches with valid domestic HA for authorized
-  goal.
+- CAP-01: Project cleaning, dock, map, and region capabilities from verified device data.
+- CAP-02: Derive Home Assistant supported features and controls from those capabilities.
+- CAP-03: Share the account session and scheduling while preserving per-robot availability.
+- CAP-04: Expose verified dock operations, locate, and reboot through their supported Home Assistant controls.
+- CAP-05: Verify operation results and respect retry backoff for shared reads.
+- CAP-06: Preserve registry identities and record verified and pending provider contracts.
+- CAP-07: Maintain 100% statement and branch coverage and test supported operations against authorized hardware.
 - CAP-08: Validate a complete mission targeting a saved cleaning zone.
 - CAP-09: Expose the floor plan, robot position, heading, path, and verified live progress from Roomba.
 - CAP-10: Expose voice volume and child and pet lock as verified robot configuration controls.
@@ -162,29 +151,28 @@ becoming an indiscriminately false or zero.
   panel from the reminder. Keep dismissal local to the card view and
   hide reminders while signed part data are unavailable.
 
-No endpoints, maps and empty states are invented with HA entities or capabilities. No
-physical errors are induced and no maps, accounts or data beyond the test have been
-modified. No other robot is controlled during the movement campaign.
+Use recorded provider contracts for endpoints and device capabilities.
+Scope physical trials and temporary edits to the authorized robot and
+map. Preserve existing data and use synthetic fixtures for fault cases.
 
 ## 5. Current versus proposed product journey
 
-| Stage | Current | Proposal |
-| --- | --- | --- |
-| Discover | Filter by SKU | Central model with provenance by capacity |
-| Configure | Profiles for next cleaning | Readily admitted additional settings and functions |
-| Clean Stations | Just map research | Selection and standard actions by verified regions |
-| Operating Base | Sensors | Retirement, washing and drying actions verified |
-| Loose Connection | Shared consultation | Availability by device and secure recovery |
+| Stage | Current behavior |
+| --- | --- |
+| Discover | Select supported robots and derive controls from typed provider capabilities |
+| Configure | Choose next-cleaning preferences and supported persistent settings |
+| Clean areas | Review destinations against the active floor revision |
+| Use the dock | Inspect its status and run supported maintenance operations |
+| Recover | Preserve per-device availability and respect scheduled read backoff |
 
 ## 6. Functional behavior and state model
 
-The central model MUST preserves typed and unknown values. Combines association, chap.
-digiCap and shadows with documented earlier catalogues A robot flag does not replace the
-presence and capacity of its base.
+The capability model MUST preserve typed and unknown values. It combines
+association data, `cap`, `digiCap`, and verified shadow fields. Confirm
+dock presence and functions independently of robot-level capability flags.
 
-The vacuum preserves standard HA states. The start, pause and stop functions are only
-advertised where verifiable support exists. Batteries, diagnostics and details are specific
-entities. The actions already covered by vacuum do not double as buttons.
+The vacuum uses the standard Home Assistant states and supported feature
+flags. Battery, diagnostics, and typed readings have their own entities.
 
 Use the selected robot's map and revision to validate each scheduled
 destination. Read the current household and a single editable group
@@ -227,15 +215,16 @@ to the action. The backend rejects stale reviews before publishing.
 
 ## 7. User-facing configuration
 
-Keep entry for account, selection of robots and existing preferences. The options come from
-the central model. Uncover an optional dataset does not remove the entity found and will
-have a built-up value. Retirement checks are currently unavailable and cannot produce an
-order. The user can disable diagnostic data from the HA registry.
+Keep the account entry, robot selection, and valid preferences. Use the
+central capability model to derive controls. Preserve an existing entity
+when an optional source goes missing and make its value unavailable.
+Diagnostic entities can be disabled in the Home Assistant registry.
 
-The preset moisture and SmartScrub MUST appear only when the robot announces its capacity
-and publishes a valid value. The script should use the same robot block as his mission
-orders and be confirmed with `rw-settings.state.reported`. It's limited to a field of the
-robot at rest. The next cleanup preferences are saved in HA's configuration.
+Persistent moisture and SmartScrub controls MUST require supported
+capability and a valid reported value. Serialize each write with the
+robot's operations and confirm it through `rw-settings.state.reported`.
+Validate that the robot is idle before writing a field. Store next-cleaning
+preferences independently in Home Assistant.
 
 Voice volume accepts integers from 0 to 100. Child and pet lock accepts a
 boolean and controls the robot's physical buttons. Discover both controls from
@@ -322,110 +311,106 @@ robot.
 
 | State | Main text or information | Next action |
 | --- | --- | --- |
-| Prepared | Mode and options allowed; available rooms | Start |
-| Outstanding | Waiting for robot status or base | Wait |
-| Not available | Loading lost and conserved preferences | Check Connection |
-| Partial | Unspotted map and area monitoring currently unverified | Consult capacity matrix |
-| Failed | Unconfirmed order without automatic forwarding | Refresh before repeat |
-| Completed | Reported final status and updated sources | Consult mission or maintenance |
+| Prepared | Supported profile and verified destinations | Review or start |
+| Pending | Waiting for robot or dock confirmation | Inspect reported state |
+| Unavailable | A required observation is missing | Check connectivity |
+| Partial | Some optional device data is unavailable | Inspect source availability |
+| Unconfirmed | The command is awaiting evidence or timed out | Check state before retrying |
+| Complete | Roomba reported the expected result | Review mission or maintenance details |
 
-Entity labels use English. Stable automation options and explicit state text support the standard UI. Errors distinguish incompatibility, authentication and demand limits.
+Entity names use English translation keys. Preserve stable automation
+values and accessible status text. Distinguish unsupported settings,
+authentication failures, and rate limits.
 
 ## 10. Failure, recovery, and cleanup
 
-The idempowerful PET and state readings allow recovery with an exponential clamour. A
-Retry-After supplier's MUST respect. Rejected credentials require reauth. The textures or
-movements with unconfirmed result are not automatically reworked. The politics does not turn
-a bug from an optional robot or source into one of the other. At the end of a shared
-connection MQTT, preserve accepted responses. The last reading robot mark only advances with
-an accepted quick response to that device. A manual state refresher respects the same
-recovery time as a scheduled consultation. To retain the last list of regions after a
-decision to consult. The orders directed MUST validate the destination with a new reading of
-its map. A valid empty response replaces the previous list.
+Retry eligible reads with bounded backoff and respect provider
+`Retry-After`. Reauthenticate when credentials are rejected. Preserve
+accepted data from other robots or sources after a partial failure.
+Advance a device's last cloud read only after its fast state is accepted.
+Scheduled and manual refreshes share the same read backoff. Keep known
+map associations after a failed read, and replace them after a valid
+response, including an empty list. Revalidate the destination against a
+fresh map before a directed write.
 
-Before starting or resuming mopping and to check that an explicit absence of mop o Deposit
-and base malfunctions, washing or filling. To apply the same check if one of these selected
-regions has a mode with mopping. The absence of telemetry from these components remains as
-unknown. Check the robot's active error and explicit absence of a powder tank before vacuum.
-The explicit updates of the dock have disabled the start of manual operations up to its next
-compatible status.
+Apply the supported mop readiness checks to every wet destination. Use
+reported pad, reservoir, dock, and preparation states to identify a
+blocker. Preserve missing observations as unknown. Check active errors
+and a reported missing dust bin for vacuum. Recheck dock state before
+each manual operation. Report an unconfirmed write without republishing.
 
-Loan listeners, timings and paired jobs are removed. No yarn MQTT is abandoned. The physical
-tests have time and final cleanliness independent of the agent's response times.
+Unload closes subscriptions, timers, and owned tasks. Physical tests use
+the authorized device and record the result independently of test timing.
 
 ## 11. Security, permissions, and privacy
 
-Temporary credentials and catches are preserved outside the repository. No payloads, names
-and IDs are registered. The action schemes accept no arbitrary topics or JSON. RULES from
-the supplier, size and time of its signatures have their boundaries. The operations are
-restricted to the association and device chosen as well with verified capabilities.
+Keep temporary credentials and captures outside the repository. Publish
+reduced evidence without private names or identifiers. Validate inputs
+through typed action schemas. Scope a request to the selected associated
+robot, authorized entity, and current capabilities.
 
 ## 12. Observability and operational UX
 
-Keep code by source and events without duplication. Show availability by source and final
-order result. To register sound evidence with mode, operation and relative times as well at
-later stage. Do not complete an inference's information about them A base that washed up the
-mop doesn't prove mopping ground. The shortcut and load failure phases are observable even
-with the mission code at zero. To preserve and compare the set of conditions for preparing
-`condNotReady` while issuing changes, including its explicit resolution. Keep phase and
-cycle separately. If the robot reports load phase during a cleaning cycle, show that his or
-her mission remains active at the dock and maintain its update cadency. History statistics
-preserve activity fields, pauses and recharges separately as well with mode measures when
-they appear in the response. Compute the next weekly or one-time start using
+Keep problem codes by source and deduplicate event transitions. Use a
+matching reported state to confirm an operation. A wash record proves that
+the dock washed the mop. A mopping observation verifies activity on the
+floor. Track the reported `condNotReady` set and its explicit resolution.
+Preserve phase and cycle independently. When Roomba reports charging
+with an open cleaning cycle, keep the mission active and display the
+charging phase. Retain verified room cleaning time up to dock departure.
+Use signed history for pauses, recharges, and mode-specific measurements.
+Compute the next weekly or one-time start using
 the robot's reported IANA time zone and complete enabled-schedule data.
 A one-time prediction requires a provider creation timestamp and a known
 date. Keep the next start unknown if the earliest local time is ambiguous.
-The history
-and cloud schedules display robot availability when the capacity is confirmed. A valid empty
-result retains a zero count. A failed reading leaves an unknown count and preserves the main
-status of his robot. The consumer responses require the supplier's list. The estimate action
-will have an available map and project duration per room with supported profile. The prior
-calculation is not used as an outstanding time of the active mission.
+History and schedule counts require accepted provider responses. A valid
+empty list produces zero. A failed read leaves the count unknown and
+preserves the independent robot state. The estimate action uses the
+current map and supported room profile. The live countdown also requires
+an eligible stage and verified elapsed work.
 
 ## 13. Compatibility, migration, rollout, and rollback
 
-Keep HA 2026.11.2 and unique_id existing. The new device categories only extend their
-support if your protocol is checked and the earlier robot isn't re-tagged as an account
-share supported. To register the recognised base as a child device with an identity derived
-from his robot, whose controls and diagnoses have their entity identifier while changing
-group. The domestic display requires an exclusive backup of the component, configuration
-check and re-start. Keep previous rollback and local icons revised.
+The verified environment uses Home Assistant Core 2026.11.2. Preserve
+existing entity IDs and the dock association when changing device
+grouping. Verify new categories against their own provider contract.
+Run the configuration check and keep the previous release available for
+rollback when installing a change.
 
 ## 14. Testing strategy and numeric budget
 
 | Area | Minimum new cases | Risk |
 | --- | ---: | --- |
-| Unit capabilities and categories | 20 | Expand, partial with vacuum or sink |
-| Based and verified actions | 15 | Presence, compatibility and exclusion |
-| Regions, maps and schemes | 15 | Other users, version and multiple rooms |
+| Capability projection | 20 | Supported, partial, and unknown robot or dock capabilities |
+| Dock and robot actions | 15 | Presence, readiness, and matching confirmation |
+| Regions, maps, and schedules | 15 | Authorization, revisions, and multiple destinations |
 | Cleaning a map point | 12 | Robot modes, mop readiness, map boundaries, restrictions, and confirmation |
-| Coordination and recovery | 15 | Isolated sources, backoff and boundaries. |
-| Compatibility and presentation HA | 10 | Ids, Services and Platforms |
-| Total | 87 | Additional to the profile suite |
+| Coordination and recovery | 15 | Source isolation, backoff, and scoped results |
+| Home Assistant presentation | 10 | Entity IDs, actions, and translation |
+| **Total** | **87** | Independent baseline cases |
 
-Suite complete with 100% of sentences and branches, without artificial omissions; Ruff. The
-domestic evidence MUST check controls, states and recovery. Synthetic cases are not
-presented as physically certified hardware.
+Run the complete suite with 100% statement and branch coverage. Keep
+synthetic and physical evidence distinct. Physical verification records
+the visible control, signed result, and any recovery required.
 
 ## 15. Documentation and discoverability
 
-To update the matrix by models detected, entities and actions with endpoints or contracts
-that have evidence. The final report MUST contains an overview, matrix and entity / actions
-with API operations.
+Update the capability matrix and describe each entity or action beside
+its verified provider source and tests.
+[Capabilities](../docs/capabilities.md) · [API](../docs/api.md) · [Usage](../docs/usage.md)
 
 ## 16. Acceptance scenarios
 
-1. A vacuum cleaner with no capacity to mopping does not create moisture controls or mop.
-2. Partial information remains unknown and never enabling an invalid order.
-3. A combination exposes verified modes and combinations with their standard HA states.
-4. A missing base does not create washing, drying or emptying buttons.
-5. The regions sent belong to the interactive target's map and version.
-6. A temporary failure respects backoff and keeps the status of other robots isolated.
-7. The term of office renews the shared sitting and an opposition to access calls for
-   Reauth.
-8. A uncertain writing does not double to try and achieve the expected status.
-9. Rearms and updates preserve identities or preferences.
-10. HA domestic sample icon, controls and final states tested target.
+1. A vacuum-only capability supplies vacuum controls for the robot.
+2. Unknown capabilities remain unavailable and cannot authorize a write.
+3. A combination robot exposes its verified cleaning modes and standard states.
+4. Require recognized dock support for emptying, washing, and drying controls.
+5. Scope region commands to the reviewed map and revision.
+6. Respect backoff after a temporary failure and preserve state for other robots.
+7. Renew the shared session at its margin and request reauthentication after rejected credentials.
+8. Report uncertain writes without automatic redispatch.
+9. Preserve entity identities and settings through reload and upgrade.
+10. Verify the icon, normal controls, and reported state on the authorized installation.
 11. Select a saved zone, verify reported cleaned area, and confirm the
     exact zone and outcome in mission history.
 12. The floor plan uses the robot's current map version. A fresh mission position
@@ -509,12 +494,12 @@ with API operations.
 
 | Requirement | Surface | Evidence required |
 | --- | --- | --- |
-| CAP-01/02 | Central model and descriptions | Responses, types and cases by category with negative |
-| CAP-03 | Composition and coordinators | Isolation, single session and demand count |
-| CAP-04 | Vacuum and registered shares | SDK contracts / actual catches, schemes and tests |
-| CAP-05 | Reconciliation and recovery | Control clocks, malfunctions and subsequent reading |
-| CAP-06 | Registration and documentation | Before and after IDs with boundaries |
-| CAP-07 | Suite and Deployment | Coverage 100%, checks and domestic evidence |
+| CAP-01/02 | Capability projection and entities | Supported, unsupported, and unavailable values |
+| CAP-03 | Account and robot coordinators | Session reuse, isolation, and request counts |
+| CAP-04 | Vacuum and dock actions | Typed contracts and physical verification |
+| CAP-05 | Confirmation and recovery | Controlled clocks, failure, and follow-up reads |
+| CAP-06 | Registry and documentation | Stable IDs across reload and update |
+| CAP-07 | Validation and deployment | Full coverage, repository checks, and household evidence |
 | CAP-08 | Saved-zone cleaning | Physical run with the exact `zid`, history result, and return. [Validation](../docs/validation.md#immediate-saved-zone-selection-in-0250) |
 | CAP-09 | Native map image, room, live movement, obstacles, coverage, and estimated time | [Mission and floor card specification](008-mission-detail-and-map-card.md) and [physical validation](../docs/validation.md#continuous-position-and-cleaning-coverage) |
 | CAP-10 | Voice volume number and child and pet lock switch | [Native shadow payload](../docs/api.md#voice-volume-and-child-and-pet-lock), [Home Assistant service tests](../tests/ha/test_cleaning_controls.py), and [robot validation](../docs/validation.md#robot-configuration-controls) |
@@ -572,29 +557,37 @@ obstacles. A mission-wide percentage still requires a provider denominator.
 [Live progress evidence](../docs/evidence/2026-11-24-live-progress.json) ·
 [Coverage and obstacle validation](../docs/validation.md#live-coverage-reconstruction)
 
-The targeted vacuuming, pause and resumption were observed in the authorized robot with type rid. The probes with 512 about a region remained at the dock. The complete with 512 phase of vacuuming and the test was cancelled before stage II. Following maintenance, the domestic server was updated to 0.3.0. The icon was checked, and the vacuuming tiered, mopping with resumption and manual emptying without error. A second test confirmed the start, pause and cancellation while applying for two rooms with a same map on another robot. The room and applied power require more detailed telemetry. [Domestic Validation](../docs/validation.md#upgrade-and-timed-cleaning-with-030)
+Early household trials verified targeted vacuuming, pause, resume,
+cancel, and manual emptying. One early sequential attempt ended before
+its second phase. A later trial verified both physical phases and their
+matching history under the same mission.
+[Initial household validation](../docs/validation.md#upgrade-and-timed-cleaning-with-030) ·
+[Directed sequence](../docs/validation.md#directed-vacuum-then-mop)
 
-The time actions of 0.4.0 have been checked at home with a timings disabled. The service confirmed day and hour, while keeping an order. The list after retirement returned to the starting hours. [Evidence of schedules](../docs/evidence/2026-11-23-schedule-writes.json)
+The 0.4.0 household schedule trial used a disabled test schedule. A
+read-back confirmed its day, time, and order. Removing it restored the
+original schedule list. [Schedule evidence](../docs/evidence/2026-11-23-schedule-writes.json)
 
 ## 18. Implementation sequence
 
-To conduct a repository and evidence audit, to centralise skills with regional or base
-contracts but also as co-ordinator by device.
+Confirm the provider capability, preconditions, and result for a new
+operation. Add the typed projection and adapter tests. Verify the normal
+Home Assistant control and update the physical evidence.
 
 ## 19. Definition of Done
 
-- [x] Central discovery of capabilities with verified sources.
-- [x] Unit co-ordination with shared session and tied recovery.
-- [ ] Additional verifiable operations implemented using HA interfaces.
-- [ ] Reported regions and maps where the contract is known.
-- [x] Coverage 100%, budget and quality of the code checked.
-- [ ] complete documentation, matrix and evidence requirements.
-- [x] Home update, main controls and proven icon.
-- [x] Rearm of entrance 0.3.0 checked onto the domestic server.
-- [ ] Final report with the seven deliverables and boundaries without speculative conduct.
+- [x] Project robot and dock capabilities from verified sources.
+- [x] Share the account session and preserve per-device recovery and availability.
+- [x] Expose verified map targets and controls in Home Assistant.
+- [x] Run the full coverage, privacy, and specification checks.
+- [x] Record household installation and tested device behavior.
+- [ ] Complete the physical firmware and setup scenarios listed in readiness.
 
 ## 20. References and decisions
 
-[Standard SDD](README.md), [profiles](006-cleaning-profiles.md), [capacity matrix](../docs/capabilities.md), [API](../docs/api.md), [HA vacuum](https://contributors.home-assistant.io/core/entities/vacuum/). It's progressively expanded from verifiable evidence and missing contracts are explain without quietly reducing the target to an existing code.
+Add capabilities when their source, guards, and result have been verified.
+The matrix records current support and the physical cases still open.
+[Profiles](006-cleaning-profiles.md) · [Capabilities](../docs/capabilities.md) ·
+[API](../docs/api.md) · [Home Assistant vacuum](https://contributors.home-assistant.io/core/entities/vacuum/)
 
 Live progress, saved zones, automatic resume, and map selection follow MAP-02 through MAP-04. [Mission detail and interactive maps](008-mission-detail-and-map-card.md)

@@ -93,6 +93,8 @@ isolated rollback, 0.1.0 restored the original twelve entities. Reinstalling
 | 0.85.0 | Core configuration check and restart passed. The installed card verified that local route recording starts off and can be enabled and disabled for the selected robot. [Validation](validation.md#local-route-recording-replay) |
 | 0.86.0 | Core configuration check and restart passed. The installed card retained one saved route with recording off. The signed 3.9 m² vacuum report still showed the native route and coverage controls. [Validation](validation.md#household-vacuum-route-after-clearing-error-48) |
 | 0.86.1 | Core configuration check and restart passed. The installed card showed all three robots and retained two local records with recording off. A physical mop-only return stayed pending through the dock wash and was confirmed at 338 seconds. [Validation](validation.md#physical-confirmation-on-0861) |
+| 0.104.4 | The installed card recovered the same running mission after a restart. Its corrected two-pass countdown matched Roomba Home. [Validation](validation.md#earlier-room-visits-during-a-two-pass-clean) |
+| 0.104.5 | Core configuration check and restart passed during a recharge. The card recovered the same open mission and kept 115:56 of room cleaning time across two reads. [Validation](validation.md#charging-during-the-same-cleaning-mission) |
 
 ## Troubleshooting
 
