@@ -3,7 +3,7 @@ import json
 from collections import deque
 from copy import deepcopy
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qs
 
@@ -113,6 +113,34 @@ async def test_robot_serial_number_uses_signed_associated_asset_lookup():
     with pytest.raises(ProtocolError, match="associated robot"):
         await api.robot_serial_number("unknown-fixture")
     assert len(http.calls) == 4
+
+
+@pytest.mark.parametrize(
+    ("registration", "expected"),
+    [
+        (1709164800, date(2024, 2, 29)),
+        (1709251199, date(2024, 2, 29)),
+        (None, None),
+        (False, None),
+        (0, None),
+        (-1, None),
+        (1709164800000, None),
+        (1709164800.0, None),
+        ("1709164800", None),
+    ],
+)
+async def test_robot_asset_projects_only_the_utc_activation_day(registration, expected):
+    payload = {
+        "RobotID": "robot-fixture",
+        "SerialNumber": "FIXTURE123",
+        "min_utc_reg_date": registration,
+    }
+    http = FakeHttp(login_responses() + [HttpResponse(200, payload)])
+    asset = await client(http).robot_asset("robot-fixture")
+    assert asset.serial_number == "FIXTURE123"
+    assert asset.activation_date == expected
+    assert len(http.calls) == 4
+    assert "FIXTURE123" not in repr(asset)
 
 
 @pytest.mark.parametrize(

@@ -2,7 +2,7 @@
 
 from copy import deepcopy
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from urllib.parse import unquote, urlsplit
 from uuid import uuid4
@@ -54,6 +54,14 @@ class LoginDetails:
 
     def __repr__(self) -> str:
         return "LoginDetails(<redacted>)"
+
+
+@dataclass(frozen=True, repr=False)
+class RobotAsset:
+    """Private asset metadata for a verified robot association."""
+
+    serial_number: str
+    activation_date: date | None
 
 
 @dataclass(frozen=True, repr=False)

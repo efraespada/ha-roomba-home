@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.90.0
+
+- Show the robot activation date from Roomba's signed asset response in
+  each robot's diagnostics. The existing asset lookup also supplies the
+  serial number, so both values use the same refresh.
+
 ## 0.89.0
 
 - Keep the robot's battery, activity, errors, and compatible controls

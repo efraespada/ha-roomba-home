@@ -114,6 +114,9 @@
       "software_updated_at": {
         "name": "Robot firmware last updated"
       },
+      "activation_date": {
+        "name": "Robot activation date"
+      },
       "controller_firmware": {
         "name": "Controller firmware"
       },
