@@ -13,6 +13,37 @@ The tests compare the floor plan and robot overview payloads, check that
 unavailable counters and dock parts with missing capabilities are hidden,
 and verify the card opens Maintenance and dismisses a single reminder.
 
+On the household installation of 0.100.0, the robot's card showed zero
+combo missions remaining. The shortcut opened the matching robot's
+Maintenance panel with the same reading and 100% usage. Dismissing the
+roller reminder left the separate washing-system reminder on another robot
+visible. Reloading restored the roller reminder. The screenshot shows
+only the roller reminder and its dismiss control.
+[Installed reminder](screenshots/roomba-maintenance-reminder.jpg)
+
+## Live positions with Android in the background
+
+The installed 0.100.0 card started a one-off vacuum-only mission for one
+Max 700 Combo room. Home Assistant showed cleaning and travel paths,
+estimated vacuum coverage, and 2.97 m² of reported cleaning at one sampled
+point. Five distinct readings of **Last live position update** covered
+130 seconds from the first to the last provider timestamp. The last
+reading was visible 167 seconds after submitting the start, before the
+return request. The sampled interval exceeded two 45-second renewal intervals.
+
+The robot was charging on the next check, 129 seconds after the return
+request. Its signed report recorded a user-ended four-minute mission,
+4.18 m² overall, and 2.97 m² in the vacuum breakdown. The original saved
+floor was still displayed. All three household robots were at their docks
+at the end of the check.
+
+The Android launcher stayed in the foreground. Proxyman observed no
+requests from Android to the signed map host during the sampled mission
+and return request. Home Assistant continued receiving positions with the
+native app in the background. The spot checks cover stream availability
+across the renewal intervals. Native live coverage polygons remain
+unverified.
+
 ## Side-by-side live mopping
 
 The installed 0.86.1 card and Android displayed the same Max 700 Combo
@@ -47,8 +78,8 @@ The same-mission comparison supports renewing the map announcement.
 It leaves open whether Android also resumes other connection activity
 that contributes to the recovery. The new coordinator tests
 verify the renewal schedule, rate limit handling, and mission and topic
-scope. The updated installation still needs a physical standalone run
-with Android kept in the background.
+scope. A later household vacuum run verified positions with Android in
+the background. [Standalone vacuum trial](#live-positions-with-android-in-the-background)
 [Anonymized paired evidence](evidence/2026-11-27-paired-live-mopping.json) ·
 [Installed live legend](screenshots/roomba-live-mopping.jpg)
 

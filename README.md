@@ -191,6 +191,9 @@ disconnects and reconnects. [Robot settings](docs/usage.md#robot-settings)
 
 Parts at their service limit appear as reminders on the robot's card.
 Select a reminder to open **Maintenance**, or dismiss it for this card view.
+
+![Roller mop reminder and dismissal on the installed Home Assistant card](docs/screenshots/roomba-maintenance-reminder.jpg)
+
 Open **Maintenance** to check a part's usage, remaining time, and care
 instructions. [Maintenance and parts](docs/usage.md#maintenance-and-replacement-parts)
 
