@@ -59,6 +59,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-maintenance-reset.jpg": (
         "c2cc136586b003f95ed554ae0c7f3d99faf5f4902af5f1bd22c836338c8709fc"
     ),
+    "docs/screenshots/roomba-maintenance-reminder.jpg": (
+        "6adcb00a7c173af32654ddf6407be8292c14a4a82747ce102529183fedec1c10"
+    ),
     "docs/screenshots/roomba-part-guidance.jpg": (
         "1a2b642c1e246ef168409ca74830706c8ead7bfa840f3a4b69d1f35769f2245c"
     ),

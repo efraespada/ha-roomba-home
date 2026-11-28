@@ -88,16 +88,27 @@ During cleaning, Home Assistant saw the area increase without receiving
 positions. A later side-by-side run with the restored Proxyman capture
 showed both live overlays and associated the position interruptions with
 the absence of repeated native map announcements. The integration now
-renews its announcement on a bounded cadence. Verify that renewal on a
-household run with the Android app in the background throughout.
+renews its announcement on a bounded cadence. On 0.100.0 the household
+vacuum run supplied new positions across two renewal intervals with
+Android in the background throughout.
 [Household vacuum trial](validation.md#household-vacuum-route-after-clearing-error-48) ·
 [Household mop-only trials](validation.md#household-mop-only-route-and-return) ·
-[Side-by-side live mopping](validation.md#side-by-side-live-mopping)
+[Side-by-side live mopping](validation.md#side-by-side-live-mopping) ·
+[Standalone vacuum trial](validation.md#live-positions-with-android-in-the-background)
 
 When the provider omits the exact base revision, an existing verified
 backup for that robot can supply the saved floor. The card identifies
 that source and requires the same revision as the saved route.
 [Recording controls](usage.md#local-route-recording)
+
+## Guided floor replacement
+
+The Android map editor offers **Delete and create a new map** under its
+help for incomplete maps. Home Assistant already supports reviewed floor
+removal and starting a mapping run separately. Verify the app's combined
+flow on a disposable floor to establish the order of operations, behavior
+after a failed start, and what happens to saved routine destinations.
+[Existing mapping and removal verification](validation.md#mapping-and-floor-removal)
 
 ## Physical automatic dock emptying
 
