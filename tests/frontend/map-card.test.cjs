@@ -256,6 +256,7 @@ test("maintenance displays signed usage, native hours and part guidance", async 
   assert.equal(meter["aria-label"], "Filter usage");
   const guidance = filter.querySelector("details");
   assert.equal(guidance.querySelector("summary").textContent, "About this part");
+  assert.equal(guidance.querySelector("summary")["aria-label"], "About this part (Filter)");
   assert.equal(guidance.querySelector("p").textContent, "The filter traps fine debris.");
   assert.equal(filter.querySelector("a").href, guide);
   assert.equal(roller.querySelector("meter").value, 100);

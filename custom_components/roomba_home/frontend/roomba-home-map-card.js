@@ -2127,9 +2127,10 @@ class RoombaHomeMapCard extends HTMLElement {
         const unit = MAINTENANCE_UNITS[part.count_type];
         const remaining = part.remaining == null || !unit ? null : `${part.remaining} ${unit}`;
         const hours = part.count_type === "minutes" && part.remaining >= 60;
+        const remainingCount = hours ? `${Math.floor(part.remaining / 60)} h` : remaining;
         const details = [
           part.usage == null ? null : `${part.usage}% used`,
-          remaining && `${hours ? `${Math.floor(part.remaining / 60)} h` : remaining} remaining`,
+          remainingCount && `${remainingCount} remaining`,
           part.part_sku ? `Part ${part.part_sku}` : null,
         ].filter(Boolean);
         if (details.length) {
@@ -2150,7 +2151,7 @@ class RoombaHomeMapCard extends HTMLElement {
           const guidance = document.createElement("details");
           const summary = document.createElement("summary");
           summary.textContent = "About this part";
-          summary.setAttribute("aria-label", `About ${name.textContent.toLowerCase()}`);
+          summary.setAttribute("aria-label", `About this part (${name.textContent})`);
           const description = document.createElement("p");
           description.textContent = part.part_description;
           guidance.append(summary, description);
