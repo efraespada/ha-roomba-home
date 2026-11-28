@@ -320,7 +320,8 @@ mode. [Side-by-side mopping trial](docs/validation.md#side-by-side-live-mopping)
   per-area settings. After remapping a floor, use **Recreate a saved
   program** to assign each backed-up destination to an area on the new floor
   and open the saved profiles in the editor. Recreated schedules start disabled.
-  [Map backups](docs/usage.md#local-map-backups)
+  [Map backups](docs/usage.md#local-map-backups) ·
+  [Installed recovery trial](docs/validation.md#recreating-programs-from-a-retired-floor)
 - **Edit rooms** divides a room, merges two adjacent rooms, and edits room
   names and types on a supported Max 700 floor plan. Choose **Divide a
   room**, select the room, then use **Place divider on map** to pick two
@@ -413,6 +414,8 @@ mission history reports the completed cleaning modes.
 ![Ordered furniture routine with separate suction settings in Home Assistant](docs/screenshots/roomba-furniture-routine.jpg)
 
 ![Floor removal review listing a test routine and an enabled test schedule in the installed Home Assistant card](docs/screenshots/roomba-floor-removal-programs.jpg)
+
+![A backed-up routine with two saved areas assigned to a room and furniture in the installed Home Assistant card](docs/screenshots/roomba-rebuild-program-destinations.jpg)
 
 ## Copyable examples
 

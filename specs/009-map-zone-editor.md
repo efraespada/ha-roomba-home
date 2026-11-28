@@ -3,7 +3,7 @@
 - Status: Draft
 - Date: 2026-11-24
 - Catalog capability ID: map-zone-editor
-- Last verified: 2026-11-26
+- Last verified: 2026-11-28
 - Owners: ha-roomba-home maintainer
 - Scope: Preview and save floor settings, room names and boundaries, cleaning zones, restrictions, and furniture on an associated Roomba floor. Capture and browse private local backups.
 - Related issues/PRs: Follow-up to the interactive floor plan.
@@ -401,7 +401,7 @@ screenshots.
 | EDIT-17 | [Restriction edits](../docs/api.md#restriction-edits) | [Geometry tests](../tests/test_restriction_edits.py), [authenticated lifecycle](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [signed wall trial](../docs/validation.md#editing-virtual-walls) |
 | EDIT-18 | [Combined floor removal and mapping](../docs/api.md#mapping-runs-and-floor-removal) | [WebSocket tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [native trial](../docs/validation.md#guided-floor-replacement) |
 | EDIT-19 | [Floor removal review](../docs/api.md#mapping-runs-and-floor-removal) | [Client tests](../tests/test_api_client.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [installed and native trial](../docs/validation.md#floor-removal-and-linked-programs) |
-| EDIT-20 | [Recreate saved programs](../docs/usage.md#recreate-a-saved-program) | [Capture policy tests](../tests/test_map_programs.py), [WebSocket and creation tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
+| EDIT-20 | [Recreate saved programs](../docs/usage.md#recreate-a-saved-program) | [Capture policy tests](../tests/test_map_programs.py), [WebSocket and creation tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [installed and native trial](../docs/validation.md#recreating-programs-from-a-retired-floor) |
 
 ## 18. Implementation sequence
 
