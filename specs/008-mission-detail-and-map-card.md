@@ -46,8 +46,11 @@ archive, including zones removed after a mission.
 [Installed validation](../docs/validation.md#directed-vacuum-then-mop)
 
 MAP-03 now has physical evidence for a completed directed sequence and a
-saved-zone run. The automatic recharge and resume scenario still needs a
-complete observed mission.
+saved-zone run. A two-pass vacuum trial has confirmed the low-battery
+return and charging under the original mission identity. Completion of the
+automatic recharge and resume scenario requires the physical resumption and
+the completed mission report.
+[Low-battery trial](../docs/validation.md#charging-during-the-same-cleaning-mission)
 
 The floor plan offers a reviewed skip when the current mission identifies
 the active destination. Room and zone results show the reported skip once
@@ -371,6 +374,14 @@ contains a completed travel or relocation stage between entrances.
 Close each earlier segment at the recorded departure and count its time
 only for that mission's room. Merge overlaps with explicitly timed
 results and retain the latest stage duration separately.
+
+During a valid charging stage with a single identifiable open room, close
+its last visit at the beginning of the latest completed trip whose reported
+destination is the dock. The trip must start after the room entry and end
+by the reported start of charging. Preserve only explicitly bounded
+intervals when the active room is ambiguous, a zone is present, or the
+dock trip is missing. Keep the room time fixed during charging and resume
+counting only after a fresh active room stage.
 
 After the robot confirms a pause or resume within the same mission,
 request the timeline on the next active poll when the stage is

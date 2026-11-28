@@ -125,6 +125,54 @@ def test_two_room_entries_need_a_verified_departure_between_them():
     assert (interval.timestamp, interval.ended_at) == (begin + 10, begin + 80)
 
 
+def test_room_visit_needs_a_completed_dock_trip_before_charging():
+    room = {
+        "type": "room",
+        "ts": NOW - 60,
+        "room": {"p2mapId": MAP.map_id, "p2mapvId": "robot-version", "rid": "room-a", "area": 3},
+    }
+    dock_trip = {
+        "type": "travel",
+        "ts": NOW - 32,
+        "ets": NOW - 4,
+        "travel": {"dest": "dock"},
+    }
+    room_trip = dock_trip | {"travel": {"dest": "room"}}
+    charge = {"type": "charge", "ts": NOW - 2}
+    raw = {
+        "timelineRequestId": 12,
+        "nMssn": 8,
+        "cmd": POINT_COMMAND
+        | {"command": "start", "regions": [{"type": "rid", "region_id": "room-a"}]},
+        "event": [charge, room],
+        "finEvents": [
+            dock_trip | {"ts": NOW - 48, "ets": NOW - 35},
+            dock_trip,
+            dock_trip | {"ts": NOW - 3, "ets": NOW - 1},
+            room_trip | {"ts": NOW - 5, "ets": NOW - 3},
+        ],
+    }
+    (interval,) = mission_timeline(raw, 12, 8, NOW).timing.areas
+    assert (interval.timestamp, interval.ended_at) == (NOW - 60, NOW - 32)
+
+    zone = {
+        "type": "zone",
+        "ts": NOW - 40,
+        "zone": {"p2mapId": MAP.map_id, "p2mapvId": "robot-version", "zid": "zone-a", "area": 2},
+    }
+    foreign = room | {"room": room["room"] | {"rid": "other-room"}}
+    for overrides in (
+        {"event": [room, charge | {"ts": NOW + 1}]},
+        {"event": [room, charge | {"type": "pause"}]},
+        {"event": [room, foreign, charge]},
+        {"event": [room, zone, charge]},
+        {"finEvents": [None, {}, dock_trip | {"travel": None}, room_trip]},
+        {"finEvents": [dock_trip | {"ets": NOW}]},
+        {"finEvents": [dock_trip | {"ts": NOW - 62}]},
+    ):
+        assert mission_timeline(raw | overrides, 12, 8, NOW).timing.areas == ()
+
+
 def test_live_floor_can_use_a_whole_floor_request_without_a_directed_plan():
     raw = {
         "timelineRequestId": 12,

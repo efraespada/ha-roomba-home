@@ -268,6 +268,13 @@ def mission_timeline(document, request_id, mission_number, now) -> MissionTimeli
     command = document.get("cmd")
     finished = document.get("finEvents")
     plan = mission_plan(command)
+    active_zones = zone_results(events, command)
+    stage_started_at = datetime.fromtimestamp(current[0], UTC) if 0 < current[0] <= now else None
+    charge_started = (
+        current[0]
+        if current[2] == "charge" and stage_started_at is not None and not active_zones
+        else None
+    )
     return MissionTimeline(
         mission_number,
         datetime.fromtimestamp(now, UTC),
@@ -275,7 +282,7 @@ def mission_timeline(document, request_id, mission_number, now) -> MissionTimeli
         room_results(finished),
         room_results(events),
         zone_results(finished, command),
-        zone_results(events, command),
+        active_zones,
         _travel_destination(events[current[1]], current[0], command)
         if current[2] == "travel"
         else None,
@@ -283,11 +290,13 @@ def mission_timeline(document, request_id, mission_number, now) -> MissionTimeli
         and isinstance(command.get("regions"), list)
         and bool(command["regions"]),
         _point_destination(command),
-        datetime.fromtimestamp(current[0], UTC) if 0 < current[0] <= now else None,
+        stage_started_at,
         plan,
         _requested_floor(command),
         _localized_maps(events) | _localized_maps(finished),
-        mission_timing(finished, command, active_events=events, plan=plan),
+        mission_timing(
+            finished, command, active_events=events, plan=plan, charge_started=charge_started
+        ),
     )
 
 
