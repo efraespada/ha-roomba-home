@@ -3028,6 +3028,67 @@ test("floor removal rechecks the reviewed revision and sends only one confirmed 
   }]);
 });
 
+test("replacing a floor submits one reviewed removal and mapping request", async () => {
+  const { card } = mockCard(0);
+  card.config = { entity: "vacuum.example" };
+  const floor = { id: "floor-test", version: "revision-a" };
+  const mapping = { can_start: true, activity: null };
+  const initial = {
+    can_edit_rooms: true, map: floor, maps: [floor], mapping,
+    inventory_id: "inventory-a", floor_settings: { id: "settings-a", name: "Test floor" },
+    robot_status: { connected: true, activity: "docked" },
+  };
+  card.snapshot = initial;
+  for (const id of ["remove-floor-dialog", "mapping-dialog"]) {
+    const dialog = card.$(id);
+    dialog.showModal = () => { dialog.open = true; };
+    dialog.close = () => { dialog.open = false; };
+  }
+  const calls = [];
+  let rejected = true;
+  card._hass = {
+    async callWS(request) {
+      calls.push({ ...request });
+      if (rejected) throw new Error("Roomba removed the floor. The replacement mapping run was not confirmed.");
+    },
+  };
+  card.refresh = async () => {
+    card.snapshot = { ...initial, map: null, maps: [] };
+    card.updateMappingControl(mapping);
+    card.updateFloorRemoval();
+  };
+
+  card.updateFloorRemoval();
+  assert.equal(card.$("remove-and-remap").hidden, false);
+  card.snapshot = { ...initial, robot_status: { connected: true, activity: "cleaning" } };
+  card.updateFloorRemoval();
+  card.reviewFloorRemoval();
+  assert.equal(card.$("remove-and-remap").disabled, true);
+  await card.removeFloor(true);
+  assert.deepEqual(calls, []);
+
+  card.snapshot = initial;
+  card.updateFloorRemoval();
+  card.reviewFloorRemoval();
+  await card.removeFloor(true);
+  assert.equal(card.$("mapping-dialog").open, undefined);
+  assert.match(card.$("status").textContent, /replacement mapping run was not confirmed/);
+
+  rejected = false;
+  card.snapshot = initial;
+  card.updateFloorRemoval();
+  card.reviewFloorRemoval();
+  await card.removeFloor(true);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls.at(-1), {
+    type: "roomba_home/remove_floor", entity_id: "vacuum.example", map_id: "floor-test",
+    version: "revision-a", inventory_id: "inventory-a", settings_id: "settings-a",
+    confirmed: true, remap: true,
+  });
+  assert.equal(card.$("mapping-dialog").open, undefined);
+  assert.match(card.$("status").textContent, /removed the floor and started mapping/);
+});
+
 test("a clockwise quarter-turn aligns the room, trail, and live heading", () => {
   const { card, lines } = mockCard(-Math.PI / 2);
   card.draw();

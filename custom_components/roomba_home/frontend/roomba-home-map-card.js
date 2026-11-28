@@ -209,6 +209,7 @@ template.innerHTML = `
     dialog::backdrop { background:#0b1726ad; }
     dialog p { margin:10px 0 18px; }
     dialog .actions { display:flex; justify-content:flex-end; gap:8px; }
+    #remove-floor-dialog .actions { flex-wrap:wrap; }
     #routine-dialog { width:min(34rem, calc(100vw - 3rem)); max-width:none; }
     #mission-history-dialog { width:min(55rem, calc(100vw - 3rem)); max-width:none; }
     #cleaning-scores-dialog { width:min(36rem, calc(100vw - 3rem)); max-width:none; }
@@ -799,7 +800,12 @@ template.innerHTML = `
     </dialog>
     <dialog id="mapping-dialog" aria-labelledby="mapping-title">
       <h3 id="mapping-title">Start a mapping run?</h3>
-      <p>Place the robot on its dock and prepare the floor for exploration. Roomba may replace its oldest map if it has reached its map limit.</p>
+      <ul>
+        <li>Clear obstacles and open the doors to the areas you want to map.</li>
+        <li>Place the robot on its dock before starting.</li>
+        <li>Keep the dock in place and let the robot return on its own.</li>
+      </ul>
+      <p>Roomba explores without cleaning and may stop to recharge. At the map limit, Roomba may replace its oldest map.</p>
       <div class="actions">
         <button id="cancel-mapping">Cancel</button>
         <button id="start-mapping" class="primary">Start mapping</button>
@@ -832,9 +838,11 @@ template.innerHTML = `
     <dialog id="remove-floor-dialog" aria-labelledby="remove-floor-title">
       <h3 id="remove-floor-title">Remove saved floor?</h3>
       <p id="remove-floor-description"></p>
+      <p id="remove-and-remap-description" hidden>To map the floor again, clear obstacles, open the doors you want to include, and leave the robot on its dock. Roomba starts mapping after removal. It can update another saved map if it recognizes the same floor.</p>
       <div class="actions">
         <button id="cancel-remove-floor">Keep floor</button>
         <button id="remove-floor" class="primary">Remove floor</button>
+        <button id="remove-and-remap" hidden>Remove and start mapping</button>
       </div>
     </dialog>
     <dialog id="routine-dialog" aria-labelledby="routine-title">
@@ -1548,6 +1556,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("review-remove-floor").onclick = () => this.reviewFloorRemoval();
     this.$("cancel-remove-floor").onclick = () => this.$("remove-floor-dialog").close();
     this.$("remove-floor").onclick = () => this.removeFloor();
+    this.$("remove-and-remap").onclick = () => this.removeFloor(true);
     this.$("close-floor-editor").onclick = () => {
       this.closeFloorEditor();
       this.updateSelection();
@@ -3725,6 +3734,12 @@ class RoombaHomeMapCard extends HTMLElement {
     const button = this.$("review-remove-floor");
     button.hidden = !current;
     button.disabled = Boolean(this.floorRemoving);
+    const remap = this.$("remove-and-remap");
+    const status = this.snapshot?.robot_status;
+    remap.hidden = !current || this.snapshot?.mapping?.can_start !== true;
+    remap.disabled = button.disabled || Boolean(this.mappingPending) ||
+      status?.connected !== true || status.activity !== "docked";
+    this.$("remove-and-remap-description").hidden = remap.hidden;
     if (this.removalDraft && JSON.stringify(this.removalDraft) !== JSON.stringify(current)) {
       this.removalDraft = null;
       this.$("remove-floor-dialog").close();
@@ -3741,19 +3756,23 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("remove-floor-dialog").showModal();
   }
 
-  async removeFloor() {
+  async removeFloor(remap = false) {
     const dialog = this.$("remove-floor-dialog");
     const review = this.removalDraft;
     if (!dialog.open || !review || this.floorRemoving ||
         JSON.stringify(review) !== JSON.stringify(this.floorRemovalReview())) return;
+    const replacement = this.$("remove-and-remap");
+    if (remap && (replacement.hidden || replacement.disabled)) return;
     this.floorRemoving = true;
     this.removalDraft = null;
     dialog.close();
     this.updateFloorRemoval();
-    this.$("status").textContent = "Waiting for Roomba to remove the floor…";
+    this.$("status").textContent = remap ? "Waiting for Roomba to remove and remap the floor…"
+      : "Waiting for Roomba to remove the floor…";
     try {
-      await this._hass.callWS({ ...review, confirmed: true });
-      if (this.config.entity === review.entity_id) this.operationMessage = "Roomba removed the floor.";
+      await this._hass.callWS({ ...review, confirmed: true, ...(remap ? { remap: true } : {}) });
+      if (this.config.entity === review.entity_id) this.operationMessage = remap
+        ? "Roomba removed the floor and started mapping." : "Roomba removed the floor.";
     } catch (error) {
       if (this.config.entity === review.entity_id) this.operationMessage = error?.message || "Roomba did not confirm removal.";
     } finally {

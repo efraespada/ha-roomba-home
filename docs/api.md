@@ -465,6 +465,16 @@ against the latest associated list, sends one write, and verifies that the
 floor no longer appears in that list. Linked routines and schedules are
 managed separately by Roomba.
 
+The optional `remap: true` field on `roomba_home/remove_floor` requests
+the combined replacement flow. Recheck the robot's mapping readiness before
+removing the reviewed floor. Wait for the read-back that confirms removal
+before sending one `train` command to the same robot. The command checks
+readiness again and requires a new remote mapping cycle for confirmation.
+Both steps share the per-robot operation lock. A failed mapping confirmation
+after removal returns `floor_removed_mapping_unconfirmed`. The confirmed
+removal stands, and the integration does not repeat either write.
+[Native replacement trial](validation.md#guided-floor-replacement)
+
 ### Robot software status
 
 The Android SDK reads `rw-software.lastSwUpdate` as an offset-bearing

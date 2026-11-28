@@ -15,6 +15,7 @@ from homeassistant.helpers import entity_registry
 from custom_components.roomba_home.const import CONF_SHOW_MAPS, DOMAIN
 from custom_components.roomba_home.coordinator import RobotControlAdapter, RoombaCoordinator
 from custom_components.roomba_home.core.actions import Command
+from custom_components.roomba_home.core.application import ControlError
 from custom_components.roomba_home.core.area_preferences import read_area_defaults
 from custom_components.roomba_home.core.capabilities import (
     DigitalSpotCapability,
@@ -2362,6 +2363,91 @@ async def test_floor_removal_does_not_resend_an_unconfirmed_write(configured, fa
             "fixture-0", MAP.map_id, MAP.version_id, MAP.inventory_id, MAP.settings_id
         )
     configured.client.remove_floor.assert_awaited_once_with(MAP.map_id)
+
+
+@pytest.mark.parametrize(
+    ("phase", "cycle", "removed", "send_error", "expected_error"),
+    [
+        ("run", "clean", True, None, "mapping_requires_dock"),
+        ("charge", "none", False, None, "room_edit_failed"),
+        ("charge", "none", True, None, None),
+        (
+            "charge",
+            "none",
+            True,
+            ControlError("command_unconfirmed"),
+            "floor_removed_mapping_unconfirmed",
+        ),
+        (
+            "charge",
+            "none",
+            True,
+            AuthenticationError("expired"),
+            "floor_removed_mapping_unconfirmed",
+        ),
+    ],
+)
+async def test_floor_replacement_checks_mapping_readiness_then_confirms_removal_before_start(
+    configured, hass_ws_client, phase, cycle, removed, send_error, expected_error
+):
+    robot_id = "fixture-0"
+    state = configured.data[robot_id]
+    other = replace(MAP, map_id="other-floor")
+    configured.data[robot_id] = replace(
+        state,
+        connected=True,
+        phase=phase,
+        cycle=cycle,
+        capabilities=replace(state.capabilities, persistent_maps=True),
+    )
+    if removed:
+        configured.client.maps.side_effect = [(MAP, other), (other,)]
+    else:
+        configured.client.maps.return_value = (MAP, other)
+    configured.client.remove_floor = AsyncMock()
+    configured._sleep = AsyncMock()
+
+    async def start(adapter, command, profile):
+        assert adapter.robot_id == robot_id and command is Command.START_MAPPING
+        assert configured._command_locks[robot_id].locked()
+        assert configured.maps_for_robot(robot_id) == (other,)
+        configured.client.remove_floor.assert_awaited_once_with(MAP.map_id)
+        if send_error:
+            raise send_error
+
+    socket = await hass_ws_client()
+    with (
+        patch.object(configured, "_refresh_for_command", new_callable=AsyncMock),
+        patch(
+            "custom_components.roomba_home.coordinator.execute_control", side_effect=start
+        ) as send,
+    ):
+        await socket.send_json(
+            {
+                "id": 1,
+                "type": "roomba_home/remove_floor",
+                "entity_id": ENTITY,
+                "map_id": MAP.map_id,
+                "version": MAP.version_id,
+                "inventory_id": MAP.inventory_id,
+                "settings_id": MAP.settings_id,
+                "confirmed": True,
+                "remap": True,
+            }
+        )
+        response = await socket.receive_json()
+    if expected_error:
+        assert response["error"]["code"] == expected_error
+    else:
+        assert response["success"]
+    if phase == "run":
+        configured.client.remove_floor.assert_not_awaited()
+        send.assert_not_awaited()
+    elif not removed:
+        configured.client.remove_floor.assert_awaited_once_with(MAP.map_id)
+        send.assert_not_awaited()
+    else:
+        send.assert_awaited_once()
 
 
 async def test_point_cleaning_control_requires_reported_capability_and_control_permission(
