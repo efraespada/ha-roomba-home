@@ -1,5 +1,31 @@
 # Roomba Home validation
 
+## Timeline updates on pause and resume
+
+With 0.104.2 installed, Roomba Home Android 3.4.1 started and paused
+a one-room vacuum routine on the Max 700 Combo. At the 15-second
+sample after pausing, Home Assistant showed **Paused** and 1:07 of
+cleaning. The sensor held 3,442 seconds across two samples 34 seconds
+apart.
+
+Home Assistant sent the resume command. The 15-second sample still
+showed the confirmed pause. At the 27-second sample, the card already
+showed **In progress**, 1:22 of accumulated vacuuming, and a 3,431-second
+estimate. By the 53-second sample, it showed 1:47 of vacuuming and the
+sensor reported 3,405 seconds. Both apps displayed 57 minutes in their
+final active views. The 0.104.1 trial still had an unavailable estimate
+at its 42-second sample after resuming.
+
+The Home Assistant tests verify the transition label when a shadow and
+timeline disagree. They also verify that one early read leaves the
+regular request deadline and other robots' schedules intact. Proxyman
+decoded six matched map announcements and confirmed a 3,509-second
+planned duration for the same room and vacuum profile. R2-D2 returned
+to its dock after the trial. All three cards reported **At dock**.
+[Reduced evidence](evidence/2026-11-28-faster-timeline-refresh.json)
+
+![The installed Home Assistant countdown after resuming the room](screenshots/roomba-resumed-cleaning-estimate.jpg)
+
 ## Remaining time during a pause
 
 Roomba Home Android 3.4.1 started a saved one-room vacuum routine on a
