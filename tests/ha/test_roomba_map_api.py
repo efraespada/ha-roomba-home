@@ -2844,8 +2844,9 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     assert configured._live_room_timing == {}
 
 
+@pytest.mark.parametrize("interruption", ["pause", "charge"])
 async def test_two_pass_room_keeps_reported_work_across_travel_and_reentry(
-    configured, hass_ws_client
+    configured, hass_ws_client, interruption
 ):
     robot = "fixture-0"
     now = datetime.now(UTC).replace(microsecond=0)
@@ -2945,6 +2946,46 @@ async def test_two_pass_room_keeps_reported_work_across_travel_and_reentry(
     assert plan["estimated_remaining_seconds"] == 2022
     assert plan["destinations"][0]["stage_elapsed_seconds"] == 2293
     assert plan["destinations"][0]["cleaning_elapsed_seconds"] == 4996
+
+    if interruption == "charge":
+        at_dock = started + timedelta(seconds=7201)
+        charging = replace(state, phase="charge")
+        on_dock = document | {
+            "event": [*document["event"], {"type": "charge", "ts": stamp + 7201}],
+            "finEvents": [
+                *document["finEvents"],
+                span("travel", 7160, 7199) | {"travel": {"dest": "dock"}},
+            ],
+        }
+        for offset in (0, 65):
+            sample = at_dock + timedelta(seconds=offset)
+            report = mission_timeline(on_dock, 17, 53, int(sample.timestamp()))
+            metrics = await configured._timeline_metrics(charging, report, sample)
+            assert metrics["live_estimated_remaining"] is None
+            configured.async_set_updated_data(
+                {robot: replace(charging, telemetry=state.telemetry | metrics)}
+            )
+            held = await snapshot(sample, 2 + int(offset > 0))
+            assert held["estimated_remaining_seconds"] is None
+            assert held["destinations"][0]["cleaning_elapsed_seconds"] == 6956
+            assert "stage_elapsed_seconds" not in held["destinations"][0]
+
+        resumed = started + timedelta(seconds=8000)
+        refreshed = on_dock | {
+            "event": [room(7975, "resumed", 1), *document["event"]],
+            "finEvents": [*on_dock["finEvents"], span("charge", 7201, 7950)],
+        }
+        report = mission_timeline(refreshed, 17, 53, int(resumed.timestamp()))
+        metrics = await configured._timeline_metrics(state, report, resumed)
+        assert metrics["live_estimated_remaining"] == 37
+        configured.async_set_updated_data(
+            {robot: replace(state, telemetry=state.telemetry | metrics)}
+        )
+        live = await snapshot(resumed, 4)
+        assert live["estimated_remaining_seconds"] == 37
+        assert live["destinations"][0]["cleaning_elapsed_seconds"] == 6981
+        assert live["destinations"][0]["stage_elapsed_seconds"] == 25
+        return
 
     then = now + timedelta(seconds=60)
     paused = document | {

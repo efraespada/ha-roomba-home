@@ -175,24 +175,53 @@ def _correlate_zones(results: tuple[AreaResult, ...], command: object) -> tuple[
     return tuple(identified)
 
 
-def _reentered_room_intervals(
-    active_events: object, finished_events: list, plan: MissionPlan
+def _room_visit_intervals(
+    active_events: object, finished_events: list, plan: MissionPlan, charge_started: int | None
 ) -> Iterable[AreaResult]:
     declared = {("room", item.identity) for item in plan.destinations if item.kind == "room"}
     entries = {}
+    open_targets = set()
     for area in _area_events(active_events, "room", "rid"):
-        key = destination_key(plan, area)
-        if key in declared and area.status is None and area.ended_at is None:
-            entries.setdefault(key, {})[area.timestamp] = area
+        if area.status is None and area.ended_at is None:
+            key = destination_key(plan, area)
+            open_targets.add(key)
+            if key in declared:
+                entries.setdefault(key, {})[area.timestamp] = area
     departures = sorted(reported_interruptions(finished_events, stages=("travel", "reloc")))
     for visits in entries.values():
-        for entered, reentered in pairwise(sorted(visits)):
+        stamps = sorted(visits)
+        for entered, reentered in pairwise(stamps):
             departure = next(
                 (start for start, end in departures if entered < start <= end <= reentered), None
             )
             if departure is not None:
                 # A later entrance alone cannot tell us when the earlier work stopped.
                 yield replace(visits[entered], ended_at=departure)
+        if charge_started is not None and len(open_targets) == 1:
+            entered = stamps[-1]
+            if (
+                departure := _room_departure_for_charge(finished_events, entered, charge_started)
+            ) is not None:
+                yield replace(visits[entered], ended_at=departure)
+
+
+def _room_departure_for_charge(events: list, entered: int, charge_started: int) -> int | None:
+    dock_travel = [
+        event
+        for event in events
+        if isinstance(event, dict)
+        and event.get("type") == "travel"
+        and isinstance(travel := event.get("travel"), dict)
+        and travel.get("dest") == "dock"
+    ]
+    return max(
+        (
+            start
+            for start, end in reported_interruptions(dock_travel, stages=("travel",))
+            if entered < start <= end <= charge_started
+        ),
+        default=None,
+    )
 
 
 def mission_timing(
@@ -201,6 +230,7 @@ def mission_timing(
     *,
     active_events: object = None,
     plan: MissionPlan | None = None,
+    charge_started: int | None = None,
 ) -> MissionTiming:
     """Preserve every timed area event before the outcome projection deduplicates them."""
     if not isinstance(events, list):
@@ -208,7 +238,7 @@ def mission_timing(
     rooms = tuple(_area_events(events, "room", "rid"))
     zones = _correlate_zones(tuple(_area_events(events, "zone", "zid")), command)
     if plan is not None:
-        rooms += tuple(_reentered_room_intervals(active_events, events, plan))
+        rooms += tuple(_room_visit_intervals(active_events, events, plan, charge_started))
     return MissionTiming((*rooms, *zones), reported_interruptions(events))
 
 
