@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-28",
+  "model": "X185240",
+  "android_version": "3.4.1",
+  "home_assistant_version_at_transition": "0.104.4",
+  "same_mission_number_and_start": true,
+  "signed_phases": ["run", "hmMidMsn", "charge"],
+  "cleaning_cycle_still_open": true,
+  "battery_percent_at_return": 10,
+  "battery_percent_while_charging": [10, 15],
+  "mission_error": 0,
+  "timeline_offsets_seconds": {
+    "room_entries": [46, 1292, 2907],
+    "last_trip_destination": "dock",
+    "last_trip_interval": [7160, 7199],
+    "charge_started": 7201
+  },
+  "old_card_room_cleaning_seconds_while_charging": 2703,
+  "replay": {
+    "room_intervals_seconds": [[46, 1195], [1292, 2846], [2907, 7160]],
+    "room_cleaning_seconds_while_charging": 6956,
+    "remaining_cleaning_estimate_while_charging": null,
+    "room_cleaning_seconds_after_simulated_resumption": 6981
+  }
+}

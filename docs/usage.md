@@ -89,7 +89,9 @@ robot disconnects. Completed measurements remain in **Cleaning history**.
 When Roomba reports charging with a cleaning cycle still open, the robot
 status and mission phase show **Charging during mission**. The separate
 **Docked with active cleaning** binary sensor exposes the same condition
-for automations.
+for automations. If the live timeline identifies one open room and the
+completed trip to the dock, that room keeps its verified cleaning time.
+The cleaning estimate is hidden during this charging phase.
 
 Active errors appear above the map with the Roomba code, its source, and
 its known description. For example, **Mission error** shows

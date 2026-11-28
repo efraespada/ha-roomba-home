@@ -389,8 +389,10 @@ mode. [Side-by-side mopping trial](docs/validation.md#side-by-side-live-mopping)
   **Waiting for Roomba update** while Home Assistant requests the new stage.
   [Live progress and automation example](docs/usage.md#telemetry-progress-and-problems)
 - The status and current mission readout show **Charging during mission**
-  when Roomba reports charging with the cleaning cycle still open.
-  [Current mission readout](docs/usage.md#current-mission-readout)
+  when Roomba reports charging with the cleaning cycle still open. The
+  room row keeps the verified cleaning time up to the trip to the dock.
+  [Current mission readout](docs/usage.md#current-mission-readout) ·
+  [Low-battery trial](docs/validation.md#charging-during-the-same-cleaning-mission)
 - **Skip current area** asks for confirmation while Roomba reports the
   current destination. The mission history shows the skipped area.
   [Skip control and automation example](docs/usage.md#skip-the-current-destination)
@@ -398,6 +400,7 @@ mode. [Side-by-side mopping trial](docs/validation.md#side-by-side-live-mopping)
 ![Paused directed cleaning estimate in Home Assistant](docs/screenshots/roomba-paused-cleaning-estimate.jpg)
 ![The room countdown after resuming in Home Assistant](docs/screenshots/roomba-resumed-cleaning-estimate.jpg)
 ![Accumulated room time during two-pass vacuuming in Home Assistant](docs/screenshots/roomba-two-pass-cleaning-estimate.jpg)
+![Home Assistant reporting a recharge during the active mission](docs/screenshots/roomba-charging-during-mission.jpg)
 
 [Physical pause and resume trial](docs/validation.md#timeline-updates-on-pause-and-resume) ·
 [Two-pass vacuum comparison](docs/validation.md#earlier-room-visits-during-a-two-pass-clean)

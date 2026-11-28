@@ -1,5 +1,30 @@
 # Roomba Home validation
 
+## Charging during the same cleaning mission
+
+A two-pass vacuum run reached 10% battery after almost two hours of
+cleaning. R2-D2 reported `hmMidMsn` and then `charge` with the `clean`
+cycle still open. The mission number and start time matched throughout.
+Roomba Home showed **Limpieza en pausa. Cargando...** and Home Assistant
+0.104.4 showed **Charging during mission**. Both later reported 15%
+battery with the same mission still charging. The robot reported no error.
+
+The card's room time dropped to 45:03 once the charging timeline arrived.
+The timeline still contained the three open entries to the same room.
+The third entry began at offset 2,907 seconds. A completed `travel` event
+specified `dock` as its destination and spanned offsets 7,160 to 7,199.
+Charging began at offset 7,201. The active responses in the trial supplied
+the start of charging. In Android, the 73-minute figure was attached to a
+finished room row in the timeline.
+
+The replay retains 6,956 seconds of reported room work when charging
+starts and on a later sample. It leaves the cleaning estimate hidden until
+a new active room stage. The resumption fixture confirms that charging and
+travel time are excluded from both the accumulated time and the countdown.
+[Reduced evidence](evidence/2026-11-28-active-recharge.json)
+
+![Charging during the same mission in the installed card](screenshots/roomba-charging-during-mission.jpg)
+
 ## Earlier room visits during a two-pass clean
 
 A Max 700 Combo started a directed two-pass vacuum run at suction level 4.

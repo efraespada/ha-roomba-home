@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.104.5
+
+- Keep the verified cleaning time of a directed room while Roomba recharges
+  during a mission. End the open room interval at the reported departure
+  for the dock and preserve the time already reported for earlier visits.
+
 ## 0.104.4
 
 - Retain the time reported for earlier visits to a directed room when the
