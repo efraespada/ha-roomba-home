@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.103.1
+
+- Store weekly schedule days in the same format used by Home Assistant's
+  JSON read-back so a successful map backup is confirmed on the card.
+
 ## 0.103.0
 
 - Save room-only routines and schedules in local map backups along with
