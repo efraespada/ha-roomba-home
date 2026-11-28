@@ -509,6 +509,7 @@ def websocket_maintenance(hass, connection, message):
                 state.telemetry,
                 dock_recognized=state.capabilities.dock.recognized is True,
                 counters_available=counters_available,
+                allow_reset=connection.user.permissions.check_entity(entity_id, POLICY_CONTROL),
             ),
             "counters_available": counters_available,
         },

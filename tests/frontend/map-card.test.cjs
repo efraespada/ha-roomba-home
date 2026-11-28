@@ -255,6 +255,91 @@ test("maintenance ignores a reply after closing and reopening on a different rob
   assert.equal(card.$("maintenance-status").textContent, "Could not read Roomba");
 });
 
+test("maintenance reviews one counter, sends once, and rereads after confirmation", async () => {
+  const { card, dialog } = maintenanceCard();
+  const calls = [];
+  let finish;
+  let count = 38;
+  card._hass = {
+    callWS: async () => ({ robot: "Roomba", counters_available: true, parts: [
+      { part: "filter", usage: count, can_reset: true },
+      { part: "dust_bag", part_sku: "4849916", can_reset: false },
+    ] }),
+    callService: (...request) => {
+      calls.push(request);
+      return new Promise((resolve) => { finish = resolve; });
+    },
+  };
+  await card.openMaintenance();
+  const [filter, bag] = card.$("maintenance-parts").children;
+  const opener = filter.querySelector("button");
+  assert.equal(opener["aria-label"], "Reset filter counter");
+  assert.equal(bag.querySelector("button"), undefined);
+  opener.onclick();
+  assert.equal(card.$("maintenance-parts").hidden, true);
+  assert.equal(card.$("maintenance-reset-review").hidden, false);
+  assert.equal(card.$("maintenance-reset-prompt").textContent,
+    "Reset the filter counter after completing maintenance?");
+  assert.equal(card.$("back-maintenance-reset").focused, true);
+  card.backFromMaintenanceReset();
+  assert.equal(card.$("maintenance-parts").hidden, false);
+  assert.equal(opener.focused, true);
+  await card.confirmMaintenanceReset();
+  assert.deepEqual(calls, []);
+
+  opener.onclick();
+  const reset = card.confirmMaintenanceReset();
+  assert.equal(card.$("confirm-maintenance-reset").disabled, true);
+  assert.equal(card.$("back-maintenance-reset").disabled, true);
+  assert.equal(card.$("close-maintenance").disabled, true);
+  card.backFromMaintenanceReset();
+  assert.equal(card.$("maintenance-reset-review").hidden, false);
+  await card.confirmMaintenanceReset();
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
+    ["roomba_home", "reset_maintenance_counter", { part: "filter", confirmed: true },
+      { entity_id: "vacuum.example" }],
+  ]);
+  count = 0;
+  finish();
+  await reset;
+  assert.equal(dialog.open, true);
+  assert.equal(card.$("maintenance-reset-review").hidden, true);
+  assert.equal(card.$("maintenance-status").textContent, "Filter counter reset.");
+  assert.equal(card.$("maintenance-parts").children[0].querySelector("p").textContent, "0% used");
+  assert.equal(card.$("close-maintenance").focused, true);
+});
+
+test("maintenance reports a rejected reset and ignores a late result for another robot", async () => {
+  const { card, dialog } = maintenanceCard();
+  let finish;
+  let error = Error("Roomba did not confirm the reset");
+  card._hass = {
+    callWS: async ({ entity_id }) => ({
+      robot: entity_id, counters_available: true,
+      parts: [{ part: "side_brush", usage: 15, can_reset: true }],
+    }),
+    callService: () => error ? Promise.reject(error)
+      : new Promise((resolve) => { finish = resolve; }),
+  };
+  const button = () => card.$("maintenance-parts").children[0].querySelector("button");
+  await card.openMaintenance();
+  button().onclick();
+  await card.confirmMaintenanceReset();
+  assert.equal(card.$("maintenance-status").textContent, error.message);
+  assert.equal(card.$("maintenance-parts").children[0].querySelector("p").textContent, "15% used");
+  button().onclick();
+  assert.equal(card.$("maintenance-reset-review").hidden, false);
+  error = null;
+  const pendingReset = card.confirmMaintenanceReset();
+  dialog.close();
+  card.config.entity = "vacuum.next";
+  await card.openMaintenance();
+  finish();
+  await pendingReset;
+  assert.equal(card.$("maintenance-title").textContent, "vacuum.next maintenance");
+  assert.equal(card.$("maintenance-status").textContent, "");
+});
+
 function robotHelpCard() {
   const { card } = mockCard(0);
   const dialog = card.$("robot-help-dialog");

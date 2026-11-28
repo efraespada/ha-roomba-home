@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.91.0
+
+- Review and reset a supported part counter directly in **Maintenance**.
+  The card calls the existing Home Assistant action and refreshes the
+  displayed counter after Roomba reports the result.
+
 ## 0.90.0
 
 - Show the robot activation date from Roomba's signed asset response in

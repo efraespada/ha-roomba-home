@@ -1828,6 +1828,20 @@ replaced or serviced. The suite passed 1,948 Python tests with 100%
 statement and branch coverage, 16 dashboard tests, and official hassfest
 validation.
 
+### Counter reset from the maintenance panel
+
+The Android **Robot health** review showed a **Cleaned** control beside
+the edge brush and both washing systems. Proxyman recorded four HTTP 200
+reads of the parts resource around the reopened panel. In 0.91.0 the
+card offers the existing reset action after a review of one named part. The
+Home Assistant permission tests cover a reader, an operator, unavailable
+counters, and the dust bag without an enabled counter. The frontend
+tests verify one confirmed call, a refreshed usage value, error
+feedback, and isolation when the selected robot changes. The native
+review left the household counters intact.
+[Panel instructions](usage.md#reset-a-maintenance-counter) ·
+[Card tests](../tests/frontend/map-card.test.cjs)
+
 ## Voice pack installation
 
 The official Android app downloaded and installed Czech on a docked Max

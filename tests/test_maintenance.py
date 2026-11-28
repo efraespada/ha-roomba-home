@@ -96,7 +96,10 @@ def test_localized_directory_preserves_only_a_supported_locale_and_skips_unknown
 
 
 @pytest.mark.parametrize("counters_available", [True, False])
-def test_maintenance_rows_preserve_zero_and_include_the_uncounted_dust_bag(counters_available):
+@pytest.mark.parametrize("allow_reset", [True, False])
+def test_maintenance_rows_preserve_zero_and_include_the_uncounted_dust_bag(
+    counters_available, allow_reset
+):
     telemetry = {
         "part_references": {"147": {"part_sku": "4849916"}},
         "part_72_usage": 0,
@@ -105,7 +108,10 @@ def test_maintenance_rows_preserve_zero_and_include_the_uncounted_dust_bag(count
         "private_whole_catalog": {"token": "fixture"},
     }
     parts = maintenance_parts(
-        telemetry, dock_recognized=True, counters_available=counters_available
+        telemetry,
+        dock_recognized=True,
+        counters_available=counters_available,
+        allow_reset=allow_reset,
     )
     assert parts == [
         {
@@ -115,6 +121,7 @@ def test_maintenance_rows_preserve_zero_and_include_the_uncounted_dust_bag(count
             "usage": 0 if counters_available else None,
             "remaining": 32 if counters_available else None,
             "count_type": "minutes" if counters_available else None,
+            "can_reset": counters_available and allow_reset,
         },
         {
             "part": "dust_bag",
@@ -123,10 +130,16 @@ def test_maintenance_rows_preserve_zero_and_include_the_uncounted_dust_bag(count
             "usage": None,
             "remaining": None,
             "count_type": None,
+            "can_reset": False,
             "part_sku": "4849916",
         },
     ]
     assert (
-        maintenance_parts(telemetry, dock_recognized=False, counters_available=counters_available)
+        maintenance_parts(
+            telemetry,
+            dock_recognized=False,
+            counters_available=counters_available,
+            allow_reset=allow_reset,
+        )
         == parts[:1]
     )

@@ -485,6 +485,13 @@ template.innerHTML = `
       <h3 id="maintenance-title">Maintenance</h3>
       <p id="maintenance-status" class="muted" role="status"></p>
       <ul id="maintenance-parts"></ul>
+      <div id="maintenance-reset-review" role="group" aria-labelledby="maintenance-reset-prompt" hidden>
+        <p id="maintenance-reset-prompt"></p>
+        <div class="actions">
+          <button id="back-maintenance-reset">Back</button>
+          <button id="confirm-maintenance-reset" class="primary">Reset counter</button>
+        </div>
+      </div>
       <div class="actions"><button id="close-maintenance">Close</button></div>
     </dialog>
     <dialog id="dock-controls-dialog" aria-labelledby="dock-controls-title">
@@ -1263,6 +1270,15 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("confirm-dock-action").onclick = () => this.confirmDockAction();
     this.$("open-maintenance").onclick = () => this.openMaintenance();
     this.$("close-maintenance").onclick = () => this.$("maintenance-dialog").close();
+    this.$("maintenance-dialog").oncancel = (event) => {
+      if (this.maintenanceReset?.pending) event.preventDefault();
+    };
+    this.$("maintenance-dialog").onclose = () => {
+      this.maintenanceSequence++;
+      this.maintenanceReset = null;
+    };
+    this.$("back-maintenance-reset").onclick = () => this.backFromMaintenanceReset();
+    this.$("confirm-maintenance-reset").onclick = () => this.confirmMaintenanceReset();
     this.$("open-robot-help").onclick = () => this.openRobotHelp();
     this.$("close-robot-help").onclick = () => this.$("robot-help-dialog").close();
     this.$("open-cleaning-scores").onclick = () => this.openCleaningScores();
@@ -2076,9 +2092,17 @@ class RoombaHomeMapCard extends HTMLElement {
 
   async openMaintenance() {
     if (!this.config || !this._hass) return;
-    const { entity } = this.config;
     const dialog = this.$("maintenance-dialog");
     if (dialog.open) return;
+    this.setMaintenanceReset(null);
+    this.$("maintenance-title").textContent = "Maintenance";
+    dialog.showModal();
+    await this.loadMaintenance();
+  }
+
+  async loadMaintenance(feedback = "") {
+    const { entity } = this.config;
+    const dialog = this.$("maintenance-dialog");
     const title = this.$("maintenance-title");
     const status = this.$("maintenance-status");
     const list = this.$("maintenance-parts");
@@ -2086,10 +2110,8 @@ class RoombaHomeMapCard extends HTMLElement {
     const current = () => dialog.open && sequence === this.maintenanceSequence &&
       entity === this.config.entity;
 
-    title.textContent = "Maintenance";
     status.textContent = "Loading maintenance…";
     list.replaceChildren();
-    dialog.showModal();
     try {
       const report = await this._hass.callWS({ type: "roomba_home/maintenance", entity_id: entity });
       if (!current()) return;
@@ -2118,14 +2140,66 @@ class RoombaHomeMapCard extends HTMLElement {
           link.setAttribute("aria-label", `${label} for ${name.textContent.toLowerCase()}`);
           row.append(link);
         }
+        if (part.can_reset === true) {
+          const reset = document.createElement("button");
+          reset.textContent = "Reset counter";
+          reset.setAttribute("aria-label", `Reset ${name.textContent.toLowerCase()} counter`);
+          reset.onclick = () => {
+            if (!current() || this.maintenanceReset) return;
+            status.textContent = "";
+            this.setMaintenanceReset({ entity, part: part.part, label: name.textContent, opener: reset });
+            this.$("back-maintenance-reset").focus();
+          };
+          row.append(reset);
+        }
         return row;
       }));
-      status.textContent = report.parts.length
+      const availability = report.parts.length
         ? (report.counters_available ? "" : "Roomba's usage counters are unavailable.")
         : "Roomba has no maintenance details for this robot.";
+      status.textContent = [feedback, availability].filter(Boolean).join(" ");
     } catch (error) {
-      if (current()) status.textContent = error?.message || "Maintenance is unavailable.";
+      if (current()) status.textContent = [feedback, error?.message || "Maintenance is unavailable."]
+        .filter(Boolean).join(" ");
     }
+  }
+
+  setMaintenanceReset(draft) {
+    this.maintenanceReset = draft;
+    this.$("maintenance-parts").hidden = Boolean(draft);
+    this.$("maintenance-reset-review").hidden = !draft;
+    this.$("maintenance-reset-prompt").textContent = draft
+      ? `Reset the ${draft.label.toLowerCase()} counter after completing maintenance?` : "";
+    this.$("confirm-maintenance-reset").disabled = !draft || Boolean(draft.pending);
+    this.$("back-maintenance-reset").disabled = Boolean(draft?.pending);
+    this.$("close-maintenance").disabled = Boolean(draft?.pending);
+  }
+
+  backFromMaintenanceReset() {
+    const draft = this.maintenanceReset;
+    if (!draft || draft.pending) return;
+    this.setMaintenanceReset(null);
+    draft.opener.focus();
+  }
+
+  async confirmMaintenanceReset() {
+    const draft = this.maintenanceReset;
+    const dialog = this.$("maintenance-dialog");
+    if (!dialog.open || !draft || draft.pending || draft.entity !== this.config.entity) return;
+    draft.pending = true;
+    this.setMaintenanceReset(draft);
+    this.$("maintenance-status").textContent = "Waiting for Roomba to confirm…";
+    let feedback = `${draft.label} counter reset.`;
+    try {
+      await this._hass.callService("roomba_home", "reset_maintenance_counter",
+        { part: draft.part, confirmed: true }, { entity_id: draft.entity });
+    } catch (error) {
+      feedback = error?.message || "Roomba did not confirm the counter reset.";
+    }
+    if (!dialog.open || this.maintenanceReset !== draft || draft.entity !== this.config.entity) return;
+    this.setMaintenanceReset(null);
+    this.$("close-maintenance").focus();
+    await this.loadMaintenance(feedback);
   }
 
   renderSetupGuide(guide) {

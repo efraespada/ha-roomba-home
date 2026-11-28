@@ -3,7 +3,7 @@
 import re
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
-from .telemetry import DOCK_PARTS, PARTS
+from .telemetry import DOCK_PARTS, PARTS, RESETTABLE_PARTS
 
 CATALOG_ROOT = "https://content-prod.iot.irobotapi.com/v2"
 MARKET = re.compile(r"[A-Z]{2}")
@@ -80,7 +80,7 @@ def project_part_references(catalog: dict, market: str) -> dict[str, dict]:
 
 
 def maintenance_parts(
-    telemetry: dict, *, dock_recognized: bool, counters_available: bool
+    telemetry: dict, *, dock_recognized: bool, counters_available: bool, allow_reset: bool
 ) -> list[dict]:
     references = telemetry.get("part_references", {})
     parts = []
@@ -91,14 +91,16 @@ def maintenance_parts(
         prefix = f"part_{code}"
         if f"{prefix}_usage" not in telemetry and code not in references:
             continue
+        usage = telemetry.get(f"{prefix}_usage") if counters_available else None
         parts.append(
             {
                 "part": name,
                 "part_code": code,
                 "dock": dock,
-                "usage": telemetry.get(f"{prefix}_usage") if counters_available else None,
+                "usage": usage,
                 "remaining": telemetry.get(f"{prefix}_remaining") if counters_available else None,
                 "count_type": telemetry.get(f"{prefix}_count_type") if counters_available else None,
+                "can_reset": allow_reset and usage is not None and name in RESETTABLE_PARTS,
                 **references.get(code, {}),
             }
         )
