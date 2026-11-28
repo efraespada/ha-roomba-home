@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.98.0
+
+- Show or hide recorded furniture and temporary obstacles independently in
+  **Cleaning history**. The 2D and 3D map views, route layers, and legend
+  reflect the selected visibility without changing the archived floor.
+
 ## 0.97.0
 
 - Open **Connection** in **Device settings** to inspect Roomba's reported

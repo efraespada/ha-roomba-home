@@ -1192,6 +1192,21 @@ report revision. The full suite passed 2,463 Python tests with 100% line
 and branch coverage and 55 card tests.
 [Anonymized layer evidence](evidence/2026-11-25-historical-map-layers.json)
 
+### Furniture and obstacles in recorded maps
+
+The Android 3.4.1 cleaning report for a Max 700 Combo offered independent
+furniture, obstacles, cleaning path, travel path, and 3D switches. Turning
+off the furniture and obstacles kept them off when switching to 3D.
+The trial restored the initial 2D view and both layer choices. Proxyman
+recorded map reads, time estimates, and an app event during the trial.
+There were no map writes.
+
+The card tests exercise both controls independently in 2D and 3D and
+check the drawn layers and legend. The tests confirm that the original
+report, 3D walls, cleaning coverage, saved restrictions, and final position
+are retained. A report without a layer hides its corresponding control.
+[ClearView map history](https://homesupport.irobot.com/articles/en_US/Knowledge/20500)
+
 ## Editing virtual walls
 
 On a docked Max 700 Combo, the coordinator created a horizontal wall,
