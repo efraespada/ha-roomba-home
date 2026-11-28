@@ -1788,6 +1788,22 @@ The suite passed 1,998 Python tests with 100% statement and branch
 coverage, 18 dashboard tests, and official hassfest validation.
 [Anonymized software evidence](evidence/2026-11-25-software-status.json)
 
+### On-demand software panel
+
+A follow-up Android check opened the robot's information page and then
+its last-update view while the Max 700 Combo was docked. The app showed
+the robot build, dock firmware, update day, and up-to-date message.
+Proxyman recorded fresh public catalog requests with model and robot
+version. They returned empty firmware lists. Public checks of the same
+installed version returned an empty list both with and without the dock
+version. These checks sent no device commands.
+
+Home Assistant tests cover read-only access with maps disabled, absent
+or stale devices, an empty catalog, candidates, and catalog failure
+with current installed versions. Card tests cover the display time zone,
+catalog retry, and a delayed response after changing the selected robot.
+[Software panel instructions](usage.md#robot-software-status)
+
 ## Mapping and floor removal
 
 On a docked Max 700 Combo, the official Android app started a mapping-only

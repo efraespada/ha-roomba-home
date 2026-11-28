@@ -445,14 +445,24 @@ timestamp. The integration converts it to UTC and retains the original
 installed version from `rw-software.softwareVer`. The dock's installed
 version comes from `ro-currentstate.dock.fwVer`.
 
-The app checks `GET https://content-prod.iot.irobotapi.com/v2/firmware`
-with model `sku`, `softwareVer`, and `dockFwVer` when available. This request
-is public. The associated account, device identifiers, firmware packages,
-and download URLs are excluded from the returned Home Assistant data. An
-empty `firmware` list matched the app's up-to-date state on the Max 700
-Combo. Other catalog versions are listed as candidates. iRobot can stage
-their delivery by device. A failed or malformed response leaves the status
-unavailable. [Software rollout](https://homesupport.irobot.com/articles/en_US/Knowledge/550)
+The Android Max 700 Combo capture used the public endpoint
+`GET https://content-prod.iot.irobotapi.com/v2/firmware` with model `sku`
+and `softwareVer`. The integration includes `dockFwVer` when the dock
+reports it. Both forms returned the same empty list for the verified
+installation. An empty applicable list matches the app's up-to-date
+state. Other catalog versions are candidates for a staged rollout.
+[Software rollout](https://homesupport.irobot.com/articles/en_US/Knowledge/550)
+
+`roomba_home/software_status` takes the vacuum `entity_id` and requires
+entity read permission. It returns `installed_version`, `dock_version`,
+`last_installed_at`, `status`, and `catalog_versions` from the same read
+path as the response-only action. The public request sends no account
+credentials or device identifiers. Package URLs and payloads are omitted
+from the response. If the catalog fails while installed values are current,
+the card response retains them with `status: unavailable` and an empty
+candidate list. The response-only action reports the catalog failure as
+an error. A stale or missing installed robot version is unavailable on
+both surfaces. The card works with maps disabled.
 
 ### Robot help catalog
 

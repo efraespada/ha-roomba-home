@@ -864,10 +864,15 @@ entities:
 
 ## Robot software status
 
-The robot's diagnostics show its installed firmware and the last update time
-reported by Roomba. The linked dock has its own reported firmware sensor.
-Use **Get robot software status** to check the provider catalog for that
-installed version and model.
+Open **Robot software** on the card to see the robot and dock versions,
+the last robot update, and the current Roomba catalog status. **Check again**
+refreshes the read. The card formats the update day in Home Assistant's
+time zone. Hover over the date or the formatted robot build to see the
+reported timestamp or exact build. Installed values stay visible during
+a catalog failure while the underlying device snapshot is current.
+
+The robot and dock each expose their firmware in their diagnostics. To
+retrieve the catalog status in an automation, use **Get robot software status**.
 
 ```yaml
 action: roomba_home.get_software_status

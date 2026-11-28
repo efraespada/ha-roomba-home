@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.93.0
+
+- Open **Robot software** on the card to see the installed robot and dock
+  versions, the last robot update, and the current Roomba catalog status.
+  The installed versions remain visible if the catalog is unavailable.
+
 ## 0.92.0
 
 - Show the reported part usage as a bar and the remaining time as whole
