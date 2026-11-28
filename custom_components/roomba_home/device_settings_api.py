@@ -68,6 +68,23 @@ def websocket_device_settings(hass, connection, message):
     entry_id = vacuum.account.config_entry.unique_id
     connected = vacuum.account.last_update_success and robot.connected is True
     ready = connected and robot_settings_idle(robot)
+    actions = {}
+    if connected:
+        vacuum_id = message["entity_id"]
+        if robot.capabilities.locate is True and permissions.check_entity(
+            vacuum_id, POLICY_CONTROL
+        ):
+            actions["locate"] = vacuum_id
+        reboot_id = registry.async_get_entity_id(
+            "button", DOMAIN, entity_unique_id(entry_id, vacuum.robot_id, "reboot_robot")
+        )
+        if (
+            reboot_id
+            and (reboot := hass.states.get(reboot_id)) is not None
+            and reboot.state != STATE_UNAVAILABLE
+            and permissions.check_entity(reboot_id, POLICY_CONTROL)
+        ):
+            actions["reboot"] = reboot_id
     settings = {}
     for key, domain in SETTING_ENTITIES.items():
         unique_id = entity_unique_id(entry_id, vacuum.robot_id, key)
@@ -95,7 +112,8 @@ def websocket_device_settings(hass, connection, message):
             },
         }
     connection.send_result(
-        message["id"], {"robot": robot.name, "ready": ready, "settings": settings}
+        message["id"],
+        {"robot": robot.name, "ready": ready, "settings": settings, "actions": actions},
     )
 
 

@@ -502,6 +502,83 @@ test("device settings guard pending edits and isolate a failed or late response"
   assert.equal(card.$("refresh-device-settings").disabled, false);
 });
 
+test("device settings review and use the exact native locate and reboot services", async () => {
+  const { card, dialog } = modalCard("device-settings-dialog");
+  const actions = { locate: "vacuum.example", reboot: "button.example_reboot" };
+  const calls = [];
+  let finishReboot;
+  card._hass = {
+    callWS: async () => ({ robot: "Example robot", ready: true, actions, settings: {} }),
+    callService: (...args) => {
+      calls.push(args);
+      if (args[0] === "button") return new Promise((resolve) => { finishReboot = resolve; });
+    },
+  };
+  await card.openDeviceSettings();
+  assert.equal(card.$("device-actions").hidden, false);
+  await card.confirmDeviceAction();
+  card.reviewDeviceAction("locate");
+  assert.equal(card.$("device-action-prompt").textContent, "Play the location sound on Example robot?");
+  assert.equal(card.$("back-device-action").focused, true);
+  assert.deepEqual(calls, []);
+  await card.confirmDeviceAction();
+  assert.match(card.$("device-action-status").textContent, /Locate request submitted/);
+  card.reviewDeviceAction("reboot");
+  assert.match(card.$("device-action-prompt").textContent, /Reboot Example robot.*dock drying/);
+  const reboot = card.confirmDeviceAction();
+  assert.match(card.$("device-action-status").textContent, /disconnect and reconnect/);
+  assert.equal(card.$("close-device-settings").disabled, false);
+  dialog.close();
+  await card.openDeviceSettings();
+  assert.match(card.$("device-action-status").textContent, /disconnect and reconnect/);
+  assert.equal(card.$("device-action-reboot").disabled, true);
+  card.reviewDeviceAction("reboot");
+  await card.confirmDeviceAction();
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
+    ["vacuum", "locate", {}, { entity_id: "vacuum.example" }],
+    ["button", "press", {}, { entity_id: "button.example_reboot" }],
+  ]);
+  finishReboot();
+  await reboot;
+  assert.equal(card.$("device-action-status").textContent, "Roomba disconnected and reconnected.");
+  assert.equal(card.$("device-action-reboot").disabled, false);
+});
+
+test("device action reviews expire when the target changes and a failed action requires another review", async () => {
+  const { card } = modalCard("device-settings-dialog");
+  let actions = { reboot: "button.old" };
+  let calls = 0;
+  card._hass = {
+    callWS: async () => ({ robot: "Example robot", ready: true, settings: {}, actions }),
+    callService: async () => { calls++; throw new Error("Roomba did not confirm the reboot."); },
+  };
+  await card.openDeviceSettings();
+  card.reviewDeviceAction("reboot");
+  actions = { reboot: "button.new" };
+  await card.loadDeviceSettings(card.deviceSettings);
+  assert.equal(card.$("device-action-review").hidden, true);
+  assert.match(card.$("device-action-status").textContent, /action changed/);
+  await card.confirmDeviceAction();
+  assert.equal(calls, 0);
+  card.reviewDeviceAction("reboot");
+  actions = { reboot: "button.renamed" };
+  await card.confirmDeviceAction();
+  assert.equal(calls, 0);
+  assert.match(card.$("device-action-status").textContent, /action changed/);
+  card.reviewDeviceAction("reboot");
+  card.voiceDownloads = { entity: "vacuum.example", pending: true };
+  await card.confirmDeviceAction();
+  assert.equal(calls, 0);
+  assert.match(card.$("device-action-status").textContent, /finish the voice installation/);
+  card.voiceDownloads.pending = false;
+  await card.confirmDeviceAction();
+  assert.equal(calls, 1);
+  assert.match(card.$("device-action-status").textContent, /did not confirm the reboot/);
+  assert.equal(card.$("device-action-review").hidden, true);
+  await card.confirmDeviceAction();
+  assert.equal(calls, 1);
+});
+
 const VOICE_REVIEW_ID = "a".repeat(64);
 const voiceReport = {
   current: "es-es", installed: ["es-es", "cs-cz"], downloadable: ["da-dk"],

@@ -482,6 +482,15 @@ for Roomba confirmation. After success the card rereads the settings,
 including related values such as emptying frequency and area. The panel
 requires no map geometry.
 
+The response also includes an `actions` mapping for the connected robot.
+`locate` resolves to the scoped vacuum when Roomba reports the capability
+and the user can control the vacuum. `reboot` resolves to that robot's
+available **Reboot robot** button when the caller can control it. The card
+rereads these associations after confirmation and invokes `vacuum.locate`
+or `button.press` only for the reviewed entity. These services use their
+existing fresh-state authorization and command checks. Locate reports a
+submission. Reboot requires an observed disconnect and reconnection.
+
 ### Robot help catalog
 
 Roomba's public endpoint serves the owner’s manual, support links and
