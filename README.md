@@ -381,11 +381,14 @@ mode. [Side-by-side mopping trial](docs/validation.md#side-by-side-live-mopping)
   The card and **Estimated cleaning time remaining** sensor show an
   approximation when Roomba provides a matching estimate for each remaining
   destination. The card refreshes the countdown between robot updates and
-  holds the estimate during a confirmed pause in a timed room.
+  holds the estimate during a confirmed pause in a timed room. After
+  resuming, the timer still accounts for the room time already reported.
   [Live progress and automation example](docs/usage.md#telemetry-progress-and-problems)
 - **Skip current area** asks for confirmation while Roomba reports the
   current destination. The mission history shows the skipped area.
   [Skip control and automation example](docs/usage.md#skip-the-current-destination)
+
+![Paused directed cleaning estimate in Home Assistant](docs/screenshots/roomba-paused-cleaning-estimate.jpg)
 
 Roomba reports the live path and room progress. The Android trial showed
 remaining minutes and battery percentage during a directed vacuum run.

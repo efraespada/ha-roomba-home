@@ -356,9 +356,13 @@ and Roomba's room estimates. Subtract elapsed active room time when the
 stage and destination agree. Keep completed and skipped destinations out
 of the remaining sum. During a confirmed pause, hold the remaining time
 computed from the room's accumulated cleaning time at the pause timestamp.
-Require the robot's paused state and the matching timeline event. Omit the
-countdown during unverified stages, on an expired report, or while any
-remaining destination lacks a verified estimate.
+Require the robot's paused state and the matching timeline event. Preserve
+completed room intervals for the same robot, mission, and directed plan
+when the timeline is replaced. Resume the same room's interval from the
+verified new stage timestamp. Merge overlapping source intervals and
+exclude time between confirmed pause and resumption. Omit the countdown
+during unverified stages, on an expired report, or while any remaining
+destination lacks a verified estimate.
 Recalculate on each floor-plan read from existing verified stage times and
 saved durations. Reading the countdown requires no additional provider
 request and leaves the coordinator snapshot intact.

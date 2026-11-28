@@ -1275,12 +1275,20 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
     @staticmethod
     def _plan_with_elapsed(plan, report, state, started, stage_started, now):
         interval = None
-        paused = report.stage == "pause"
-        if (state.phase == "run" or paused) and (area := report.timed_destination(stage_started)):
-            until = stage_started if paused else now
+        stage = RoombaCoordinator._estimate_stage(state, report)
+        area = None
+        if stage == "room" and stage_started is not None:
+            area = report.running_room(stage_started)
+        elif stage == "zone" or (stage == "pause" and report.active_zones):
+            area = report.timed_destination(stage_started)
+        if area is not None:
+            until = stage_started if stage == "pause" else now
             interval = (area, int(until.timestamp()))
         return with_destination_elapsed(
-            plan, report.timing.elapsed(report.plan, started, now, interval)
+            plan,
+            report.timing.elapsed(
+                report.plan, started, now, interval, observed_rooms=report.room_timing
+            ),
         )
 
     @staticmethod
@@ -1359,6 +1367,9 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             self._timeline_due.pop(key, None)
             return {}
         if report is not None and report.mission_number == number:
+            previous = self._current_timeline(state)
+            if previous is not None and report.plan == previous.plan:
+                report = replace(report, room_timing=previous.room_timing)
             self._live_timelines[key] = (started, report)
         recent = self._current_timeline(state, now)
         if recent is None:
@@ -1369,6 +1380,12 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             key, (*recent.zones, *recent.active_zones, *destinations)
         )
         stage_started = self._stage_started_during_mission(recent, started, now)
+        observed = recent.observe_room_timing(
+            self._estimate_stage(state, recent), started, stage_started
+        )
+        if observed is not recent:
+            recent = observed
+            self._live_timelines[key] = (started, recent)
         active_zone = recent.timed_destination(stage_started) if recent.stage == "zone" else None
         metrics = {
             "live_timeline_updated": recent.observed_at,

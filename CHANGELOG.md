@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.104.1
+
+- Carry verified room cleaning time across a pause and resume when Roomba
+  replaces its live stage without repeating the earlier room interval.
+
 ## 0.104.0
 
 - Keep the remaining-time estimate visible and stable when Roomba confirms

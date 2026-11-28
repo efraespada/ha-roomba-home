@@ -2777,7 +2777,44 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     configured.async_set_updated_data({robot: replace(paused_state, phase="run")})
     assert (await snapshot(later, 7))["estimated_remaining_seconds"] is None
 
-    configured.client.cleaning_time_estimates.assert_awaited_once()
+    resumed_at = later + timedelta(seconds=15)
+    running_at = resumed_at + timedelta(seconds=8)
+    # The latest event advances the stage without a new timed room payload.
+    resume_event = {"type": "room", "ts": int(resumed_at.timestamp())}
+    resume_document = document | {"event": [*document["event"], resume_event]}
+    resume_report = mission_timeline(resume_document, 17, 51, int(running_at.timestamp()))
+    resumed = await configured._timeline_metrics(state, resume_report, running_at)
+    assert resumed["live_estimated_remaining"] == 459
+    configured.async_set_updated_data({robot: replace(state, telemetry=state.telemetry | resumed)})
+    resumed_snapshot = await snapshot(running_at, 8)
+    assert resumed_snapshot["estimated_remaining_seconds"] == 459
+    assert resumed_snapshot["destinations"][0]["stage_elapsed_seconds"] == 8
+    assert resumed_snapshot["destinations"][0]["cleaning_elapsed_seconds"] == 43
+
+    paused_again_at = running_at + timedelta(seconds=5)
+    pause_again_event = {"type": "pause", "ts": int(paused_again_at.timestamp())}
+    repeat_document = resume_document | {
+        "event": [*document["event"], pause_again_event],
+        "finEvents": [
+            document["event"][0]
+            | {"ets": int(paused_again_at.timestamp()), "room": document["event"][0]["room"]}
+        ],
+    }
+    repeat_report = mission_timeline(repeat_document, 17, 51, int(paused_again_at.timestamp()))
+    repeat = await configured._timeline_metrics(stopped, repeat_report, paused_again_at)
+    assert repeat["live_estimated_remaining"] == 454
+    configured.async_set_updated_data({robot: replace(stopped, telemetry=state.telemetry | repeat)})
+    repeat_snapshot = await snapshot(paused_again_at + timedelta(seconds=13), 9)
+    assert repeat_snapshot["destinations"][0]["cleaning_elapsed_seconds"] == 48
+    assert repeat_snapshot["estimated_remaining_seconds"] == 454
+
+    new_mission = replace(
+        state, telemetry=state.telemetry | {"mission_started": now - timedelta(seconds=58)}
+    )
+    next_mission = await configured._timeline_metrics(new_mission, resume_report, running_at)
+    assert next_mission["live_estimated_remaining"] == 494
+
+    assert configured.client.cleaning_time_estimates.await_count == 2
     document["cmd"]["regions"].append({"type": "zid", "region_id": "zone-a"})
     mixed = mission_timeline(document, 17, 51, int(now.timestamp()))
     partial = await configured._timeline_metrics(state, mixed, now)
