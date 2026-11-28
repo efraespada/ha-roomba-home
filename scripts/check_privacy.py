@@ -47,6 +47,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-recorded-map-layers.jpg": (
         "49b39d6f85912f28d5de6088e7015637b9e6274e346bff31fdf75587d3b7ee2a"
     ),
+    "docs/screenshots/roomba-floor-activity.jpg": (
+        "9319441373038cf7548c18a7c860f9fd6bd51afd8215d1b569673f176caf6cf9"
+    ),
     "docs/screenshots/roomba-dock-controls.jpg": (
         "b403707827720f2c4b31db72ee923364d04885c9ea8ae876d553096c96e94d1b"
     ),
