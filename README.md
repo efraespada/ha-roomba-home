@@ -383,6 +383,8 @@ mode. [Side-by-side mopping trial](docs/validation.md#side-by-side-live-mopping)
   destination. The card refreshes the countdown between robot updates and
   holds the estimate during a confirmed pause in a timed room. After
   resuming, the timer still accounts for the room time already reported.
+  If Roomba's motion state updates first, the affected row shows
+  **Waiting for Roomba update** while Home Assistant requests the new stage.
   [Live progress and automation example](docs/usage.md#telemetry-progress-and-problems)
 - **Skip current area** asks for confirmation while Roomba reports the
   current destination. The mission history shows the skipped area.

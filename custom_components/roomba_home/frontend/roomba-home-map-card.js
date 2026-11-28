@@ -4219,7 +4219,7 @@ class RoombaHomeMapCard extends HTMLElement {
     };
     const statuses = {
       pending: "Pending", traveling: "On the way", in_progress: "In progress", finished: "Completed",
-      paused: "Paused",
+      paused: "Paused", awaiting_update: "Waiting for Roomba update",
       finished_with_more_passes: "More passes expected", partial_incomplete: "Partially cleaned",
       partial_skipped: "Partially skipped", kidnapped: "Robot moved", user_ended: "Ended by user",
       robot_aborted: "Ended by robot", skipped: "Skipped", skipped_will_return: "Skipped, will return",

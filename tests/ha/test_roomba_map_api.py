@@ -2757,6 +2757,7 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     paused = await configured._timeline_metrics(replace(state, phase="stop"), None, now)
     assert paused["live_estimated_remaining"] is None
     assert paused["live_timeline_plan"]["estimated_duration_seconds"] == 502
+    assert paused["live_timeline_plan"]["destinations"][0]["status"] == "awaiting_update"
 
     paused_at = now + timedelta(seconds=12)
     pause_document = document | {
@@ -2766,6 +2767,7 @@ async def test_floor_plan_reports_estimated_time_and_reuses_the_same_mission_rea
     stopped = replace(state, phase="stop")
     awaiting_pause = await configured._timeline_metrics(state, pause_report, later)
     assert awaiting_pause["live_estimated_remaining"] is None
+    assert awaiting_pause["live_timeline_plan"]["destinations"][0]["status"] == "awaiting_update"
     latest_provider_read = configured._live_timelines[robot]
     verified_pause = await configured._timeline_metrics(stopped, None, later)
     assert configured._live_timelines[robot] is latest_provider_read
