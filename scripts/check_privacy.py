@@ -32,6 +32,9 @@ REVIEWED_BINARY_ASSETS = {
     "docs/screenshots/roomba-dock-auto-empty.png": (
         "a0472d6416143cea7b1ca3eb089197c1b35356d5a456337b192b58d654486db6"
     ),
+    "docs/screenshots/roomba-device-settings.jpg": (
+        "ab9b7e8a634df1282d381cf3e43ee4f8b13b374b1d96bfc905a2656815066f0d"
+    ),
     "docs/screenshots/roomba-dock-controls.jpg": (
         "b403707827720f2c4b31db72ee923364d04885c9ea8ae876d553096c96e94d1b"
     ),
