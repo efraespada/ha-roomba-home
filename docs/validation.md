@@ -23,6 +23,24 @@ this trial.
 The Home Assistant tests check failed preflight, acknowledged removal before
 start, reporting of a partial failure, and one confirmed card request.
 
+### Installed Home Assistant verification
+
+The installed 0.101.0 card showed both saved floors for the same robot.
+The removal review named the disposable floor. One confirmed request
+removed that floor and displayed **Roomba removed the floor and started
+mapping** within 15 seconds. The card's mapping state confirmed the
+new run. Canceling it from the card left the robot idle. A separate
+`vacuum.return_to_base` action targeted the same robot. The final dashboard
+check showed all three robots at their docks.
+
+Independent Proxyman reads from Roomba Home showed one remaining floor.
+The original identifier and all destination metadata matched the baseline.
+The active revision changed, with identical binary map fields apart from
+the timestamp in the header. A local backup of the original floor was
+captured before the test and retained in Home Assistant. The two existing
+routines associated with the robot matched their complete saved records and
+display order in Proxyman before and after the trial.
+
 ## Maintenance reminders
 
 Roomba Home Android 3.4.1 showed a roller mop reminder on the Max 700
