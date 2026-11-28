@@ -1194,6 +1194,15 @@ scoping across revisions, zero-area and ambiguous reports, the exact
 history selection, a report that disappears, and independent image
 attribute updates. Map and history evidence remain distinct.
 
+Home Assistant passed its Core configuration check and restarted on 0.99.0.
+The three robots reappeared at their docks. On the tested Max 700 Combo,
+the floor card showed distinct creation, revision, and cleaning times.
+The shortcut selected the same measured report observed before the update
+and loaded its archived map. All three displayed dates matched the
+corresponding attributes on the floor image after converting to the
+browser's time zone. No robot commands or map edits were issued.
+[Installed floor activity controls](screenshots/roomba-floor-activity.jpg)
+
 ## Historical map layers
 
 The integration opened 21 signed reports for the Max 700 Combo using each

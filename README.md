@@ -257,6 +257,8 @@ report identifies that floor and contains measured cleaning area. Open it
 to review the matching report. **Floor details** shows when Roomba created
 the map and last updated its revision. [Floor dates and automation example](docs/usage.md#floor-activity)
 
+![Floor activity in the installed Home Assistant card, with household dates hidden](docs/screenshots/roomba-floor-activity.jpg)
+
 1. Enable **Show saved floor plans and live room updates** in the integration
    options. This also creates the native floor plan image and live room sensors.
 2. Add `/roomba_home/roomba-home-map-card.js?v=0.99.0` as a **JavaScript module**
