@@ -534,13 +534,11 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
         )
         try:
             record, plan = await self._executor(capture_snapshot, floor, archive, datetime.now(UTC))
-            if areas := saved_zone_destinations(floor.map_id, plan) | saved_furniture_destinations(
-                floor.map_id, plan
-            ):
-                sources, unchecked = await self._read_map_programs(
-                    robot_id, {"routine", "schedule"}
-                )
-                programs = capture_map_programs(areas, sources, unchecked)
+            sources, unchecked = await self._read_map_programs(
+                robot_id, {"routine", "schedule"}, floor_id=floor.map_id
+            )
+            programs = capture_map_programs(floor, plan, sources, unchecked)
+            if programs["items"] or programs["unchecked"]:
                 record = await self._executor(with_backup_programs, record, archive, programs)
             return await history.async_capture(robot_id, record)
         except ProtocolError as error:
@@ -2640,10 +2638,10 @@ class RoombaCoordinator(DataUpdateCoordinator[dict[str, RobotState]]):
             return {"routines": await self.client.list_cleaning_routines(robot_id)}
 
     async def async_create_cleaning_routine(
-        self, robot_id, name, selections, *, ordered=True, **appearance
+        self, robot_id, name, selections, *, ordered=True, reviewed_map=None, **appearance
     ):
         async with self._routine_transaction(robot_id) as state:
-            target = await self._profiled_map_target(robot_id, state, selections)
+            target = await self._profiled_map_target(robot_id, state, selections, reviewed_map)
             return await self.client.create_cleaning_routine(
                 robot_id, name, replace(target, ordered=ordered), **appearance
             )

@@ -308,6 +308,7 @@ def async_setup_services(hass):
             vol.Required("name"): name,
             vol.Required("regions"): regions,
             vol.Optional("ordered"): bool,
+            vol.Optional("floor"): vol.Schema(MAP_REVIEW),
             vol.Optional("icon"): str,
             vol.Optional("color"): str,
         },

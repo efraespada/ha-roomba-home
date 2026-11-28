@@ -754,6 +754,7 @@ template.innerHTML = `
           <button id="review-map-backup-restrictions" hidden>Restore restrictions</button>
           <button id="review-map-backup-furniture" hidden>Restore furniture</button>
           <button id="review-map-backup-programs" hidden>Recover program destinations</button>
+          <button id="copy-map-backup-program" hidden>Recreate a saved program</button>
           <button id="pin-map-backup" hidden>Pin backup</button>
           <button id="delete-map-backup" hidden>Delete backup</button>
         </div>
@@ -784,6 +785,17 @@ template.innerHTML = `
           <div class="actions">
             <button id="cancel-map-backup-restore">Back</button>
             <button id="confirm-map-backup-restore" class="primary">Restore settings</button>
+          </div>
+        </section>
+        <section id="map-backup-copy" hidden aria-labelledby="map-backup-copy-title">
+          <h4 id="map-backup-copy-title">Recreate a saved program</h4>
+          <p id="map-backup-copy-floor" class="muted"></p>
+          <label>Saved program <select id="map-backup-copy-choice"></select></label>
+          <ol id="map-backup-copy-areas"></ol>
+          <p id="map-backup-copy-status" class="muted" role="status"></p>
+          <div class="actions">
+            <button id="cancel-map-backup-copy">Back</button>
+            <button id="continue-map-backup-copy" class="primary" disabled>Continue to editor</button>
           </div>
         </section>
       </section>
@@ -1545,6 +1557,13 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("review-map-backup-restrictions").onclick = () => this.reviewMapBackupRestore("restrictions");
     this.$("review-map-backup-furniture").onclick = () => this.reviewMapBackupRestore("furniture");
     this.$("review-map-backup-programs").onclick = () => this.reviewMapBackupRestore("programs");
+    this.$("copy-map-backup-program").onclick = () => this.openMapBackupProgramCopy();
+    this.$("map-backup-copy-choice").onchange = (event) => this.chooseMapBackupProgram(event.target.value);
+    this.$("continue-map-backup-copy").onclick = () => this.openCopiedProgramEditor();
+    this.$("cancel-map-backup-copy").onclick = () => {
+      this.backups.copy = null;
+      this.updateMapBackupControls(this.backups);
+    };
     this.$("map-backup-restore-program-choice").onchange = () => this.showMapBackupProgram();
     this.$("confirm-map-backup-restore").onclick = () => this.confirmMapBackupRestore();
     this.$("cancel-map-backup-restore").onclick = () => {
@@ -3042,6 +3061,10 @@ class RoombaHomeMapCard extends HTMLElement {
       backup.restore = null;
       this.$("map-backups-status").textContent = "The current floor changed. Review the restore again.";
     }
+    if (backup.copy && backup.copy.scope !== this.floorShortcutScope()) {
+      backup.copy = null;
+      this.$("map-backups-status").textContent = "The current floor changed. Choose destinations again.";
+    }
     const pin = this.$("pin-map-backup");
     const remove = this.$("delete-map-backup");
     pin.hidden = remove.hidden = !backup.can_manage;
@@ -3055,7 +3078,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("map-backup-choice").disabled = backup.busy;
     this.$("save-map-backup-settings").disabled = backup.busy;
     const restore = this.$("review-map-backup-restore");
-    restore.hidden = !canRestore || Boolean(backup.restore);
+    restore.hidden = !canRestore || Boolean(backup.restore || backup.copy);
     restore.disabled = backup.busy || !backup.preview;
     const rooms = this.$("review-map-backup-room-details");
     rooms.hidden = restore.hidden || !backup.savedRooms;
@@ -3072,10 +3095,82 @@ class RoombaHomeMapCard extends HTMLElement {
     const programs = this.$("review-map-backup-programs");
     programs.hidden = restore.hidden || !(saved?.program_count || saved?.programs_unchecked?.length);
     programs.disabled = restore.disabled;
+    const copy = this.$("copy-map-backup-program");
+    copy.hidden = !backup.can_manage || !this.floorShortcutScope() || Boolean(backup.restore || backup.copy) ||
+      !backup.programDrafts?.some(({ kind }) => kind === "routine" || this.snapshot.can_manage_schedules);
+    copy.disabled = backup.busy || !backup.preview;
+    this.$("map-backup-copy").hidden = !backup.copy;
     this.$("map-backup-restore").hidden = !backup.restore;
     const selectedReview = ["programs", "room_details"].includes(backup.restore?.kind);
     this.$("confirm-map-backup-restore").disabled = backup.busy ||
       (selectedReview && !backup.restore.review_id);
+  }
+
+  openMapBackupProgramCopy() {
+    const backup = this.backups;
+    const scope = this.floorShortcutScope();
+    const button = this.$("copy-map-backup-program");
+    if (!this.backupsOpen(backup) || !scope || button.hidden || button.disabled) return;
+    const programs = backup.programDrafts.filter(({ kind }) => kind === "routine" || this.snapshot.can_manage_schedules);
+    backup.copy = { scope, programs };
+    const floorName = this.snapshot.floor_settings?.name || "the displayed floor";
+    this.$("map-backup-copy-floor").textContent = `Choose destinations on ${floorName} for the saved cleaning order.`;
+    const choices = this.$("map-backup-copy-choice");
+    choices.replaceChildren(...programs.map(({ kind, name }, index) =>
+      option(String(index), `${kind === "routine" ? "Routine" : "Schedule"} · ${name || "Unnamed"}`)));
+    choices.value = "0";
+    this.chooseMapBackupProgram("0");
+    this.updateMapBackupControls(backup);
+    choices.focus();
+  }
+
+  chooseMapBackupProgram(index) {
+    const { copy } = this.backups;
+    const program = copy?.programs[index];
+    if (!program || copy.scope !== this.floorShortcutScope()) return;
+    copy.program = program;
+    copy.destinations = new Array(program.region_settings.length).fill("");
+    const roomsAndZones = this.geometry.regions.filter(({ id }) => id);
+    const furniture = program.ordered ? this.furnitureDestinations : [];
+    const areas = [...roomsAndZones, ...furniture];
+    this.$("map-backup-copy-areas").replaceChildren(...program.draft.area_names.map((name, position) => {
+      const row = document.createElement("li");
+      const label = document.createElement("label");
+      const select = document.createElement("select");
+      label.textContent = `${name} `;
+      select.setAttribute("aria-label", `New destination for ${name} (${position + 1})`);
+      select.replaceChildren(option("", "Choose an area"), ...areas.map(({ id, name, kind }) =>
+        option(id, `${name} · ${kind === "room" ? "Room" : kind === "zone" ? "Zone" : "Furniture"}`)));
+      select.onchange = () => {
+        if (copy !== this.backups?.copy || copy.scope !== this.floorShortcutScope()) return;
+        copy.destinations[position] = select.value;
+        this.updateMapBackupProgramCopy(copy);
+      };
+      label.append(select);
+      row.append(label);
+      return row;
+    }));
+    this.updateMapBackupProgramCopy(copy);
+  }
+
+  updateMapBackupProgramCopy(copy) {
+    const selected = copy.destinations.filter(Boolean);
+    const duplicate = new Set(selected).size !== selected.length;
+    this.$("continue-map-backup-copy").disabled = duplicate || selected.length !== copy.destinations.length;
+    this.$("map-backup-copy-status").textContent = duplicate ? "Choose a different destination for each saved area."
+      : copy.program.kind === "schedule" ? "The new schedule starts disabled." : "";
+  }
+
+  async openCopiedProgramEditor() {
+    const backup = this.backups;
+    const copy = backup.copy;
+    if (!this.backupsOpen(backup) || !copy || copy.scope !== this.floorShortcutScope() ||
+        this.$("continue-map-backup-copy").disabled || this.routineBusy || this.routineDialog.open) return;
+    const { kind, name, ordered, draft, region_settings } = copy.program;
+    const regions = region_settings.map((region, index) => ({ ...region, id: copy.destinations[index] }));
+    this.$("map-backups-dialog").close();
+    await this.openRoutines({ schedule: kind === "schedule", initialDraft: { ...draft, name, regions, ordered } });
+    if (this.routineDialog.open && this.routineFloorIsCurrent()) this.$("routine-name").focus();
   }
 
   async showMapBackup(id) {
@@ -3092,6 +3187,8 @@ class RoombaHomeMapCard extends HTMLElement {
     backup.savedFurniture = false;
     backup.deletePending = null;
     backup.restore = null;
+    backup.copy = null;
+    backup.programDrafts = [];
     this.$("map-backup-choice").value = id;
     this.updateMapBackupControls(backup);
     canvas.hidden = true;
@@ -3099,7 +3196,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("map-backup-legend").replaceChildren();
     status.textContent = "Opening local map…";
     try {
-      const { backup: saved, geometry } = await this.mapBackupRequest(backup, "read_map_backup", { backup_id: id });
+      const { backup: saved, geometry, program_drafts = [] } = await this.mapBackupRequest(backup, "read_map_backup", { backup_id: id });
       if (!this.backupsOpen(backup) || backup.request !== request) return;
       this.drawMapBackup(canvas, saved, geometry);
       backup.savedRooms = Boolean(geometry.editable_rooms?.length);
@@ -3107,6 +3204,7 @@ class RoombaHomeMapCard extends HTMLElement {
       backup.savedZones = geometry.regions.some(({ kind }) => kind === "zone");
       backup.savedRestrictions = Boolean(geometry.keep_out?.length || geometry.no_mop?.length || geometry.virtual_walls?.length);
       backup.savedFurniture = Boolean(geometry.furniture?.items?.length);
+      backup.programDrafts = program_drafts;
       const current = this.snapshot;
       if (current?.map && current.map.id === saved.map_id) {
         const angle = current.floor_settings?.orientation;
@@ -5201,15 +5299,18 @@ class RoombaHomeMapCard extends HTMLElement {
     this.routineDraft = {
       saved,
       name: saved?.name ?? initialDraft?.name ?? "",
-      icon: saved?.icon,
-      color: saved?.color,
+      icon: (saved ?? initialDraft)?.icon,
+      color: (saved ?? initialDraft)?.color,
       regions: saved ? (canReplace ? settings.map((region) => ({ ...region })) : null)
         : initialDraft?.regions ?? [...selected].map((id) => ({ id })),
       ordered: (saved ?? initialDraft)?.ordered !== false,
     };
-    if (this.scheduleEditor) Object.assign(this.routineDraft, {
-      frequency: saved?.frequency ?? "weekly", weekdays: [...(saved?.weekdays ?? [])], time: saved?.time ?? "",
-    });
+    if (this.scheduleEditor) {
+      const timing = saved ?? initialDraft;
+      Object.assign(this.routineDraft, {
+        frequency: timing?.frequency ?? "weekly", weekdays: [...(timing?.weekdays ?? [])], time: timing?.time ?? "",
+      });
+    }
     this.$("routine-status").textContent = "";
     this.renderRoutine();
   }
@@ -5810,6 +5911,10 @@ class RoombaHomeMapCard extends HTMLElement {
       if (!ordered) data.ordered = false;
     }
     if (saved) data.routine_id = saved.id;
+    else {
+      const { id, version, selectionId } = this.routineMap;
+      data.floor = { map_id: id, version, inventory_id: selectionId };
+    }
     await this.mutateRoutine(saved ? "update_cleaning_routine" : "create_cleaning_routine", data);
   }
 

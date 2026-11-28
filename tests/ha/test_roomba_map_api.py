@@ -163,6 +163,8 @@ async def configured(hass, entry, robot_states, make_point_bundle, map_display_l
         account._maps_available = {robot.robot_id: True}
         account.client.map_geometry = AsyncMock(return_value=make_point_bundle(mutate=with_zone))
         account.client.maps = AsyncMock(return_value=(MAP,))
+        account.client.list_cleaning_routines = AsyncMock(return_value=[])
+        account.client.list_cleaning_schedules = AsyncMock(return_value=[])
         return {robot.robot_id: robot}
 
     with patch.object(RoombaCoordinator, "_async_update_data", initial):
@@ -3970,10 +3972,21 @@ async def test_routine_actions_resolve_furniture_and_run_in_saved_order(
     }
     configured.client.create_cleaning_routine = AsyncMock(return_value=routine)
     context = Context(user_id=hass_owner_user.id)
+    floor = {"map_id": MAP.map_id, "version": MAP.version_id, "inventory_id": data["selection_id"]}
+    request = {"entity_id": ENTITY, "name": routine["name"], "regions": selections, "floor": floor}
+    with pytest.raises(HomeAssistantError, match="map changed"):
+        await hass.services.async_call(
+            DOMAIN,
+            "create_cleaning_routine",
+            request | {"floor": floor | {"version": "stale"}},
+            blocking=True,
+            context=context,
+        )
+    configured.client.create_cleaning_routine.assert_not_awaited()
     await hass.services.async_call(
         DOMAIN,
         "create_cleaning_routine",
-        {"entity_id": ENTITY, "name": routine["name"], "regions": selections},
+        request,
         blocking=True,
         context=context,
     )
@@ -4531,7 +4544,13 @@ async def program_recovery(configured, hass_ws_client, picea_archive):
         {"id": "map-a:zid:101", "mode": "mop", "wetness_level": 2, "two_pass": True},
     ]
     routine = {"id": "a" * 32, "name": "Morning", "editable": True}
-    schedule = {"id": "schedule:item", "name": "Weekly", "enabled": False, "time": "15:30"}
+    schedule = {
+        "id": "schedule:item",
+        "name": "Weekly",
+        "enabled": False,
+        "time": "15:30",
+        "weekdays": [2, 5],
+    }
 
     def program(row, settings):
         return row | {"regions": [item["id"] for item in settings], "region_settings": settings}
@@ -4570,6 +4589,13 @@ async def program_recovery(configured, hass_ws_client, picea_archive):
     assert [item["id"] for item in exported["items"]] == [routine["id"], schedule["id"]]
     assert all(item["region_settings"] == profiles for item in exported["items"])
     assert all("time" not in item and "enabled" not in item for item in exported["items"])
+    assert exported["items"][0]["draft"] == {"area_names": ["Reading area", "Entráda"]}
+    assert exported["items"][1]["draft"] == {
+        "area_names": ["Reading area", "Entráda"],
+        "time": "15:30",
+        "weekdays": [2, 5],
+        "enabled": False,
+    }
     configured.client.list_cleaning_routines.return_value = [
         program(routine | {"name": "Renamed since capture"}, profiles[:1]),
     ]
@@ -4581,6 +4607,49 @@ async def program_recovery(configured, hass_ws_client, picea_archive):
         "backup_id": backup["id"],
     }
     return socket, review, profiles
+
+
+async def test_read_backup_exposes_room_only_program_after_its_floor_is_retired(
+    configured, hass_ws_client, picea_archive
+):
+    profiles = [{"id": "map-a:rid:room-a", "mode": "vacuum", "suction_level": 2}]
+    routine = {
+        "id": "a" * 32,
+        "name": "Morning",
+        "region_settings": profiles,
+        "regions": [profiles[0]["id"]],
+        "icon": "🧹",
+        "color": "#CBCBFB",
+    }
+    configured.client.map_geometry.return_value = picea_archive()
+    configured.client.list_cleaning_routines.return_value = [routine]
+    socket = await hass_ws_client()
+    await socket.send_json(CAPTURE_BACKUP | {"id": 1})
+    backup = (await socket.receive_json())["result"]
+    configured.client.maps.return_value = (replace(MAP, map_id="replacement"),)
+    configured.client.list_cleaning_routines.return_value = []
+    await socket.send_json(
+        {
+            "id": 2,
+            "type": "roomba_home/read_map_backup",
+            "entity_id": ENTITY,
+            "backup_id": backup["id"],
+        }
+    )
+    result = (await socket.receive_json())["result"]
+    assert result["program_drafts"] == [
+        {
+            "id": routine["id"],
+            "kind": "routine",
+            "name": "Morning",
+            "ordered": True,
+            "region_settings": profiles,
+            "draft": {"area_names": [MAP.regions[0].name], "icon": "🧹", "color": "#CBCBFB"},
+        }
+    ]
+    configured.client.list_cleaning_routines.assert_awaited_once_with(
+        "fixture-0", floor_id=MAP.map_id
+    )
 
 
 async def test_recover_selects_one_program_and_preserves_original_area_profiles(
@@ -4886,7 +4955,7 @@ async def test_backup_relinks_a_missing_furniture_target_with_its_original_setti
     await socket.send_json(CAPTURE_BACKUP | {"id": 1})
     backup = (await socket.receive_json())["result"]
     assert backup["program_count"] == 1
-    source.assert_awaited_once_with("fixture-0")
+    source.assert_awaited_once_with("fixture-0", floor_id=MAP.map_id)
     source.return_value = [
         program | {"regions": [profiles[0]["id"]], "region_settings": profiles[:1]}
     ]

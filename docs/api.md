@@ -195,8 +195,10 @@ reduced-motion preference.
 The card uses authenticated Home Assistant WebSocket commands scoped to the
 selected vacuum entity. `roomba_home/map_backups` lists saved metadata and
 retention settings. `roomba_home/read_map_backup` accepts `backup_id` with
-optional `download`. A preview returns floor geometry and the verified
-metadata. An export returns `format_version: 1`, the floor metadata, the
+optional `download`. A preview returns floor geometry and verified metadata.
+If the backup includes program records, `program_drafts` lists the ones
+available to recreate.
+An export returns `format_version: 1`, the floor metadata, the
 base64-encoded native gzip archive, and `programs` when captured. Both use
 local storage and the entity's read permission.
 
@@ -212,8 +214,10 @@ control permission for the selected robot.
 
 Home Assistant writes private, atomic storage and checks the saved result
 before confirming a capture. The stored data contains the native binary
-archive, selected floor metadata, and editable selections of programs that
-target a recorded native cleaning zone or supported furniture object. Account sessions and signed download
+archive, selected floor metadata, and editable selections from Roomba's
+exact floor program lists. Portable drafts include area names in profile
+order, routine appearance, and schedule timing and activation at capture.
+Account sessions and signed download
 URLs stay outside that storage. [Backup validation](validation.md#local-map-backups)
 
 `roomba_home/restore_map_backup_settings` accepts `backup_id` and the active
@@ -287,6 +291,17 @@ Revalidate the map and freshly read the program before sending a single
 selection update to Roomba. The program keeps its current name and, for
 schedules, its timing and enabled state. A confirmed write returns
 `applied: true`. [Recovery validation](validation.md#recovering-program-destinations)
+
+To recreate a program from `program_drafts`, replace its region identifiers
+with distinct destinations from one current floor and keep each area's
+profile at the same position. Send the reviewed floor and mapped profiles
+through `roomba_home.create_cleaning_routine` or
+`roomba_home.create_cleaning_schedule`. Both actions accept a floor review
+with `map_id`, `version`, and `inventory_id`. Use the original routine's
+`ordered`, `icon`, and `color`, or the schedule's time and recurrence. A
+new schedule starts disabled through the regular create action. One-time
+schedules use the next occurrence of the chosen robot-local start time.
+Older backups still open and retain their original recovery options.
 
 ### Active floor with several saved maps
 

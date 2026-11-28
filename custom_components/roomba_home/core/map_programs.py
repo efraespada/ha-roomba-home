@@ -6,7 +6,7 @@ from .cleaning import CleaningMode, CleaningProfile
 from .furniture_edits import matching_furniture_placement
 from .furniture_targets import furniture_regions
 from .maps import SAVED_ZONE_IDS, AreaTarget, PersistentMap, resolve_segments
-from .point_maps import FloorPlan, MapFurniture
+from .point_maps import FloorPlan, MapFurniture, with_archive_destinations
 from .zone_edits import matching_saved_zone
 
 
@@ -33,30 +33,55 @@ def program_selection(program: dict) -> tuple | None:
     return settings, program.get("ordered", True)
 
 
-def capture_map_programs(areas: dict, sources: dict, unchecked: list[str]) -> dict:
+def capture_map_programs(
+    floor: PersistentMap, plan: FloorPlan, sources: dict, unchecked: list[str]
+) -> dict:
+    areas = {
+        region.segment_id(floor.map_id): region.name or f"Area {index}"
+        for index, region in enumerate(
+            (*with_archive_destinations(floor, plan).regions, *furniture_regions(plan)), 1
+        )
+    }
     programs = []
     incomplete = set(unchecked)
     for kind, rows in sources.items():
         for row in rows:
-            if not areas.keys() & (row.get("regions") or ()):
+            regions = row.get("regions") or ()
+            if regions and not any(region.startswith(f"{floor.map_id}:") for region in regions):
                 continue
             if (selection := program_selection(row)) is None:
                 incomplete.add(kind)
                 continue
             settings, ordered = selection
-            programs.append(
-                {
-                    "kind": kind,
-                    "id": row["id"],
-                    "name": row.get("name"),
-                    "ordered": ordered,
-                    "region_settings": settings,
-                }
-            )
+            record = {
+                "kind": kind,
+                "id": row["id"],
+                "name": row.get("name"),
+                "ordered": ordered,
+                "region_settings": settings,
+            }
+            if all(region["id"] in areas for region in settings):
+                if (draft := _copy_fields(kind, row)) is not None:
+                    record["draft"] = draft | {
+                        "area_names": [areas[region["id"]] for region in settings]
+                    }
+            programs.append(record)
     return {
         "items": sorted(programs, key=lambda program: (program["kind"], program["id"])),
         "unchecked": sorted(incomplete),
     }
+
+
+def _copy_fields(kind: str, row: dict) -> dict | None:
+    if kind == "routine":
+        return {key: row[key] for key in ("icon", "color") if key in row}
+    if row.get("time") and (row.get("weekdays") or row.get("frequency") == "once"):
+        return {
+            key: row[key]
+            for key in ("frequency", "weekdays", "weekday", "time", "enabled")
+            if key in row
+        }
+    return None
 
 
 def review_map_program(
