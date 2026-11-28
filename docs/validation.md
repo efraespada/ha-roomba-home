@@ -3065,9 +3065,20 @@ before the first floor is saved, projects active drying from Roomba,
 rejects a button without control permission, follows an entity rename,
 and presses the linked wash button against a simulated robot. The card
 tests exercise a stale review, duplicate prevention, and a rejected
-command. A physical command from this new card panel remains unverified.
+command.
+
+Home Assistant passed its configuration check and restarted Core with
+0.88.0. The dashboard loaded all three maps, and the integration registry
+listed three robots with their three linked docks. The installed card
+reported an active drying cycle. It offered mop-and-tray washing and
+stopping the dryer, and disabled bin emptying while the dryer was in use.
+The review displayed the wash confirmation and returned to the dock panel
+through **Back**. The observed Home Assistant session sent no service call
+during the review and continued to report drying. A confirmed physical
+dock command from this panel remains unverified.
 [Dock usage](usage.md#dock-settings) ·
-[Dock controls SDD](../specs/008-mission-detail-and-map-card.md)
+[Dock controls SDD](../specs/008-mission-detail-and-map-card.md) ·
+[Installed dock panel](screenshots/roomba-dock-controls.jpg)
 
 ## Robot serial number
 
