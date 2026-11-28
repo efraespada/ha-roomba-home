@@ -1532,6 +1532,12 @@ The reading sums the durations of pending rooms and subtracts the reported
 time already spent in the active room. During a confirmed pause with one
 timed room, the matched `pause` event closes the active interval at its
 timestamp. The estimate holds that accumulated cleaning time while paused.
+If a subsequent room stage reports the same declared destination and
+omits the earlier interval, retain the confirmed segment and resume
+timing from the new stage timestamp. Merge overlapping area intervals
+from observations and the finished events before counting time. Scope
+observations to the current robot, mission start and number, and exact
+directed plan.
 The estimate is hidden during stages with unverified timing or when a
 remaining destination lacks a duration. Each floor-plan read calculates
 the estimate from the verified timeline and cached durations without an

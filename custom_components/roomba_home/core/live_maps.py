@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from itertools import batched
 from math import pi
@@ -13,8 +13,8 @@ from .cleaning_protocol import reported_cleaning_mode
 from .history import identify_zones, mission_timing, room_results, zone_results
 from .maps import PersistentMap, map_identifier
 from .mission_areas import AreaResult
-from .mission_plan import MissionPlan, mission_plan
-from .mission_time import MissionTiming
+from .mission_plan import MissionPlan, destination_key, mission_plan
+from .mission_time import MissionTiming, RoomTiming
 from .point_maps import PointTarget
 from .telemetry import integer
 
@@ -91,6 +91,7 @@ class MissionTimeline:
     requested_floor: tuple[str, str] | None = None
     localized_maps: frozenset[str] = frozenset()
     timing: MissionTiming = MissionTiming()
+    room_timing: RoomTiming = RoomTiming()
 
     def timed_destination(self, stage_started: datetime | None) -> AreaResult | None:
         if stage_started is None:
@@ -107,6 +108,40 @@ class MissionTimeline:
         if self.stage == "pause":
             return area if area.timestamp <= stamp else None
         return area if area.timestamp == stamp else None
+
+    def observe_room_timing(
+        self, stage: str | None, started: datetime, stage_started: datetime | None
+    ) -> MissionTimeline:
+        if (
+            stage not in ("pause", "room")
+            or stage_started is None
+            or (stage == "pause" and self.active_zones)
+        ):
+            return self
+        stamp = int(stage_started.timestamp())
+        room = self._single_room(stamp)
+        if room is None or room.timestamp < int(started.timestamp()):
+            return self
+        timing = self.room_timing.observe(self.plan, room, stage, stamp)
+        return replace(self, room_timing=timing) if timing is not self.room_timing else self
+
+    def running_room(self, stage_started: datetime) -> AreaResult | None:
+        stamp = int(stage_started.timestamp())
+        room = self._single_room(stamp)
+        if room is None or room.timestamp == stamp:
+            return room
+        return self.room_timing.resumed_area(self.plan, room, stamp)
+
+    def _single_room(self, stamp: int) -> AreaResult | None:
+        if self.plan is None or not self.active_rooms:
+            return None
+        room = max(self.active_rooms, key=lambda item: item.timestamp)
+        target = destination_key(self.plan, room)
+        if room.timestamp > stamp or any(
+            destination_key(self.plan, other) != target for other in self.active_rooms
+        ):
+            return None
+        return room
 
     def skip_observation(self) -> SkipObservation:
         active = {

@@ -1,5 +1,7 @@
 """Use Roomba's reported cleaning intervals and room duration estimates."""
 
+from __future__ import annotations
+
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -19,6 +21,69 @@ type Interval = tuple[int, int]
 
 
 @dataclass(frozen=True, repr=False)
+class RoomPause:
+    area: AreaResult
+    paused_at: int
+    resumed_at: int | None = None
+
+
+@dataclass(frozen=True, repr=False)
+class RoomTiming:
+    """Keep observed room intervals if a later timeline omits them."""
+
+    pauses: tuple[RoomPause, ...] = ()
+
+    @property
+    def areas(self) -> tuple[AreaResult, ...]:
+        return tuple(item.area for item in self.pauses)
+
+    def observe(self, plan: MissionPlan, area: AreaResult, stage: str, stamp: int) -> RoomTiming:
+        target = destination_key(plan, area)
+        if not any((item.kind, item.identity) == target for item in plan.destinations):
+            return self
+        if self.pauses and stamp <= self.pauses[-1].paused_at:
+            return self
+        previous = self._last_pause(plan, area)
+        if stage == "room":
+            if (
+                previous is None
+                or previous is not self.pauses[-1]
+                or previous.resumed_at is not None
+            ):
+                return self
+            return RoomTiming((*self.pauses[:-1], replace(previous, resumed_at=stamp)))
+        if previous is not None and area.timestamp <= previous.paused_at:
+            if previous.resumed_at is None or stamp < previous.resumed_at:
+                return self
+            area = replace(area, timestamp=previous.resumed_at)
+        return RoomTiming((*self.pauses, RoomPause(replace(area, ended_at=stamp), stamp)))
+
+    def resumed_area(self, plan: MissionPlan, area: AreaResult, stamp: int) -> AreaResult | None:
+        previous = self._last_pause(plan, area)
+        if previous is None or previous.resumed_at != stamp:
+            return None
+        return replace(area, timestamp=stamp)
+
+    def interruptions(
+        self, plan: MissionPlan, target: tuple[str, tuple[str, str, str]], through: int
+    ) -> Iterable[Interval]:
+        return (
+            (item.paused_at, item.resumed_at)
+            for item in self.pauses
+            if item.resumed_at is not None
+            and item.resumed_at <= through
+            and destination_key(plan, item.area) == target
+        )
+
+    def _last_pause(self, plan: MissionPlan, area: AreaResult) -> RoomPause | None:
+        key = destination_key(plan, area)
+        return next(
+            (item for item in reversed(self.pauses) if destination_key(plan, item.area) == key),
+            None,
+        )
+
+
+@dataclass(frozen=True, repr=False)
 class MissionTiming:
     areas: tuple[AreaResult, ...] = ()
     interruptions: tuple[Interval, ...] = ()
@@ -29,11 +94,13 @@ class MissionTiming:
         started: datetime | None,
         now: datetime,
         active: tuple[AreaResult, int] | None = None,
+        *,
+        observed_rooms: RoomTiming = RoomTiming(),
     ) -> tuple[int | None, ...]:
         if started is None:
             return ()
         beginning, through = int(started.timestamp()), int(now.timestamp())
-        areas = self.areas
+        areas = (*self.areas, *observed_rooms.areas)
         if active is not None:
             area, until = active
             areas = (*areas, replace(area, ended_at=until))
@@ -44,14 +111,21 @@ class MissionTiming:
                 and beginning <= area.timestamp <= area.ended_at <= through
             ):
                 by_destination.setdefault(destination_key(plan, area), []).append(area)
-        interruptions = _merge_intervals(
+        interruptions = tuple(
             (start, end)
             for start, end in self.interruptions
             if beginning <= start <= end <= through
         )
         return tuple(
             _area_elapsed(
-                item.kind, by_destination.get((item.kind, item.identity), ()), interruptions
+                item.kind,
+                by_destination.get((item.kind, item.identity), ()),
+                _merge_intervals(
+                    (
+                        *interruptions,
+                        *observed_rooms.interruptions(plan, (item.kind, item.identity), through),
+                    )
+                ),
             )
             for item in plan.destinations
         )
