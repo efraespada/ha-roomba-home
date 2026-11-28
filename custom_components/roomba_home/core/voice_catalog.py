@@ -1,5 +1,7 @@
 """Project the public model-specific Roomba language catalog."""
 
+import hashlib
+import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -31,6 +33,25 @@ class VoiceInstallation:
     state: int | None
     deployment_id: str | None
     pending: bool
+    additional: tuple[str, ...]
+
+    @property
+    def download_status(self) -> str:
+        if not self.slots or self.state is None:
+            return "unavailable"
+        if self.pending or 0 < self.state < 100:
+            return "busy"
+        return "ready"
+
+    @property
+    def inventory_id(self) -> str:
+        inventory = (
+            sorted({code.lower() for code in self.installed}),
+            sorted({code.lower() for code in self.additional}),
+            self.selected.lower() if self.selected else None,
+            self.slots,
+        )
+        return hashlib.sha256(json.dumps(inventory, separators=(",", ":")).encode()).hexdigest()
 
     def result(self, deployment_id: str, language: str) -> str | None:
         if self.deployment_id != deployment_id:
@@ -76,16 +97,21 @@ def _catalog_rows(response: object, sku: str):
 
 def voice_installation(settings: dict, software: dict) -> VoiceInstallation:
     settings_values = project_telemetry({"rw-settings": settings})
+    reported_settings = reported(settings)
     firmware = reported(software)
     deployment_id = firmware.get("deploymentId")
     pending = at(software, "state.desired.deploymentId")
+    extra = at(reported_settings, "langs2.uLangs.langs")
     return VoiceInstallation(
         installed=settings_values.get("installed_voice_languages", ()),
         selected=settings_values.get("voice_language"),
-        slots=integer(at(reported(settings), "langs2.aSlots")),
+        slots=integer(at(reported_settings, "langs2.aSlots")),
         state=integer(firmware.get("deploymentState")),
         deployment_id=deployment_id if isinstance(deployment_id, str) else None,
         pending=isinstance(pending, str) and bool(pending),
+        additional=tuple(code for raw in extra if (code := convert("language", raw)))
+        if isinstance(extra, list)
+        else (),
     )
 
 

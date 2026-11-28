@@ -6,6 +6,7 @@ from homeassistant.components import websocket_api
 from homeassistant.components.vacuum.const import DATA_COMPONENT
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry
 
@@ -35,6 +36,23 @@ SETTING_ATTRIBUTES = {
 @callback
 def async_register_device_settings(hass):
     websocket_api.async_register_command(hass, websocket_device_settings)
+    websocket_api.async_register_command(hass, websocket_voice_downloads)
+
+
+def _settings_vacuum(hass, connection, message):
+    entity_id = message["entity_id"]
+    permissions = connection.user.permissions
+    if not permissions.check_entity(entity_id, POLICY_READ):
+        connection.send_error(message["id"], websocket_api.ERR_UNAUTHORIZED, "Access denied.")
+        return None
+    component = hass.data.get(DATA_COMPONENT)
+    vacuum = component.get_entity(entity_id) if component else None
+    if not isinstance(vacuum, RoombaVacuum) or (robot := vacuum.robot) is None:
+        connection.send_error(
+            message["id"], "device_settings_unavailable", "Device settings are unavailable."
+        )
+        return None
+    return vacuum, robot
 
 
 @websocket_api.websocket_command(
@@ -42,19 +60,10 @@ def async_register_device_settings(hass):
 )
 @callback
 def websocket_device_settings(hass, connection, message):
-    entity_id = message["entity_id"]
+    if (associated := _settings_vacuum(hass, connection, message)) is None:
+        return
+    vacuum, robot = associated
     permissions = connection.user.permissions
-    if not permissions.check_entity(entity_id, POLICY_READ):
-        connection.send_error(message["id"], websocket_api.ERR_UNAUTHORIZED, "Access denied.")
-        return
-    component = hass.data.get(DATA_COMPONENT)
-    vacuum = component.get_entity(entity_id) if component else None
-    if not isinstance(vacuum, RoombaVacuum) or (robot := vacuum.robot) is None:
-        connection.send_error(
-            message["id"], "device_settings_unavailable", "Device settings are unavailable."
-        )
-        return
-
     registry = entity_registry.async_get(hass)
     entry_id = vacuum.account.config_entry.unique_id
     connected = vacuum.account.last_update_success and robot.connected is True
@@ -88,3 +97,31 @@ def websocket_device_settings(hass, connection, message):
     connection.send_result(
         message["id"], {"robot": robot.name, "ready": ready, "settings": settings}
     )
+
+
+@websocket_api.websocket_command(
+    {"type": "roomba_home/voice_downloads", vol.Required("entity_id"): cv.entity_id}
+)
+@websocket_api.async_response
+async def websocket_voice_downloads(hass, connection, message):
+    if (associated := _settings_vacuum(hass, connection, message)) is None:
+        return
+    vacuum, _ = associated
+    try:
+        report = await vacuum.account.async_voice_downloads(vacuum.robot_id)
+    except HomeAssistantError as error:
+        connection.send_error(
+            message["id"], error.translation_key or "voice_catalog_unavailable", str(error)
+        )
+        return
+    registry = entity_registry.async_get(hass)
+    unique_id = entity_unique_id(
+        vacuum.account.config_entry.unique_id, vacuum.robot_id, "software_deployment_state"
+    )
+    permissions = connection.user.permissions
+    progress = registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+    if progress and not permissions.check_entity(progress, POLICY_READ):
+        progress = None
+    report["progress_entity"] = progress
+    report["can_install"] = permissions.check_entity(message["entity_id"], POLICY_CONTROL)
+    connection.send_result(message["id"], report)

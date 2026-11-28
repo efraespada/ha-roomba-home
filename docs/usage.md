@@ -795,6 +795,16 @@ Automations use lowercase option codes such as `en-gb` and `es-es`.
 Use **List robot voices** to see the current code, installed options,
 and additional downloads published for the selected model.
 
+On the card, open **Device settings** and choose **Download voices**.
+Select a language, then choose **Review installation**. The review
+identifies the voice to install and select, and the downloaded voice it
+will replace when the Max 700 Combo's slot is occupied. Choose **Install
+voice** while the robot is docked. The card reports download and
+installation phases when Roomba supplies them and updates the installed
+selector after confirmation. Use **Refresh list** to review changes to the
+catalog or robot state. The list can be viewed with read access. Installation
+requires control access to the selected robot.
+
 ```yaml
 action: roomba_home.list_voice_languages
 target:

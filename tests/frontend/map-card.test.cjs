@@ -502,6 +502,96 @@ test("device settings guard pending edits and isolate a failed or late response"
   assert.equal(card.$("refresh-device-settings").disabled, false);
 });
 
+const VOICE_REVIEW_ID = "a".repeat(64);
+const voiceReport = {
+  current: "es-es", installed: ["es-es", "cs-cz"], downloadable: ["da-dk"],
+  can_install: true, status: "ready", reviewed_inventory: VOICE_REVIEW_ID, replaces: "cs-cz",
+  progress_entity: "sensor.software",
+};
+
+test("voice downloads review the replacement, send one request and reread installed voices", async () => {
+  const { card, dialog } = modalCard("voice-downloads-dialog");
+  card.$("device-settings-dialog").open = true;
+  card.deviceSettings = { entity: "vacuum.example", pending: false, drafts: new Map([["voice_language", "cs-cz"]]) };
+  const queries = [];
+  const calls = [];
+  let finish;
+  let installed = false;
+  card._hass = {
+    states: { "sensor.software": { state: "3" } },
+    callWS: async (query) => {
+      queries.push({ ...query });
+      if (query.type === "roomba_home/device_settings") {
+        return { robot: "Roomba", ready: true, settings: { voice_language: {
+          entity_id: "select.voice", value: "da-dk", editable: true,
+          attributes: { options: ["da-dk", "es-es"] },
+        } } };
+      }
+      return installed ? { ...voiceReport, current: "da-dk", installed: ["da-dk", "es-es"], downloadable: ["cs-cz"] } : voiceReport;
+    },
+    callService: (...args) => { calls.push(args); return new Promise((resolve) => { finish = resolve; }); },
+  };
+  await card.openVoiceDownloads();
+  assert.equal(card.$("voice-current").textContent, "Current voice · Spanish (Spain)");
+  assert.equal(card.$("review-voice-download").disabled, true);
+  card.$("voice-choice").value = "da-dk";
+  card.reviewVoiceDownload();
+  assert.match(card.$("voice-download-review").textContent, /Install and select Danish.*replaces Czech/);
+  assert.equal(card.$("back-voice-download").focused, true);
+  assert.deepEqual(calls, []);
+  const pending = card.confirmVoiceDownload();
+  assert.match(card.$("voice-download-status").textContent, /reports downloading/);
+  card._hass.states["sensor.software"].state = "4";
+  card.hass = card._hass;
+  assert.match(card.$("voice-download-status").textContent, /reports installing/);
+  await card.confirmVoiceDownload();
+  dialog.close();
+  await card.openVoiceDownloads();
+  assert.match(card.$("voice-download-status").textContent, /reports installing/);
+  assert.equal(queries.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [["roomba_home", "install_voice_language",
+    { language: "da-dk", reviewed_inventory: VOICE_REVIEW_ID }, { entity_id: "vacuum.example" }]]);
+  installed = true;
+  finish();
+  await pending;
+  assert.match(card.$("voice-download-status").textContent, /Danish.*installed and selected/);
+  assert.match(card.$("voice-current").textContent, /Current voice · Danish/);
+  assert.equal(card.$("device-settings-entries").querySelector("select").value, "da-dk");
+  assert.equal(card.deviceSettings.drafts.size, 0);
+  assert.deepEqual(queries.map(({ type }) => type), [
+    "roomba_home/voice_downloads", "roomba_home/device_settings", "roomba_home/voice_downloads",
+  ]);
+});
+
+test("voice download catalog respects permissions, busy state and requests another review after failure", async () => {
+  const { card } = modalCard("voice-downloads-dialog");
+  let report = { ...voiceReport, can_install: false };
+  let calls = 0;
+  card._hass = {
+    callWS: async () => report,
+    callService: async () => { calls++; throw new Error("The installed voices changed. Review again."); },
+  };
+  await card.openVoiceDownloads();
+  assert.equal(card.$("voice-chooser").hidden, false);
+  assert.equal(card.$("review-voice-download").hidden, true);
+  assert.match(card.$("voice-download-status").textContent, /requires control access/);
+  report = { ...voiceReport, status: "busy", reviewed_inventory: null };
+  await card.loadVoiceDownloads(card.voiceDownloads);
+  assert.equal(card.$("review-voice-download").hidden, true);
+  assert.match(card.$("voice-download-status").textContent, /already processing/);
+  report = voiceReport;
+  await card.loadVoiceDownloads(card.voiceDownloads);
+  card.$("voice-choice").value = "da-dk";
+  card.reviewVoiceDownload();
+  await card.confirmVoiceDownload();
+  assert.equal(calls, 1);
+  assert.equal(card.$("confirm-voice-download").hidden, true);
+  assert.equal(card.$("voice-choice").value, "");
+  assert.match(card.$("voice-download-status").textContent, /installed voices changed/);
+  await card.confirmVoiceDownload();
+  assert.equal(calls, 1);
+});
+
 test("robot software shows the native build label, local update day and dock firmware", async () => {
   const { card, dialog } = robotSoftwareCard();
   const installed = "p25-705+9.3.6+I5.3.149";

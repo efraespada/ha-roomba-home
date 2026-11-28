@@ -87,7 +87,10 @@ becoming an indiscriminately false or zero.
 - CAP-11: Configure water temperature, wash frequency, automatic solution dispensing, and drying duration on compatible docks.
 - CAP-12: Rename the robot and select a reported installed voice through native Home Assistant configuration entities.
 - CAP-13: Expose a normal reboot with connection-cycle confirmation and list the model's downloadable voices.
-- CAP-14: Install and select a catalog voice with a correlated software status and voice inventory.
+- CAP-14: Install and select a catalog voice with a correlated software
+  status and voice inventory. The card reviews the locale and any
+  replaced voice, rechecks the reviewed inventory on dispatch, and updates
+  the installed selector after confirmation.
 - CAP-15: Reset a supported robot or dock counter after completed maintenance.
 - CAP-16: Expose installed robot and dock software and the reported robot
   installation time. Check Roomba's public firmware catalog on demand in
@@ -471,6 +474,11 @@ with API operations.
     them through the card and confirm both readbacks. Check permissions,
     active missions, a custom emptying threshold, and changing robots
     while a save is outstanding.
+25. Open Download voices for the selected robot. Compare the current
+    and downloadable voices, review a replacement, and confirm that
+    a changed inventory prevents a write. Validate read-only access,
+    a pending deployment, progress, and the resulting installed and
+    selected voices after the confirmed installation.
 
 ## 17. Requirements traceability
 
@@ -488,7 +496,7 @@ with API operations.
 | CAP-11 | Dock configuration selectors and switch | [Native values](../docs/evidence/2026-11-25-dock-preferences.json), [Home Assistant service tests](../tests/ha/test_cleaning_controls.py), and [dock validation](../docs/validation.md#automatic-mop-wash-settings) |
 | CAP-12 | Robot name text entity and installed voice selector | [Reported values and restoration](../docs/evidence/2026-11-25-robot-identity.json) and [Home Assistant service tests](../tests/ha/test_cleaning_controls.py) |
 | CAP-13 | Reboot button and voice catalog action | [Physical validation](../docs/evidence/2026-11-25-reboot-and-voice-catalog.json), [control tests](../tests/test_application.py), and [Home Assistant actions](../tests/ha/test_cleaning_controls.py) |
-| CAP-14 | Install voice action and software status | [Installation evidence](../docs/evidence/2026-11-25-voice-installation.json), [protocol tests](../tests/test_voice_catalog.py), and [coordinator tests](../tests/ha/test_coordinator.py) |
+| CAP-14 | Reviewed voice installation in the card and the existing action | [Installation evidence](../docs/validation.md#voice-pack-installation), [protocol tests](../tests/test_voice_catalog.py), [coordinator tests](../tests/ha/test_coordinator.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 | CAP-15 | Confirmed reset of one maintenance counter | [Maintenance validation](../docs/validation.md#maintenance-counter-reset), [signed request tests](../tests/test_api_client.py), and [Home Assistant action tests](../tests/ha/test_cleaning_controls.py) |
 | CAP-16 | Firmware timestamp sensor, catalog action, and read-only software card | [Device validation](../docs/validation.md#robot-software-status), [catalog tests](../tests/test_api_client.py), [action tests](../tests/ha/test_cleaning_controls.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 | CAP-17 | Robot device registry serial number | [Android and API comparison](../docs/validation.md#robot-serial-number), [signed lookup tests](../tests/test_api_client.py), and [registry refresh tests](../tests/ha/test_telemetry_entities.py) |

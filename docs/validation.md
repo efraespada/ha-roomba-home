@@ -1922,6 +1922,17 @@ pending. The suite passed 1,932 Python tests with 100% statement and
 branch coverage, 16 dashboard tests, and official hassfest validation.
 [Anonymized voice installation evidence](evidence/2026-11-25-voice-installation.json)
 
+### Voice downloads on the card
+
+The Android language screen showed the regional voice options. A public
+catalog check returned 25 locale codes, each resolving to a unique
+metapackage for the supported model. Home Assistant tests cover the
+associated robot, catalog failures, permissions, slot inventory, pending
+deployments, and rejection before a write if the reviewed inventory
+changes. Card tests cover the explicit review, phase display, one request,
+reopening during a download, and a fresh read after confirmation or failure.
+[Voice settings](usage.md#robot-settings)
+
 ## Robot reboot and voice catalog
 
 The 0.33.0 integration adds a configuration button for reboot. The app

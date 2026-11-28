@@ -488,6 +488,17 @@ async def test_voice_catalog_action_lists_installed_and_downloadable_voice_codes
     assert error.value.translation_key == "voice_catalog_unavailable"
 
 
+async def test_voice_install_action_forwards_the_optional_reviewed_inventory(hass, loaded):
+    installer = loaded.async_install_voice_language = AsyncMock()
+    await hass.services.async_call(
+        DOMAIN,
+        "install_voice_language",
+        {"entity_id": "vacuum.robot_0", "language": "da-dk", "reviewed_inventory": "a" * 64},
+        blocking=True,
+    )
+    installer.assert_awaited_once_with("fixture-0", "da-dk", reviewed_inventory="a" * 64)
+
+
 @pytest.fixture
 async def loaded(hass, entry, robot_states):
     robot_states["fixture-0"] = replace(
