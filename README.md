@@ -133,10 +133,12 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   Expand **About this part** for an explanation of its role and care. Review
   and reset a supported counter after servicing a part. Automate robot and
   dock problem alerts and mission-finished events. [Maintenance and parts](docs/usage.md#maintenance-and-replacement-parts)
-- **Robot settings.** Rename the robot and choose from its installed voices.
+- **Device settings.** Open **Device settings** on the card to rename the
+  robot, choose an installed voice, adjust voice volume and the child and
+  pet lock, or set the linked dock's emptying, washing, and drying options.
   Home Assistant shows the serial number and activation date reported by Roomba.
-  List and install downloadable voices, adjust voice volume and the child
-  and pet lock, or reboot a connected robot from its device page.
+  List and install downloadable voices with the actions or reboot a connected
+  robot from its device page.
   Open **Robot software** on the card to see the installed robot and dock
   versions, the last robot update, and Roomba's catalog status.
   [Robot setting actions](docs/usage.md#robot-settings) · [Activation date](docs/usage.md#robot-activation-date) · [Software status](docs/usage.md#robot-software-status)

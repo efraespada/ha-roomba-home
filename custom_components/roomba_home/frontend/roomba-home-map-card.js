@@ -74,6 +74,24 @@ const SOFTWARE_STATUS = {
   catalog_candidates: "The catalog lists other versions. Roomba manages availability for this robot.",
   unavailable: "The Roomba software catalog is unavailable.",
 };
+const DEVICE_SETTINGS = {
+  Robot: {
+    robot_name: "Robot name", voice_language: "Voice language", voice_volume: "Voice volume",
+    child_pet_lock: "Child and pet lock",
+  },
+  Dock: {
+    auto_empty_frequency: "Auto-empty frequency", auto_evacuation_area: "Auto-empty area",
+    mop_wash_temperature: "Mop wash temperature", mop_wash_frequency: "Mop wash frequency",
+    automatic_mop_detergent: "Automatic cleaning solution", mop_drying_duration: "Mop drying duration",
+  },
+};
+const DEVICE_SETTING_CHOICES = {
+  every_25_m2: "Every 25 m²", every_50_m2: "Every 50 m²",
+  three_hours: "3 hours", four_hours: "4 hours", five_hours: "5 hours",
+  "es-xl": "Spanish (Latin America)", "zh-hk": "Cantonese",
+};
+const VOICE_DISPLAY = typeof Intl.DisplayNames === "function"
+  ? new Intl.DisplayNames("en", { type: "language" }) : null;
 const HELP_ARTICLE_LABELS = {
   error: "Error",
   charging_error: "Charging error",
@@ -172,6 +190,13 @@ template.innerHTML = `
     #cleaning-scores-dialog { width:min(36rem, calc(100vw - 3rem)); max-width:none; }
     #maintenance-dialog, #robot-help-dialog, #dock-controls-dialog, #robot-software-dialog { width:min(28rem, calc(100vw - 3rem)); max-width:none; }
     #software-versions dd { overflow-wrap:anywhere; }
+    #device-settings-dialog { width:min(35rem, calc(100vw - 3rem)); max-width:none; }
+    #device-settings-entries { border:0; margin:0; padding:0; min-width:0; }
+    #device-settings-entries h4 { margin:12px 0 4px; }
+    .device-setting { display:flex; align-items:end; gap:8px; margin:7px 0; }
+    .device-setting label { display:grid; flex:1; min-width:0; gap:4px; }
+    .device-setting input, .device-setting select { box-sizing:border-box; width:100%; min-width:0; }
+    #device-settings-status:empty { display:none; }
     #dock-action-list { display:grid; gap:8px; margin:12px 0; }
     #dock-action-list button { text-align:start; }
     #dock-action-status:empty { display:none; }
@@ -253,6 +278,7 @@ template.innerHTML = `
       <button id="open-maintenance">Maintenance</button>
       <button id="open-robot-help">Robot help</button>
       <button id="open-robot-software">Robot software</button>
+      <button id="open-device-settings">Device settings</button>
     </header>
     <dl id="active-errors" class="measurements" role="status" aria-label="Active errors" hidden></dl>
     <dl id="current-mission" class="measurements" aria-label="Current mission" hidden></dl>
@@ -548,6 +574,15 @@ template.innerHTML = `
       <div class="actions">
         <button id="refresh-robot-software">Check again</button>
         <button id="close-robot-software">Close</button>
+      </div>
+    </dialog>
+    <dialog id="device-settings-dialog" aria-labelledby="device-settings-title">
+      <h3 id="device-settings-title">Device settings</h3>
+      <p id="device-settings-status" class="muted" role="status"></p>
+      <fieldset id="device-settings-entries" aria-label="Robot and dock settings"></fieldset>
+      <div class="actions">
+        <button id="refresh-device-settings">Refresh settings</button>
+        <button id="close-device-settings">Close</button>
       </div>
     </dialog>
     <dialog id="mission-history-dialog" aria-labelledby="mission-history-title">
@@ -1304,6 +1339,12 @@ class RoombaHomeMapCard extends HTMLElement {
     this.$("open-robot-software").onclick = () => this.openRobotSoftware();
     this.$("refresh-robot-software").onclick = () => this.loadRobotSoftware();
     this.$("close-robot-software").onclick = () => this.$("robot-software-dialog").close();
+    this.$("open-device-settings").onclick = () => this.openDeviceSettings();
+    this.$("refresh-device-settings").onclick = () => this.loadDeviceSettings(this.deviceSettings);
+    this.$("close-device-settings").onclick = () => this.$("device-settings-dialog").close();
+    this.$("device-settings-dialog").oncancel = (event) => {
+      if (this.deviceSettings?.pending) event.preventDefault();
+    };
     this.$("open-cleaning-scores").onclick = () => this.openCleaningScores();
     this.$("close-cleaning-scores").onclick = () => this.$("cleaning-scores-dialog").close();
     this.$("close-mission-history").onclick = () => this.$("mission-history-dialog").close();
@@ -1602,6 +1643,8 @@ class RoombaHomeMapCard extends HTMLElement {
     if (this.$("maintenance-dialog").open) this.$("maintenance-dialog").close();
     if (this.$("robot-help-dialog").open) this.$("robot-help-dialog").close();
     if (this.$("robot-software-dialog").open) this.$("robot-software-dialog").close();
+    if (this.$("device-settings-dialog").open) this.$("device-settings-dialog").close();
+    this.deviceSettings = null;
     if (this.$("dock-controls-dialog").open) this.$("dock-controls-dialog").close();
     if (this.$("map-backups-dialog").open) this.$("map-backups-dialog").close();
     if (this.$("cleaning-scores-dialog").open) this.$("cleaning-scores-dialog").close();
@@ -1640,7 +1683,7 @@ class RoombaHomeMapCard extends HTMLElement {
 
   connectedCallback() {
     // Moving a card can remove its dialog from the top layer while leaving it open.
-    for (const id of ["robot-help-dialog", "robot-software-dialog"]) {
+    for (const id of ["robot-help-dialog", "robot-software-dialog", "device-settings-dialog"]) {
       const dialog = this.$(id);
       if (dialog.open) ensureModal(dialog);
     }
@@ -2399,6 +2442,154 @@ class RoombaHomeMapCard extends HTMLElement {
       if (current()) status.textContent = error?.message || "Robot software is unavailable.";
     } finally {
       if (current()) refresh.disabled = false;
+    }
+  }
+
+  async openDeviceSettings() {
+    if (!this.config || !this._hass) return;
+    const dialog = this.$("device-settings-dialog");
+    if (dialog.open) {
+      ensureModal(dialog);
+      return;
+    }
+    const context = this.deviceSettings = { entity: this.config.entity, drafts: new Map(), pending: false };
+    this.$("device-settings-title").textContent = "Device settings";
+    const entries = this.$("device-settings-entries");
+    entries.replaceChildren();
+    entries.disabled = this.$("close-device-settings").disabled = false;
+    ensureModal(dialog);
+    await this.loadDeviceSettings(context);
+  }
+
+  currentDeviceSettings(context) {
+    return this.$("device-settings-dialog").open && this.deviceSettings === context &&
+      this.config.entity === context.entity;
+  }
+
+  async loadDeviceSettings(context, feedback = "") {
+    const status = this.$("device-settings-status");
+    const refresh = this.$("refresh-device-settings");
+    const entries = this.$("device-settings-entries");
+    refresh.disabled = entries.disabled = true;
+    status.textContent = feedback || "Loading device settings…";
+    try {
+      const report = await this._hass.callWS({ type: "roomba_home/device_settings", entity_id: context.entity });
+      if (!this.currentDeviceSettings(context)) return;
+      const groups = [];
+      for (const [group, fields] of Object.entries(DEVICE_SETTINGS)) {
+        const rows = Object.entries(fields).flatMap(([key, label]) => report.settings[key]
+          ? [this.deviceSettingRow(context, key, label, report.settings[key])] : []);
+        if (!rows.length) continue;
+        const section = document.createElement("section");
+        const heading = document.createElement("h4");
+        heading.textContent = group;
+        section.append(heading, ...rows);
+        groups.push(section);
+      }
+      this.$("device-settings-title").textContent = report.robot ? `${report.robot} settings` : "Device settings";
+      entries.replaceChildren(...groups);
+      const availability = !groups.length ? "No device settings are available."
+        : report.ready ? "" : "Settings can be changed when the robot is connected and idle.";
+      status.textContent = [feedback, availability].filter(Boolean).join(" ");
+    } catch (error) {
+      if (this.currentDeviceSettings(context)) {
+        entries.replaceChildren();
+        const message = error?.message || "Device settings are unavailable.";
+        status.textContent = [feedback, message].filter(Boolean).join(" ");
+      }
+    } finally {
+      if (this.currentDeviceSettings(context)) refresh.disabled = entries.disabled = context.pending;
+    }
+  }
+
+  deviceSettingRow(context, key, label, setting) {
+    const form = document.createElement("form");
+    form.className = "device-setting";
+    const wrapper = document.createElement("label");
+    const title = document.createElement("span");
+    const { entity_id: entity, value, editable, attributes } = setting;
+    title.textContent = attributes.unit_of_measurement ? `${label} (${attributes.unit_of_measurement})` : label;
+    wrapper.append(title);
+    form.append(wrapper);
+    const domain = entity.split(".")[0];
+    const choices = domain === "switch" ? ["off", "on"] : attributes.options;
+    const input = document.createElement(choices ? "select" : "input");
+    input.id = `device-setting-${key}`;
+    if (choices) {
+      if (value == null) input.append(option("", "Unavailable"));
+      for (const choice of choices) {
+        const name = DEVICE_SETTING_CHOICES[choice] ?? (key === "voice_language"
+          ? VOICE_DISPLAY?.of(choice) ?? choice : historyLabel(choice));
+        const entry = option(choice, name);
+        if (choice === "custom_area") entry.disabled = true;
+        input.append(entry);
+      }
+    } else if (domain === "number") {
+      input.type = "number";
+      for (const attribute of ["min", "max", "step"]) {
+        if (attributes[attribute] != null) input[attribute] = attributes[attribute];
+      }
+      input.placeholder = key === "auto_evacuation_area" && editable ? "Set area" : "Unavailable";
+    } else {
+      input.type = "text";
+      if (attributes.min != null) input.minLength = attributes.min;
+      if (attributes.max != null) input.maxLength = attributes.max;
+      input.placeholder = "Unavailable";
+    }
+    const original = value ?? "";
+    const draft = context.drafts.get(key);
+    input.value = editable && draft != null && (!choices || choices.includes(draft)) ? draft : original;
+    input.required = true;
+    input.disabled = !editable;
+    wrapper.append(input);
+    if (!editable) return form;
+
+    const save = document.createElement("button");
+    save.type = "submit";
+    save.textContent = "Save";
+    save.setAttribute("aria-label", `Save ${label.toLowerCase()}`);
+    const updateSave = () => {
+      if (input.value === original) context.drafts.delete(key);
+      else context.drafts.set(key, input.value);
+      save.disabled = input.value === original || !input.value ||
+        (key === "auto_empty_frequency" && input.value === "custom_area");
+    };
+    input.oninput = updateSave;
+    updateSave();
+    form.append(save);
+    form.onsubmit = (event) => {
+      event.preventDefault();
+      if (!save.disabled) return this.saveDeviceSetting(context, key, label, domain, entity, input.value);
+    };
+    return form;
+  }
+
+  async saveDeviceSetting(context, key, label, domain, entity, value) {
+    if (!this.currentDeviceSettings(context) || context.pending) return;
+    const close = this.$("close-device-settings");
+    const refresh = this.$("refresh-device-settings");
+    const entries = this.$("device-settings-entries");
+    const status = this.$("device-settings-status");
+    const action = {
+      text: ["set_value", { value }], number: ["set_value", { value: Number(value) }],
+      select: ["select_option", { option: value }], switch: [value === "on" ? "turn_on" : "turn_off", {}],
+    }[domain];
+    context.pending = close.disabled = refresh.disabled = entries.disabled = true;
+    status.textContent = "Waiting for Roomba to confirm…";
+    let confirmed = false;
+    try {
+      await this._hass.callService(domain, ...action, { entity_id: entity });
+      if (!this.currentDeviceSettings(context)) return;
+      context.drafts.delete(key);
+      await this.loadDeviceSettings(context, `${label} saved.`);
+      confirmed = true;
+    } catch (error) {
+      if (this.currentDeviceSettings(context)) status.textContent = error?.message || "Roomba did not save the setting.";
+    } finally {
+      if (this.currentDeviceSettings(context)) {
+        context.pending = close.disabled = refresh.disabled = entries.disabled = false;
+        if (confirmed) (this.$(`device-setting-${key}`) ?? close).focus();
+      }
     }
   }
 

@@ -116,6 +116,7 @@ def _robot_overview(hass, vacuum, state, permissions, can_control, now):
 
 
 async def async_setup_map_api(hass):
+    from .device_settings_api import async_register_device_settings
     from .map_history_api import async_register_map_history
 
     path = Path(__file__).with_name("frontend") / "roomba-home-map-card.js"
@@ -135,6 +136,7 @@ async def async_setup_map_api(hass):
     websocket_api.async_register_command(hass, websocket_edit_zones)
     websocket_api.async_register_command(hass, websocket_edit_restrictions)
     websocket_api.async_register_command(hass, websocket_edit_furniture)
+    async_register_device_settings(hass)
     async_register_map_history(hass)
 
 

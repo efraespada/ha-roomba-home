@@ -394,6 +394,114 @@ function robotSoftwareCard() {
   return fixture;
 }
 
+test("device settings use the typed services, keep other drafts and read back saved settings", async () => {
+  const { card } = modalCard("device-settings-dialog");
+  const setting = (entity_id, value, attributes = {}, editable = true) => ({ entity_id, value, attributes, editable });
+  const settings = {
+    robot_name: setting("text.name", "Original", { min: 1, max: 63 }),
+    voice_language: setting("select.voice", "en-gb", { options: ["en-gb", "es-xl"] }),
+    voice_volume: setting("number.volume", "55", { min: 0, max: 100, step: 1, unit_of_measurement: "%" }),
+    child_pet_lock: setting("switch.lock", "off"),
+    auto_empty_frequency: setting("select.frequency", "custom_area", { options: ["after_each_routine", "custom_area"] }, false),
+    auto_evacuation_area: setting("number.area", null, { min: 10, max: 1000, step: 1, unit_of_measurement: "m²" }),
+  };
+  const calls = [];
+  let reads = 0;
+  card._hass = {
+    callWS: async (query) => {
+      assert.deepEqual({ ...query }, { type: "roomba_home/device_settings", entity_id: "vacuum.example" });
+      reads++;
+      return { robot: "Roomba", ready: true, settings };
+    },
+    callService: async (domain, service, payload, target) => {
+      calls.push([domain, service, { ...payload }, { ...target }]);
+      const row = Object.values(settings).find((entry) => entry.entity_id === target.entity_id);
+      row.value = String(payload.option ?? payload.value ?? (service === "turn_on" ? "on" : "off"));
+    },
+  };
+  await card.openDeviceSettings();
+  const fields = () => card.$("device-settings-entries").querySelectorAll("form");
+  const submit = (index, value) => {
+    const form = fields()[index];
+    const input = form.querySelector("input") ?? form.querySelector("select");
+    input.value = value;
+    input.oninput();
+    assert.equal(form.querySelector("button").disabled, false);
+    return form.onsubmit({ preventDefault() {} });
+  };
+  assert.equal(card.$("device-settings-title").textContent, "Roomba settings");
+  assert.deepEqual(card.$("device-settings-entries").querySelectorAll("h4").map(({ textContent }) => textContent), ["Robot", "Dock"]);
+  assert.equal(fields()[0].querySelector("input").maxLength, 63);
+  assert.equal(fields()[0].querySelector("button").disabled, true);
+  assert.equal(fields()[1].querySelector("select").children[1].text, "Spanish (Latin America)");
+  assert.equal(fields()[2].querySelector("span").textContent, "Voice volume (%)");
+  assert.equal(fields()[4].querySelector("button"), undefined);
+  assert.equal(fields()[4].querySelector("select").children[1].disabled, true);
+  assert.equal(fields()[5].querySelector("input").placeholder, "Set area");
+  const rename = fields()[0].querySelector("input");
+  rename.value = "custom_area";
+  rename.oninput();
+  await submit(2, "0");
+  assert.equal(fields()[0].querySelector("input").value, "custom_area");
+  assert.equal(fields()[2].querySelector("input").value, "0");
+  assert.equal(card.$("device-settings-status").textContent, "Voice volume saved.");
+  await submit(0, "custom_area");
+  await submit(1, "es-xl");
+  await submit(3, "on");
+  await submit(3, "off");
+  await submit(5, "38");
+  assert.equal(reads, 7);
+  assert.deepEqual(calls, [
+    ["number", "set_value", { value: 0 }, { entity_id: "number.volume" }],
+    ["text", "set_value", { value: "custom_area" }, { entity_id: "text.name" }],
+    ["select", "select_option", { option: "es-xl" }, { entity_id: "select.voice" }],
+    ["switch", "turn_on", {}, { entity_id: "switch.lock" }],
+    ["switch", "turn_off", {}, { entity_id: "switch.lock" }],
+    ["number", "set_value", { value: 38 }, { entity_id: "number.area" }],
+  ]);
+});
+
+test("device settings guard pending edits and isolate a failed or late response", async () => {
+  const { card, dialog } = modalCard("device-settings-dialog");
+  const settings = { child_pet_lock: { entity_id: "switch.lock", value: "off", attributes: {}, editable: true } };
+  let calls = 0;
+  let fail;
+  card._hass = {
+    callWS: async () => ({ robot: "Roomba", ready: true, settings }),
+    callService: () => { calls++; return new Promise((_, reject) => { fail = reject; }); },
+  };
+  await card.openDeviceSettings();
+  const form = card.$("device-settings-entries").querySelector("form");
+  const input = form.querySelector("select");
+  input.value = "on";
+  input.oninput();
+  const evt = { preventDefault() {} };
+  const pending = form.onsubmit(evt);
+  assert.equal(card.$("close-device-settings").disabled, true);
+  await form.onsubmit(evt);
+  assert.equal(calls, 1);
+  fail(new Error("Roomba rejected the setting"));
+  await pending;
+  assert.equal(card.$("device-settings-status").textContent, "Roomba rejected the setting");
+  assert.equal(input.value, "on");
+  assert.equal(card.$("close-device-settings").disabled, false);
+  const old = form.onsubmit(evt);
+  dialog.close();
+  card.config.entity = "vacuum.next";
+  card._hass.callWS = async () => ({ robot: "Other", ready: false, settings: {} });
+  await card.openDeviceSettings();
+  fail(new Error("Old robot's response"));
+  await old;
+  assert.equal(card.$("device-settings-title").textContent, "Other settings");
+  assert.equal(card.$("device-settings-status").textContent, "No device settings are available.");
+  assert.equal(card.$("close-device-settings").disabled, false);
+  assert.equal(card.$("device-settings-entries").disabled, false);
+  card._hass.callWS = async () => { throw new Error("Cannot read the settings"); };
+  await card.loadDeviceSettings(card.deviceSettings);
+  assert.equal(card.$("device-settings-status").textContent, "Cannot read the settings");
+  assert.equal(card.$("refresh-device-settings").disabled, false);
+});
+
 test("robot software shows the native build label, local update day and dock firmware", async () => {
   const { card, dialog } = robotSoftwareCard();
   const installed = "p25-705+9.3.6+I5.3.149";

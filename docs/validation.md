@@ -3121,6 +3121,23 @@ configuration. The trial canceled there without supplying credentials
 or clearing the connection.
 [Device capability specification](../specs/007-device-capabilities.md)
 
+### Device settings on the card
+
+The Android robot settings and About views showed the name, installed
+voice, volume, child and pet lock, and emptying frequency. The automatic
+mop washing screen showed water temperature, wash frequency, cleaning
+solution, and drying duration. The inspection left the robot docked and
+did not change its settings. Earlier signed trials verified the same
+settings and their restoration.
+[Robot controls](#robot-configuration-controls) ·
+[Mop wash controls](#automatic-mop-wash-settings)
+
+Home Assistant tests verify the panel's selected-robot scope, entity
+permissions, idle requirement, absent states, and custom emptying area
+while per-routine emptying is enabled. Card tests check the four entity
+service types, preserving other drafts, readback, duplicate submission,
+and late responses after switching robots.
+
 ### Dock controls on the floor plan
 
 Roomba Home 3.4.1 exposed **Dock controls** from both the floor plan and
