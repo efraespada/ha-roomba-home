@@ -98,7 +98,8 @@ trajectory contains observed positions and retains sequence gaps.
 - MAP-13: Follow the confirmed mission floor when a robot has several saved maps. Allow the viewer to keep a chosen floor in view.
 - MAP-14: Show saved zones, restrictions, and room labels from the exact
   archived revision. Offer separate controls for archived cleaning and
-  travel paths and coverage. Keep the final recorded position visible.
+  travel paths, coverage, furniture, and temporary obstacles. Keep the
+  final recorded position visible.
 - MAP-15: Show explicit requested settings and the reported pass count
   for each destination in the correlated live plan. Show time in the
   current cleaning stage when a valid timestamp identifies one active
@@ -303,9 +304,10 @@ Keep the estimate distinct from archived native coverage polygons.
 
 In a historical report, read saved zones and restrictions from the mission
 archive. Retain each route segment and its ordering. Offer controls only
-for present route or coverage layers and preserve the toggles through a
-camera change. Keep the final recorded position and map restrictions
-visible when a route layer is hidden.
+for present route, coverage, furniture, or obstacle layers and preserve
+the toggles through a camera change. Match legend entries to the layers
+being drawn. Keep the final recorded position and map restrictions visible.
+Changing layer visibility uses the loaded report and issues no read or write.
 
 Project a historical directed command through the same destination policy
 as a live command. Use final events to report the outcome of each requested
@@ -508,6 +510,11 @@ features, physical results, and open scenarios.
     destination outlines, and preserved signed measures. Cover a captured
     route on the same backup, an unrelated or damaged copy, and the return
     to an original archive when it is readable.
+19. Open a historical map containing furniture and temporary obstacles.
+    Hide one layer at a time and verify its legend symbol and geometry are
+    removed. Switch to 3D and rotate. Verify the selected layers, walls,
+    coverage, route and final marker are preserved. Open an archive that
+    omits a layer and verify that its checkbox is hidden.
 
 ## 17. Requirements traceability
 
@@ -526,7 +533,7 @@ features, physical results, and open scenarios.
 | MAP-11 | [Live delivery evidence](../docs/validation.md#continuous-position-and-cleaning-coverage), [coverage replay](../docs/validation.md#live-coverage-reconstruction), and [paired mopping comparison](../docs/validation.md#side-by-side-live-mopping) | [MQTT tests](../tests/test_mqtt.py), [subscription tests](../tests/test_live_stream.py), [renewal tests](../tests/ha/test_live_map_entities.py), [coverage tests](../tests/test_live_coverage.py), [authenticated endpoint tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [household vacuum estimate](../docs/validation.md#household-live-coverage-and-active-errors). Native live polygon publication and the standalone physical renewal test remain open. |
 | MAP-12 | [Physical obstacle comparison](../docs/validation.md#live-temporary-obstacles) | [Snapshot decoder tests](../tests/test_live_route.py), [coordinator tests](../tests/ha/test_live_map_entities.py), [authenticated subscription tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs). Household dashboard verification remains open. |
 | MAP-13 | [Confirmed floor associations from native missions](../docs/validation.md#multiple-saved-floors) | [Parser tests](../tests/test_live_maps.py), [coordinator tests](../tests/ha/test_live_map_entities.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [floor picker tests](../tests/frontend/map-card.test.cjs). An installed multi-floor cleaning trial remains open. |
-| MAP-14 | [Historical layer contract](../docs/api.md#archived-cleaning-reports) | [Archive tests](../tests/test_mission_map.py), [authenticated reports](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), and [historical layer validation](../docs/validation.md#historical-map-layers) |
+| MAP-14 | [Historical layer contract](../docs/api.md#archived-cleaning-reports) | [Archive tests](../tests/test_mission_map.py), [authenticated reports](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), [historical layer validation](../docs/validation.md#historical-map-layers), and [furniture and obstacle comparison](../docs/validation.md#furniture-and-obstacles-in-recorded-maps) |
 | MAP-15 | [Live destination preferences and timing](../docs/api.md#live-mission-destinations) | [Profile projection tests](../tests/test_mission_plan.py), [timing tests](../tests/test_mission_time.py), [authenticated plan tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), [pause and pass evidence](../docs/validation.md#accumulated-destination-cleaning-time), and [live saved-zone pass trial](../docs/validation.md#live-saved-zone-passes) |
 | MAP-16 | [Archived report contract](../docs/api.md#archived-cleaning-reports) | [Destination and pass-event tests](../tests/test_history.py), [authenticated report tests](../tests/ha/test_roomba_map_api.py), [card tests](../tests/frontend/map-card.test.cjs), [signed report verification](../docs/validation.md#historical-destination-plans), and [recorded durations](../docs/validation.md#accumulated-destination-cleaning-time) |
 | MAP-17 | [Clean everywhere action](../docs/usage.md#clean-everywhere) | [Home Assistant control tests](../tests/ha/test_cleaning_controls.py), [card tests](../tests/frontend/map-card.test.cjs), and [scope validation](../docs/validation.md#whole-area-and-directed-cleaning-scope) |
