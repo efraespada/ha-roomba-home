@@ -129,9 +129,9 @@ the existing config entry and entity IDs across upgrades. [Installation and trou
   editing destinations.
   [Saved routine actions](docs/usage.md#saved-cleaning-routines) · [Cleaning schedules](docs/usage.md#cleaning-schedules)
 - **Maintenance and alerts.** Open **Maintenance** to see consumables, part
-  references, and links to iRobot's shop or care guides. Reset supported
-  counters after servicing a part, and automate robot and dock problem alerts
-  and mission-finished events. [Maintenance and parts](docs/usage.md#maintenance-and-replacement-parts)
+  references, and links to iRobot's shop or care guides. Review and reset a
+  supported counter in the panel after servicing a part. Automate robot and
+  dock problem alerts and mission-finished events. [Maintenance and parts](docs/usage.md#maintenance-and-replacement-parts)
 - **Robot settings.** Rename the robot and choose from its installed voices.
   Home Assistant shows the serial number and activation date reported by Roomba.
   List and install downloadable voices, adjust voice volume and the child
