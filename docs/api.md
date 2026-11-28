@@ -462,8 +462,10 @@ The endpoint can return a successful response with no JSON. The card sends
 the reviewed map, revision, region inventory, and settings identifiers only
 after the operator confirms removal. Home Assistant checks those identifiers
 against the latest associated list, sends one write, and verifies that the
-floor no longer appears in that list. Linked routines and schedules are
-managed separately by Roomba.
+floor no longer appears in that list. In the Max 700 trial, Roomba omitted
+the routine and enabled schedule linked to the removed floor from later
+favorite and schedule reads. The native capture showed one floor settings
+write. [Physical trial](validation.md#floor-removal-and-linked-programs)
 
 `roomba_home/review_floor_removal` reads the selected robot's routines and
 schedules against the reviewed floor's identity, revision, inventory, and

@@ -1,5 +1,34 @@
 # Roomba Home validation
 
+## Floor removal and linked programs
+
+On a Max 700 Combo, a mapping-only run created a second, disposable
+floor. The installed Home Assistant card saved one linked routine and
+copied its ordered vacuum profile to a weekly schedule. Roomba confirmed
+the schedule first as disabled and then as enabled for a future day.
+Proxyman reads identified the same floor and exact destination command
+for each program before removal.
+
+The installed 0.102.0 card listed both program names and the schedule's
+enabled state in **Remove floor**. The review was dismissed with **Keep
+floor** to test the provider independently. Roomba Home Android 3.4.1
+then removed the disposable floor using **Delete map**. Proxyman decoded
+one successful `POST /v1/p2maps/{id}/settings` with `visible: false` for
+the test floor. The next favorites and schedule reads omitted the two
+test programs. The capture contained no separate program write. Home
+Assistant also omitted both programs when the managers were reopened.
+
+All six pre-existing favorites and five schedule records returned by
+Roomba matched their prior contents and order. The original floor was
+again the only displayed floor for the test robot. Its identifier and
+destination metadata matched the baseline. Roomba returned a new active
+revision, and the decompressed binary archives differed only in the
+header timestamp. The robot remained docked during removal, and all
+three robot cards reported **At dock** after the test.
+[Reduced evidence](evidence/2026-11-28-floor-removal-programs.json)
+
+![Floor removal review showing the linked test programs](screenshots/roomba-floor-removal-programs.jpg)
+
 ## Guided floor replacement
 
 Roomba Home Android 3.4.1 showed a mapping preparation guide and started a

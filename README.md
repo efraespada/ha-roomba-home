@@ -304,8 +304,11 @@ mode. [Side-by-side mopping trial](docs/validation.md#side-by-side-live-mopping)
 - **Map a floor** shows how to prepare the robot and the rooms before
   starting a mapping-only run. To recreate the selected floor, open
   **Remove floor**, review the routines and schedules linked to that floor,
-  and choose **Remove and start mapping**.
-  [Mapping and floor replacement](docs/usage.md#map-a-floor)
+  and choose **Remove and start mapping**. The review includes schedule
+  activation. In a Max 700 trial, Roomba removed both linked programs from
+  its lists when their floor was removed.
+  [Mapping and floor replacement](docs/usage.md#map-a-floor) ·
+  [Linked program trial](docs/validation.md#floor-removal-and-linked-programs)
 - **Map backups** stores a local copy of the current floor for that Roomba.
   Browse saved revisions offline, pin important versions, export a backup,
   or enable automatic snapshots before map edits and removal. Review and
@@ -406,6 +409,8 @@ mission history reports the completed cleaning modes.
 ![Furniture controls in the installed Home Assistant card](docs/screenshots/roomba-furniture-editor.jpg)
 
 ![Ordered furniture routine with separate suction settings in Home Assistant](docs/screenshots/roomba-furniture-routine.jpg)
+
+![Floor removal review listing a test routine and an enabled test schedule in the installed Home Assistant card](docs/screenshots/roomba-floor-removal-programs.jpg)
 
 ## Copyable examples
 

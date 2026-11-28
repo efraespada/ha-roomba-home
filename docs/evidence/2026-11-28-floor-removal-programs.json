@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-28",
+  "model": "X185240",
+  "android_version": "3.4.1",
+  "integration_version": "0.102.0",
+  "disposable_floor": {
+    "created_in_mapping_only_run": true,
+    "routine_and_schedule_link_exact_floor": true,
+    "ordered_vacuum_profile_copied_to_weekly_schedule": true,
+    "schedule_enabled_before_removal": true,
+    "installed_review_listed_routine_and_enabled_schedule": true,
+    "native_removal_settings_write_count": 1,
+    "native_removal_http_status": 200,
+    "native_removal_visible_value": false,
+    "separate_native_program_writes_observed": 0,
+    "linked_routine_absent_on_next_read": true,
+    "linked_schedule_absent_on_next_read": true,
+    "linked_programs_absent_in_installed_card": true
+  },
+  "restored_test_state": {
+    "existing_favorite_records_unchanged": 6,
+    "existing_schedule_records_unchanged": 5,
+    "existing_program_order_unchanged": true,
+    "active_floors_for_test_robot": 1,
+    "original_floor_identity_and_destinations_unchanged": true,
+    "original_floor_revision_changed": true,
+    "original_map_binary_changes": ["header_timestamp"],
+    "robot_remained_docked_during_removal": true
+  }
+}

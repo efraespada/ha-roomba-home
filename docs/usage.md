@@ -373,11 +373,13 @@ data:
 
 To remove a saved floor, select it and choose **Remove floor**. Review the
 name and the linked programs before confirming. The review shows each
-schedule's enabled state and reports sources it could not check. Saved
-routines and schedules that reference the floor may need new destinations.
-Removing the floor uses Roomba's
-map visibility setting, and the card refreshes the floor list after Roomba
-confirms the change. [Provider contract](api.md#mapping-runs-and-floor-removal)
+schedule's enabled state and reports sources it could not check. In the
+Max 700 trial, Roomba removed the linked routine and enabled schedule from
+its program lists when the floor was removed. Recreate the programs on a
+current floor if you still need them. The card refreshes the floor list
+after Roomba confirms removal.
+[Provider contract](api.md#mapping-runs-and-floor-removal) ·
+[Physical trial](validation.md#floor-removal-and-linked-programs)
 
 For a floor you want to recreate, prepare the floor and dock the robot.
 In the removal review, choose **Remove and start mapping**. The same
