@@ -1,8 +1,8 @@
-# Test development and repetition
+# Development and validation
 
-Research requirements: Python 3.14 and Node.js for the SDD validator. The Python version is
-that of the validated environment. The adapter will be tested about Home Assistant
-2026.11.2, whose run requires Python 3.14.2 or later.
+Use Python 3.14 for the test environments and Node.js for the card tests
+and specification validator. The validated Home Assistant Core 2026.11.2
+environment uses Python 3.14.2 or later.
 
 ```sh
 python3.14 -m venv .venv
@@ -13,14 +13,14 @@ python3 scripts/validate_specs.py
 python3 scripts/check_privacy.py
 ```
 
-Unconnected testing uses synthetic responses, controlled watches and false transport. Do not
-load local credentials or automatically detect an environment account. The API reference
-does not replace contract evidence.
+Offline tests use synthetic responses, controlled clocks, and fake
+transports. They run without production credentials. The API reference
+links to the recorded contract evidence.
 
-## Test for the adapter Home Assistant
+## Home Assistant test environment
 
-The official Harness remains in a separate environment and HA package restrictions are
-applied to avoid conflicts with other integrations:
+Install the Home Assistant test environment separately and apply its
+dependency constraints.
 
 ```sh
 python3.14 -m venv .venv-ha
@@ -28,18 +28,19 @@ python3.14 -m venv .venv-ha
 .venv-ha/bin/python -m pip install \
   -c .venv-ha/lib/python3.14/site-packages/homeassistant/package_constraints.txt \
   -e '.[test,ha-test]'
-.venv-ha/bin/python -m pytest --timeout=30 \
+.venv-ha/bin/python -m pytest -p pytest_homeassistant --timeout=30 \
   --cov=custom_components.roomba_home --cov-branch --cov-fail-under=100
+node --test tests/frontend/map-card.test.cjs
 ```
 
-The constraints path shown corresponds to macOS / Linux with this environment. The HA tests
-load actual integration with simulated supplier data, create the original and enlarged
-entities for three robots as well to check reauth. Recharge) download (partially available
-or problem events without duplicating.3 Test configuration files are written in temporary
-directories.
+The constraints path assumes the displayed macOS or Linux environment.
+The Home Assistant tests load the integration with simulated Roomba
+responses and temporary configuration. They verify entity identity,
+reauthentication, reload and unload, confirmed actions, and live map
+behavior. The card tests exercise the JavaScript controls and display.
 
-To run hassfest from the same version, clone an official tag into a temporary directory and
-install your package with that checkout:
+To run hassfest for the same version, clone its tag into a temporary
+directory and install the validator in the test environment.
 
 ```sh
 git clone --depth 1 --branch 2026.11.2 \
@@ -52,19 +53,20 @@ to run `-m script.hassfest --action validate --integration-path
 <absolute_path>/custom_components/roomba_home`. GitHub Actions runs the same
 validation without account credentials. [CI configuration](../.github/workflows/validate.yml)
 
-## Private entrance for actual testing
+## Private inputs for live validation
 
-Creates, with a local editor and an external file to checkout using keys `username` and
-`password` and applying `chmod 600` To the file. Do not copies here actual data and passes
-into arguments, registered variables or terminal examples.
+Create a local JSON file outside the checkout with `username` and
+`password` keys and file mode 0600. Pass the filename to the validator.
+Keep credential values out of command arguments, terminal examples,
+and reports.
 
-It generates an own client's identity with the non-secret configuration observed:
+Generate a dedicated native client profile.
 
 ```sh
 .venv/bin/python tools/bootstrap_profile.py --out /private/path/profile.json
 ```
 
-Optional, contrasts with an authorized capture:
+Optionally verify the profile against an authorized capture.
 
 ```sh
 .venv/bin/python tools/bootstrap_profile.py \
@@ -72,9 +74,9 @@ Optional, contrasts with an authorized capture:
   --out /private/path/profile.json
 ```
 
-The profile preserves observed and generates client configuration `app_id` and `device_id`
-his own. Do not copy the Gigya assertion and an app's name. The profile remains a private
-entrance and isn't distributed in the repository.
+The profile uses the observed native settings and generates its own
+`app_id` and `device_id`. Keep the profile and any identity assertion
+outside the repository.
 
 ```sh
 .venv/bin/python tools/validate_api.py \
@@ -89,21 +91,26 @@ entrance and isn't distributed in the repository.
   --report /private/path/mqtt-report.json
 ```
 
-`--reference-capture` is optional: without it we have been tested login, catalogue and
-session replacement. It only reproduces JSON GET requests with previous success from an authenticated
-observed host. POST, telemetry and app logs are not reproduced. The reports are low and have
-them reviewed before they can be moved to public documentation.
+The optional reference capture supplies additional previously successful
+JSON GET requests from an approved provider host. Without it, the HTTP
+validator checks sign-in, inventory, and session replacement. Review the
+reduced reports before using them as evidence in the repository.
 
-The reader MQTT orders the nine known shadows for each device authorized by a token. Some
-old models may be missing. A rejection 404 of a Shadow remains as an rejected response,
-without treating it with access failure. Do not run two tools with it `client_id`
-simultaneously: the broker can replace its previous connection.
+The MQTT validator reads the known named shadows for each authorized
+robot. A correlated 404 indicates an unavailable document. Concurrent
+clients using the same `client_id` can replace each other's broker
+connection.
 
-The coordinator uses two quick and four slow shadows with separate cadences. Telemetry tests exclusively use synthetic data and do not result in actual robot malfunctions. The inventory of fields, conversions and boundaries are at [telemetry](telemetry.md). A new entity requires type, provenance and translation.
+The coordinator reads fast and slow shadow groups on different cadences.
+Synthetic tests cover field mappings and error handling. Add a type,
+source, and translation when exposing a new field. [Telemetry](telemetry.md)
 
-## Extent of an investigation order
+## Physical command validation
 
-`tools/send_command.py` modifies a physical robot. He receives an actual session and a private destination file with the key `robot_id`, never arbitrary issue. The order's one of `start`, `pause`, `stop` or `dock`. First look at the status and [attested context matrix](usage.md).
+`tools/send_command.py` operates a physical robot. Supply a valid session,
+a private target file containing `robot_id`, and a supported command such
+as `start`, `pause`, `stop`, or `dock`. Check the device state and its
+supported actions before dispatch. [Usage](usage.md)
 
 ```sh
 .venv/bin/python tools/send_command.py \
@@ -112,8 +119,8 @@ The coordinator uses two quick and four slow shadows with separate cadences. Tel
   --command pause
 ```
 
-The receipt only attests acceptance of the broker. CLI does not substitute for physical
-confirmation by HA coordinator and doesn't automatically repeat an order
+The receipt confirms broker acceptance. Observe the robot's reported
+state to verify its physical response. The CLI sends one command.
 
 ## Capture with an emulator
 
@@ -142,4 +149,7 @@ python3 scripts/validate_specs.py --generate
 python3 scripts/validate_specs.py
 ```
 
-The first command generates a visible catalogue and the second checks an analysis of its catalogue, evidence or structure. 3 original models of the vypdev / copilot validator are included with an assignment at [Announcements](../THIRD_PARTY_NOTICES.md). No actions or review agents have been put into place. A proposed SDD does not prove that functionality is implemented.
+The first command regenerates the readable catalog. The second validates
+its evidence paths and the specification structure. Record implementation
+and physical verification in each capability before marking it complete.
+[Upstream validator attribution](../THIRD_PARTY_NOTICES.md)

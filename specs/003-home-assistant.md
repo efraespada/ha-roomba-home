@@ -1,268 +1,245 @@
-# Integration Home Assistant and confirmed monitoring
+# Home Assistant integration and confirmed control
 
 - Status: As-built baseline
 - Date: 2026-11-23
 - Catalog capability ID: home-assistant
-- Last verified: 2026-11-23
+- Last verified: 2026-11-28
 - Owners: ha-roomba-home maintainer
-- Scope: HA adapter on account, robot entities and confirmed orders.
-- Related issues/PRs: No local work without publication.
+- Scope: Account setup, robot selection, lifecycle, state projection, and confirmed control
+- Related issues/PRs: Household deployment and the Home Assistant validation workflow
 - Required review gates: product, UX, architecture, testing, documentation, and security/operations
-- Open decisions blocking readiness: None for regular consultation with continuous events out of reach.
+- Open decisions blocking readiness: Firmware-specific capabilities and unverified native workflows are tracked in their capability specifications.
 
 ## 1. Executive summary
 
-A configurable integration from the HA interface with a modern robot vacuum entity, battery
-and mission error sensors as well an connectivity sensor is implemented. The orders MUST are
-advertised as completed only if there is evidence of the result. The local version was
-manually installed at HA Green 2026.11.2 with 3 devices, 12 entities and physical monitoring
-checked from ha. It has not been published at GitHub. That base did not propose additional
-changes.
+Roomba Home connects a Home Assistant configuration entry to a Roomba Home
+account. Each selected supported robot has its own device and entities.
+Recognized docks have child devices. Actions expose confirmation from
+Roomba and preserve explicit uncertainty when the expected result has not
+arrived.
 
 ## 2. Problem, current behavior, and evidence
 
-The account can be read by [HTTP](001-native-api.md) and [MQTT](002-mqtt-state.md) and now have HA entities. My Verisure It serves as an organisation reference, account management and performance monitoring; its protocol does not move to Roomba.
+The integration uses Roomba's native signed HTTP and MQTT contracts. It
+started with setup, per-robot status, and the standard vacuum actions.
+Later releases added typed telemetry, floor plans, device settings, and
+reviewed map, routine, and schedule workflows. Home Assistant Core
+2026.11.2 has been exercised with three robots and their docks. The
+installed 0.104.5 integration recovered an active recharge under the
+same mission after a Core restart.
+[Validation](../docs/validation.md) · [Active recharge](../docs/validation.md#charging-during-the-same-cleaning-mission)
 
-The available evidence and its boundaries are at [validation](../docs/validation.md).
-- Observed behavior: config flow, robot and recharging entities passing through the Harness
-  HA 2026.11.2 and domestic installation 0.1.0 confirmed 12 entities and the monitoring
-  cycle. The extension 0.2.0 was registered with the Telemetery SDD.
-- Intentional contract: stable identity, after-order confirmation and censor diagnoses; the
-  cadences of 0.2.0 are defined in a telemetry SDD.
-- Known debt and limitations: with no persistent stream, re-establishment or prolonged
-  validation of natural expiry.
-- Unknown rationale: Not all the physical codes and compatibility of other families are
-  available.
-- Proposed improvements: continuous events, resumption and additional capabilities after
-  obtaining specific evidence.
+- Observed behavior: Supported robots and docks retain their entities across updates and reloads.
+- Intentional contract: The integration uses typed Roomba observations and guards physical actions against fresh state.
+- Known debt and limitations: Initial provisioning, factory reset, and a wider model matrix still require verification.
+- Unknown rationale: Firmware-specific differences in device capabilities depend on further provider evidence.
+- Proposed improvements: Extend each capability through its own contract and physical acceptance criteria.
 
 ## 3. Actors, surfaces, and terminology
 
-| Actor | Necessity | Input | Surface |
-| --- | --- | --- | --- |
-| Holder | Configure several robots | Config flow | Devices and entities |
-| User HA | Clean, pause and come back | Vacuum actions | explicit status and error |
-| Automation | Assess confirmed status | Entities | Values with availability |
-| Maintainer | Investigate Fills | Diagnostics | Censored information |
+| Actor | Surface | Result |
+| --- | --- | --- |
+| Account holder | Setup, options, and reauthentication | One entry with selected robots |
+| Operator | Vacuum actions and interactive floor plans | Reviewed or confirmed control |
+| Automation author | Entities, events, and services | Typed values and explicit availability |
+| Maintainer | Diagnostics and validation | Redacted operating evidence |
 
-An account may include several old homes and devices. Observed capacity, cloud status and
-connectivity are different concepts.
+Availability combines a sufficiently fresh source with explicit robot
+connectivity. Device capability, reported state, and command confirmation
+have distinct sources and lifetimes.
 
 ## 4. Goals, non-goals, and fixed invariants
 
-- HA-01: flow MUST Validation of access, preventing duplication and maintaining a stable
-  identity at his or her own expense.
-- HA-02: every modern robot MUST have their own device and entity with no name collisions.
-- HA-03: availability and battery MUST Unknown, unconnected and valid zero.
-- HA-04: an order MUST be explicit, cut and confirmed; it isn't automatically referred after
-  timeout.
-- HA-05: reload and download MUST close jobs, connections and subscriptions.
-- HA-06: diagnoses and logs MUST censor account, tokens and maps.
-- HA-07: allow to change robot selection from existing account options.
+- HA-01: The config flow MUST validate authentication, prevent duplicate entries, and preserve account identity.
+- HA-02: Each selected supported robot MUST have its own device and stable entity identifiers.
+- HA-03: State projections MUST distinguish a verified zero, an unavailable field, and a disconnected device.
+- HA-04: Control MUST be guarded, confirmed from matching state, and issued once per request.
+- HA-05: Reload and unload MUST clean up tasks, subscriptions, and owned operations.
+- HA-06: Diagnostic exports MUST omit credentials, account identifiers, robot names, and floor data.
+- HA-07: Selection changes MUST preserve registry identity and saved preferences.
 
-First range: catalogue, status and start. Continuous events, zones and programming with
-changes in tuning. Maintenance or interactive maps require additional evidence as well No
-factory / reset, untying and account management propose.
+Companion specifications cover capability-specific controls and map
+workflows. Initial provisioning, factory reset, and enrollment changes
+require their own verified contracts.
 
 ## 5. Current versus proposed product journey
 
-| Stage | Current | Proposal |
-| --- | --- | --- |
-| Configure | Form HA and Reauth | It's preserved. |
-| State | Consultation MQTT each 60 seconds at rest and 15 during activity | Ongoing events require another campaign |
-| Control | Measures with status confirmation | It's preserved. |
-| Installation | Manual copies of local version | Publication only at request |
-
 ```mermaid
 flowchart LR
-    A[Configure Account] --> B[Discover robots]
-    B --> C[Subscribe status]
-    C --> D[Display Entities]
-    D --> E[Request an order]
+    A[Configure account] --> B[Select supported robots]
+    B --> C[Read fresh state]
+    C --> D[Display entities and cards]
+    D --> E[Review or request a supported action]
     E --> F[Confirm or report uncertainty]
 ```
 
-Textual equivalent: configuration → discovery --- status > entities {explicit request}
-confirmation or unconfirmed result, with no blind repetition.
+Install from a GitHub release through HACS or with a manual component copy.
+Home Assistant options control robot selection and opt-in map features.
+Each command uses the matching selected robot and current capabilities.
 
 ## 6. Functional behavior and state model
 
-The co-ordinator renews a shared session and requests matching document clientToken. Do not
-reduce continuous events or retain an version store. Availability requires a successful
-consultation and explicit robot connectivity. Unknown values remains unknown, without
-turning absent drums to zero. Each blocking operation is serialised and run outside the HA
-loop.
+Poll the account every 60 seconds at rest and every 15 seconds during
+reported activity. Read slower telemetry on its own cadence and reuse
+fresh results across entities. Eligible live map observations are
+sampled during active reads. Preserve per-robot availability during
+permitted partial responses.
 
-| State | Meaning | Action permitted |
+| State | Source | Result |
 | --- | --- | --- |
-| Configure | Valying an account and skills | Cancel without partial entities |
-| Available | sufficiently recent and connected status | Compatible actions |
-| Unconnected | Intent sign of low connection | Readings and orders rejected |
-| Unknown | Without sufficient evidence | Request an update |
-| Order outstanding | Request sent, without confirmation | Expected established limit |
-| Unconfirmed result | Timeout without confirmation | Read status and do not double order |
-| Reauth | Rejected credentials | To request intervention by the incumbent |
+| Available | Fresh connected state | Display supported readings and allow valid controls |
+| Disconnected | Explicit provider connectivity | Mark the device unavailable |
+| Unknown | Missing or stale observation | Leave the field unavailable |
+| Pending action | Dispatched command awaiting evidence | Continue bounded confirmation reads |
+| Unconfirmed action | No qualifying observation in the window | Expose uncertainty and retain actual reported state |
+| Reauthentication | Rejected account credentials | Start the account reauthentication flow |
 
-The integration reads the robot every five seconds after dispatch. The
-confirmation window is 40 seconds for start, pause, and cancel, and 120
-seconds for arrival at the dock after sending `dock`. A successful refresh
-with missing robot state leaves the command pending within that window.
-A confirmed same-mission final return can continue on regular account reads
-past the initial window. A timeout without qualifying progress leaves it
-unconfirmed without republishing. Starting a paused
-robot resumes its current mission. Battery and error have separate sensors.
-Phase, cycle, and result also appear on the vacuum entity.
-[Command validation SDD](004-command-validation.md)
+Confirmation reads use five-second intervals. The initial window is 40
+seconds for start, pause, and stop, with 120 seconds for dock arrival.
+A confirmed same-mission return can continue under regular polls past
+that window. Start resumes an existing paused mission. A new mission
+uses the chosen settings.
+[Command validation](004-command-validation.md) ·
+[Telemetry and freshness](005-telemetry-and-problems.md)
 
 ## 7. User-facing configuration
 
-| Input | Default | Validation | Persistence |
-| --- | --- | --- | --- |
-| Account and key | Mandatory | Real access, with no log of values | Config entry with HA |
-| Country | EN | Two letters and an account country | On account |
-| Robot selection | Modern compatible | Ids of its own catalogue | On account |
+| Input | Default | Persistence |
+| --- | --- | --- |
+| Account and password | Required | Private config entry |
+| Country | ES | Normalized two-letter country code |
+| Selected robots | Supported inventory | At least one robot |
+| Saved maps and live room updates | Off | Entry option |
 
-Recommended example: an entrance with the three modern robots. Alternative: enabling only
-one for an initial test. Reauth retains profile and entities. The profile is generated with
-non-secret configuration and preserved by entry. The end user shall not issue catches or
-tokens.
-
-The options flow MUST read the compatible robots on the existing account and
-preserve credentials, app profile, and device and entity registry identities.
-Deselecting a robot stops its reads and controls. Reselecting it restores
-entity customizations and saved preferences. A canceled flow or failed
-inventory retains the previous selection. An empty selection is rejected.
+Reauthentication keeps the existing entry, device identities, app profile,
+and robot selection. The options flow reads the current supported
+inventory. Deselecting a robot stops its reads and controls. Reselecting it
+restores existing registry customizations and saved preferences. A canceled
+flow or failed inventory read preserves the existing selection.
+[Installation and setup](../docs/installation.md)
 
 ## 8. Clean Architecture design
 
-The core conserves session and protocols. An implementation coordinator has both available
-and results. The HA adapter has config entries, device / entity registration and
-translations with diagnoses. Pao returns snapshots to the coordinator and does not change
-entities directly from his thread.
-
-MUST there is an import check and clearance, cancellation or renewal tests. The blocker
-calls will be an executor and the cancellation expects their close-down before releasing his
-lock. The platforms have no HTTP phone calls. The evidence checks these restrictions.
+The core contains the domain, use cases, typed state, and protocol
+adapters. Home Assistant configuration, registries, entities, and
+WebSocket endpoints compose that core. The account coordinator supplies
+the read and control ports and owns cloud scheduling. Blocking
+MQTT operations run outside the event loop and are scoped to their account
+and connection group. Entities render Home Assistant state and delegate
+controls through the coordinator.
 
 ## 9. UI/UX and content contract
 
-- Pending: `last_command_result` is `pending` while state confirmation is in progress.
-- Action required: Reauthenticate the account in the provided flow.
-- Blocked: A disconnected robot cannot accept a command.
-- Partial: The command was sent and remains unconfirmed. Refresh state before retrying.
-- Complete: The state confirms the command. Applicable physical errors remain visible.
+Show a pending action while confirmation is in progress. Distinguish
+blocked actions, unconfirmed outcomes, and explicit device errors. Keep
+stable translation keys for entity names and error reasons. The local
+integration icon comes from the supplied, converted app artwork.
+[Usage](../docs/usage.md) · [Branding](../docs/branding.md)
 
-Integration strings use English and stable keys. Standard Home Assistant
-controls present explicit text for unknown and blocked states.
-
-The visual identity uses the app icon submitted by its incumbent. They are distributed `brand/icon.png` (256×256) and `brand/icon@2x.png` (512×512) with alpha and without metadata, as per local HA mechanism. The provenance, conversion and boundaries are described in [visual identity](../docs/branding.md).
-
-The extension of telemetries, problem sensors and robot events are regulated by [your SDD](005-telemetry-and-problems.md). It preserves unique_id of the original 12 entities and adds an entity to its proven robot fields.
+- Pending: A dispatched action is waiting for a matching observation.
+- Action required: The integration asks for reauthentication or a missing prerequisite is shown.
+- Blocked: Reported state, capabilities, or permissions prevent the action.
+- Partial: The action was sent and its result remains unconfirmed.
+- Complete: The expected physical state has been confirmed.
 
 ## 10. Failure, recovery, and cleanup
 
-429 transmissions retry_after A transport error will be recouped at later consultations as
-per standard HA planning. No reconnection loop of his own. A Reauth active account rejection
-and an optional absent Shadow preserve their unknown values. A timeout of order preserves
-"unconfirmed result and never sends back the action. Loading or canceling have to stop tasks
-and disconnect customers; a recharge will not create duplicated entities.
+Respect provider rate limits and bounded read backoff. Keep accepted
+partial data for eligible reads. A missing optional response leaves its
+fields unavailable. Reauthentication preserves entity identities.
+Cancellation, unload, and reload clean up background work. An unconfirmed
+write is not repeated by the integration.
 
 ## 11. Security, permissions, and privacy
 
-It applies [SECURITY.md](../SECURITY.md). No information from the campaign shall be included in fixtures, assets and services or snapshots. No actions that publish arbitrary issues or JSON provided by the user will be exposed. The user will not install capture certificates to use final integration.
+Keep account and session data in private Home Assistant storage.
+Use existing entity permissions for floor plans and control, correlate
+the reviewed robot and action, and validate current capabilities before
+dispatch. Keep raw native traffic, maps, and session files out of
+diagnostic exports. Home Assistant uses the normal provider TLS connection.
+[Security](../SECURITY.md)
 
 ## 12. Observability and operational UX
 
-Diagnostics: version, number of devices and model. Connectivity with activity as well at
-mission error or command results No IDs, names and payloads. The results separate request,
-acceptance of service and physical confirmation. Temporary disconnection is shown as
-available with no spam repairs.
+Expose vacuum activity, battery, connection, and typed problem data through
+entities. Keep command dispatch and confirmed outcomes separate. The
+diagnostic export provides an integration version and aggregate device
+information with redacted identities. Maps, live routes, and history are
+available from their authorized cards and services.
 
 ## 13. Compatibility, migration, rollout, and rollback
 
-The validated version is HA 2026.11.2 with its dependencies restrictions. Three robots and
-twelve entities pass loading, recharging or downloading into the official Harness. Readings
-from the coordinator are also contrasted with an actual account. The physical orders were
-validated by independent native client and with standard controls of a HA Green home
-installation. That was also where three devices, twelve entities and recharging were
-checked. The additional HA test exceeded the intended time of vacuuming as recorded by his
-report. The old models are excluded. Config entry 1 version with no earlier migration.
-Withdrawal of entrance closes connections without deleting maps or robots. The local code is
-an unpublished version 0.1.0.
+The validated environment uses Home Assistant Core 2026.11.2 and the
+Max 700 Combo SKU X185240. Update or roll back the component version with
+the Home Assistant entry intact. Upgrades preserve robot and dock
+identities. Unloading the config entry releases its local resources.
+[Supported models and upgrades](../docs/installation.md)
 
 ## 14. Testing strategy and numeric budget
 
-Minimum budget, additional to the client's Suite. The distribution is checked by file so
-that an UI and authentication are not counted twice:
-
-| Area | Minimum number of different cases | Risks |
+| Area | Minimum independent cases | Coverage |
 | --- | ---: | --- |
-| Flow and Reauth | 14 | Test / ha test_flow.py: errors, identity and selection |
-| Coordinator and life cycle | 15 | tests / ha test_coordinator.py: commands, timeout and closure. 429 and isolation |
-| Entities and presentation | 11 | Test / ha test_entities.py: states, IDs and diagnoses. Recharge & download |
-| **Total** | **40** | No double computation or replacement with client's tests |
+| Setup, options, and reauthentication | 14 | Identity, validation, and selection |
+| Coordinator and lifecycle | 15 | Scheduling, failures, command confirmation, and cleanup |
+| Entities and presentation | 11 | State, diagnostics, availability, and stable identities |
+| **Total** | **40** | Independent baseline cases |
 
-MUST pass the Suite about its stated HA version, Hassfest. 100% coverage with branches in new modules and physical evidence of each order advertised. The [validation](../docs/validation.md) record the performance and / or test_state.py adds pure cases of unknown data and observed transitions.
+Run full statement and branch coverage on the supported Home Assistant
+version. Include hassfest, privacy, and specification checks. Keep the
+simulated and household verification records distinct.
+[Development guide](../docs/development.md) · [CI](../.github/workflows/validate.yml)
 
 ## 15. Documentation and discoverability
 
-| Path | Change |
-| --- | --- |
-| README.md | update |
-| docs / index.md | update |
-| docs / architecture.md | update |
-| docs / validation.md | update |
-| docs / installation.md | create |
-| docs / usage.md | create |
-| specs / catalog.json | update |
-
-The guides explain the installation, configuration and actions of this version with generic
-examples without campaign data.
+The README links installation, setup, usage, and examples. The validation
+log records physical results and uses crops of the relevant Home Assistant
+cards. The specification catalog links each capability to its implementation
+and tests.
+[README](../README.md) · [Architecture](../docs/architecture.md) ·
+[Validation](../docs/validation.md) · [Catalog](CATALOG.md)
 
 ## 16. Acceptance scenarios
 
-1. To set up an account discover all three robots as independent devices.
-2. Repeat configuration doesn't create duplicates.
-3. Reauth retains entities and automations.
-4. A remote robot doesn't issue an order requested.
-5. A warrant without confirmation does not change an entity to success and doesn't repeat
-   itself.
-6. Messages without the corresponding clientToken do not complete a consultation.
-7. Download and reload preserves entities with outstanding operations.
-8. Diagnostics and logs pass inspections of private data or translations.
-9. Add, deselect and re-choose a robot from the options preserves an ID's with
-   customization or preferences of existing robots.
+1. Select multiple robots from a valid account and see distinct devices and entities.
+2. Reject a duplicate entry for the same account.
+3. Reauthenticate and preserve existing entities and automations.
+4. Block a command when its robot or required data is unavailable.
+5. Report an unconfirmed command without republishing it.
+6. Ignore responses with the wrong scope or correlation values.
+7. Unload or reload safely with work in flight.
+8. Export redacted diagnostics and validate the translated strings.
+9. Deselect and reselect a robot without losing customizations or preferences.
 
 ## 17. Requirements traceability
 
-| Requirement | Component | Test or evidence | Documentation |
-| --- | --- | --- | --- |
-| HA-01 | config_flow.py | Test / ha test_flow.py | docs / installation.md |
-| HA-02/03 | coordinator.py and platforms | tests / ha test_entities.py and tests /test_state.py | docs / usage.md |
-| HA-04 | async_command and issuer | tests / ha test_coordinator.py and physical evidence | docs / api.md |
-| HA-05 | async_close and download | Performance Test, Cancellation and Recharging & Loading | docs / architecture.md |
-| HA-06 | diagnostics.py and translations | Test for diagnostics, scanner and hassfest | SECURITY.md |
-| HA-07 | Options flow and reload | `tests/ha/test_flow.py` covers inventory failures, persistent registry identity, and restored preferences | [Installation](../docs/installation.md) |
-
-Each implementation and testing path is registered in the catalogue.
+| Requirement | Component | Test |
+| --- | --- | --- |
+| HA-01 and HA-07 | `config_flow.py` | [Setup and options](../tests/ha/test_flow.py) |
+| HA-02 and HA-03 | Coordinator and entity platforms | [Entities](../tests/ha/test_entities.py), [Core state](../tests/test_state.py) |
+| HA-04 and HA-05 | Command application and coordinator lifecycle | [Coordinator](../tests/ha/test_coordinator.py), [Installed validation](../docs/validation.md) |
+| HA-06 | `diagnostics.py` and translated strings | [Entity diagnostics](../tests/ha/test_entities.py), [Privacy checks](../tests/test_architecture_and_privacy.py) |
 
 ## 18. Implementation sequence
 
-To HA-07, first check identities and preferences after recharging the entrance. Then add the
-flow and check high, bad choice or recovery. To maintain the base: update contract and
-testing before an adapter, check reading or repeat authorized physical tests as you change
-your protocol. Continuous and resumption events require an extension of the contract with
-new evidence.
+Add new device capabilities at the typed boundary. Define availability
+and permissions, implement the action or observation, and cover its
+failure behavior before exposing it through Home Assistant. Verify the
+normal UI or automation entry point against the authorized test robot.
 
 ## 19. Definition of Done
 
-- [x] Regular consultation chosen and continuous events beyond today's reach.
-- [x] HA-01 a HA-06 implemented and tested.
-- [x] Loading, recharging and Reauth.
-- [x] Native orders confirmed with physical robot and return to the dock.
-- [x] Final passing of cover, hassest and privacy.
-- [x] Home installation, 12 entities and recharge with orders from HA checked.
+- [x] Setup, selection, reauthentication, reload, and unload are verified.
+- [x] Devices and entities preserve identity and report typed availability.
+- [x] Confirmed control has synthetic and physical evidence.
+- [x] The repository enforces full coverage, hassfest, privacy, and specification checks.
+- [x] Household releases have been verified after installation and restart.
 
 ## 20. References and decisions
 
-[My Verisure](https://github.com/efraespada/my_verisure), [config flow official](https://contributors.home-assistant.io/core/integrations/config-flow/), [API](../docs/api.md) and [SDD standard](README.md). It was chosen cloud_polling to have verifiable conduct without presenting a persistent stream as validated. The documentation MUST preserve the difference between physical client tests, HA with simulated provider and actual account reading as well to control from home installation.
+The design takes account setup and per-device organization from My
+Verisure. Roomba Home uses the Roomba-specific provider contracts and
+Home Assistant's `cloud_polling` IoT class. Position and timeline updates
+are bounded observations during polling.
+[My Verisure](https://github.com/efraespada/my_verisure) ·
+[Native API](001-native-api.md) · [MQTT](002-mqtt-state.md) ·
+[Live maps](008-mission-detail-and-map-card.md)

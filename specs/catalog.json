@@ -3,11 +3,11 @@
   "capabilities": [
     {
       "id": "native-api",
-      "title": "Native access and HTTP reads",
+      "title": "Native authentication and signed HTTP requests",
       "status": "as-built-baseline",
-      "scope": "Research client, authentication, signing, and reads without Home Assistant",
+      "scope": "Regional discovery, authentication, session renewal, and signed HTTP requests for Home Assistant and local validation",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-23",
+      "lastVerified": "2026-11-28",
       "specs": [
         "specs/001-native-api.md"
       ],
@@ -29,17 +29,18 @@
       "documentation": [
         "docs/api.md",
         "docs/development.md",
+        "docs/installation.md",
         "docs/validation.md",
         "SECURITY.md"
       ]
     },
     {
       "id": "mqtt-state",
-      "title": "Modern robot state via MQTT",
+      "title": "Robot state and live observations over MQTT",
       "status": "as-built-baseline",
-      "scope": "Bounded reads of named shadows",
+      "scope": "Bounded named-shadow reads, authorized live positions, and correlated mission timelines",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-23",
+      "lastVerified": "2026-11-28",
       "specs": [
         "specs/002-mqtt-state.md"
       ],
@@ -48,10 +49,14 @@
         "tools/validate_mqtt.py"
       ],
       "code": [
-        "custom_components/roomba_home/core/mqtt.py"
+        "custom_components/roomba_home/core/mqtt.py",
+        "custom_components/roomba_home/core/live_maps.py",
+        "custom_components/roomba_home/core/live_route.py"
       ],
       "tests": [
-        "tests/test_mqtt.py"
+        "tests/test_mqtt.py",
+        "tests/test_live_maps.py",
+        "tests/ha/test_live_map_entities.py"
       ],
       "documentation": [
         "docs/api.md",
@@ -98,9 +103,9 @@
       "id": "home-assistant",
       "title": "Home Assistant integration and confirmed control",
       "status": "as-built-baseline",
-      "scope": "Account setup and options, per-robot entities, polling, and confirmed commands",
+      "scope": "Account configuration, per-robot and dock registry lifecycle, typed observations, and confirmed control",
       "owner": "ha-roomba-home maintainer",
-      "lastVerified": "2026-11-23",
+      "lastVerified": "2026-11-28",
       "specs": [
         "specs/003-home-assistant.md"
       ],
@@ -135,6 +140,7 @@
         "docs/usage.md",
         "docs/evidence/2026-11-23-home-assistant.json",
         "docs/evidence/2026-11-23-quality.json",
+        "docs/evidence/2026-11-28-active-recharge.json",
         "docs/branding.md"
       ]
     },
