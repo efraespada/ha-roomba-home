@@ -3138,6 +3138,14 @@ while per-routine emptying is enabled. Card tests check the four entity
 service types, preserving other drafts, readback, duplicate submission,
 and late responses after switching robots.
 
+Home Assistant passed its Core configuration check and restarted on 0.94.0.
+All three robots appeared docked. The installed card saved the child and pet
+lock from Off to On and restored Off. It then saved the dock's mop wash
+frequency from Standard to Medium and restored Standard. Roomba confirmed
+each save. A fresh card read and the Android settings both displayed the
+original values. All three robots remained docked throughout the trial.
+[Installed dock settings](screenshots/roomba-device-settings.jpg)
+
 ### Dock controls on the floor plan
 
 Roomba Home 3.4.1 exposed **Dock controls** from both the floor plan and

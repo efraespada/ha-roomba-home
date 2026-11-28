@@ -156,6 +156,8 @@ Open the robot's linked dock in Home Assistant to set its automatic
 emptying frequency. Use **Auto-empty area** when you want a custom
 threshold. [Dock settings and automation example](docs/usage.md#dock-settings)
 
+![Dock settings on the installed Home Assistant card](docs/screenshots/roomba-device-settings.jpg)
+
 ![Auto-empty frequency selector set to Every 25 m² on the installed Home Assistant dock](docs/screenshots/roomba-dock-auto-empty.png)
 
 ![Dock controls in the installed Home Assistant map card, with mop drying in progress](docs/screenshots/roomba-dock-controls.jpg)
