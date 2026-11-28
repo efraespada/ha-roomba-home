@@ -151,6 +151,11 @@ and the connectivity timestamp reflect the values reported by Roomba. The
 optional **Last cloud read** sensor records when Home Assistant read the account.
 [Telemetry reference](docs/telemetry.md)
 
+Expand **Device settings → Connection** on the map card to compare those
+timestamps and see the reported connection code. For example, a newer
+cloud read can confirm Roomba still reports the robot as disconnected.
+[Connection controls and readings](docs/usage.md#robot-settings)
+
 ## Dock settings
 
 Open the robot's linked dock in Home Assistant to set its automatic

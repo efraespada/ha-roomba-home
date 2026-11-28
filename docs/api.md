@@ -491,6 +491,16 @@ or `button.press` only for the reviewed entity. These services use their
 existing fresh-state authorization and command checks. Locate reports a
 submission. Reboot requires an observed disconnect and reconnection.
 
+The `connectivity` object reports `state` as `connected`, `disconnected`,
+`unknown`, or `unavailable`. The last state means the account coordinator
+could not refresh. Each associated diagnostic requires read permission
+for its sensor. `connection_updated_at` comes from the reported shadow
+attribute used for connection state. `cloud_read` records when Home
+Assistant last received a fast shadow reply for the robot. These are
+historical measurements and can remain visible during an outage.
+`connection_code` is the current numeric `connectedv2`, when present.
+The panel uses the coordinator's existing Roomba data.
+
 ### Robot help catalog
 
 Roomba's public endpoint serves the owner’s manual, support links and

@@ -562,6 +562,7 @@ async def test_device_settings_are_scoped_to_associated_entities_and_permissions
     assert result == {
         "robot": robot.name,
         "ready": editable,
+        "connectivity": {"state": "connected", "cloud_read": None},
         "actions": {
             "reboot": registry.async_get_entity_id(
                 "button",
@@ -596,6 +597,63 @@ async def test_device_settings_are_scoped_to_associated_entities_and_permissions
             },
         },
     }
+    configured.client.map_geometry.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("connected", "updated", "expected_state", "code"),
+    [
+        (True, True, "connected", 1),
+        (False, True, "disconnected", 0),
+        (None, True, "unknown", None),
+        (True, False, "unavailable", 1),
+    ],
+)
+async def test_device_connection_uses_scoped_diagnostics_without_a_map(
+    hass, configured, hass_ws_client, hass_admin_user, connected, updated, expected_state, code
+):
+    configured.show_maps = False
+    robot_id = "fixture-0"
+    robot = configured.data[robot_id]
+    last_change = datetime(2026, 1, 2, 3, tzinfo=UTC)
+    last_read = last_change + timedelta(hours=1)
+    configured.async_set_updated_data(
+        {
+            robot_id: replace(
+                robot,
+                connected=connected,
+                observed_at=last_read,
+                telemetry={"connection_updated_at": last_change, "connection_code": code},
+            )
+        }
+    )
+    await hass.async_block_till_done()
+    configured.last_update_success = updated
+    registry = entity_registry.async_get(hass)
+    change_entity = registry.async_get_entity_id(
+        "sensor",
+        DOMAIN,
+        entity_unique_id(configured.config_entry.unique_id, robot_id, "connection_updated_at"),
+    )
+    assert change_entity is not None
+    socket = await hass_ws_client()
+    await socket.send_json(DEVICE_SETTINGS)
+    report = (await socket.receive_json())["result"]["connectivity"]
+    assert report == {
+        "state": expected_state,
+        "connection_updated_at": last_change.isoformat(),
+        "cloud_read": last_read.isoformat(),
+        "connection_code": code if updated else None,
+    }
+    with patch.object(
+        type(hass_admin_user.permissions),
+        "check_entity",
+        side_effect=lambda entity, policy: entity != change_entity and policy == POLICY_READ,
+    ):
+        await socket.send_json(DEVICE_SETTINGS | {"id": 2})
+        filtered = (await socket.receive_json())["result"]["connectivity"]
+    report.pop("connection_updated_at")
+    assert filtered == report
     configured.client.map_geometry.assert_not_awaited()
 
 

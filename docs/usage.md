@@ -778,6 +778,15 @@ and its linked dock. Edit a value and use its adjacent **Save** button.
 Each save waits for Roomba confirmation and refreshes the displayed values.
 **Refresh settings** rereads the current device without sending a change.
 
+Expand **Connection** to see whether the selected robot is connected to
+Roomba. A provider-reported disconnection and an unavailable cloud read have
+separate states. Compare **Last Roomba connectivity update**, the timestamp
+Roomba attaches to its connection field, with **Last cloud read**, when
+Home Assistant last received a fast reply for that robot. The first can
+remain unchanged while the second advances. The section also shows the
+current Roomba connection code when available and links the manufacturer's
+instructions for reconnecting Wi-Fi. [Connectivity telemetry](telemetry.md)
+
 For example, select **After each routine** under **Auto-empty frequency**
 and save it. To switch to area-based emptying at a different threshold,
 enter a value under **Auto-empty area** in its displayed unit and save it.
