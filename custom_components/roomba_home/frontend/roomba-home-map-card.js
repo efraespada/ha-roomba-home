@@ -239,6 +239,10 @@ template.innerHTML = `
     #maintenance-parts summary { cursor:pointer; }
     #maintenance-parts a { color:var(--link-text-color,#8ae0d5); display:inline-block; margin-inline-end:12px; }
     #maintenance-status:empty { display:none; }
+    #maintenance-reminders { list-style:none; margin:0 16px 12px; padding:0; }
+    #maintenance-reminders li { display:flex; gap:6px; flex-wrap:wrap; }
+    #maintenance-reminders li + li { margin-top:6px; }
+    #maintenance-reminders li > :first-child { border-inline-start:3px solid var(--warning-color,#ffad55); }
     #robot-help-dialog li { margin-block:6px; }
     #robot-help-dialog a { color:var(--link-text-color,#8ae0d5); }
     #help-setup { margin:14px 0; }
@@ -316,6 +320,7 @@ template.innerHTML = `
       <button id="open-device-settings">Device settings</button>
     </header>
     <dl id="active-errors" class="measurements" role="status" aria-label="Active errors" hidden></dl>
+    <ul id="maintenance-reminders" aria-label="Maintenance reminders" hidden></ul>
     <dl id="current-mission" class="measurements" aria-label="Current mission" hidden></dl>
     <div id="mission-controls" class="floor-routine-controls" role="group" aria-label="Mission controls" hidden>
       <button id="mission-pause" hidden>Pause mission</button>
@@ -1333,6 +1338,12 @@ function historyLabel(value) {
   return value ? value.replaceAll("_", " ").replace(/^./, (first) => first.toUpperCase()) : "Unknown";
 }
 
+function maintenanceRemaining(part) {
+  const unit = MAINTENANCE_UNITS[part.count_type];
+  if (part.remaining == null || !unit) return null;
+  return `${part.remaining} ${unit}`;
+}
+
 function voiceName(code) {
   const locale = code.replaceAll("_", "-");
   return DEVICE_SETTING_CHOICES[locale] ?? VOICE_DISPLAY?.of(locale) ?? code;
@@ -1779,6 +1790,7 @@ class RoombaHomeMapCard extends HTMLElement {
     this.recommendedRooms = null;
     this.recommendationsHidden = false;
     this.missionControlMessage = "";
+    this.dismissedMaintenance?.clear();
     this.updateRobotOverview();
     this.updateFloorShortcuts();
     this.pointMode = false;
@@ -2307,8 +2319,7 @@ class RoombaHomeMapCard extends HTMLElement {
         const name = document.createElement("strong");
         name.textContent = historyLabel(part.part);
         row.append(name);
-        const unit = MAINTENANCE_UNITS[part.count_type];
-        const remaining = part.remaining == null || !unit ? null : `${part.remaining} ${unit}`;
+        const remaining = maintenanceRemaining(part);
         const hours = part.count_type === "minutes" && part.remaining >= 60;
         const remainingCount = hours ? `${Math.floor(part.remaining / 60)} h` : remaining;
         const details = [
@@ -3806,6 +3817,39 @@ class RoombaHomeMapCard extends HTMLElement {
     renderMeasurements(view, values);
   }
 
+  renderMaintenanceReminders(reminders = []) {
+    const view = this.$("maintenance-reminders");
+    const dismissed = this.dismissedMaintenance ??= new Set();
+    for (const part of dismissed) {
+      if (!reminders.some((reminder) => reminder.part === part)) dismissed.delete(part);
+    }
+    const shown = reminders.filter(({ part }) => !dismissed.has(part));
+    const signature = JSON.stringify(shown);
+    if (view.dataset.reminders === signature) return;
+    view.dataset.reminders = signature;
+    view.hidden = !shown.length;
+    view.replaceChildren(...shown.map((reminder) => {
+      const name = historyLabel(reminder.part);
+      const remaining = maintenanceRemaining(reminder);
+      const detail = remaining ? `${remaining} remaining`
+        : reminder.category === "replacement" ? "Replacement due" : "Maintenance due";
+      const open = document.createElement("button");
+      open.textContent = `${name} · ${detail}`;
+      open.onclick = () => this.openMaintenance();
+      const dismiss = document.createElement("button");
+      dismiss.textContent = "Dismiss";
+      dismiss.setAttribute("aria-label", `Dismiss ${name.toLowerCase()} reminder`);
+      dismiss.onclick = () => {
+        dismissed.add(reminder.part);
+        this.renderMaintenanceReminders(this.robotOverview?.maintenance_reminders);
+        (view.querySelector("button") || this.$("open-maintenance")).focus();
+      };
+      const row = document.createElement("li");
+      row.append(open, dismiss);
+      return row;
+    }));
+  }
+
   updateRobotOverview(overview = null) {
     this.robotOverview = overview;
     this.$("title").textContent = overview?.robot || "Roomba floor plan";
@@ -3824,6 +3868,7 @@ class RoombaHomeMapCard extends HTMLElement {
     view.textContent = reported.join(" · ");
     view.hidden = !reported.length;
     this.renderActiveErrors(overview?.active_errors);
+    this.renderMaintenanceReminders(overview?.maintenance_reminders);
     this.renderCurrentMission(overview?.current_mission);
     this.renderFloorActivity(overview?.floor_activity);
     this.updateMissionControls(overview?.mission_controls);

@@ -206,6 +206,39 @@ function maintenanceCard() {
   return { card, dialog };
 }
 
+test("maintenance reminders open the part list and dismiss only the selected warning", async () => {
+  const { card, dialog } = maintenanceCard();
+  card._hass = { async callWS() { return { parts: [], counters_available: true }; } };
+  const roller = { part: "mop_roller", remaining: 0, count_type: "combo_missions" };
+  const filter = { part: "filter", category: "replacement" };
+  const washer = { part: "dock_washing_system", category: "maintenance" };
+  const view = card.$("maintenance-reminders");
+  const overview = { maintenance_reminders: [roller, filter, washer] };
+  card.updateRobotOverview(overview);
+  assert.equal(view.hidden, false);
+  const [rollerRow, filterRow, washerRow] = view.children;
+  assert.equal(rollerRow.children[0].textContent, "Mop roller · 0 combo missions remaining");
+  assert.equal(filterRow.children[0].textContent, "Filter · Replacement due");
+  assert.equal(washerRow.children[0].textContent, "Dock washing system · Maintenance due");
+  await rollerRow.children[0].onclick();
+  assert.equal(dialog.open, true);
+  dialog.close();
+
+  rollerRow.children[1].onclick();
+  assert.equal(view.children.length, 2);
+  assert.equal(view.children[0].children[0].focused, true);
+  card.updateRobotOverview(overview);
+  assert.equal(view.children.length, 2);
+  card.updateRobotOverview({ maintenance_reminders: [roller] });
+  assert.equal(view.hidden, true);
+  card.updateRobotOverview({ maintenance_reminders: [] });
+  card.updateRobotOverview({ maintenance_reminders: [roller] });
+  assert.equal(view.hidden, false);
+  view.children[0].children[1].onclick();
+  assert.equal(view.hidden, true);
+  assert.equal(card.$("open-maintenance").focused, true);
+});
+
 test("maintenance shows provider links, zero, and a dust bag with no counter", async () => {
   const { card, dialog } = maintenanceCard();
   const shop = "https://www.irobot.es/es_ES/4849916.html";

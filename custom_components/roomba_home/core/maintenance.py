@@ -4,7 +4,7 @@ import re
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from ..compatibility import VALIDATED_MODEL
-from .telemetry import DOCK_PARTS, PARTS, RESETTABLE_PARTS
+from .telemetry import DOCK_PARTS, PARTS, RESETTABLE_PARTS, maintenance_due
 
 CATALOG_ROOT = "https://content-prod.iot.irobotapi.com/v2"
 MARKET = re.compile(r"[A-Z]{2}")
@@ -157,3 +157,23 @@ def maintenance_parts(
             }
         )
     return parts
+
+
+def maintenance_reminders(telemetry: dict, *, dock_recognized: bool) -> list[dict]:
+    """Describe known parts at their service limit using signed counters."""
+    reminders = []
+    for code, name in PARTS.items():
+        if code in DOCK_PARTS and not dock_recognized:
+            continue
+        prefix = f"part_{code}"
+        remaining = telemetry.get(f"{prefix}_remaining")
+        if maintenance_due(telemetry.get(f"{prefix}_usage"), remaining):
+            reminders.append(
+                {
+                    "part": name,
+                    "remaining": remaining,
+                    "count_type": telemetry.get(f"{prefix}_count_type"),
+                    "category": telemetry.get(f"{prefix}_category"),
+                }
+            )
+    return reminders

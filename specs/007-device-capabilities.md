@@ -156,6 +156,11 @@ becoming an indiscriminately false or zero.
   failure. Preserve authorized historical timestamps during an outage.
   Respect each diagnostic entity's read permissions and use the existing
   Roomba coordinator without an extra provider request or map dependency.
+- CAP-30: Show a reminder for each supported part with signed usage of
+  100% or a known remaining quantity of zero. Scope reminders to the
+  selected robot and recognized dock. Open the existing Maintenance
+  panel from the reminder. Keep dismissal local to the card view and
+  hide reminders while signed part data are unavailable.
 
 No endpoints, maps and empty states are invented with HA entities or capabilities. No
 physical errors are induced and no maps, accounts or data beyond the test have been
@@ -529,6 +534,7 @@ with API operations.
 | CAP-24 | Device status and controls without map geometry | [Overview validation](../docs/validation.md#robot-status-without-a-floor-plan) and [overview tests](../tests/ha/test_roomba_map_api.py) |
 | CAP-25 | Robot activation date sensor | [Native and signed validation](../docs/validation.md#robot-activation-date), [asset client tests](../tests/test_api_client.py), and [entity refresh tests](../tests/ha/test_telemetry_entities.py) |
 | CAP-26 | Reviewed counter reset from the maintenance panel | [Native control comparison](../docs/validation.md#counter-reset-from-the-maintenance-panel), [WebSocket permissions](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
+| CAP-30 | Signed maintenance reminders on the robot card | [Native observation](../docs/validation.md#maintenance-reminders), [counter tests](../tests/test_maintenance.py), [WebSocket tests](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 | CAP-27 | Device settings panel with linked entity actions | [Android and card validation](../docs/validation.md#device-settings-on-the-card), [WebSocket permissions](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 | CAP-28 | Reviewed locate and reboot on the card | [Card validation](../docs/validation.md#locate-and-reboot-from-device-settings), [WebSocket permissions](../tests/ha/test_roomba_map_api.py), [transport tests](../tests/test_application.py), and [card tests](../tests/frontend/map-card.test.cjs) |
 | CAP-29 | Roomba connection diagnostics in Device settings | [Native and card validation](../docs/validation.md#connection-details-in-device-settings), [WebSocket permissions](../tests/ha/test_roomba_map_api.py), and [card tests](../tests/frontend/map-card.test.cjs) |

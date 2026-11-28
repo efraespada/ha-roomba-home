@@ -1923,7 +1923,21 @@ async def test_robot_overview_is_available_without_maps_and_reuses_the_current_a
 ):
     robot_id = "fixture-0"
     robot = configured.data[robot_id]
-    vacuum_status = replace(robot, phase="charge", cycle="none", connected=True, battery=0)
+    vacuum_status = replace(
+        robot,
+        phase="charge",
+        cycle="none",
+        connected=True,
+        battery=0,
+        telemetry=robot.telemetry
+        | {
+            "parts_available": True,
+            "part_148_usage": 100,
+            "part_148_remaining": 0,
+            "part_148_category": "replacement",
+            "part_148_count_type": "combo_missions",
+        },
+    )
     configured.async_set_updated_data({robot_id: vacuum_status})
     client = await hass_ws_client()
 
@@ -1937,6 +1951,14 @@ async def test_robot_overview_is_available_without_maps_and_reuses_the_current_a
     expected = {"connected": True, "battery_pct": 0, "activity": "docked"}
     assert floor["robot_status"] == expected
     assert floor["can_clean_everywhere"] is True
+    assert floor["maintenance_reminders"] == [
+        {
+            "part": "mop_roller",
+            "remaining": 0,
+            "count_type": "combo_missions",
+            "category": "replacement",
+        }
+    ]
     configured.client.map_geometry.reset_mock()
 
     with patch.object(configured, "show_maps", False):
@@ -1945,6 +1967,7 @@ async def test_robot_overview_is_available_without_maps_and_reuses_the_current_a
         assert floor["robot"] == current["robot"]
         assert current["robot_status"] == expected
         assert current["can_clean_everywhere"] is True
+        assert current["maintenance_reminders"] == floor["maintenance_reminders"]
         assert "map" not in current
         configured.client.map_geometry.assert_not_called()
 
@@ -1999,14 +2022,24 @@ async def test_robot_overview_is_available_without_maps_and_reuses_the_current_a
         }
         assert unavailable["current_mission"] is None
         assert not unavailable["dock_controls"] and not unavailable["active_errors"]
+        assert unavailable["maintenance_reminders"] == []
 
-    assert (await request(11, entity="vacuum.other"))["error"][
+        configured.async_set_updated_data(
+            {
+                robot_id: replace(
+                    vacuum_status, telemetry=vacuum_status.telemetry | {"parts_available": False}
+                )
+            }
+        )
+        assert (await request(11))["result"]["maintenance_reminders"] == []
+
+    assert (await request(12, entity="vacuum.other"))["error"][
         "code"
     ] == "robot_overview_unavailable"
     with patch.dict(hass.data, {DATA_COMPONENT: None}):
-        assert (await request(12))["error"]["code"] == "robot_overview_unavailable"
+        assert (await request(13))["error"]["code"] == "robot_overview_unavailable"
     configured.async_set_updated_data({})
-    assert (await request(13))["error"]["code"] == "robot_overview_unavailable"
+    assert (await request(14))["error"]["code"] == "robot_overview_unavailable"
 
 
 async def test_current_mission_is_covered_before_the_first_saved_floor_and_without_an_itinerary(

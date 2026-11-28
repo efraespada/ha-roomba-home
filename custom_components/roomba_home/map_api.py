@@ -28,7 +28,7 @@ from .core.furniture_targets import furniture_regions
 from .core.history import DEFAULT_HISTORY_DAYS, HISTORY_WINDOWS
 from .core.live_coverage import CELL_SIZE
 from .core.live_maps import POSITION_ACTIVITIES
-from .core.maintenance import maintenance_parts
+from .core.maintenance import maintenance_parts, maintenance_reminders
 from .core.maps import RegionKind
 from .core.point_maps import with_archive_destinations
 from .core.problems import active_device_errors
@@ -107,6 +107,11 @@ def _robot_overview(hass, vacuum, state, permissions, can_control, now):
         if updated
         else {},
         "active_errors": active_device_errors(state) if updated else [],
+        "maintenance_reminders": maintenance_reminders(
+            state.telemetry, dock_recognized=state.capabilities.dock.recognized is True
+        )
+        if updated and state.telemetry.get("parts_available") is True
+        else [],
         "can_clean_everywhere": can_control
         and connected is True
         and activity in {"docked", "idle"}

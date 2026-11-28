@@ -333,6 +333,10 @@ def project_telemetry(shadows):
     return result
 
 
+def maintenance_due(usage, remaining):
+    return (usage is not None and usage >= 100) or remaining == 0
+
+
 def project_parts(document, catalog=None):
     """Project catalog IDs, never robot_id, URLs, reset author or timestamps."""
     if not isinstance(document, dict) or not isinstance(document.get("parts"), list):

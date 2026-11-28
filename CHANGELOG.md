@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.100.0
+
+- See parts due for service on the robot's dashboard card and open
+  **Maintenance** directly from each reminder. The reminders come from
+  Roomba's reported usage and remaining counts.
+
 ## 0.99.0
 
 - See each floor's recorded map creation and revision dates and open its
